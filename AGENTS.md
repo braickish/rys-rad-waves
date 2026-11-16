@@ -18,9 +18,10 @@ camera), `?noparticles`.
 
 Controls: every input is the same rail-to-rail carve. Left/Right carve counterclockwise/clockwise (as
 seen from the beach); Up/Down carve whichever way swings the nose up/down the face, stopping at
-straight up/down. Space pumps (best on the way down), Shift leans harder (tighter turns, more drive;
-also crouches in a barrel), C switches camera (`?cam=2` is a close-up for testing). Touch: drag on
-the left half to carve toward where you point (harder the further you push), buttons for pump and lean.
+straight up/down. Holding a turn progressively leans you into it harder (`hardAfter`: tighter arc,
+more drive, more rail roll). Space pumps (best on the way down), C switches camera (`?cam=2` is a
+close-up for testing). Shift crouches, only needed on the barrel wave. Touch: drag on the left half to
+carve toward where you point (harder the further you push), a button to pump.
 
 ## How it works
 
@@ -45,8 +46,12 @@ the left half to carve toward where you point (harder the further you push), but
     without turning and you ride out onto the flats (`tFlats`) and bog down.
   - Moves are decided by where you hit the top and how steep: in the whitewater (behind `curlZone`)
     → **re-entry**, at the curl → **snap**, on the open face → **off the lip** (shallow hits are a
-    **top turn**). Within `comboWindow` of a bottom turn it's a combo. Heading back into the
-    whitewater from a cutback → **cutback** rebound, firing out at `reboundSpeed`.
+    **top turn**). Within `comboWindow` of a bottom turn it's a combo. Snaps are a short fin release:
+    a quick assisted pivot back down the face (`snapRate`, ~0.17s), then control is yours again.
+  - Turning back into the whitewater (a cutback): you must meet its front edge (`foamContact`) in the
+    top two thirds of the wave (`reboundMinHeight`) and be turning as you hit: Left → **rebound**
+    (nose swings down and back down the line), Right → **rebound 180** (spins around through the
+    top). Low, or not turning, and the whitewater buries you. Assisted pivots don't add speed.
     Sit in heavy foam longer than `foamLimit` and it takes you. Airs: straight up the open face above
     `airSpeed`.
   - Barrel wave: same model, the rideable face tops out under the roof, crouch to fit the tube.

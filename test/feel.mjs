@@ -7,7 +7,7 @@ function run(r, policy, secs, onEvent = () => {}) {
   for (; i < secs / dt; i++) { stepRider(r, policy(r, i * dt), dt); r.events.forEach((e) => onEvent(e, i * dt)); if (r.mode === 'wipe') break; }
   return i * dt;
 }
-const out = [];
+const out = { push: (line) => console.log(line), join: () => '' }; // print as we go
 const moveName = (e) => (e.type === 'launch' ? 'AIR' : e.move) + (e.combo ? '+combo' : '') + (process.env.V ? `@xs${e.xs?.toFixed(1)}/${mph(e.speed)}mph` : '');
 
 // 1. Climb: bottom of the pocket to the top, holding Up.
@@ -35,12 +35,36 @@ for (const [label, xs] of [['into the whitewater', -6], ['at the curl', -3], ['o
   run(r, (r, t) => ({ tilt: 1 }), 1.5, (e) => { if (e.type === 'move' || e.type === 'launch') moves.push(moveName(e)); });
   out.push(`bottom turn then hit the top ${label}: ${moves.join(' -> ')}`);
 }
-// 6. Cutback: swing the nose down and around back toward the curl (hold Right).
-for (const [label, o] of [['from the pocket', { xs: 1.5, t: 8, phi: 0, speed: 12 }], ['from the shoulder', { xs: 6, t: 8, phi: 0, speed: 10 }]]) {
+// 6. Turning back into the whitewater: must be high, and turning as you hit.
+// Riders start heading back toward the curl (phi ~ pi) and hold the given
+// input until something happens.
+for (const [label, o, inp] of [
+  ['high, turning Left', { xs: 0.4, t: 7.5, phi: 3.05, speed: 12 }, { turn: 1 }],
+  ['high, turning Right', { xs: 1.5, t: 7.5, phi: 2.9, speed: 12 }, { turn: -1 }],
+  ['high, not turning', { xs: 1.5, t: 7.5, phi: 3.05, speed: 12 }, {}],
+  ['low on the wave, turning Left', { xs: -1, t: 13.2, phi: 3.05, speed: 12 }, { turn: 1 }],
+]) {
   const r = start(o); const moves = [];
-  run(r, (r, t) => ({ turn: t < 0.9 ? -1 : 0 }), 4, (e) => { if (e.type === 'move') moves.push(moveName(e)); });
-  out.push(`cutback ${label} (Right 0.9s): ${moves.join(' -> ') || 'no moves'}, now ${mph(r.speed)} mph, ${r.mode === 'wipe' ? r.wipeReason : 'riding'}`);
+  let t0 = null, pivot = null, steps = 0;
+  for (; steps < 2.5 / dt; steps++) {
+    const holding = !moves.length && !r.assist;
+    stepRider(r, holding ? inp : {}, dt);
+    for (const e of r.events) if (e.type === 'move') moves.push(moveName(e));
+    if (r.assist && t0 === null) t0 = steps * dt;
+    if (t0 !== null && !r.assist && pivot === null) pivot = steps * dt - t0;
+    if (r.mode === 'wipe') break;
+  }
+  out.push(`into the whitewater ${label}: ${moves.join(' -> ') || '-'}${pivot !== null ? ` (pivot ${pivot.toFixed(2)}s)` : ''}, ${r.mode === 'wipe' ? 'WIPE: ' + r.wipeReason : 'riding, heading ' + (r.phi * 57.3).toFixed(0) + ' deg'}`);
 }
+// 6a. Snap: how long the release pivot takes before you're back in control.
+{ const r = start({ xs: 1, t: 7, phi: 1.2, speed: 13 }); let t0 = null, dur = null;
+  for (let i = 0; i < 1 / dt; i++) { stepRider(r, {}, dt); if (r.assist && t0 === null) t0 = i * dt; if (t0 !== null && !r.assist && dur === null) dur = i * dt - t0; }
+  out.push(`snap at the curl: release pivot ${dur === null ? '?' : dur.toFixed(2) + 's'}, then heading ${(r.phi * 57.3).toFixed(0)} deg`); }
+// 6c. Holding a turn leans in harder: tighter arc.
+{ const a = start({ xs: 2, t: 10, phi: 0, speed: 12 }), b = start({ xs: 2, t: 10, phi: 0, speed: 12 });
+  for (let i = 0; i < 0.25 / dt; i++) stepRider(a, { turn: -1 }, dt);
+  for (let i = 0; i < 0.6 / dt; i++) stepRider(b, { turn: -1 }, dt);
+  out.push(`lean builds while holding a turn: after 0.25s hard=${a.hard.toFixed(2)}, after 0.6s hard=${b.hard.toFixed(2)}`); }
 // 6b. Top turn, then let go: you should keep heading down (no automatic turn).
 { const r = start({ xs: 2, t: 6.5, phi: 0.9, speed: 12 }); let phiAfter = null;
   run(r, (r, t) => { if (t > 0.6 && phiAfter === null) phiAfter = r.phi; return {}; }, 2.5);
@@ -55,7 +79,10 @@ for (const [label, o] of [['from the pocket', { xs: 1.5, t: 8, phi: 0, speed: 12
     if (up && r.t < TUNE.tTop + 1) up = false;
     if (!up && r.t > 12.6) up = true;
     speedSum += r.speed; n++; if (r.xs > -2 && r.xs < 6) inPk++;
-    if (r.xs > 7 || (r.xs > 4 && r.speed < 9)) return { turn: -1 };
+    // Cutback: carve back toward the curl, then climb to meet the whitewater
+    // high, turning Left as you hit it.
+    if (Math.cos(r.phi) < 0) return r.t > 8 ? { tilt: 1 } : { turn: 1 };
+    if (r.t < 9 && (r.xs > 7 || (r.xs > 4 && r.speed < 9))) return { turn: -1 }; // cut back from high up
     return { tilt: up ? 1 : -1, pump: !up };
   }, 30, (e) => { if (e.type === 'move') counts[moveName(e)] = (counts[moveName(e)] || 0) + 1; });
   out.push(`pocket rider: ${T.toFixed(0)}s, avg ${mph(speedSum / n)} mph, ${Math.round(100 * inPk / n)}% in pocket, ${r.mode === 'wipe' ? r.wipeReason : 'still riding'}\n   moves: ${JSON.stringify(counts)}`); }
@@ -64,4 +91,4 @@ for (const [label, o] of [['from the pocket', { xs: 1.5, t: 8, phi: 0, speed: 12
   out.push(`Left/Right every 0.4s: ${T.toFixed(0)}s, ${r.mode === 'wipe' ? r.wipeReason : 'still riding'}`); }
 { const r = start(); const T = run(r, () => ({}), 30);
   out.push(`no input: ${T.toFixed(1)}s, ${r.mode === 'wipe' ? r.wipeReason : 'still riding'}`); }
-console.log(out.join('\n'));
+

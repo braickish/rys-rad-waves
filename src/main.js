@@ -33,7 +33,9 @@ let autoUp = false;
 function autopilot() {
   if (autoUp && rider.t < TUNE.tTop + 1) autoUp = false;
   if (!autoUp && rider.t > 12.6) autoUp = true;
-  if (rider.xs > 7 || (rider.xs > 4 && rider.speed < 9)) return { turn: -1 };
+  // Cutback from high up, climb back to meet the whitewater high, turn as you hit it.
+  if (Math.cos(rider.phi) < 0) return rider.t > 8 ? { tilt: 1 } : { turn: 1 };
+  if (rider.t < 9 && (rider.xs > 7 || (rider.xs > 4 && rider.speed < 9))) return { turn: -1 };
   return { tilt: autoUp ? 1 : -1, pump: !autoUp, crouch: rider.inBarrel };
 }
 
@@ -70,7 +72,7 @@ addEventListener('pointermove', (e) => {
 const endStick = (e) => { if (e.pointerId === stickId) { stickId = null; touch.stick = [0, 0]; } };
 addEventListener('pointerup', endStick);
 addEventListener('pointercancel', endStick);
-for (const [id, prop] of [['btn-pump', 'pump'], ['btn-crouch', 'crouch']]) {
+for (const [id, prop] of [['btn-pump', 'pump']]) {
   const b = $(id);
   b.addEventListener('pointerdown', (e) => { e.preventDefault(); touch[prop] = true; if (state !== 'play') startOrRestart(); });
   b.addEventListener('pointerup', () => { touch[prop] = false; });
@@ -132,7 +134,8 @@ function handleEvents() {
         offLip: ['Off the lip!', 350, 0.25],
         snap: ['SNAP!', 500, 0.35],
         reentry: ['RE-ENTRY!', 700, 0.4],
-        cutback: ['CUTBACK!', 500, 0.4],
+        rebound: ['REBOUND!', 500, 0.4],
+        rebound180: ['REBOUND 180!', 750, 0.45],
       };
       const [name, base, spray] = MOVES[e.move] || ['Nice', 100, 0];
       // Repeating the same move back to back pays less; linking a bottom

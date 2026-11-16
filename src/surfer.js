@@ -73,10 +73,10 @@ export function surferObjects(pose, rider, info, dt) {
   const L = v3.norm(v3.cross(u, f)); // rider's left (toward the wave when going right)
 
   // Rail roll: in a hard turn the board banks onto its inside rail. Harder
-  // and faster turns roll it further; leaning harder (Shift) more still.
+  // and faster turns roll it further; holding a turn (leaning harder) more still.
   const speed0 = v3.len(rider.vel);
   const rollT = rider.mode === 'surf'
-    ? clamp(info.turn * 0.17 * clamp(speed0 / 7, 0.3, 1.4) * (rider.crouch ? 1.25 : 1), -MAX_ROLL, MAX_ROLL)
+    ? clamp(info.turn * 0.17 * clamp(speed0 / 7, 0.3, 1.4) * (1 + 0.25 * (rider.hard || 0)), -MAX_ROLL, MAX_ROLL)
     : 0;
   pose.roll = (pose.roll || 0) + (rollT - (pose.roll || 0)) * (1 - Math.exp(-dt * 10));
   // Tilt the board's up vector toward the inside of the turn (+ roll = left
@@ -88,7 +88,7 @@ export function surferObjects(pose, rider, info, dt) {
   const speed = v3.len(rider.vel);
   const turnAmt = clamp(Math.abs(info.turn) / 3, 0, 1);
   const vUp = v3.dot(rider.vel, info.e2);
-  let kneeT = 0.25 + 0.45 * turnAmt + 0.15 * clamp(vUp / 3, 0, 1);
+  let kneeT = 0.25 + 0.45 * turnAmt + 0.15 * clamp(vUp / 3, 0, 1) + 0.2 * (rider.hard || 0);
   if (info.pump) kneeT = vUp > 0.3 ? 0.75 : 0.05; // compress going up, extend driving down
   if (rider.crouch) kneeT = 0.92;
   if (rider.mode === 'air') kneeT = 0.7;
