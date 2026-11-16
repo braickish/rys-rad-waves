@@ -40,8 +40,8 @@ the left half to carve toward where you point (harder the further you push), but
     (`pump`) helps on the face, most on the drop.
   - Turns: the turn radius depends on height on the face (`rTop` snappy up top, `rBottom` a long
     rail-to-rail arc at the bottom), so turn rate = speed / radius. A bottom turn (nose coming up,
-    low on the face) generates speed (`bottomDrive`). At the bottom with no input the board carves its
-    own bottom turn.
+    low on the face) generates speed (`bottomDrive`). There's no automatic bottom turn: head down
+    without turning and you ride out onto the flats (`tFlats`) and bog down.
   - Moves are decided by where you hit the top and how steep: in the whitewater (behind `curlZone`)
     → **re-entry**, at the curl → **snap**, on the open face → **off the lip** (shallow hits are a
     **top turn**). Within `comboWindow` of a bottom turn it's a combo. Heading back into the
@@ -49,7 +49,8 @@ the left half to carve toward where you point (harder the further you push), but
     Sit in heavy foam longer than `foamLimit` and it takes you. Airs: straight up the open face above
     `airSpeed`.
   - Barrel wave: same model, the rideable face tops out under the roof, crouch to fit the tube.
-- `src/surfer.js`: the articulated surfer. Two-bone IK legs (feet planted on the board) and arms.
+- `src/surfer.js`: the articulated surfer on a surfboard (pointed yellow nose, squared tail, fin).
+  Stance toward the tail (`STANCE`), chest opened toward the nose. Two-bone IK legs and arms.
   Knees bend with turns, crouch, and pumping (compress on the way up, extend driving down); the body
   leans into turns and the inside hand drags toward the water in a big one.
 - `src/mesh.js`: builds the static water mesh (plus far flat ocean), per-vertex foam/translucency
@@ -67,7 +68,7 @@ node test/feel.mjs     # the feel numbers: climb time, drop speed, cutback re-en
 node test/controls.mjs # human-style inputs on both waves: no glitches, Up/Down never flips you
 node test/pocket.mjs   # where different riding styles spend their time vs. the curl
 node test/plot-slices.mjs out.svg [crumble|barrel]   # draw the wave cross-sections
-node test/drive.mjs <outPrefix> "<query>" <ms,...> ['<input json>']   # headless Chrome screenshots + console
+node test/drive.mjs test/out/<name> "<query>" <ms,...> ['<input json>']   # headless Chrome screenshots + console (test/out is git-ignored)
 MOBILE=1 node test/drive.mjs ...   # same, emulating a phone (390x844, touch)
 ```
 

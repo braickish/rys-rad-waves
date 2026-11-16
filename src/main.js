@@ -164,7 +164,7 @@ function updateCamera(dt) {
     look = [p[0] - 1.8 * near, 1.0 + p[1] * 0.55, p[2] - 0.5];
   } else if (camMode === 2) {
     // Close-up (testing): beside the rider, toward the beach.
-    want = [p[0] + 2.0, p[1] + 1.3, p[2] + 3.0];
+    want = [p[0] + 2.4, p[1] + 1.5, p[2] + 4.2];
     look = [p[0], p[1] + 0.8, p[2]];
   } else {
     const h = v3.norm([rider.heading[0], 0, rider.heading[2]]);
