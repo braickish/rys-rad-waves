@@ -99,21 +99,24 @@ button).
     then drop back down. Climbing up the whitewater from the flats behind it, you pop onto it and
     float once you're above `floaterHeight` of the wave (no need to reach the very top), and the foam
     drags less (`climbFoamDrag`) and doesn't count toward catching you while you climb it.
-  - **Slash:** on the way up out of a bottom turn, start the Right turn early, still down in the
-    flats or at the very bottom (`slashLow`, heading up at least `slashClimb`, within `slashWindow`
-    of starting it; also in the barrel). The fins hold for `slashHold` (an ordinary carve; let go
-    before then and it's just a turn), then release, and that's when the move scores: your line keeps carving (so you carry on
-    up the face) while the board swings round ahead of it (`r.slide`, at `slashSpin` up to
-    `slashSlideMax`, drawn via the heading in `syncPose`). Let go, or once the board points
-    `slashEnd` down, the fins grip and your line swings round to the board (`slashGrip`). Start the
-    Right turn any higher and it's an ordinary turn (a snap / off the lip at the top). While it
-    slides your line partly follows the board (`slashFollow`), and sliding sideways scrubs speed
-    (`slashDrag`, plus `moveScrub.slash` up front; nothing builds speed meanwhile), so you don't
-    carry far up the face and you settle back toward the pocket (~31 -> 20 mph across the slide on
-    the point). In the barrel (`slashTube` overrides) it's a smaller, scrubbier slide: about half
-    the board swing, your own carve mostly gives way to it (`slashCarve`), and harder drag. No
-    `moveCalm` after it. `node test/slash.mjs` reports and checks all of this. History (2026-11-16): a mid-face Right-turn
-    slash, then a looser version of it, both slashed too often; the user specified this rule.
+  - **Slash:** out of a real bottom turn (you came off the bottom pointing at least
+    `slashDropAngle` down, below `slashDropLow`, within `slashDropRecent`), start the Right turn
+    early, still at the very bottom (`slashLow`; the reef's is higher because its water lifts you
+    fast) with the nose well up the face (`slashClimb`), within `slashWindow` of starting it; also
+    in the barrel, with the same bottom-turn requirement. Little S-turns in the pocket or the barrel
+    never slash. The fins hold for `slashHold` (an ordinary carve; let go before then and it's just
+    a turn), then release, and that's when the move scores. While it slides the board swings round
+    ahead of your line (`r.slide`, at `slashSpin` up to `slashSlideMax`, drawn via the heading in
+    `syncPose`); your line follows part of it (`slashFollow`) and only some of your own carve keeps
+    turning you (`slashCarve`). Sideways, the board scrubs speed hard (`slashDrag`, plus
+    `moveScrub.slash` up front, nothing builds speed meanwhile): ~30 -> 17 mph on a short slash on
+    the point. Let go, or once the board points `slashEnd` down, the fins grip and your line swings
+    round to the board (`slashGrip`). In the barrel (`slashTube` overrides) it's a smaller,
+    scrubbier slide. An armed slash takes priority over pulling in. Start the Right turn higher and
+    it's an ordinary turn (a snap / off the lip at the top). No `moveCalm` after it.
+    `node test/slash.mjs` reports and checks all of this, including player-style timing. History
+    (2026-11-16): a mid-face Right-turn slash, then a looser one, both slashed too often; the user
+    specified the low-start rule, then asked for more scrub, less turn and a real bottom turn.
   - Moves need at least `moveGap` (1s) between them. Inside the gap the lip is just a plain turn and
     the whitewater just slows you.
     Sit in heavy foam longer than `foamLimit` and it takes you. Land an air backwards (nose pointing

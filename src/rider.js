@@ -38,7 +38,7 @@ const RIDER_TUNE = {
   hardRadius: 0.7, // ... and a tighter arc
   snapRate: 13,
   moveCalm: 0.95,
-  moveScrub: { slash: 0.18, snap: 0.08, offLip: 0.07, reentry: 0.08, topTurn: 0.04, lip180: 0.1, floater: 0.05, rebound: 0.1, rebound180: 0.1, revert: 0.05, land: 0.05 }, // speed each move costs // no speeding up for this long after a move (s); 0 = off (?moveaccel)
+  moveScrub: { slash: 0.25, snap: 0.08, offLip: 0.07, reentry: 0.08, topTurn: 0.04, lip180: 0.1, floater: 0.05, rebound: 0.1, rebound180: 0.1, revert: 0.05, land: 0.05 }, // speed each move costs // no speeding up for this long after a move (s); 0 = off (?moveaccel)
   fakieTime: 0.7, // after landing backwards, ride it this long (s) ...
   fakieSpinRate: 18, // ... then the board spins back round this fast (rad/s)
   lip180Rate: 14, // the quick 180 off the top when you turn toward the whitewater (rad/s) // how fast the board pivots back down in a snap (rad/s): quick, not instant
@@ -73,23 +73,26 @@ const RIDER_TUNE = {
   // board swings round sideways while you carry on up the face (the tail
   // sliding), then the fins grip and you go where the board points. Start the
   // Right turn any higher and it's an ordinary turn (a snap up at the lip).
-  slashLow: 0.2, // start the Right turn below this height on the face (the flats count) ...
-  slashClimb: 0.25, // ... while heading up the face (sin of angle) ...
+  slashLow: 0.15, // start the Right turn below this height on the face (the flats count) ...
+  slashClimb: 0.45, // ... with the nose well up the face (sin of angle) ...
+  slashDropAngle: 0.7, // ... out of a real bottom turn: pointing at least this steeply down (sin, ~45 deg) ...
+  slashDropRecent: 0.9, // ... low on the face (below slashDropLow) within this long before (s)
+  slashDropLow: 0.3,
   slashWindow: 0.12, // ... the turn having started this recently (s)
   slashPocket: 0.15, // not out on the shoulder (pocket power)
   slashMinSpeed: 5, // m/s
   slashHold: 0.18, // the fins hold this long into the turn (a normal carve) before they release (s); let go before and it's just a turn
-  slashSpin: 7, // how fast the board swings round on the slide (rad/s) ...
-  slashSlideMax: 1.4, // ... up to this far ahead of where you're going (rad, ~80 deg) ...
+  slashSpin: 5, // how fast the board swings round on the slide (rad/s) ...
+  slashSlideMax: 1.0, // ... up to this far ahead of where you're going (rad, ~57 deg) ...
   slashTime: 0.45, // ... for up to this long after the release while you hold the turn (s)
   slashEnd: 1.05, // the board stops swinging once it points this far down the face (rad, ~60 deg)
-  slashFollow: 0.4, // while it slides, your line swings round this fraction as fast as the board, so you don't carry on up as far
+  slashFollow: 0.25, // while it slides, your line swings round this fraction as fast as the board, so you don't carry on up as far
   slashGrip: 9, // then the fins grip and your line swings round to the board this fast (rad/s)
-  slashCarve: 1, // how much your own carve keeps turning you while it slides (1 = all of it)
-  slashDrag: 2.4, // while the board is sideways it scrubs speed (1/s, at fully sideways), so you don't carry on up as far and stay nearer the pocket
+  slashCarve: 0.5, // how much your own carve keeps turning you while it slides (1 = all of it)
+  slashDrag: 3.2, // while the board is sideways it scrubs speed (1/s, at fully sideways), so you don't carry on up as far and stay nearer the pocket
   // In the barrel a slash is a smaller, scrubbier slide: it turns about half as
   // far and scrubs harder (these override the settings above in the tube).
-  slashTube: { slashSpin: 5, slashSlideMax: 0.45, slashFollow: 0.2, slashCarve: 0.2, slashDrag: 4.0 },
+  slashTube: { slashSpin: 4, slashSlideMax: 0.35, slashFollow: 0.15, slashCarve: 0.3, slashDrag: 5.0 },
   standH: 1.75,
   crouchH: 1.1,
 };
@@ -333,6 +336,7 @@ function stepSurf(r, input, dt) {
   const inTube = r.tube && !r.tube.pullIn;
   if (!r.slash && !r.slide && steer < 0 && r.rightHeld <= T.slashWindow && r.moveCooldown === 0 && !r.assist && !r.floater && !r.fakie
     && r.speed > T.slashMinSpeed && height < T.slashLow
+    && r.time - (r.steepDropTime ?? -9) < T.slashDropRecent // a real bottom turn, not a little turn in the pocket
     && Math.sin(r.phi) > T.slashClimb && Math.cos(r.phi) > -0.5 // on the way up (not cutting back along the wave)
     && (inTube || (pk > T.slashPocket && foam < 0.3))) {
     // Armed: the fins hold for a moment (an ordinary carve), then release.
@@ -401,6 +405,7 @@ function stepSurf(r, input, dt) {
 
   // Track bottom turns (for moves and combos): down low heading down, then up.
   if (sinBefore < -0.3 && height < 0.45) r.bottomArmed = true;
+  if (sinBefore < -T.slashDropAngle && height < T.slashDropLow) r.steepDropTime = r.time; // (for the slash: came off the bottom pointing steeply down)
   if (r.bottomArmed && Math.sin(r.phi) > 0.3) {
     r.bottomArmed = false;
     if (height < 0.6) { r.lastBottomTurn = r.time; r.events.push({ type: 'move', move: 'bottomTurn', speed: r.speed, xs: r.xs }); }
@@ -490,7 +495,7 @@ function stepSurf(r, input, dt) {
 
   const ready = r.moveCooldown === 0; // moves need a gap between them
   // Pulling into the barrel: up near the lip close to the curl and turning.
-  if (WAVE.tube && !r.tube && !r.assist && !r.floater && r.xs < T.pullInZone && r.xs > -2
+  if (WAVE.tube && !r.tube && !r.assist && !r.floater && !r.slash && r.xs < T.pullInZone && r.xs > -2
     && height > T.pullInHeight && r.time - (r.lastTurnTime ?? -9) < 0.15) {
     enterTube(r, true);
     syncPose(r, frameAt(r.xs, r.t));

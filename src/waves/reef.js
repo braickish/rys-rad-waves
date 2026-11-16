@@ -56,6 +56,7 @@ export default {
     pullInSpeed: 4.5, // ... and stall (the curl catches you up this fast, m/s)
     pullInLine: 13.0, // ... settling here on the face while the barrel comes over you
     tubeTooHigh: 2.5, // further than this above the roof line as the lip throws = over the falls
+    slashLow: 0.3, // the water rushing up the face lifts you fast: the slash window starts a little higher here
     roofCrash: 0.9, // driving into the roof steeper than this (sin of angle) = over the falls // this far below the bottom of the face and the lip lands on you
   },
 };
