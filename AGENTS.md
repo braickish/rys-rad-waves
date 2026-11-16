@@ -38,12 +38,16 @@ carve toward where you point (harder the further you push), a button to pump.
   - Speed: the pocket feeds you toward a fast cruising speed (`vPocket`, faster higher on the face);
     the shoulder, flat water and foam bleed you down (`vLow`, `vFoam`). Dropping pays a lot (`drop`),
     climbing costs little (`climb`), so getting high is easy and every drop is a burst; dropping from
-    the top third of the pocket pays most (`topDropBoost`, scaled by pocket power so the shoulder still bogs). Pumping
+    the top half of the pocket pays most (`topDropBoost`, scaled by pocket power so the shoulder still bogs).
+    Above `softMax` (~32 mph) speed bleeds off fast, hard cap `maxSpeed` (~38 mph), so stacked moves
+    can't run away. Pumping
     (`pump`) helps on the face, most on the drop.
   - Turns: the turn radius depends on height on the face (`rTop` snappy up top, `rBottom` a long
     rail-to-rail arc at the bottom), so turn rate = speed / radius. A bottom turn (nose coming up,
     low on the face) generates a lot of speed (`bottomDrive`); carving up near the top adds some too
-    (`topDrive`), and cruising speed and pumping both climb with height, so the high line is fast. There's no automatic bottom turn: head down
+    (`topDrive`), and cruising speed and pumping both climb with height, so the high line is fast. A turn started while pointing down the face
+    (`bottomCarve`) commits at once: full lean, a slightly wider arc (`bottomCarveRadius`), more drive
+    (`bottomCarveDrive`). There's no automatic bottom turn: head down
     without turning and you ride out onto the flats (`tFlats`) and bog down.
   - Moves are decided by where you hit the top and how steep: in the whitewater (behind `curlZone`)
     → **re-entry**, at the curl → **snap**, on the open face → **off the lip** (shallow hits are a
@@ -52,7 +56,13 @@ carve toward where you point (harder the further you push), a button to pump.
   - Turning back into the whitewater (a cutback): you must meet its front edge (`foamContact`) in the
     top two thirds of the wave (`reboundMinHeight`) and be turning as you hit: Left → **rebound**
     (nose swings down and back down the line), Right → **rebound 180** (spins around through the
-    top). Low, or not turning, and the whitewater buries you. Assisted pivots don't add speed.
+    top). Rebound needs the top half (`reboundMinHeight`), the 180 the top third
+    (`rebound180MinHeight`; Right in between is a plain rebound). Low, or not turning, and the
+    whitewater buries you. Assisted pivots don't add speed.
+  - **Floater:** come up into the whitewater at a shallow angle heading down the line and you ride
+    along the top of it until you clear it (`floaterMax`), then drop back down.
+  - Moves need at least `moveGap` (1s) between them. Inside the gap the lip is just a plain turn and
+    the whitewater just slows you.
     Sit in heavy foam longer than `foamLimit` and it takes you. Airs: straight up the open face above
     `airSpeed`.
   - Barrel wave: same model, the rideable face tops out under the roof, crouch to fit the tube.

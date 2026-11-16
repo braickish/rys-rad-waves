@@ -67,6 +67,22 @@ for (const [label, o, inp] of [
   for (let i = 0; i < 0.25 / dt; i++) stepRider(a, { turn: -1 }, dt);
   for (let i = 0; i < 0.6 / dt; i++) stepRider(b, { turn: -1 }, dt);
   out.push(`lean builds while holding a turn: after 0.25s hard=${a.hard.toFixed(2)}, after 0.6s hard=${b.hard.toFixed(2)}`); }
+// 6d. Floater: come up into the whitewater at a shallow angle heading down the line.
+{ const r = start({ xs: -5, t: 8, phi: 0.5, speed: 13 }); const moves = []; let floatT = 0;
+  run(r, (r) => { if (r.floater) floatT += dt; return {}; }, 2, (e) => { if (e.type === 'move') moves.push(moveName(e)); });
+  out.push(`shallow up into the whitewater: ${moves.join(' -> ') || '-'}, floated ${floatT.toFixed(2)}s, ${r.mode === 'wipe' ? 'WIPE ' + r.wipeReason : 'riding'}`); }
+// 6e. Bottom turn started pointing down vs a held turn from level: speed gained over 0.5s.
+for (const [label, phi] of [['started pointing down', -1.0], ['started level', 0.0]]) {
+  const r = start({ xs: 2, t: 13.2, phi, speed: 12 }); const v0 = r.speed;
+  run(r, () => ({ turn: 1 }), 0.5);
+  out.push(`turn held 0.5s at the bottom, ${label}: ${mph(v0)} -> ${mph(r.speed)} mph (hard ${r.hard.toFixed(2)}, carve ${r.bottomCarve})`);
+}
+// 6f. Moves can't stack: a snap straight into the whitewater within a second.
+// Snap high in the whitewater zone, then immediately carve Left back into the
+// foam (which would be a rebound if moves could stack).
+{ const r = start({ xs: -1.5, t: 6.2, phi: 1.3, speed: 13 }); const moves = []; let foamHits = 0;
+  const T = run(r, (r, t) => { if (Math.cos(r.phi) < -0.15 && r.foam > 0.25) foamHits++; return { turn: t > 0.15 ? 1 : 0 }; }, 1.5, (e, t) => { if (e.type === 'move' && e.move !== 'bottomTurn') moves.push(`${e.move}@${t.toFixed(2)}s`); });
+  out.push(`snap, then carve straight back into the foam: moves ${moves.join(', ')}; ${(foamHits * dt).toFixed(2)}s heading back in foam; ${r.mode === 'wipe' ? 'WIPE at ' + T.toFixed(2) + 's: ' + r.wipeReason : 'riding'}`); }
 // 6b. Top turn, then let go: you should keep heading down (no automatic turn).
 { const r = start({ xs: 2, t: 6.5, phi: 0.9, speed: 12 }); let phiAfter = null;
   run(r, (r, t) => { if (t > 0.6 && phiAfter === null) phiAfter = r.phi; return {}; }, 2.5);
@@ -76,18 +92,20 @@ for (const [label, o, inp] of [
   run(r, (r, t) => { if (Math.abs(t % 0.5) < dt / 2) sp.push(mph(r.speed)); return {}; }, 3);
   out.push(`shoulder (xs=12) straight, mph every 0.5s: ${sp.join(' ')}`); }
 // 8. A decent rider working the pocket: bottom turns into the top, cutback when ahead.
-{ const r = start(); let up = true, speedSum = 0, n = 0, inPk = 0; const counts = {};
+{ const r = start(); let up = true, speedSum = 0, n = 0, inPk = 0, maxV = 0; const counts = {};
   const T = run(r, (r) => {
     if (up && r.t < TUNE.tTop + 1) up = false;
     if (!up && r.t > 12.6) up = true;
-    speedSum += r.speed; n++; if (r.xs > -2 && r.xs < 6) inPk++;
+    speedSum += r.speed; n++; if (r.xs > -2 && r.xs < 6) inPk++; maxV = Math.max(maxV, r.speed);
     // Cutback: carve back toward the curl, then climb to meet the whitewater
     // high, turning Left as you hit it.
-    if (Math.cos(r.phi) < 0) return r.t > 8 ? { tilt: 1 } : { turn: 1 };
+    // Cutback: ride back along the wave toward the curl, then swing back around.
+    if (Math.cos(r.phi) < 0) return r.xs > 2.5 ? { aim: [-1, 0.25] } : { aim: [1, -0.3] };
+    if (r.xs < -1) return { aim: [1, 0.1], pump: true }; // behind the curl: get out along the line
     if (r.t < 9 && (r.xs > 7 || (r.xs > 4 && r.speed < 9))) return { turn: -1 }; // cut back from high up
     return { tilt: up ? 1 : -1, pump: !up };
   }, 30, (e) => { if (e.type === 'move') counts[moveName(e)] = (counts[moveName(e)] || 0) + 1; });
-  out.push(`pocket rider: ${T.toFixed(0)}s, avg ${mph(speedSum / n)} mph, ${Math.round(100 * inPk / n)}% in pocket, ${r.mode === 'wipe' ? r.wipeReason : 'still riding'}\n   moves: ${JSON.stringify(counts)}`); }
+  out.push(`pocket rider: ${T.toFixed(0)}s, avg ${mph(speedSum / n)} mph, max ${mph(maxV)} mph, ${Math.round(100 * inPk / n)}% in pocket, ${r.mode === 'wipe' ? r.wipeReason : 'still riding'}\n   moves: ${JSON.stringify(counts)}`); }
 // 9. Mashing Left/Right like a beginner, and doing nothing.
 { const r = start(); const T = run(r, (r, t) => ({ turn: Math.floor(t / 0.4) % 2 ? -1 : 1 }), 30);
   out.push(`Left/Right every 0.4s: ${T.toFixed(0)}s, ${r.mode === 'wipe' ? r.wipeReason : 'still riding'}`); }

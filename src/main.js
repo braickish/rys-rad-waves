@@ -34,7 +34,9 @@ function autopilot() {
   if (autoUp && rider.t < TUNE.tTop + 1) autoUp = false;
   if (!autoUp && rider.t > 12.6) autoUp = true;
   // Cutback from high up, climb back to meet the whitewater high, turn as you hit it.
-  if (Math.cos(rider.phi) < 0) return rider.t > 8 ? { tilt: 1 } : { turn: 1 };
+  // Cutback: ride back along the wave toward the curl, then swing back around.
+  if (Math.cos(rider.phi) < 0) return rider.xs > 2.5 ? { aim: [-1, 0.25] } : { aim: [1, -0.3] };
+  if (rider.xs < -1) return { aim: [1, 0.1], pump: true }; // behind the curl: get out along the line
   if (rider.t < 9 && (rider.xs > 7 || (rider.xs > 4 && rider.speed < 9))) return { turn: -1 };
   return { tilt: autoUp ? 1 : -1, pump: !autoUp, crouch: rider.inBarrel };
 }
@@ -134,6 +136,7 @@ function handleEvents() {
         offLip: ['Off the lip!', 350, 0.25],
         snap: ['SNAP!', 500, 0.35],
         reentry: ['RE-ENTRY!', 700, 0.4],
+        floater: ['FLOATER!', 600, 0.3],
         rebound: ['REBOUND!', 500, 0.4],
         rebound180: ['REBOUND 180!', 750, 0.45],
       };

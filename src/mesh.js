@@ -43,7 +43,7 @@ export function buildWaterMesh(perSeg = 10) {
       if (WAVE_TYPE === 'crumble') {
         // Foam spills from the crest down the face behind the curl, reaching
         // further down as the section crumbles, until the whole face is white.
-        const reach = 6 + 7 * sstep(0.0, 0.7, s); // how far down the face (in t) the foam has spilled
+        const reach = 6 + 7 * sstep(0.0, 0.5, s); // how far down the face (in t) the foam has spilled
         foam = sstep(-0.15, 0.35, s) * sstep(3.6, 4.6, t) * (1 - sstep(reach - 1.2, reach + 0.6, t));
         foam = Math.max(foam, sstep(0.8, 1.4, s) * sstep(3.5, 5.0, t) * (1 - sstep(10, 40, -xs) * 0.5));
         // Feathering along the crest just ahead of the curl.
@@ -109,7 +109,12 @@ export function buildLipTable() {
     surface(xs, 12.6, c);
     let dy = b[1] - a[1], dz = b[2] - a[2];
     const l = Math.hypot(dy, dz) || 1;
-    data.set([a[1], a[2], dy / l, dz / l, (a[1] + c[1]) * 0.5, (a[2] + c[2]) * 0.5, phaseAt(xs), 0], i * 8);
+    // How active the whitewater is here (drives crest spray and mist).
+    const s = phaseAt(xs);
+    const white = WAVE_TYPE === 'crumble'
+      ? sstep(-0.1, 0.3, s) * (1 - sstep(1.6, 3.0, s))
+      : sstep(0.7, 1.1, s) * (1 - sstep(1.4, 1.8, s));
+    data.set([a[1], a[2], dy / l, dz / l, (a[1] + c[1]) * 0.5, (a[2] + c[2]) * 0.5, s, white], i * 8);
   }
   return data;
 }

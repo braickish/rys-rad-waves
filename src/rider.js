@@ -30,7 +30,7 @@ export const TUNE = {
   feed: 2.0, // how fast the pocket brings you up to speed (1/s)
   bleed: 0.9, // how fast extra speed fades / you bog down (1/s)
   drop: 12, // speed gained per second pointing straight down a steep face (m/s^2)
-  topDropBoost: 2.6, // ... multiplied by this from the top third of the wave
+  topDropBoost: 3.2, // ... multiplied by up to this in the top half of the pocket (most in the top third)
   climb: 2.5, // speed lost per second pointing straight up it (m/s^2): small, so climbing is easy
   pump: 4, // m/s^2 while pumping on the face (full on the drop, less otherwise)
   turn: 5.2, // fastest turn rate (rad/s)
@@ -41,22 +41,29 @@ export const TUNE = {
   reboundRate: 11, // rebound off the whitewater, nose swinging down (rad/s)
   rebound180Rate: 12, // rebound 180 around through the top (rad/s)
   foamContact: 0.25, // how much foam counts as hitting the whitewater's front edge
-  reboundMinHeight: 0.33, // meet the whitewater in the top two thirds of the wave or it buries you
+  reboundMinHeight: 0.5, // meet the whitewater in the top half of the wave to rebound, or it buries you
+  rebound180MinHeight: 0.67, // ... and the top third for the 180
   minTurn: 1.6, // slowest turn rate, so you can always turn (rad/s)
   rTop: 1.3, // turn radius up near the top of the face: snappy (m)
   rBottom: 4.8, // turn radius at the bottom: a long rail-to-rail arc (m)
   bottomDrive: 6.5, // speed gained per radian of bottom turn, nose coming up (m/s)
+  bottomCarveRadius: 1.15, // a bottom turn started pointing down: fully committed at once, a slightly wider arc ...
+  bottomCarveDrive: 1.6, // ... that builds more speed
   topDrive: 1.6, // speed gained per radian of carving up near the top of the pocket (m/s)
   curlZone: [-0.5, 2.5], // xs range of the curl; behind it is whitewater, ahead the open face
   comboWindow: 1.6, // seconds after a bottom turn that a move counts as a combo
-  reentryKick: 2.0, // speed kick rebounding off the whitewater in a cutback (m/s)
-  reboundSpeed: 12.5, // a rebound fires you out at least this fast (m/s)
+  reentryKick: 1.0, // speed kick rebounding off the whitewater (m/s)
+  reboundSpeed: 11, // a rebound fires you out at least this fast (m/s)
+  moveGap: 1.0, // at least this long between moves (s), so they don't stack
+  floaterMax: 1.2, // longest you can float along the top of the whitewater (s)
   foamLimit: 1.8, // seconds you can sit in heavy foam before it takes you
   airSpeed: 14.8, // board speed needed to launch off the top going straight up (m/s)
   tTop: 5.3, // surface coordinate of the top of the rideable face
   tBottom: 13.9, // ... and the bottom of the face
   tFlats: 14.3, // how far out onto the flat water in front you can go (you bog down there)
-  minSpeed: 2, maxSpeed: 19,
+  softMax: 14.5, // above this (~32 mph) extra speed bleeds off quickly ...
+  overBleed: 1.6, // ... at this rate (1/s)
+  minSpeed: 2, maxSpeed: 17, // hard cap ~38 mph
   standH: 1.75,
   crouchH: 1.1,
 };
@@ -99,7 +106,7 @@ export function pocketPower(xs) {
 export function foamAt(xs, t) {
   if (WAVE_TYPE !== 'crumble') return phaseAt(xs) > 1.5 && t > 9.5 ? 1 : 0;
   const s = phaseAt(xs);
-  const reach = 6 + 7 * sstep(0.0, 0.7, s); // the spill reaches further down the face further behind the curl
+  const reach = 6 + 7 * sstep(0.0, 0.5, s); // the spill reaches further down the face further behind the curl
   const spill = sstep(-0.15, 0.35, s) * sstep(3.6, 4.6, t) * (1 - sstep(reach - 1.2, reach + 0.6, t));
   return Math.max(spill, sstep(0.8, 1.4, s) * sstep(3.5, 5.0, t));
 }
@@ -132,7 +139,7 @@ export function createRider() {
     foam: 0, foamTime: 0, pocket: 0,
     airSpin: 0, airTime: 0, spinArmed: false,
     moveCooldown: 0, lastBottomTurn: -9, bottomArmed: false,
-    turnDir: 0, turnDirAge: 9, turnHeld: 0, hard: 0, assist: null,
+    turnDir: 0, turnDirAge: 9, turnHeld: 0, hard: 0, assist: null, bottomCarve: false, floater: null,
     wipeReason: '', wipeTimer: 0,
     events: [],
     time: 0,
@@ -194,8 +201,13 @@ function stepSurf(r, input, dt) {
   // How tight you can turn depends on where you are: up top the board pivots
   // (snappy), at the bottom it's a long rail-to-rail arc. Hold a turn and you
   // progressively lean into it harder: a tighter arc that drives more.
-  const hard = r.hard;
-  const radius = (T.rTop + (T.rBottom - T.rTop) * low) * (1 - (1 - T.hardRadius) * hard);
+  // Start a turn while pointing down the face (a bottom turn) and you're
+  // committed at once: full lean, a slightly wider arc, more drive.
+  const wantsTurn = !!(input.turn || input.tilt || (input.aim && (input.aim[0] || input.aim[1])));
+  if (!wantsTurn || Math.sin(r.phi) > 0.5) r.bottomCarve = false;
+  else if (r.turnHeld === 0 && !r.turnDir && Math.sin(r.phi) < -0.3 && height < 0.6) r.bottomCarve = true;
+  const hard = r.bottomCarve ? 1 : r.hard;
+  const radius = (T.rTop + (T.rBottom - T.rTop) * low) * (r.bottomCarve ? T.bottomCarveRadius : 1 - (1 - T.hardRadius) * hard);
   const rate = clamp(r.speed / radius, T.minTurn, T.turn * (1 + (T.hardRate - 1) * hard));
   const sinNow = Math.sin(r.phi), right = Math.cos(r.phi) >= 0;
   let d = 0;
@@ -218,7 +230,7 @@ function stepSurf(r, input, dt) {
     r.turnDirAge += dt;
     if (r.turnDirAge > 0.15) r.turnDir = 0;
   }
-  r.hard = sstep(T.hardAfter[0], T.hardAfter[1], r.turnHeld);
+  r.hard = r.bottomCarve ? 1 : sstep(T.hardAfter[0], T.hardAfter[1], r.turnHeld);
   // A quick assisted turn (snap release, rebound) takes over the board for a
   // moment and then hands control straight back.
   const playerD = d;
@@ -239,7 +251,8 @@ function stepSurf(r, input, dt) {
   const driveLow = 1 - sstep(0.25, 0.75, height);
   const high = sstep(0.55, 0.95, height);
   // (Only your own carving drives you, not the quick assisted pivots.)
-  if (driveLow > 0 && Math.sin(r.phi) > sinBefore && d === playerD) r.speed += T.bottomDrive * (1 + 0.35 * hard) * Math.abs(d) * driveLow * (0.4 + 0.6 * pk);
+  const carveDrive = r.bottomCarve ? T.bottomCarveDrive : 1 + 0.35 * hard;
+  if (driveLow > 0 && Math.sin(r.phi) > sinBefore && d === playerD) r.speed += T.bottomDrive * carveDrive * Math.abs(d) * driveLow * (0.4 + 0.6 * pk);
   if (high > 0 && d === playerD) r.speed += T.topDrive * Math.abs(d) * high * pk;
 
   // Track bottom turns (for moves and combos): down low heading down, then up.
@@ -255,12 +268,13 @@ function stepSurf(r, input, dt) {
   let target = T.vLow + (T.vPocket - T.vLow) * pk * steep * (0.45 + 0.75 * height);
   r.boost = Math.max(0, (r.boost || 0) - dt);
   if (r.boost > 0) target = Math.max(target, T.reboundSpeed); // firing out of a rebound: the foam can't hold you
+  else if (r.floater) target = Math.max(target, r.speed); // floating holds your speed
   else target += (T.vFoam - target) * foam;
   r.speed += (target - r.speed) * (r.speed < target ? T.feed : T.bleed) * dt;
   const sinp = Math.sin(r.phi);
   // Pointing down pays, and pays most from the top third of the wave: that's
   // where the drop has the most height to turn into speed.
-  const topThird = sstep(0.6, 0.8, height) * pk; // only where the wave has power, not out on the shoulder
+  const topThird = sstep(0.45, 0.75, height) * pk; // top half of the pocket (most in the top third); not out on the shoulder
   const dropSteep = Math.max(steep, 0.9 * topThird); // the rounded crest still counts as a steep drop
   if (sinp < 0) r.speed += -sinp * T.drop * (1 + (T.topDropBoost - 1) * topThird) * dropSteep * dt;
   else r.speed += -sinp * T.climb * steep * dt;
@@ -269,6 +283,8 @@ function stepSurf(r, input, dt) {
     r.pumping = true;
   }
   if (r.boost > 0) r.speed = Math.max(r.speed, T.reboundSpeed - 1);
+  // Stacked moves can't run away with your speed: above softMax it bleeds off.
+  if (r.speed > T.softMax) r.speed -= (r.speed - T.softMax) * T.overBleed * dt;
   r.speed = clamp(r.speed, T.minSpeed, T.maxSpeed);
 
   // --- move ---
@@ -277,55 +293,79 @@ function stepSurf(r, input, dt) {
   r.t -= (r.speed * sinp * dt) / Math.max(0.3, Math.hypot(f.Pt[1], f.Pt[2]));
   r.t = Math.min(r.t, T.tFlats); // ride out onto the flats in front if you don't turn back up
 
+  // --- floater: riding along the top of the whitewater ---
+  if (r.floater) {
+    r.floater.time += dt;
+    r.t = top;
+    if (!r.assist) r.phi += clampTurn(wrap(0.05 - r.phi), 4 * dt); // board flat along the top of the foam
+    const cleared = r.xs > T.curlZone[0] + 0.3 && foamAt(r.xs, top + 0.6) < 0.2;
+    if (cleared || r.floater.time > T.floaterMax) {
+      r.floater = null;
+      r.assist = { dir: -1, target: -0.7, rate: T.snapRate * 0.7 }; // drop back down off the foam
+    }
+  }
+
   // --- the top: which move depends on where you hit it, and how ---
-  if (r.t <= top && sinp > 0) {
+  const ready = r.moveCooldown === 0; // moves need a gap between them
+  if (!r.floater && r.t <= top && sinp > 0) {
     r.t = top;
     const ph = phaseAt(r.xs);
-    if (!r.assist && WAVE_TYPE === 'crumble' && sinp > 0.8 && r.speed > T.airSpeed && ph < -0.15 && r.xs > T.curlZone[1]) {
+    if (ready && !r.assist && WAVE_TYPE === 'crumble' && sinp > 0.8 && r.speed > T.airSpeed && ph < -0.15 && r.xs > T.curlZone[1]) {
       f = frameAt(r.xs, r.t);
       r.mode = 'air'; r.airSpin = 0; r.airTime = 0; r.spinArmed = false;
       r.pos = f.P;
       r.vel = [r.speed * cosp - PEEL_SPEED, 3.5 + (r.speed - T.airSpeed) * 0.3, 1.2];
       r.events.push({ type: 'launch' });
+      r.moveCooldown = T.moveGap;
       return; // the board keeps its heading; it rotates over gradually in the air
     }
-    if (!r.assist) {
+    // Zones along the wave: the crumbling whitewater, the curl, the open face.
+    const inWhitewater = r.xs < T.curlZone[0] || foamAt(r.xs, r.t + 0.6) > 0.3;
+    const combo = r.time - (r.lastBottomTurn ?? -9) < T.comboWindow;
+    if (ready && !r.assist && inWhitewater && cosp > 0.3 && sinp <= 0.6) {
+      // Coming up into the whitewater at a shallow angle, heading down the
+      // line: float along the top of it.
+      r.floater = { time: 0 };
+      r.speed = Math.min(T.maxSpeed, r.speed + 0.4);
+      r.events.push({ type: 'move', move: 'floater', speed: r.speed, combo, xs: r.xs });
+      r.moveCooldown = T.moveGap;
+    } else if (!r.assist) {
       // Snap: the fins release and the board pivots quickly back down the
       // face, same way along the line, then you're straight back in control.
+      // Inside the gap after another move it's just a plain turn off the top.
       r.assist = { dir: cosp >= 0 ? -1 : 1, target: -r.phi * 0.8, rate: T.snapRate };
-      if (r.moveCooldown === 0) {
-        // Zones along the wave: the crumbling whitewater, the curl, the open face.
-        const inWhitewater = r.xs < T.curlZone[0] || foamAt(r.xs, r.t + 0.6) > 0.3;
+      if (ready) {
         const inCurl = !inWhitewater && r.xs <= T.curlZone[1];
         let move;
         if (inWhitewater) move = sinp > 0.6 ? 'reentry' : 'snap';
         else if (inCurl) move = sinp > 0.45 ? 'snap' : 'topTurn';
         else move = sinp > 0.7 ? 'offLip' : 'topTurn';
-        const kick = { reentry: 2.0, snap: 1.6, offLip: 1.0, topTurn: 0.4 }[move];
+        const kick = { reentry: 1.0, snap: 0.8, offLip: 0.5, topTurn: 0.2 }[move];
         r.speed = Math.min(T.maxSpeed, r.speed + kick);
-        const combo = r.time - (r.lastBottomTurn ?? -9) < T.comboWindow;
         r.events.push({ type: 'move', move, speed: r.speed, combo, xs: r.xs });
-        r.moveCooldown = 0.3;
+        r.moveCooldown = T.moveGap;
       }
     }
   }
   // --- turning back into the whitewater ---
-  // You have to meet it high (top two thirds of the wave) and be turning as
-  // you hit: turning Left rebounds you off it (nose swings down and back down
-  // the line); turning Right spins you 180 around through the top. Otherwise
-  // it buries you.
-  if (!r.assist && cosp < -0.15 && foamAt(r.xs, r.t) > T.foamContact && r.moveCooldown === 0) {
+  // Meet it high and be turning as you hit: turning Left rebounds you off it
+  // (top half of the wave), turning Right spins you 180 around through the
+  // top (top third). Lower than that, or not turning, and it buries you.
+  // Inside the gap after another move the whitewater just slows you down.
+  if (ready && !r.assist && !r.floater && cosp < -0.15 && foamAt(r.xs, r.t) > T.foamContact) {
     const hNow = clamp((T.tBottom - r.t) / (T.tBottom - topOfFace(r.xs)), 0, 1);
-    if (hNow < T.reboundMinHeight) return wipe(r, 'Buried by the whitewater! (meet it higher)');
     if (!r.turnDir) return wipe(r, 'Hit the whitewater straight on! (turn as you hit it)');
-    const left = r.turnDir > 0;
-    r.assist = { dir: r.turnDir, target: -0.45, rate: left ? T.reboundRate : T.rebound180Rate };
-    r.speed = Math.min(T.maxSpeed, Math.max(r.speed, T.reboundSpeed - 2) + T.reentryKick);
+    if (hNow < T.reboundMinHeight) return wipe(r, 'Buried by the whitewater! (meet it in the top half)');
+    // Turning Right only spins the 180 from the top third; lower than that
+    // it's a plain rebound.
+    const left = r.turnDir > 0 || hNow < T.rebound180MinHeight;
+    r.assist = { dir: left ? 1 : -1, target: -0.45, rate: left ? T.reboundRate : T.rebound180Rate };
+    r.speed = Math.min(T.maxSpeed, Math.max(r.speed, T.reboundSpeed - 3) + T.reentryKick);
     r.boost = 0.25; // just long enough to clear the foam you bounced off
     r.foamTime = 0;
     const combo = r.time - (r.lastBottomTurn ?? -9) < T.comboWindow;
     r.events.push({ type: 'move', move: left ? 'rebound' : 'rebound180', speed: r.speed, combo, xs: r.xs });
-    r.moveCooldown = 0.3;
+    r.moveCooldown = T.moveGap;
   }
 
   f = frameAt(r.xs, r.t);
@@ -385,7 +425,7 @@ function roofClearance(xs, t, pos) {
 function checkHazards(r, dt) {
   const ph = phaseAt(r.xs);
   // The foam only takes you if you sit in it.
-  if (r.foam > 0.6) r.foamTime += dt;
+  if (r.foam > 0.6 && !r.floater) r.foamTime += dt; // floating on top of it doesn't count
   else r.foamTime = Math.max(0, r.foamTime - dt * 2);
   if (r.foamTime > TUNE.foamLimit) return wipe(r, 'Caught by the whitewater!');
   if (r.xs < -25) return wipe(r, 'Caught by the whitewater!');

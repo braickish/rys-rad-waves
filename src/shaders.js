@@ -208,8 +208,8 @@ fn respawn(id: u32) -> P {
     let xs = mix(-14.0, 3.0, rnd());
     let L = lipAt(xs);
     let ph = L[1].z;
-    let impact = smoothstep(0.7, 1.1, ph) * (1.0 - smoothstep(1.4, 1.8, ph));
-    if (ph < -0.15 || ph > 1.8 || rnd() > 0.06 + impact * 0.3) { p.pos = vec4f(0.0, -10.0, 0.0, 0.05 + rnd() * 0.2); return p; }
+    let impact = L[1].w; // how active the whitewater is here
+    if (ph < -0.15 || ph > 1.8 || rnd() > 0.06 + impact * 0.6) { p.pos = vec4f(0.0, -10.0, 0.0, 0.05 + rnd() * 0.2); return p; }
     let pos = vec3f(xs, L[0].x, L[0].y) + vec3f(rs() * 0.25, rs() * 0.15, rs() * 0.15);
     let dir = vec3f(0.0, L[0].z, L[0].w);
     let v = dir * (1.0 + rnd() * 2.5) + vec3f(-peel * (0.3 + rnd() * 0.3), 0.4 + rnd() * 1.2 + impact * 2.0, 0.6 + rnd() * 0.8) + vec3f(rs(), rs(), rs()) * 0.5;
@@ -219,14 +219,17 @@ fn respawn(id: u32) -> P {
     return p;
   }
   if (r0 < 0.88) {
-    // Whitewater mist and chunks.
-    let xs = mix(-40.0, -12.0, rnd());
+    // Whitewater mist and chunks, thickest where the wave is crumbling, a
+    // lighter haze behind it.
+    let xs = mix(-40.0, 1.0, rnd());
     let L = lipAt(xs);
-    let pos = vec3f(xs, L[0].x + 0.2, L[0].y + rs() * 0.8);
-    let v = vec3f(rs() * 1.5 - peel * 0.3, 0.8 + rnd() * 2.5, 0.6 + rnd() * 1.8);
-    p.pos = vec4f(pos, 0.9 + rnd() * 1.6);
+    let w = max(L[1].w, 0.15 * smoothstep(0.8, 1.6, L[1].z));
+    if (rnd() > w) { p.pos = vec4f(0.0, -10.0, 0.0, 0.05 + rnd() * 0.2); return p; }
+    let pos = vec3f(xs, L[0].x + 0.1 + rnd() * 0.5, L[0].y + rs() * 0.9);
+    let v = vec3f(rs() * 1.5 - peel * 0.3, 1.2 + rnd() * 3.5 * w, 0.6 + rnd() * 2.0);
+    p.pos = vec4f(pos, 0.9 + rnd() * 1.4);
     p.vel = vec4f(v, 1.0);
-    p.extra = vec4f(p.pos.w, 0.25 + rnd() * 0.35, 0.0, 0.0);
+    p.extra = vec4f(p.pos.w, 0.3 + rnd() * 0.5, 0.0, 0.0);
     return p;
   }
   // The barrel spitting: air and mist blasting out of the tube.
@@ -284,7 +287,7 @@ struct VO { @builtin(position) pos: vec4f, @location(0) uv: vec2f, @location(1) 
   let kind = p.vel.w;
   var alpha = 0.32;
   if (kind == 0.0) { alpha = 0.2; }
-  if (kind == 1.0) { alpha = 0.12; }
+  if (kind == 1.0) { alpha = 0.15; }
   if (kind == 3.0) { alpha = 0.10; }
   o.a = alpha * smoothstep(0.0, 0.1, age) * (1.0 - smoothstep(0.55, 1.0, age));
   o.a *= smoothstep(0.8, 5.0, length(w - F.camPos.xyz)); // don't fog the lens
