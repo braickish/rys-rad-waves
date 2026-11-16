@@ -1,13 +1,16 @@
 import { createRenderer } from './renderer.js';
 import { createRider, resetRider, stepRider, groundSpeed, frameAt, v3, TUNE, useWave } from './rider.js';
-import { PEEL_SPEED, slice, verticalHits } from './wave.js';
+import { PEEL_SPEED, slice, verticalHits, WAVE } from './wave.js';
+import { WAVES } from './waves/index.js';
 import { perspective, lookAt, mul, invert } from './math.js';
 import { createPose, surferObjects } from './surfer.js';
 
 const params = new URLSearchParams(location.search);
 // Crumbling wave by default; ?wave=barrel for the barreling one. Must be set
 // before the renderer builds the wave mesh.
-useWave(params.get('wave') || 'point');
+let savedWave = null;
+try { savedWave = localStorage.getItem('rys-rad-waves-wave'); } catch {}
+useWave(params.get('wave') || savedWave || 'point');
 
 const $ = (id) => document.getElementById(id);
 const canvas = $('gfx');
@@ -229,6 +232,28 @@ async function main() {
   renderer.device.lost.then((info) => showError(`GPU device lost: ${info.message}`));
   $('best').textContent = best;
   if (params.has('moveaccel')) TUNE.moveCalm = 0; // compare: the old behavior
+  // Wave picker on the title screen.
+  const picker = $('waves');
+  const drawPicker = () => {
+    picker.innerHTML = '';
+    for (const w of WAVES) {
+      const b = document.createElement('button');
+      b.textContent = w.name;
+      b.className = w.id === WAVE.id ? 'on' : '';
+      b.addEventListener('pointerdown', (e) => { e.stopPropagation(); });
+      b.addEventListener('click', (e) => {
+        e.stopPropagation();
+        useWave(w.id);
+        renderer.rebuildWave();
+        resetRider(rider);
+        try { localStorage.setItem('rys-rad-waves-wave', w.id); } catch {}
+        const u = new URL(location.href); u.searchParams.set('wave', w.id); history.replaceState(null, '', u);
+        drawPicker();
+      });
+      picker.appendChild(b);
+    }
+  };
+  drawPicker();
   if (params.has('play')) startOrRestart();
   if (params.has('cam')) camMode = Number(params.get('cam')) || 0;
   let last = performance.now(), acc = 0, frame = 0, time = 0;
@@ -279,7 +304,9 @@ async function main() {
     updateCamera(dt);
     const proj = perspective(aspect < 1 ? 1.15 : 0.95, aspect, 0.1, 4000);
     const view = lookAt(camPos, camTarget, [0, 1, 0]);
-    const vp = mul(proj, view);
+    // Left-hand waves: the same wave, with the picture flipped left to right.
+    const FLIP = new Float32Array([-1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
+    const vp = WAVE.left ? mul(FLIP, mul(proj, view)) : mul(proj, view);
     const camRight = [view[0], view[4], view[8]], camUp = [view[1], view[5], view[9]];
 
     const surfing = rider.mode === 'surf';
@@ -297,13 +324,14 @@ async function main() {
     }, surferObjects(pose, rider, {
       n, e2: v3.norm(v3.cross(n, v3.norm(v3.rej([1, 0, 0], n)))), turn: turnSigned,
       pump: !!lastInput.pump && surfing,
-    }, dt), { particles: !params.has('noparticles'), outlines: !params.has('nooutline') });
+    }, dt), { particles: !params.has('noparticles'), outlines: !params.has('nooutline'), mirror: !!WAVE.left });
 
     frameMs = frameMs * 0.95 + (dt * 1000) * 0.05; // smoothed frame time
-    window.__dbg = { wind: +(pose.windup || 0).toFixed(2), unl: +(pose.unload || 0).toFixed(2), ms: +frameMs.toFixed(1), phi: +(rider.phi * 57.3).toFixed(0), turn: touch.turn, tilt: touch.tilt, bal: rider.tube ? +rider.tube.bal.toFixed(2) : null, state, mode: rider.mode, xs: +rider.xs.toFixed(1), y: +rider.pos[1].toFixed(1), score: Math.round(score), reason: rider.wipeReason };
+    window.__dbg = { wave: WAVE.id, wind: +(pose.windup || 0).toFixed(2), unl: +(pose.unload || 0).toFixed(2), ms: +frameMs.toFixed(1), phi: +(rider.phi * 57.3).toFixed(0), turn: touch.turn, tilt: touch.tilt, bal: rider.tube ? +rider.tube.bal.toFixed(2) : null, state, mode: rider.mode, xs: +rider.xs.toFixed(1), y: +rider.pos[1].toFixed(1), score: Math.round(score), reason: rider.wipeReason };
     // HUD.
     msgTimer -= dt;
     if (msgTimer <= 0) $('msg').classList.remove('pop');
+    $('hint').hidden = state !== 'play';
     $('score').textContent = Math.round(score);
     $('speed').textContent = Math.round(groundSpeed(rider) * 2.237);
     const tube = $('tube');

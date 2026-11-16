@@ -33,7 +33,10 @@ button).
   translucency, spray emitter, pocket power, `faceTop`, whether it has a `tube`, and `tune`: the
   wave-specific settings (pocket speeds, zones, airs, face limits) merged over the rider's settings by
   `useWave()` in rider.js. Rider/board feel settings stay in `RIDER_TUNE`. `?wave=<id>` picks a wave;
-  `renderer.rebuildWave()` rebuilds the meshes after `useWave()`.
+  `renderer.rebuildWave()` rebuilds the meshes after `useWave()`. **Left-hand waves** (`<id>-left`,
+  made by `leftOf` in waves/index.js) are the same wave with the picture flipped left to right (a clip-space
+  flip in main.js); physics is identical, the surfer rides goofy. ←/↑ always turn toward the wave and
+  →/↓ away, on lefts and rights. The title screen has a wave picker (remembered in localStorage).
 - `src/wave.js`: the wave model. Two wave types share one 16-point layout: **crumble** (default, the
   crest spills foam down the face, no overhang) and **barrel** (the lip throws over into a tube). The game runs in the **peel frame** (moves with the breaking point),
   where the wave shape is static. Each distance `xs` from the peel point has a 2D cross-section curve

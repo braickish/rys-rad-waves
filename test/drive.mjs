@@ -46,12 +46,14 @@ if (MOBILE) {
 await send('Page.navigate', { url: `http://127.0.0.1:8765/?${query}` });
 const t0 = Date.now();
 // Key plan entries: [ms, 'down'|'up', key] or touch: [ms, 'touchStart'|'touchMove'|'touchEnd', x, y]
-const events = [...keyPlan.map(([ms, type, key, y]) => (type.startsWith('touch') ? { ms, kind: 'touch', type, x: key, y } : { ms, kind: 'key', type, key })), ...shots.map((ms, i) => ({ ms, kind: 'shot', i }))].sort((a, b) => a.ms - b.ms);
+const events = [...keyPlan.map(([ms, type, key, y]) => (type === 'eval' ? { ms, kind: 'eval', expr: key } : type.startsWith('touch') ? { ms, kind: 'touch', type, x: key, y } : { ms, kind: 'key', type, key })), ...shots.map((ms, i) => ({ ms, kind: 'shot', i }))].sort((a, b) => a.ms - b.ms);
 const codes = { ArrowUp: 38, ArrowDown: 40, ArrowLeft: 37, ArrowRight: 39, Space: 32, ShiftLeft: 16, KeyC: 67 };
 for (const e of events) {
   const wait = e.ms - (Date.now() - t0);
   if (wait > 0) await sleep(wait);
-  if (e.kind === 'touch') {
+  if (e.kind === 'eval') {
+    await send('Runtime.evaluate', { expression: e.expr });
+  } else if (e.kind === 'touch') {
     await send('Input.dispatchTouchEvent', { type: e.type, touchPoints: e.type === 'touchEnd' ? [] : [{ x: e.x, y: e.y, id: 1 }] });
   } else if (e.kind === 'key') {
     await send('Input.dispatchKeyEvent', { type: e.type === 'down' ? 'rawKeyDown' : 'keyUp', code: e.key, key: e.key === 'Space' ? ' ' : e.key, windowsVirtualKeyCode: codes[e.key] });

@@ -35,14 +35,18 @@
   #hint { position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%); font-size: 13px; background: rgba(11,26,36,.45); padding: 7px 14px; border-radius: 20px; pointer-events: none; white-space: nowrap; }
   #hint.warn { background: var(--pink); }
   #hint.warn::after { content: "  ·  CROUCH (Shift) in the barrel!"; font-weight: 700; }
-  .panel { position: fixed; inset: 0; display: grid; place-items: center; background: linear-gradient(180deg, rgba(11,26,36,.15), rgba(11,26,36,.55)); text-align: center; padding: 16px; }
+  .panel { position: fixed; inset: 0; display: grid; place-items: safe center; overflow-y: auto; background: linear-gradient(180deg, rgba(11,26,36,.15), rgba(11,26,36,.55)); text-align: center; padding: 16px; }
   .panel[hidden] { display: none; }
-  .logo { font-family: 'Bungee Shade', Bungee, sans-serif; font-size: clamp(40px, 11vw, 112px); line-height: .92; color: var(--yellow); text-shadow: 4px 4px 0 var(--pink), 8px 8px 0 var(--teal); transform: rotate(-4deg); margin: 0 0 24px; }
+  .logo { font-family: 'Bungee Shade', Bungee, sans-serif; font-size: clamp(38px, 9vw, 76px); line-height: .92; color: var(--yellow); text-shadow: 4px 4px 0 var(--pink), 8px 8px 0 var(--teal); transform: rotate(-4deg); margin: 0 0 24px; }
   .logo span { display: block; color: #fff; }
   .card { max-width: 460px; margin: 0 auto; }
   .go { display: inline-block; font-family: Bungee, sans-serif; font-size: 20px; background: var(--pink); color: #fff; padding: 12px 22px; border-radius: 10px; box-shadow: 4px 4px 0 var(--ink); animation: bob 1.2s ease-in-out infinite; }
   @keyframes bob { 50% { transform: translateY(-4px); } }
-  .keys { margin: 22px auto 0; display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; text-align: left; font-size: 14px; background: rgba(11,26,36,.5); padding: 14px 18px; border-radius: 12px; max-width: 400px; }
+  .waves { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin: 0 auto 16px; max-width: 460px; }
+  .waves button { font-family: Rubik, sans-serif; font-weight: 700; font-size: 13px; color: #fff; background: rgba(11,26,36,.55); border: 2px solid rgba(255,255,255,.5); border-radius: 18px; padding: 6px 12px; cursor: pointer; }
+  .waves button.on { background: var(--teal); border-color: #fff; color: var(--ink); }
+  .tip { font-size: 12px; }
+  .keys { margin: 14px auto 0; display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; text-align: left; font-size: 14px; background: rgba(11,26,36,.5); padding: 14px 18px; border-radius: 12px; max-width: 400px; }
   .keys b { font-family: Bungee, sans-serif; font-weight: 400; color: var(--yellow); white-space: nowrap; }
   .tip { margin-top: 14px; font-size: 13px; opacity: .9; }
   .big { font-family: Bungee, sans-serif; font-size: 56px; color: var(--yellow); text-shadow: 3px 3px 0 var(--pink); }
@@ -73,7 +77,7 @@
 </div>
 <div id="msg"></div>
 <div id="balance" hidden><div class="track"><div class="zone l"></div><div class="zone r"></div><div id="balance-needle"></div></div><small><span class="desk">← → balance · ↑ speed up · ↓ stall</span><span class="mob">swipe ← → balance · ↑ speed up · ↓ stall</span></small></div>
-<div id="hint"><span class="desk">←/↑ turn left · →/↓ turn right (hold to lean harder) · Space pump · C camera</span><span class="mob">Swipe left/up to turn left · right/down to turn right</span></div>
+<div id="hint"><span class="desk">←/↑ toward the wave · →/↓ away (hold to lean harder) · Space pump · C camera</span><span class="mob">Swipe left/up to turn left · right/down to turn right</span></div>
 
 <div id="err" hidden></div>
 <div class="touchbtns"><button id="btn-pump">Pump</button></div>
@@ -81,10 +85,12 @@
 <div class="panel" id="title">
   <div class="card">
     <h1 class="logo">Ry's Rad<span>Waves</span></h1>
+    <div id="waves" class="waves"></div>
     <div class="go"><span class="desk">Press Space to drop in</span><span class="mob">Tap to drop in</span></div>
     <div class="keys desk">
-      <b>← / ↑</b><span>Turn to the surfer's left (riding right, that's up the face)</span>
-      <b>→ / ↓</b><span>Turn to the surfer's right (down the face, and around for a cutback)</span>
+      <b>← / ↑</b><span>Turn toward the wave (up the face)</span>
+      <b>→ / ↓</b><span>Turn away from the wave (down the face; keep going round for a cutback)</span>
+      <b>In the barrel</b><span>← → balance · ↑ speed up · ↓ stall</span>
       <b>Hold a turn</b><span>Lean into it harder: tighter, more drive out of a bottom turn</span>
       <b>Space</b><span>Pump: works best on the way <em>down</em></span>
       <b>Turn in the air</b><span>Spin (finish it to land)</span>
