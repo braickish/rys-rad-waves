@@ -103,19 +103,16 @@ button).
     back along the line) and you ride it backwards (`fakie`) for `fakieTime`, then the board spins
     back round ("Revert"). Airs: straight up the open face above
     `airSpeed`.
-  - **Tube riding** (waves with `tube: true`, e.g. Reef Barrel; `stepTube`): once there's water
-    overhead past `tubeEnter`, or you **pull in** (high on the face within `pullInZone` of the curl
-    and turning: you stall at `pullInSpeed` and the lip throws over you), you're in tube mode. The board holds a line low in the tube
-    (`tubeLine`) and the surfer crouches; a balance needle (HUD) falls away from the middle and wobbles
-    more the deeper you are (`balFall`, `balWobble`); Left/Right push it back (`balInput`); Up/Down
-    speed up toward the exit / stall deeper (`tubeAccel`; with no input you drift slowly deeper,
-    `tubeCruise`). Needle at either end = fall; past `tubeCollapse` = closed out; back past `tubeExit`
-    = out, scored by time and depth. The camera drops low in front of the opening.
-- Look: the surfer and board are drawn in an illustrated style: toon shading in flat bands and an
-  ink outline (inverted-hull pass in renderer.js; per-part thickness via `outline`, 0 = none). The
-  surfer's look comes from a reference photo kept in the private `braickish/reference-images` repo
-  (not in this repo): shirtless, tanned, short dark hair, grey-blue boardshorts with a black waistband,
-  off-white board. `?nooutline` turns outlines off for testing.
+  - **Tube riding** (`tube: true` waves; `stepTube` in rider.js): you get in when there's water overhead
+    past `tubeEnter`, or you **pull in** (high on the face within `pullInZone` of the curl and turning:
+    you stall at `pullInSpeed` and the lip throws over you). In the tube it's about depth, not
+    balance: Up/Down = forward/back (`tubeAccel`; no input = drift slowly deeper, `tubeCruise`),
+    Left/Right = higher/lower line (`tubeLineRange`; higher runs faster, `tubeLineSpeed`). The pinch
+    (`tubePinch`) breathes in and out (`pinchBreath`, `pinchRate`) and after `tubeLong` starts closing
+    toward the exit (`tubeCloseRate`), so you have to come out. Too deep = pinched; riding high where
+    the roof is low = clipped by the lip. Scored by time x average depth. HUD shows a depth meter (out
+    to pinch). Camera: inside the tube behind the surfer, looking out. Reef shape is `KF_PIPE` in
+    waves/shapes.js (a hollow, thick-lipped reef barrel).
 - `src/surfer.js`: the articulated surfer on a 1.6 m fish (wide, rounded yellow nose, swallowtail,
   twin keel fins; shape in `boardMesh` in mesh.js).
   Stance toward the tail (`STANCE`), chest opened toward the nose. Bottom turns wind the shoulders round toward the

@@ -1,13 +1,13 @@
 // Reef Barrel: a hollow right that throws a lip over into a tube. Crouch (or
 // balance) in the barrel; the whitewater behind it is a closing tube.
-import { KF_BARREL, sstep } from './shapes.js';
+import { KF_PIPE, sstep } from './shapes.js';
 import point from './point.js';
 
 export default {
   id: 'reef',
   name: 'Reef Barrel',
   kind: 'barrel',
-  keyframes: KF_BARREL,
+  keyframes: KF_PIPE,
   scale: 1.35, // a bit bigger than the point, so the tube has room
   peelSpeed: 6.0,
   waveSpeed: 5.0,
@@ -45,13 +45,12 @@ export default {
     pullInHeight: 0.5, // ... and this high on the face, turning pulls you into the barrel
     pullInSpeed: 4.5, // while pulling in, the curl catches you up this fast (m/s)
     tubeExit: 0.12, // ... and where you're back out on the open face
-    tubeCollapse: 1.15, // the tube closes on you past this phase (~10 m behind the curl)
-    tubeLine: 13.4, // surface position of the sweet spot low in the tube
-    tubeCruise: -0.4, // with no input the tube settles you at the peel speed plus this: slowly drifting deeper
-    tubeAccel: 5, tubeMinSpeed: 3.5, tubeMaxSpeed: 11, // Up/Down speed control
-    balFall: 2.6, // how strongly the balance falls away from the middle
-    balWobble: 2.2, // how hard the tube knocks you about (grows with depth)
-    balInput: 3.2, // how hard Left/Right push back
-    balDamp: 1.2,
+    tubeCollapse: 1.2, // the tube pinches shut around this phase (~16 m behind the curl) ...
+    pinchBreath: 0.15, pinchRate: 0.9,
+    tubeLong: 6, tubeCloseRate: 0.2, // after this long (s) the pinch starts closing toward the exit this fast (phase/s) // ... breathing in and out by this much
+    tubeLine: 13.4, tubeLineRange: 0.35, // the line through the tube (surface position), and how far Left/Right move it
+    tubeLineSpeed: 1.5, // a high line runs this much faster (m/s), a low one this much slower
+    tubeCruise: -1.2, // with no input you drift slowly deeper (m/s relative to the peel)
+    tubeAccel: 4.0, // Up/Down speed you up / slow you down by this much (m/s)
   },
 };

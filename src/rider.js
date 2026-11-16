@@ -582,7 +582,7 @@ function checkHazards(r, dt) {
 }
 
 function enterTube(r, pullIn) {
-  r.tube = { time: 0, bal: 0, balVel: 0, depth: phaseAt(r.xs), seed: Math.random() * 100, pullIn };
+  r.tube = { time: 0, line: 0, depth: 0, depthSum: 0, seed: Math.random() * 6.28, pullIn };
   r.inBarrel = true;
   r.barrelTime = 0;
   r.floater = null; r.assist = null;
@@ -590,50 +590,61 @@ function enterTube(r, pullIn) {
 }
 
 // --- Tube riding ---
-// In the barrel the board holds its line low on the face by itself; you
-// balance (Left/Right push the balance needle left/right against the
-// wobble, which grows the deeper you are) and set your speed (Up = speed up
-// toward the exit, Down = stall deeper). Let the needle hit either end and
-// you fall; too slow and the tube closes on you; reach the open face and
-// you're out.
+// In the barrel it's all about depth. Up/Down = forward/back: speed up
+// toward the exit, or stall deeper. Left/Right = higher/lower in the tube: a
+// higher line runs faster, a lower one slower and with more headroom. With no
+// input you slowly drift deeper. The deeper you ride the more it scores, but
+// the tube breathes: how far back it pinches shut moves in and out, and if
+// it reaches you, you're pinched. Ride high as it pinches and the lip can
+// clip you. Reach the exit and you're out.
+export function tubePinch(r) {
+  const T = TUNE;
+  const time = r.tube ? r.tube.time : 0;
+  // After a while the barrel starts closing down toward the exit: time to come out.
+  const closing = Math.max(0, time - T.tubeLong) * T.tubeCloseRate;
+  return Math.max(T.tubeExit - 0.02, T.tubeCollapse - closing + T.pinchBreath * Math.sin(time * T.pinchRate + (r.tube ? r.tube.seed : 0)));
+}
+// Where you are in the tube: 0 at the exit, 1 at the pinch.
+export function tubeDepth(r) {
+  const T = TUNE;
+  return clamp((phaseAt(r.xs) - T.tubeExit) / (tubePinch(r) - T.tubeExit), 0, 1);
+}
 function stepTube(r, input, dt) {
   const T = TUNE;
   const tb = r.tube;
   tb.time += dt;
   r.barrelTime = tb.time;
   r.crouch = true;
-  // Line: settle into the tube's sweet spot, board along the wave.
-  r.t += (T.tubeLine - r.t) * (1 - Math.exp(-dt * 3));
+  // Line: Left (toward the wave) = higher, Right = lower.
+  const lift = clamp(input.turn || 0, -1, 1);
+  tb.line = clamp((tb.line ?? 0) + lift * dt * 2.5, -1, 1); // -1 low .. +1 high
+  const targetT = T.tubeLine - tb.line * T.tubeLineRange;
+  r.t += (targetT - r.t) * (1 - Math.exp(-dt * 4));
   const dir = Math.cos(r.phi) >= 0 ? 0 : Math.PI;
   r.phi += clampTurn(wrap(dir - r.phi), 3 * dt);
-  // Speed: Up speeds you toward the exit, Down stalls you deeper.
+  // Speed: Up = forward, Down = back; a higher line runs faster.
   const fwd = clamp(input.tilt || 0, -1, 1);
   if (tb.pullIn) {
     // Pulling in: stall so the curl catches you up and throws over you.
     r.speed += (PEEL_SPEED - T.pullInSpeed - r.speed) * Math.min(1, dt * 6);
     if (phaseAt(r.xs) > T.tubeEnter + 0.05) tb.pullIn = false;
-  } else r.speed += (fwd * T.tubeAccel + (PEEL_SPEED + T.tubeCruise - r.speed) * 2.0) * dt;
-  if (!tb.pullIn) r.speed = clamp(r.speed, T.tubeMinSpeed, T.tubeMaxSpeed);
+  } else {
+    const cruise = PEEL_SPEED + T.tubeCruise + tb.line * T.tubeLineSpeed + fwd * T.tubeAccel;
+    r.speed += (cruise - r.speed) * Math.min(1, dt * 2.5);
+  }
   r.xs += (r.speed * Math.cos(r.phi) - PEEL_SPEED) * dt;
-  // Balance: unstable (it falls away from the middle), with a wobble that
-  // grows the deeper you are. Left/Right push it back.
   const ph = phaseAt(r.xs);
-  const deep = clamp((ph - T.tubeEnter) / (T.tubeCollapse - T.tubeEnter), 0, 1);
-  tb.depth = Math.max(tb.depth, ph);
-  const k = tb.time * 1.7 + tb.seed;
-  const wobble = Math.sin(k) * 0.6 + Math.sin(k * 2.3 + 1.1) * 0.3 + Math.sin(k * 4.1 + 2.7) * 0.25;
-  const steer = clamp(input.turn || 0, -1, 1);
-  tb.balVel += (T.balFall * (0.5 + deep) * tb.bal + T.balWobble * (0.35 + deep) * wobble - steer * T.balInput) * dt;
-  tb.balVel *= Math.exp(-dt * T.balDamp);
-  tb.bal += tb.balVel * dt;
+  tb.depth = Math.max(tb.depth, tubeDepth(r));
+  tb.depthSum = (tb.depthSum || 0) + tubeDepth(r) * dt;
   const f = frameAt(r.xs, r.t);
   syncPose(r, f);
   r.pocket = WAVE.pocket(r.xs); r.foam = 0; r.height = 0.2; r.inBarrel = true;
   // Outcomes.
-  if (Math.abs(tb.bal) >= 1) { r.tube = null; return wipe(r, 'Lost your balance in the barrel!'); }
-  if (ph > T.tubeCollapse) { r.tube = null; return wipe(r, 'The barrel closed on you! (speed up)'); }
+  if (!tb.pullIn && ph > tubePinch(r)) { r.tube = null; return wipe(r, 'Pinched! (too deep: speed up)'); }
+  const c = roofClearance(r.xs, r.t, r.pos);
+  if (!tb.pullIn && c < TUNE.crouchH) { r.tube = null; return wipe(r, 'Clipped by the lip! (ride lower)'); }
   if (ph < T.tubeExit && !tb.pullIn) {
-    r.events.push({ type: 'barrelExit', time: tb.time, depth: tb.depth });
+    r.events.push({ type: 'barrelExit', time: tb.time, depth: tb.depth, avgDepth: tb.depthSum / Math.max(tb.time, 1e-3) });
     r.tube = null; r.inBarrel = false; r.barrelTime = 0;
     r.moveCooldown = TUNE.moveGap;
   }

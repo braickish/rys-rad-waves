@@ -1,5 +1,5 @@
 import { createRenderer } from './renderer.js';
-import { createRider, resetRider, stepRider, groundSpeed, frameAt, v3, TUNE, useWave } from './rider.js';
+import { createRider, resetRider, stepRider, groundSpeed, frameAt, v3, TUNE, useWave, tubeDepth } from './rider.js';
 import { PEEL_SPEED, slice, verticalHits, WAVE } from './wave.js';
 import { WAVES } from './waves/index.js';
 import { SEA, nextWave, stepSea, waveHeightFt, seedSea } from './sea.js';
@@ -34,9 +34,10 @@ addEventListener('blur', () => keys.clear());
 // and the ?auto test mode.
 let autoUp = false;
 function autopilot() {
-  if (rider.tube) { // balance, stall a little, then speed out
-    const b = rider.tube.bal * 2.5 + rider.tube.balVel * 0.8;
-    return { turn: Math.max(-1, Math.min(1, b)), tilt: rider.tube.time < 1.5 ? -1 : 1 };
+  if (rider.tube) { // sit about half way in for a few seconds, then come out
+    const d = tubeDepth(rider);
+    if (rider.tube.time > 4) return { tilt: 1 };
+    return { tilt: d > 0.58 ? 1 : d < 0.42 ? -1 : 0 };
   }
   if (autoUp && rider.height > 0.88) autoUp = false;
   if (!autoUp && rider.height < 0.15) autoUp = true;
@@ -131,13 +132,13 @@ function flash(text, sub = '') {
 
 function handleEvents() {
   for (const e of rider.events) {
-    if (e.type === 'barrelEnter') flash('In the barrel!', 'balance ← →  ·  speed ↑ ↓');
+    if (e.type === 'barrelEnter') flash('In the barrel!', '↑ ↓ forward / back  ·  ← → higher / lower');
     if (e.type === 'barrelExit' && e.time > 0.4) {
       // Time in the tube, more the deeper you got.
-      const deep = Math.max(0, (e.depth || 0) - 0.3);
-      const pts = Math.round(e.time * 1000 * (1 + deep * 2));
+      const avg = e.avgDepth || 0; // 0 at the exit .. 1 at the pinch
+      const pts = Math.round(e.time * 600 * (1 + avg * 3));
       score += pts;
-      flash(e.time > 2.5 || deep > 0.3 ? 'DEEP BARREL!' : 'Tubed!', `${e.time.toFixed(1)}s  +${pts}`);
+      flash(avg > 0.5 ? 'DEEP BARREL!' : 'Tubed!', `${e.time.toFixed(1)}s, ${Math.round(avg * 100)}% deep  +${pts}`);
     }
     if (e.type === 'land') {
       const table = { 0: ['Air!', 300], 180: ['Air reverse!', 600], 360: ['Air 360!', 1200], 540: ['Air 540!!', 2000], 720: ['Air 720!!!', 3200] };
@@ -195,18 +196,11 @@ function updateCamera(dt) {
     // In the tube: low, just ahead of the opening, looking back in at you.
     // If water is in the way (say a section ahead has thrown over), come in
     // closer until the surfer is in view.
-    // If water is in the way (a section ahead has thrown over the opening),
-    // switch to the classic shot from deeper in the tube, behind you,
-    // looking out past you toward the opening.
-    const head = [p[0], p[1] + 0.9, p[2]];
-    want = [p[0] + 7.5, p[1] + 1.0, p[2] + 2.6];
-    look = [p[0] - 0.5, p[1] + 0.9, p[2] - 0.2];
-    shot = 'tubeFront';
-    if (!clearView(want, head)) {
-      want = [p[0] - 3.4, p[1] + 1.0, p[2] + 0.5];
-      look = [p[0] + 4, p[1] + 0.7, p[2] + 0.2];
-      shot = 'tubeInside';
-    }
+    // The classic barrel shot: from inside the tube, behind you, looking
+    // out past you toward the opening.
+    want = [p[0] - 4.2, p[1] + 1.1, p[2] + 0.9];
+    look = [p[0] + 4, p[1] + 0.7, p[2] + 0.2];
+    shot = 'tubeInside';
   } else if (camMode === 0) {
     // From the channel in front of the wave: barrel on the left, shoulder right.
     // Ahead in the channel, looking back up the line into the tube.
@@ -363,7 +357,7 @@ async function main() {
     }, dt), { particles: !params.has('noparticles'), outlines: !params.has('nooutline') });
 
     frameMs = frameMs * 0.95 + (dt * 1000) * 0.05; // smoothed frame time
-    window.__dbg = { cam: camPos.map((x) => +x.toFixed(2)), pos: rider.pos.map((x) => +x.toFixed(2)), rt: +rider.t.toFixed(2), tube: !!rider.tube, wave: WAVE.id, wind: +(pose.windup || 0).toFixed(2), unl: +(pose.unload || 0).toFixed(2), ms: +frameMs.toFixed(1), phi: +(rider.phi * 57.3).toFixed(0), turn: touch.turn, tilt: touch.tilt, bal: rider.tube ? +rider.tube.bal.toFixed(2) : null, state, mode: rider.mode, xs: +rider.xs.toFixed(1), y: +rider.pos[1].toFixed(1), score: Math.round(score), reason: rider.wipeReason };
+    window.__dbg = { cam: camPos.map((x) => +x.toFixed(2)), pos: rider.pos.map((x) => +x.toFixed(2)), rt: +rider.t.toFixed(2), tube: !!rider.tube, wave: WAVE.id, wind: +(pose.windup || 0).toFixed(2), unl: +(pose.unload || 0).toFixed(2), ms: +frameMs.toFixed(1), phi: +(rider.phi * 57.3).toFixed(0), turn: touch.turn, tilt: touch.tilt, depth: rider.tube ? +tubeDepth(rider).toFixed(2) : null, state, mode: rider.mode, xs: +rider.xs.toFixed(1), y: +rider.pos[1].toFixed(1), score: Math.round(score), reason: rider.wipeReason };
     // HUD.
     msgTimer -= dt;
     if (msgTimer <= 0) $('msg').classList.remove('pop');
@@ -373,13 +367,13 @@ async function main() {
     const tube = $('tube');
     tube.style.width = `${Math.min(100, rider.barrelTime * 25)}%`;
     tube.parentElement.classList.toggle('on', rider.inBarrel);
-    // Barrel balance meter.
+    // Barrel depth meter: exit on the left, the pinch on the right.
     const bm = $('balance');
     bm.hidden = !rider.tube;
     if (rider.tube) {
-      const b = Math.max(-1, Math.min(1, rider.tube.bal));
-      $('balance-needle').style.left = `${50 + b * 50}%`;
-      bm.classList.toggle('danger', Math.abs(b) > 0.7);
+      const d = tubeDepth(rider);
+      $('balance-needle').style.left = `${d * 100}%`;
+      bm.classList.toggle('danger', d > 0.85);
     }
     requestAnimationFrame(tick);
   }

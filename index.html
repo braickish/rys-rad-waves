@@ -26,7 +26,9 @@
   #balance[hidden] { display: none; }
   #balance .track { position: relative; height: 18px; border-radius: 9px; background: rgba(11,26,36,.55); border: 2px solid rgba(255,255,255,.85); overflow: hidden; }
   #balance .zone { position: absolute; top: 0; bottom: 0; width: 15%; background: rgba(255,61,139,.55); }
-  #balance .zone.l { left: 0; } #balance .zone.r { right: 0; }
+  #balance .zone.r { right: 0; width: 12%; }
+  #balance .zone.deep { left: 50%; width: 38%; background: rgba(0,194,199,.45); }
+  #balance .ends { display: flex; justify-content: space-between; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 4px; text-shadow: 0 1px 0 rgba(0,0,0,.5); }
   #balance-needle { position: absolute; top: -2px; bottom: -2px; width: 8px; margin-left: -4px; left: 50%; border-radius: 4px; background: var(--yellow); box-shadow: 0 0 0 2px var(--ink); }
   #balance.danger .track { border-color: var(--pink); }
   #balance small { display: block; margin-top: 6px; font-size: 12px; text-shadow: 0 1px 0 rgba(0,0,0,.5); }
@@ -76,7 +78,7 @@
   </div>
 </div>
 <div id="msg"></div>
-<div id="balance" hidden><div class="track"><div class="zone l"></div><div class="zone r"></div><div id="balance-needle"></div></div><small><span class="desk">← → balance · ↑ speed up · ↓ stall</span><span class="mob">swipe ← → balance · ↑ speed up · ↓ stall</span></small></div>
+<div id="balance" hidden><div class="ends"><span>out</span><span>deeper ⟶ more points</span><span>pinch</span></div><div class="track"><div class="zone deep"></div><div class="zone r"></div><div id="balance-needle"></div></div><small><span class="desk">↑ forward · ↓ back · ← higher · → lower</span><span class="mob">swipe ↑ forward · ↓ back · ← higher · → lower</span></small></div>
 <div id="hint"><span class="desk">←/↑ toward the wave · →/↓ away (hold to lean harder) · Space pump · C camera</span><span class="mob">Swipe left/up to turn left · right/down to turn right</span></div>
 
 <div id="err" hidden></div>
@@ -90,7 +92,7 @@
     <div class="keys desk">
       <b>← / ↑</b><span>Turn toward the wave (up the face)</span>
       <b>→ / ↓</b><span>Turn away from the wave (down the face; keep going round for a cutback)</span>
-      <b>In the barrel</b><span>← → balance · ↑ speed up · ↓ stall</span>
+      <b>In the barrel</b><span>↑ forward · ↓ back (don't get pinched) · ← higher · → lower</span>
       <b>Hold a turn</b><span>Lean into it harder: tighter, more drive out of a bottom turn</span>
       <b>Space</b><span>Pump: works best on the way <em>down</em></span>
       <b>Turn in the air</b><span>Spin (finish it to land)</span>
