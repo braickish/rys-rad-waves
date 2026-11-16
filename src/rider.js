@@ -802,6 +802,12 @@ function checkHazards(r, dt) {
   if (r.foam > 0.6 && !r.floater && !(r.boost > 0) && !climbingFoam(r)) r.foamTime += dt; // floating on it, carrying out of a move, or climbing it doesn't count
   else r.foamTime = Math.max(0, r.foamTime - dt * 2);
   if (r.foamTime > TUNE.foamLimit) return wipe(r, 'Caught by the whitewater!');
+  // The whitewater rolling out across the flats knocks you off at once if you
+  // ride into it down there (climbing up into it, nose well up, is a floater
+  // from the flats; just out of a move you're carried through).
+  if (r.t > TUNE.tBottom - 0.3 && r.foam > 0.5 && !r.floater && !(r.boost > 0) && Math.sin(r.phi) < 0.4) {
+    return wipe(r, 'Caught by the whitewater! (it rolls out across the flats)');
+  }
   if (r.xs < -25) return wipe(r, 'Caught by the whitewater!');
 
   if (!WAVE.tube) { r.inBarrel = false; return; }

@@ -145,7 +145,10 @@ button).
     the turn through a move doesn't overshoot. A slash that ends while you still hold Right locks too.
   - Moves need at least `moveGap` (1s) between them. Inside the gap the lip is just a plain turn and
     the whitewater just slows you.
-    Sit in heavy foam longer than `foamLimit` and it takes you. Land an air backwards (nose pointing
+    Sit in heavy foam longer than `foamLimit` (1.0s on the point) and it takes you. The whitewater
+    rolling out across the flats (below `tBottom`, ~7 m behind the curl on the point) knocks you off
+    at once if you ride into it there (`checkHazards`), unless you're climbing up into it (a floater
+    from the flats), floating, or just carried through by a move (`boost`). Land an air backwards (nose pointing
     back along the line) and you ride it backwards (`fakie`) for `fakieTime`, then the board spins
     back round ("Revert"). Airs: straight up the open face above
     `airSpeed`.
