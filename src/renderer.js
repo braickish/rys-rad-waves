@@ -4,7 +4,10 @@
 import { skyWGSL, waterWGSL, solidWGSL, particleComputeWGSL, particleRenderWGSL } from './shaders.js';
 import { buildWaterMesh, buildLipTable, LIP, boxMesh, sphereMesh, boardMesh } from './mesh.js';
 
-export const PARTICLES = 65536;
+export const PARTICLES = 40960;
+// Cap the render resolution: a Retina laptop at full 2x is ~5M pixels (x4 MSAA);
+// this keeps it sharp but much cheaper.
+const MAX_PIXELS = 3.2e6;
 const SAMPLES = 4;
 const MAX_OBJECTS = 32;
 const OBJ_STRIDE = 256;
@@ -133,7 +136,9 @@ export async function createRenderer(canvas) {
 
   let msTex = null, depthTex = null, size = [0, 0];
   function resize() {
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    let dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const css = canvas.clientWidth * canvas.clientHeight;
+    if (css * dpr * dpr > MAX_PIXELS) dpr = Math.sqrt(MAX_PIXELS / css);
     const w = Math.max(1, Math.floor(canvas.clientWidth * dpr));
     const h = Math.max(1, Math.floor(canvas.clientHeight * dpr));
     if (w === size[0] && h === size[1]) return;

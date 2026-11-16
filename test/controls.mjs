@@ -39,5 +39,26 @@ for (const wave of ['crumble', 'barrel']) {
   play('touch stick sweeping around', (t) => ({ aim: [Math.cos(t * 2), Math.sin(t * 2)] }));
 }
 setWaveType('crumble');
+// Up/Down must never reverse direction mid-press: hold Down with the nose
+// just either side of straight up the face (like coming off a snap), and
+// hold Up through a rebound 180.
+console.log('-- Up/Down near vertical');
+for (const phi0 of [Math.PI / 2 - 0.05, Math.PI / 2 + 0.05]) {
+  for (const start of [1, -1]) {
+    const r = createRider(); resetRider(r); Object.assign(r, { xs: 4, t: 9, speed: 12, phi: phi0, rideDir: start });
+    let reversals = 0, lastSign = 0, prev = r.phi;
+    for (let i = 0; i < 0.8 * 120; i++) {
+      stepRider(r, { tilt: -1 }, 1 / 120);
+      const dphi = Math.atan2(Math.sin(r.phi - prev), Math.cos(r.phi - prev)); prev = r.phi;
+      const sg = Math.sign(Math.round(dphi * 1e4));
+      if (sg && lastSign && sg !== lastSign) reversals++;
+      if (sg) lastSign = sg;
+      if (Math.sin(r.phi) < -0.9 || r.mode !== 'surf') break;
+    }
+    const ok = reversals === 0 && Math.sin(r.phi) < -0.5;
+    if (!ok) failed++;
+    console.log(`${ok ? 'ok  ' : 'FAIL'} hold Down from ${(phi0 * 57.3).toFixed(0)} deg (was riding ${start > 0 ? 'right' : 'left'}): ${reversals} reversals, ends ${(r.phi * 57.3).toFixed(0)} deg`);
+  }
+}
 console.log(failed ? `${failed} FAILED` : 'all ok');
 process.exit(failed ? 1 : 0);

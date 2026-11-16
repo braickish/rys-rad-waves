@@ -224,12 +224,12 @@ fn respawn(id: u32) -> P {
     let xs = mix(-40.0, 1.0, rnd());
     let L = lipAt(xs);
     let w = max(L[1].w, 0.15 * smoothstep(0.8, 1.6, L[1].z));
-    if (rnd() > w) { p.pos = vec4f(0.0, -10.0, 0.0, 0.05 + rnd() * 0.2); return p; }
+    if (rnd() > w * 0.6) { p.pos = vec4f(0.0, -10.0, 0.0, 0.05 + rnd() * 0.2); return p; }
     let pos = vec3f(xs, L[0].x + 0.1 + rnd() * 0.5, L[0].y + rs() * 0.9);
     let v = vec3f(rs() * 1.5 - peel * 0.3, 1.2 + rnd() * 3.5 * w, 0.6 + rnd() * 2.0);
     p.pos = vec4f(pos, 0.9 + rnd() * 1.4);
     p.vel = vec4f(v, 1.0);
-    p.extra = vec4f(p.pos.w, 0.3 + rnd() * 0.5, 0.0, 0.0);
+    p.extra = vec4f(p.pos.w, 0.25 + rnd() * 0.4, 0.0, 0.0);
     return p;
   }
   // The barrel spitting: air and mist blasting out of the tube.
@@ -280,7 +280,12 @@ struct VO { @builtin(position) pos: vec4f, @location(0) uv: vec2f, @location(1) 
   var corners = array<vec2f, 6>(vec2f(-1.0, -1.0), vec2f(1.0, -1.0), vec2f(1.0, 1.0), vec2f(-1.0, -1.0), vec2f(1.0, 1.0), vec2f(-1.0, 1.0));
   let corner = corners[vi];
   let age = 1.0 - p.pos.w / max(p.extra.x, 0.001);
-  let size = p.extra.y * (0.7 + age * 1.0);
+  // Skip particles right in front of the camera, and cap how big any one can
+  // get on screen: big translucent sprites near the lens are what cost the
+  // most (overdraw), especially on high-DPI screens.
+  let camDist = length(p.pos.xyz - F.camPos.xyz);
+  if (camDist < 2.5) { o.pos = vec4f(0.0, 0.0, 2.0, 1.0); return o; }
+  let size = min(p.extra.y * (0.7 + age * 1.0), camDist * 0.06);
   let w = p.pos.xyz + (cam[0].xyz * corner.x + cam[1].xyz * corner.y) * size;
   o.pos = F.viewProj * vec4f(w, 1.0);
   o.uv = corner;

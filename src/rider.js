@@ -132,14 +132,14 @@ function topOfFace(xs) {
 export function createRider() {
   return {
     mode: 'surf', // 'surf' | 'air' | 'wipe'
-    xs: 4, t: 9.5, speed: 9, phi: -0.5,
+    xs: 4, t: 9.5, speed: 9, phi: -0.85, // drop in angled well down the face
     pos: [0, 0, 0], vel: [0, 0, 0], heading: [1, 0, 0],
     crouch: false, pumping: false, turnRate: 0,
     inBarrel: false, clearance: 99, barrelTime: 0,
     foam: 0, foamTime: 0, pocket: 0,
     airSpin: 0, airTime: 0, spinArmed: false,
     moveCooldown: 0, lastBottomTurn: -9, bottomArmed: false,
-    turnDir: 0, turnDirAge: 9, turnHeld: 0, hard: 0, assist: null, bottomCarve: false, floater: null,
+    rideDir: 1, turnDir: 0, turnDirAge: 9, turnHeld: 0, hard: 0, assist: null, bottomCarve: false, floater: null,
     wipeReason: '', wipeTimer: 0,
     events: [],
     time: 0,
@@ -209,7 +209,13 @@ function stepSurf(r, input, dt) {
   const hard = r.bottomCarve ? 1 : r.hard;
   const radius = (T.rTop + (T.rBottom - T.rTop) * low) * (r.bottomCarve ? T.bottomCarveRadius : 1 - (1 - T.hardRadius) * hard);
   const rate = clamp(r.speed / radius, T.minTurn, T.turn * (1 + (T.hardRate - 1) * hard));
-  const sinNow = Math.sin(r.phi), right = Math.cos(r.phi) >= 0;
+  // Which way you're riding along the wave, with hysteresis: it only flips
+  // once you're clearly heading the other way, so Up/Down can't swap
+  // direction while the nose is near vertical (e.g. coming off a snap).
+  const sinNow = Math.sin(r.phi);
+  if (Math.cos(r.phi) > 0.3) r.rideDir = 1;
+  else if (Math.cos(r.phi) < -0.3) r.rideDir = -1;
+  const right = r.rideDir >= 0;
   let d = 0;
   if (input.turn) d = input.turn * rate * dt;
   else if (input.tilt) {

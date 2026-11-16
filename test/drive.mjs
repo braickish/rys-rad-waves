@@ -39,7 +39,9 @@ if (MOBILE) {
   await send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 });
   await send('Emulation.setEmitTouchEventsForMouse', { enabled: true, configuration: 'mobile' });
 } else {
-  await send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 720, deviceScaleFactor: 1, mobile: false });
+  // RETINA=1 renders at 2x (1440x900 @2x = 2880x1800), like a MacBook screen.
+  const retina = !!process.env.RETINA;
+  await send('Emulation.setDeviceMetricsOverride', { width: retina ? 1440 : 1280, height: retina ? 900 : 720, deviceScaleFactor: retina ? 2 : 1, mobile: false });
 }
 await send('Page.navigate', { url: `http://127.0.0.1:8765/?${query}` });
 const t0 = Date.now();

@@ -150,17 +150,21 @@ export function sphereMesh(lat = 10, lon = 16) {
   return new Float32Array(v);
 }
 
-// Surfboard, in board space: x along the board (+x = nose), y up, z across.
-// Pointed nose with kick, squared-off tail, rounded rails. Built in two
-// pieces over [u0, u1] of the length (u = -1 tail .. +1 nose) so the nose can
-// be a different color.
+// Fish surfboard, in board space: x along the board (+x = nose), y up, z
+// across. Short and wide, a fuller rounded nose, a wide swallowtail with a
+// notch, flat rocker, rounded rails. Built in two pieces over [u0, u1] of the
+// length (u = -1 tail .. +1 nose) so the nose can be a different color.
+export const BOARD_HALF_LENGTH = 0.8; // a 1.6 m fish
+const clampU = (x) => Math.min(1, Math.max(0, x));
 export function boardMesh(u0 = -1, u1 = 1, segs = 28, ring = 14) {
-  const L = 1.0, W = 0.27; // half-length, half-width
+  const L = BOARD_HALF_LENGTH, W = 0.29; // half-length, half-width
   const width = (u) => {
-    const uu = Math.max(u, -0.93); // squash tail: cut off before it narrows to a point
-    return (W * Math.pow(1 - uu, 0.6) * Math.pow(1 + uu, 0.3)) / 1.051;
+    const uu = Math.max(u, -0.97); // wide tail: cut off well before it narrows
+    return (W * Math.pow(1 - uu, 0.45) * Math.pow(1 + uu, 0.15)) / 1.082;
   };
-  const rocker = (u) => 0.11 * Math.max(0, u - 0.3) ** 2 / 0.49 + 0.03 * Math.max(0, -u - 0.6) ** 2 / 0.16;
+  const NOTCH = 0.13; // swallowtail: how far the middle of the tail is cut in (m)
+  const notchAt = (u, c) => NOTCH * clampU((-u - 0.82) / 0.18) * (1 - Math.abs(c));
+  const rocker = (u) => 0.08 * Math.max(0, u - 0.35) ** 2 / 0.42 + 0.02 * Math.max(0, -u - 0.6) ** 2 / 0.16;
   const thick = (u) => 0.034 * (1 - 0.55 * u * u);
   const pts = [];
   for (let i = 0; i <= segs; i++) {
@@ -172,7 +176,7 @@ export function boardMesh(u0 = -1, u1 = 1, segs = 28, ring = 14) {
       const c = Math.cos(a), s = Math.sin(a);
       // Flatter deck and bottom, rounded rails.
       const sy = Math.sign(s) * Math.pow(Math.abs(s), 0.6);
-      const p = [u * L, y0 + th * sy, w * c];
+      const p = [u * L + notchAt(u, c), y0 + th * sy, w * c];
       const n = [0, sy / th, c / w];
       const l = Math.hypot(...n);
       row.push([p, [n[0] / l, n[1] / l, n[2] / l]]);
@@ -189,7 +193,7 @@ export function boardMesh(u0 = -1, u1 = 1, segs = 28, ring = 14) {
   }
   // Cap the tail end.
   if (u0 <= -1) {
-    const row = pts[0], ctr = [u0 * L, rocker(u0), 0];
+    const row = pts[0], ctr = [u0 * L + NOTCH * 0.9, rocker(u0), 0];
     for (let k = 0; k < ring; k++) {
       push([ctr, [-1, 0, 0]]); push([row[(k + 1) % ring][0], [-1, 0, 0]]); push([row[k][0], [-1, 0, 0]]);
     }

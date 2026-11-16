@@ -18,7 +18,8 @@ camera), `?noparticles`.
 
 Controls: every input is the same rail-to-rail carve. Left/Right carve counterclockwise/clockwise (as
 seen from the beach); Up/Down carve whichever way swings the nose up/down the face, stopping at
-straight up/down. Holding a turn progressively leans you into it harder (`hardAfter`: tighter arc,
+straight up/down. Which way Up/Down turn follows the way you're riding, with hysteresis (`rideDir`),
+so they can't flip near vertical or through a pivot. Holding a turn progressively leans you into it harder (`hardAfter`: tighter arc,
 more drive, more rail roll). Space pumps (best on the way down), C switches camera (`?cam=2` is a
 close-up for testing). Shift crouches, only needed on the barrel wave. Touch: drag on the left half to
 carve toward where you point (harder the further you push), a button to pump.
@@ -66,7 +67,8 @@ carve toward where you point (harder the further you push), a button to pump.
     Sit in heavy foam longer than `foamLimit` and it takes you. Airs: straight up the open face above
     `airSpeed`.
   - Barrel wave: same model, the rideable face tops out under the roof, crouch to fit the tube.
-- `src/surfer.js`: the articulated surfer on a surfboard (pointed yellow nose, squared tail, fin).
+- `src/surfer.js`: the articulated surfer on a 1.6 m fish (wide, rounded yellow nose, swallowtail,
+  twin keel fins; shape in `boardMesh` in mesh.js).
   Stance toward the tail (`STANCE`), chest opened toward the nose. In hard turns the board banks onto
   its inside rail (`MAX_ROLL`), more with speed and when leaning hard. Two-bone IK legs and arms.
   Knees bend with turns, crouch, and pumping (compress on the way up, extend driving down); the body
@@ -89,6 +91,11 @@ node test/plot-slices.mjs out.svg [crumble|barrel]   # draw the wave cross-secti
 node test/drive.mjs test/out/<name> "<query>" <ms,...> ['<input json>']   # headless Chrome screenshots + console (test/out is git-ignored)
 MOBILE=1 node test/drive.mjs ...   # same, emulating a phone (390x844, touch)
 ```
+
+Performance: `RETINA=1 node test/drive.mjs ...` renders at 2880x1800 like a MacBook; the game's
+debug object reports smoothed frame time (`ms`). Keep it near 16.7 ms there. Big translucent particles
+near the camera were the expensive thing (overdraw); particle screen size is capped by distance and the
+render resolution is capped at `MAX_PIXELS` (renderer.js).
 
 Input json entries: `[ms, 'down'|'up', 'ArrowLeft']` for keys, `[ms, 'touchStart'|'touchMove'|'touchEnd', x, y]`
 for touch. `drive.mjs` needs the local server running. It drives headless Chrome over the DevTools protocol with

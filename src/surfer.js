@@ -16,7 +16,7 @@ const COL = {
 };
 const THIGH = 0.46, SHIN = 0.46, UPPER = 0.3, FORE = 0.3;
 const MAX_ROLL = 0.95; // furthest the board banks onto a rail (rad, ~55 deg)
-const STANCE = [-0.68, -0.06]; // back and front foot along the board (m from its middle; tail is -1, nose +1)
+const STANCE = [-0.52, -0.02]; // back and front foot along the board (m from its middle; tail is -1, nose +1)
 const CHEST_OPEN = 0.45; // how far the chest turns from the wave toward the nose (rad)
 
 const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
@@ -160,8 +160,11 @@ export function surferObjects(pose, rider, info, dt) {
   const bc = add(p, v3.mul(u, 0.04 + railLift));
   objs.push({ mesh: 'board', model: basis(f, ub, Lb, 1, 1, 1, bc), color: COL.board });
   objs.push({ mesh: 'boardNose', model: basis(f, ub, Lb, 1, 1, 1, bc), color: COL.nose });
-  objs.push({ mesh: 'box', model: basis(f, ub, Lb, 1.55, 0.072, 0.025, add(bc, v3.mul(f, -0.15))), color: COL.stringer });
-  objs.push({ mesh: 'box', model: basis(f, ub, Lb, 0.14, 0.13, 0.012, add(bc, v3.mul(f, -0.82), v3.mul(ub, -0.08))), color: COL.fin });
+  objs.push({ mesh: 'box', model: basis(f, ub, Lb, 1.2, 0.07, 0.025, add(bc, v3.mul(f, -0.12))), color: COL.stringer });
+  // Twin keel fins near the rails at the tail.
+  for (const side of [-1, 1]) {
+    objs.push({ mesh: 'box', model: basis(f, ub, Lb, 0.2, 0.1, 0.012, add(bc, v3.mul(f, -0.58), v3.mul(Lb, 0.17 * side), v3.mul(ub, -0.065))), color: COL.fin });
+  }
   for (const [hp, leg, foot] of [[hipBack, legB, backFoot], [hipFront, legF, frontFoot]]) {
     objs.push(limb(hp, leg.joint, 0.16, 0.17, f, COL.suit));
     objs.push(limb(leg.joint, foot, 0.13, 0.14, f, COL.suit));

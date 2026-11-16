@@ -187,7 +187,7 @@ function updateCamera(dt) {
 }
 
 // ---------- main ----------
-let renderer;
+let renderer, frameMs = 16;
 function showError(msg) {
   const el = $('err');
   if (!el.hidden) return;
@@ -280,7 +280,8 @@ async function main() {
       pump: !!lastInput.pump && surfing,
     }, dt), { particles: !params.has('noparticles') });
 
-    window.__dbg = { state, mode: rider.mode, xs: +rider.xs.toFixed(1), y: +rider.pos[1].toFixed(1), score: Math.round(score), reason: rider.wipeReason };
+    frameMs = frameMs * 0.95 + (dt * 1000) * 0.05; // smoothed frame time
+    window.__dbg = { ms: +frameMs.toFixed(1), state, mode: rider.mode, xs: +rider.xs.toFixed(1), y: +rider.pos[1].toFixed(1), score: Math.round(score), reason: rider.wipeReason };
     // HUD.
     msgTimer -= dt;
     if (msgTimer <= 0) $('msg').classList.remove('pop');
