@@ -20,7 +20,7 @@ const STEP = 1 / 120;
 
 // ---------- input ----------
 const keys = new Set();
-const touch = { turn: 0, tilt: 0, pump: false, crouch: false };
+const touch = { turn: 0, tilt: 0, crouch: false };
 addEventListener('keydown', (e) => {
   if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) e.preventDefault();
   keys.add(e.code);
@@ -30,21 +30,22 @@ addEventListener('keydown', (e) => {
 addEventListener('keyup', (e) => keys.delete(e.code));
 addEventListener('blur', () => keys.clear());
 
-// Autopilot: works the pocket with S-turns and pumps, turning off the top. Drives the title-screen demo
+// Autopilot: works the pocket with S-turns, turning off the top. Drives the title-screen demo
 // and the ?auto test mode.
 let autoUp = false;
 function autopilot() {
-  if (rider.tube) { // sit about half way in for a few seconds, then come out
+  if (rider.tube) { // wiggle around the middle line; harder when getting deep
     const d = tubeDepth(rider), line = rider.tube.line || 0;
-    const turn = line > 0.3 ? -1 : line < -0.3 ? 1 : 0; // keep the line in the middle
-    if (rider.tube.time > 4) return { tilt: 1, turn };
-    return { tilt: d > 0.58 ? 1 : d < 0.42 ? -1 : 0, turn };
+    const wig = Math.floor(rider.tube.time / 0.22) % 2 ? 1 : -1;
+    if (Math.abs(line) > 0.25) return { turn: line > 0 ? -1 : 1 };
+    return { turn: d > 0.35 || rider.tube.time > 5 ? wig : 0 }; // after a while, drive out
   }
+
   if (autoUp && rider.height > 0.88) autoUp = false;
   if (!autoUp && rider.height < 0.15) autoUp = true;
   if (Math.cos(rider.phi) < 0) return { aim: [1, -0.3] }; // facing back: turn back down the line
-  if (rider.xs < -1) return { aim: [1, 0.6], pump: true }; // behind the curl: climb out along the line
-  return { tilt: autoUp ? 1 : -1, pump: !autoUp, crouch: rider.inBarrel };
+  if (rider.xs < -1) return { aim: [1, 0.6] }; // behind the curl: climb out along the line
+  return { tilt: autoUp ? 1 : -1, crouch: rider.inBarrel };
 }
 
 // Keyboard: Left/Up turn the board to the surfer's left, Right/Down to their
@@ -57,12 +58,11 @@ function readInput() {
   const tilt = (k('ArrowUp', 'KeyW') ? 1 : 0) - (k('ArrowDown', 'KeyS') ? 1 : 0);
   return {
     turn: touch.turn || turn, tilt: touch.tilt || tilt,
-    pump: k('Space') || touch.pump,
     crouch: k('ShiftLeft', 'ShiftRight', 'KeyJ') || touch.crouch,
   };
 }
 
-// Touch: swipe anywhere (except the pump button) to steer.
+// Touch: swipe anywhere to steer.
 let stickId = null, stickStart = [0, 0];
 const SWIPE_PX = 45; // full turn at this far from where the swipe started
 // The title and game-over panels cover the canvas, so taps land on them.
@@ -89,13 +89,6 @@ addEventListener('pointermove', (e) => {
 const endStick = (e) => { if (e.pointerId === stickId) { stickId = null; touch.turn = 0; touch.tilt = 0; } };
 addEventListener('pointerup', endStick);
 addEventListener('pointercancel', endStick);
-for (const [id, prop] of [['btn-pump', 'pump']]) {
-  const b = $(id);
-  b.addEventListener('pointerdown', (e) => { e.preventDefault(); touch[prop] = true; if (state !== 'play') startOrRestart(); });
-  b.addEventListener('pointerup', () => { touch[prop] = false; });
-  b.addEventListener('pointerleave', () => { touch[prop] = false; });
-  b.addEventListener('pointercancel', () => { touch[prop] = false; });
-}
 if (matchMedia('(pointer: coarse)').matches) document.body.classList.add('touch');
 
 // ---------- game state ----------
@@ -356,7 +349,7 @@ async function main() {
       burst: burst > 0 ? 1 : 0, camRight, camUp,
     }, surferObjects(pose, rider, {
       n, e2: v3.norm(v3.cross(n, v3.norm(v3.rej([1, 0, 0], n)))), turn: turnSigned,
-      pump: !!lastInput.pump && surfing,
+      pump: false,
     }, dt), { particles: !params.has('noparticles'), outlines: !params.has('nooutline') });
 
     frameMs = frameMs * 0.95 + (dt * 1000) * 0.05; // smoothed frame time

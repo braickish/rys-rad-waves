@@ -22,8 +22,8 @@ export function ride(policy, { secs = 25, xs } = {}) {
 }
 const alt = (period, a, b) => (t) => (Math.floor(t / period) % 2 ? b : a);
 // A player rocking Left/Right: Left (CCW) noses up the face, Right noses down.
-const carveLR = (period, pump) => (r, t) => { const up = alt(period, 1, -1)(t); return { turn: up, pump: pump && up < 0 }; };
-const tiltUD = (period, pump) => (r, t) => { const up = alt(period, 1, -1)(t); return { tilt: up, pump: pump && up < 0 }; };
+const carveLR = (period, pump) => (r, t) => { const up = alt(period, 1, -1)(t); return { turn: up}; };
+const tiltUD = (period, pump) => (r, t) => { const up = alt(period, 1, -1)(t); return { tilt: up}; };
 // A decent surfer bot: S-turns in the pocket, cuts back when it gets ahead of
 // it, straightens and pumps when it gets too deep.
 const pocketBot = () => {
@@ -44,9 +44,9 @@ const cases = [
   ['Up/Down 0.8s', tiltUD(0.8, false)],
   ['Up/Down 0.8s + pump', tiltUD(0.8, true)],
   ['straight down the line, no pump', () => ({ tilt: -0.1 })],
-  ['straight down the line + pump', () => ({ tilt: -0.15, pump: true })],
+  ['straight down the line + pump', () => ({ tilt: -0.15})],
   ['trim high in the pocket (y~2)', (r) => ({ tilt: Math.max(-0.5, Math.min(0.5, (2.0 - r.pos[1]) * 0.8)) })],
-  ['trim high in the pocket + pump', (r) => ({ tilt: Math.max(-0.5, Math.min(0.5, (2.0 - r.pos[1]) * 0.8)), pump: true })],
+  ['trim high in the pocket + pump', (r) => ({ tilt: Math.max(-0.5, Math.min(0.5, (2.0 - r.pos[1]) * 0.8))})],
   ['pocket bot', pocketBot()],
 ];
 if (import.meta.url === `file://${process.argv[1]}`) {

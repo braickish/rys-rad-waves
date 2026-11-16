@@ -346,10 +346,6 @@ function stepSurf(r, input, dt) {
   const dropBoost = r.postMove ? 1 : 1 + (T.topDropBoost - 1) * topThird;
   if (sinp < 0) r.speed += -sinp * T.drop * dropBoost * dropSteep * dt;
   else r.speed += -sinp * T.climb * steep * dt;
-  if (input.pump && steep > 0.2) {
-    r.speed += T.pump * (sinp < -0.1 ? 1 : 0.35) * (0.3 + 0.7 * pk) * (0.7 + 0.6 * height) * dt;
-    r.pumping = true;
-  }
   // Stacked moves can't run away with your speed: above softMax it bleeds off.
   const softMax = T.softMax + T.highDropSoftMax * highDropNow; // a drop from high up can run a bit faster
   if (r.speed > softMax) r.speed -= (r.speed - softMax) * T.overBleed * dt;
@@ -409,6 +405,7 @@ function stepSurf(r, input, dt) {
   const highOnFoam = !r.floater && !r.assist && r.t > top && sinp > 0.2 && cosp > -0.15
     && (r.xs < T.curlZone[0] || foamAt(r.xs, r.t) > 0.3) && waveHeightFrac(r.pos[1]) > T.floaterHeight
     && !(turningNow && sinp > 0.55);
+  if (highOnFoam && !T.floaters) return wipe(r, 'Over the falls! (too heavy to float)');
   if (highOnFoam) {
     r.floater = { time: 0, t: r.t };
     if (ready) {
@@ -422,6 +419,7 @@ function stepSurf(r, input, dt) {
     const inWhitewater = r.xs < T.curlZone[0] || foamAt(r.xs, r.t + 0.6) > 0.3;
     const turning = r.time - (r.lastTurnTime ?? -9) < T.turnWindow;
     const combo = r.time - (r.lastBottomTurn ?? -9) < T.comboWindow;
+    if (inWhitewater && !T.floaters) return wipe(r, 'Over the falls!');
     if (inWhitewater && cosp > -0.15 && !(turning && sinp > 0.55)) {
       // Into the whitewater heading down the line: ride along the top of it.
       r.floater = { time: 0, t: r.t };
@@ -489,6 +487,7 @@ function stepSurf(r, input, dt) {
   // Inside the gap after another move the whitewater just slows you down.
   if (ready && !r.assist && !r.floater && cosp < -0.15 && foamAt(r.xs, r.t) > T.foamContact) {
     const hNow = waveHeightFrac(r.pos[1]);
+    if (!T.rebounds) return wipe(r, 'Buried by the whitewater! (too heavy to rebound off)');
     if (!r.turnDir) return wipe(r, 'Hit the whitewater straight on! (turn as you hit it)');
     if (hNow < T.reboundMinHeight) return wipe(r, 'Buried by the whitewater! (hit it higher)');
     // Turning Right only spins the 180 from the top third; lower than that
@@ -600,6 +599,10 @@ export function tubePinch(r) {
   const T = TUNE;
   return T.tubeCollapse;
 }
+// How much room above and below the middle line you have (the funnel).
+export function tubeRoom(r) {
+  return 1 - TUNE.tubeFunnel * tubeDepth(r);
+}
 // Where you are in the tube: 0 at the exit, 1 at the pinch.
 export function tubeDepth(r) {
   const T = TUNE;
@@ -611,27 +614,29 @@ function stepTube(r, input, dt) {
   tb.time += dt;
   r.barrelTime = tb.time;
   r.crouch = true;
-  // Line: Left (toward the wave) = higher, Right = lower.
-  // The wave pushes you about: your line wanders up and down on its own and
-  // you steer against it. Go past either edge and the lip gets you.
+  // Left (toward the wave) = higher, Right = lower. Small up-and-down
+  // wiggles on the steep wall drive you forward (the same way carving builds
+  // speed on the open face); without them you drift deeper. The safe band
+  // is a funnel: the deeper you are, the less room above and below.
   const lift = clamp(input.turn || 0, -1, 1);
+  const prevLine = tb.line ?? 0;
   const k = tb.time * 0.9 + tb.seed;
   const wander = (Math.sin(k) * 0.7 + Math.sin(k * 2.3 + 1.3) * 0.3) * T.lineDrift;
-  tb.line = (tb.line ?? 0) + (lift * 1.6 + wander) * dt; // -1 low .. +1 high
+  tb.line = prevLine + (lift * T.lineRate + wander) * dt; // -1 low .. +1 high
+  const lineVel = dt > 0 ? Math.abs(tb.line - prevLine) / dt : 0;
+  tb.drive = (tb.drive || 0) * Math.exp(-dt / T.wiggleDecay) + T.wiggleDrive * lineVel * dt;
   const targetT = T.tubeLine - clamp(tb.line, -1, 1) * T.tubeLineRange;
   r.t += (targetT - r.t) * (1 - Math.exp(-dt * 4));
   // In the tube you always ride toward the exit (the way the wave peels),
   // whatever way you were turning as you pulled in.
   r.phi += clampTurn(wrap(0 - r.phi), 4 * dt);
-  // Speed: Up = forward, Down = back; a higher line runs faster.
-  const fwd = clamp(input.tilt || 0, -1, 1);
   if (tb.pullIn) {
     // Pulling in: stall so the curl catches you up and throws over you.
     r.speed += (PEEL_SPEED - T.pullInSpeed - r.speed) * Math.min(1, dt * 6);
     if (phaseAt(r.xs) > T.tubeEnter + 0.05) tb.pullIn = false;
   } else {
-    const cruise = PEEL_SPEED + T.tubeCruise + clamp(tb.line, -1, 1) * T.tubeLineSpeed + fwd * T.tubeAccel;
-    r.speed += (cruise - r.speed) * Math.min(1, dt * 2.5);
+    const cruise = PEEL_SPEED + T.tubeCruise + tb.drive;
+    r.speed += (cruise - r.speed) * Math.min(1, dt * 3);
   }
   r.xs += (r.speed * Math.cos(r.phi) - PEEL_SPEED) * dt;
   const ph = phaseAt(r.xs);
@@ -641,9 +646,10 @@ function stepTube(r, input, dt) {
   syncPose(r, f);
   r.pocket = WAVE.pocket(r.xs); r.foam = 0; r.height = 0.2; r.inBarrel = true;
   // Outcomes.
-  if (!tb.pullIn && ph > tubePinch(r)) { r.tube = null; return wipe(r, 'Pinched! (too deep: speed up)'); }
-  if (!tb.pullIn && tb.line > 1) { r.tube = null; return wipe(r, 'Too high: caught by the lip! (ride lower)'); }
-  if (!tb.pullIn && tb.line < -1) { r.tube = null; return wipe(r, 'Too low: the lip landed on you! (ride higher)'); }
+  if (!tb.pullIn && ph > tubePinch(r)) { r.tube = null; return wipe(r, 'Pinched! (too deep: wiggle up and down to drive forward)'); }
+  const room = tubeRoom(r);
+  if (!tb.pullIn && tb.line > room) { r.tube = null; return wipe(r, 'Over the falls! (too high)'); }
+  if (!tb.pullIn && tb.line < -room) { r.tube = null; return wipe(r, 'The lip landed on you! (too low)'); }
   if (ph < T.tubeExit && !tb.pullIn) {
     r.events.push({ type: 'barrelExit', time: tb.time, depth: tb.depth, avgDepth: tb.depthSum / Math.max(tb.time, 1e-3) });
     r.tube = null; r.inBarrel = false; r.barrelTime = 0;

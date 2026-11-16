@@ -20,7 +20,7 @@ Controls: one control, from the surfer's point of view. Left (or Up) turns the b
 left, Right (or Down) to their right; Up is exactly Left and Down exactly Right in every situation
 (tested). Riding right along the wave, the surfer's left is up the face. Air spins turn the same way
 (about the face normal at takeoff). Holding a turn progressively leans you into it harder (`hardAfter`: tighter arc,
-more drive, more rail roll). Space pumps (best on the way down), C switches camera (`?cam=2` is a
+more drive, more rail roll). C switches camera (`?cam=2` is a
 close-up for testing). Shift crouches, only needed on the barrel wave. Touch: swipes do exactly what the keys
 do (swipe left/up = Left, right/down = Right, harder the further you swipe; anywhere but the pump
 button).
@@ -51,8 +51,8 @@ button).
     the top half of the pocket pays most (`topDropBoost`, scaled by pocket power so the shoulder still bogs); pointing down high up also
     raises the acceleration cap (`highDropAccel`) and the soft speed limit (`highDropSoftMax`).
     Above `softMax` (~32 mph) speed bleeds off fast, hard cap `maxSpeed` (~38 mph), so stacked moves
-    can't run away. Pumping
-    (`pump`) helps on the face, most on the drop.
+    can't run away. There is no pump control (removed by design): speed comes from
+    the wave and from carving.
   - Turns: the turn radius depends on height on the face (`rTop` snappy up top, `rBottom` a long
     rail-to-rail arc at the bottom), so turn rate = speed / radius. A bottom turn (nose coming up,
     low on the face) generates a lot of speed (`bottomDrive`); carving up near the top adds some too
@@ -105,12 +105,12 @@ button).
     `airSpeed`.
   - **Tube riding** (`tube: true` waves; `stepTube` in rider.js): you get in when there's water overhead
     past `tubeEnter`, or you **pull in** (high on the face within `pullInZone` of the curl and turning:
-    you stall at `pullInSpeed` and the lip throws over you). In the tube it's about staying in the zone: Up/Down = forward/back (`tubeAccel`;
-    no input = drift slowly deeper, `tubeCruise`), Left/Right = higher/lower line (`tubeLineRange`;
-    higher runs faster). The line wanders on its own (`lineDrift`) so you steer against it. Too deep
-    (past `tubeCollapse`) = pinched; line past either edge = caught by the lip; back past `tubeExit` =
-    out. No timer. In the tube you always ride toward the exit. Scored by time x average depth. HUD shows a 2D zone box (depth
-    across, line up/down). Camera: inside the tube behind the surfer, looking out. Reef shape is `KF_PIPE` in
+    you stall at `pullInSpeed` and the lip throws over you). In the tube: Left/Right = higher/lower (`lineRate`; the wave nudges you a little,
+    `lineDrift`). Little up-and-down wiggles drive you forward (`wiggleDrive`, fading over
+    `wiggleDecay`); without them you drift deeper (`tubeCruise`). The safe band is a funnel that narrows
+    toward the pinch (`tubeFunnel`, `tubeRoom()`). Too deep = pinched; above the band = "Over the falls";
+    below = the lip lands on you; forward past `tubeExit` = out. In the tube you always ride toward the exit. Scored by time x average depth. HUD shows the funnel (depth across,
+    line up/down). Camera: inside the tube behind the surfer, looking out. Reef shape is `KF_PIPE` in
     waves/shapes.js (a hollow, thick-lipped reef barrel).
 - `src/surfer.js`: the articulated surfer on a 1.6 m fish (wide, rounded yellow nose, swallowtail,
   twin keel fins; shape in `boardMesh` in mesh.js).
@@ -120,6 +120,8 @@ button).
   its inside rail (`MAX_ROLL`), more with speed and when leaning hard. Two-bone IK legs and arms.
   Knees bend with turns, crouch, and pumping (compress on the way up, extend driving down); the body
   leans into turns and the inside hand drags toward the water in a big one.
+- Heavy waves (`floaters: false, rebounds: false` in the wave's tune, e.g. the reef): hitting the
+  whitewater or the lip next to it is a crash ("Over the falls"), not a floater or rebound.
 - `src/sea.js`: **sets and sections**, from the wave's `sea` settings. Each ride is the next wave of the
   set (`setWaveSize`: bigger waves peel a bit faster). Sections (`SECTIONS` in wave.js) are stretches
   ahead that break early for a while (fixed to the reef, so in the peel frame they move back toward

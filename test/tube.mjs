@@ -3,20 +3,21 @@
 // you, riding high near the pinch clips you.
 import { createRider, stepRider, useWave, tubeDepth } from '../src/rider.js';
 useWave('reef');
-const keepDepth = (target) => (r) => {
+// Wiggle up and down around a line (drives you forward), keeping inside the funnel.
+const wiggler = (target, period = 0.22) => (r) => {
   const d = tubeDepth(r), line = r.tube.line || 0;
-  return { tilt: d > target + 0.08 ? 1 : d < target - 0.08 ? -1 : 0, turn: line > 0.3 ? -1 : line < -0.3 ? 1 : 0 };
+  if (Math.abs(line) > 0.25) return { turn: line > 0 ? -1 : 1 };
+  return { turn: d > target ? (Math.floor(r.tube.time / period) % 2 ? 1 : -1) : 0 };
 };
+const keepDepth = wiggler;
 const pols = {
   'no input': () => ({}),
-  'speed straight out (Up)': () => ({ tilt: 1 }),
-  'stall the whole way (Down)': () => ({ tilt: -1 }),
-  'hold ~50% deep, middle line': keepDepth(0.5),
-  'hold ~75% deep, middle line': keepDepth(0.75),
-  'hold ~75% deep, ignore the line': (r) => ({ ...keepDepth(0.75)(r), turn: 0 }),
-  'hold depth, push too high': (r) => ({ ...keepDepth(0.5)(r), turn: 1 }),
-  'hold depth, push too low': (r) => ({ ...keepDepth(0.5)(r), turn: -1 }),
-  'hold ~50% for 4s, then out': (r) => (r.tube && r.tube.time > 4 ? { ...keepDepth(0)(r), tilt: 1 } : keepDepth(0.5)(r)),
+  'wiggle the whole time': (r) => ({ turn: Math.floor(r.tube.time / 0.22) % 2 ? 1 : -1 }),
+  'wiggle when past 35% deep': wiggler(0.35),
+  'wiggle when past 60% deep': wiggler(0.6),
+  'lazy wiggles (slow)': wiggler(0.35, 0.6),
+  'hold Left (too high)': () => ({ turn: 1 }),
+  'hold Right (too low)': () => ({ turn: -1 }),
 };
 for (const [label, pol] of Object.entries(pols)) {
   const r = createRider(); Object.assign(r, { xs: -3, t: 13.2, phi: 0.05, speed: 10 }); r.events = []; stepRider(r, {}, 0);
@@ -35,7 +36,7 @@ for (const [label, xs] of [['near the curl', 1.0], ['3 m ahead', 2.6], ['far out
   const r = createRider(); Object.assign(r, { xs, t: 11, phi: 1.0, speed: 12 }); r.events = []; stepRider(r, {}, 0);
   const ev = [];
   for (let i = 0; i < 10 * 120; i++) {
-    const inp = r.tube ? (r.tube.time > 3 ? { ...keepDepth(0)(r), tilt: 1 } : keepDepth(0.5)(r)) : r.height > 0.55 ? { turn: -1 } : {};
+    const inp = r.tube ? keepDepth(0.4)(r) : r.height > 0.55 ? { turn: -1 } : {};
     stepRider(r, inp, 1 / 120);
     for (const e of r.events) ev.push(e.type === 'barrelExit' ? `out after ${e.time.toFixed(1)}s` : e.type === 'barrelEnter' ? 'PULL IN' : e.move || e.type);
     if (r.mode === 'wipe' || ev.some((x) => x.startsWith('out'))) break;

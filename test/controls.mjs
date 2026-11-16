@@ -32,7 +32,7 @@ for (const wave of ['crumble', 'barrel']) {
   play('alternate Up / Down every 0.6s', (t) => ({ tilt: alt(0.6, 1, -1)(t) }), { tiltOnly: true });
   play('Up / Down 1.0s + pump', (t) => ({ tilt: alt(1.0, 1, -1)(t), pump: alt(1.0, false, true)(t) }), { tiltOnly: true });
   play('hold Up into the lip, then Down', (t) => ({ tilt: t < 2.5 ? 1 : -1 }), { tiltOnly: true });
-  play('mash Up, pump the whole time', () => ({ tilt: 1, pump: true }), { secs: 5, tiltOnly: true });
+  play('mash Up, pump the whole time', () => ({ tilt: 1}), { secs: 5, tiltOnly: true });
   play('Left / Right carving 0.4s', (t) => ({ turn: alt(0.4, 1, -1)(t) }));
   play('Left / Right carving 0.7s + pump', (t) => ({ turn: alt(0.7, 1, -1)(t), pump: alt(0.7, false, true)(t) }));
   play('hold Left (spin in circles)', () => ({ turn: 1 }), { secs: 4 });

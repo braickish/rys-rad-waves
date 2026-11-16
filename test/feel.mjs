@@ -110,8 +110,8 @@ for (const [label, speed] of [['slow', 10], ['fast', 16]]) {
     // Cutback: carve back toward the curl, then climb to meet the whitewater
     // high, turning Left as you hit it.
     if (Math.cos(r.phi) < 0) return { aim: [1, -0.3] }; // facing back: turn back down the line
-    if (r.xs < -1) return { aim: [1, 0.6], pump: true }; // behind the curl: climb out along the line
-    return { tilt: up ? 1 : -1, pump: !up };
+    if (r.xs < -1) return { aim: [1, 0.6]}; // behind the curl: climb out along the line
+    return { tilt: up ? 1 : -1};
   }, 30, (e) => { if (e.type === 'move') counts[moveName(e)] = (counts[moveName(e)] || 0) + 1; });
   out.push(`pocket rider: ${T.toFixed(0)}s, avg ${mph(speedSum / n)} mph, max ${mph(maxV)} mph, ${Math.round(100 * inPk / n)}% in pocket, ${r.mode === 'wipe' ? r.wipeReason : 'still riding'}\n   moves: ${JSON.stringify(counts)}`); }
 // 9. Mashing Left/Right like a beginner, and doing nothing.
