@@ -2,7 +2,7 @@
 // frame), a lip lookup table for the GPU particle emitters, and simple
 // primitives for the surfer.
 
-import { NP, FAR, phaseAt, surface, WAVE_TYPE } from './wave.js';
+import { NP, FAR, phaseAt, surface, WAVE } from './wave.js';
 
 const sstep = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 
@@ -39,27 +39,7 @@ export function buildWaterMesh(perSeg = 10) {
         P[k] = o[0]; P[k + 1] = o[1]; P[k + 2] = o[2];
       }
       tOf[j] = t;
-      let foam, thin;
-      if (WAVE_TYPE === 'crumble') {
-        // Foam spills from the crest down the face behind the curl, reaching
-        // further down as the section crumbles, until the whole face is white.
-        const reach = 6 + 7 * sstep(0.0, 0.5, s); // how far down the face (in t) the foam has spilled
-        foam = sstep(-0.15, 0.35, s) * sstep(3.6, 4.6, t) * (1 - sstep(reach - 1.2, reach + 0.6, t));
-        foam = Math.max(foam, sstep(0.8, 1.4, s) * sstep(3.5, 5.0, t) * (1 - sstep(10, 40, -xs) * 0.5));
-        // Feathering along the crest just ahead of the curl.
-        foam = Math.max(foam, Math.exp(-(((t - 4.8) / 0.7) ** 2)) * sstep(-0.6, -0.1, s) * 0.35);
-        thin = Math.exp(-(((t - 6.5) / 2.2) ** 2)) * sstep(-1.6, -0.4, s) * (1 - sstep(0.1, 0.6, s)) * 0.7;
-      } else {
-        // Foam: whitewater behind the barrel, plus the lip and where it lands.
-        const front = sstep(3.5, 5.5, t); // the front half of the wave, not the back
-        foam = sstep(1.4, 2.0, s) * front * (1 - sstep(10, 40, -xs) * 0.5);
-        foam = Math.max(foam, Math.exp(-(((t - 8.2) / 0.8) ** 2)) * sstep(0.6, 1.2, s) * (1 - sstep(1.7, 2.5, s)) * 0.45);
-        foam = Math.max(foam, sstep(13.6, 14.3, t) * sstep(0.9, 1.3, s) * (1 - sstep(3, 6, s)) * 0.55);
-        // Thin water that glows when backlit: the lip, and the top of a steep face.
-        const lipW = Math.exp(-(((t - 8) / 2.4) ** 2));
-        thin = Math.min(1, lipW * sstep(-0.6, 0.1, s) * (1 - sstep(1.2, 1.8, s)) * 1.1
-          + Math.exp(-(((t - 9.5) / 2.5) ** 2)) * sstep(-1.6, -0.3, s) * (1 - sstep(0.3, 0.8, s)) * 0.45);
-      }
+      const foam = WAVE.foamVisual(s, t, xs), thin = WAVE.thin(s, t);
       A[k] = s; A[k + 1] = foam; A[k + 2] = thin;
     }
   }
@@ -103,7 +83,7 @@ export function buildLipTable() {
   const a = [0, 0, 0], b = [0, 0, 0], c = [0, 0, 0];
   for (let i = 0; i < LIP.count; i++) {
     const xs = LIP.x0 + i * LIP.step;
-    const tipT = WAVE_TYPE === 'crumble' ? 5.0 : 8;
+    const tipT = WAVE.lipT;
     surface(xs, tipT, a);
     surface(xs, tipT + 0.15, b);
     surface(xs, 12.6, c);
@@ -111,9 +91,7 @@ export function buildLipTable() {
     const l = Math.hypot(dy, dz) || 1;
     // How active the whitewater is here (drives crest spray and mist).
     const s = phaseAt(xs);
-    const white = WAVE_TYPE === 'crumble'
-      ? sstep(-0.1, 0.3, s) * (1 - sstep(1.6, 3.0, s))
-      : sstep(0.7, 1.1, s) * (1 - sstep(1.4, 1.8, s));
+    const white = WAVE.white(s);
     data.set([a[1], a[2], dy / l, dz / l, (a[1] + c[1]) * 0.5, (a[2] + c[2]) * 0.5, s, white], i * 8);
   }
   return data;

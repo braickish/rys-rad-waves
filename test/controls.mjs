@@ -2,8 +2,8 @@
 // person does and check nothing glitches. With Up/Down only, the board must
 // never end up facing the curl; with any input, the rider must never be
 // moved faster than the board can go.
-import { createRider, resetRider, stepRider, TUNE } from '../src/rider.js';
-import { setWaveType, PEEL_SPEED } from '../src/wave.js';
+import { createRider, resetRider, stepRider, TUNE, useWave } from '../src/rider.js';
+import { PEEL_SPEED } from '../src/wave.js';
 const dt = 1 / 120;
 let failed = 0;
 function play(name, script, { secs = 8, tiltOnly = false } = {}) {
@@ -26,7 +26,7 @@ function play(name, script, { secs = 8, tiltOnly = false } = {}) {
 }
 const alt = (period, a, b) => (t) => (Math.floor(t / period) % 2 ? b : a);
 for (const wave of ['crumble', 'barrel']) {
-  setWaveType(wave);
+  useWave(wave);
   console.log(`-- ${wave}`);
   play('Up only, then Down only', (t) => ({ tilt: t < 1.2 ? 1 : -1 }), { tiltOnly: true });
   play('alternate Up / Down every 0.6s', (t) => ({ tilt: alt(0.6, 1, -1)(t) }), { tiltOnly: true });
@@ -38,7 +38,7 @@ for (const wave of ['crumble', 'barrel']) {
   play('hold Left (spin in circles)', () => ({ turn: 1 }), { secs: 4 });
   play('touch stick sweeping around', (t) => ({ aim: [Math.cos(t * 2), Math.sin(t * 2)] }));
 }
-setWaveType('crumble');
+useWave('crumble');
 // Up/Down must never reverse direction mid-press: hold Down with the nose
 // just either side of straight up the face (like coming off a snap), and
 // hold Up through a rebound 180.

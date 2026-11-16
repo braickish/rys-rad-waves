@@ -49,9 +49,9 @@ export async function createRenderer(canvas) {
   };
 
   // Geometry.
-  const water = buildWaterMesh();
-  const waterVB = upload(water.verts, GPUBufferUsage.VERTEX);
-  const waterIB = upload(water.idx, GPUBufferUsage.INDEX);
+  let water = buildWaterMesh();
+  let waterVB = upload(water.verts, GPUBufferUsage.VERTEX);
+  let waterIB = upload(water.idx, GPUBufferUsage.INDEX);
   // Solid meshes for the surfer and board, by name.
   const solids = {};
   for (const [name, data] of Object.entries({
@@ -259,5 +259,14 @@ export async function createRenderer(canvas) {
     device.queue.submit([enc.finish()]);
   }
 
-  return { render, device };
+  // Rebuild everything that depends on the active wave (after useWave()).
+  function rebuildWave() {
+    waterVB.destroy(); waterIB.destroy();
+    water = buildWaterMesh();
+    waterVB = upload(water.verts, GPUBufferUsage.VERTEX);
+    waterIB = upload(water.idx, GPUBufferUsage.INDEX);
+    device.queue.writeBuffer(lipBuf, 0, buildLipTable());
+  }
+
+  return { render, device, rebuildWave };
 }

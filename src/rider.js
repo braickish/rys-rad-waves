@@ -21,17 +21,15 @@
 //  - Turning back into the whitewater, high, turning as you hit: rebound.
 //    Sit in the foam too long and it takes you.
 
-import { surface, slice, phaseAt, verticalHits, segmentHit, PEEL_SPEED, WAVE_SPEED, NP, WAVE_TYPE } from './wave.js';
+import { surface, slice, phaseAt, verticalHits, segmentHit, PEEL_SPEED, WAVE_SPEED, NP, WAVE_TYPE, WAVE, setWave } from './wave.js';
 
 export const G = 9.8;
-export const TUNE = {
-  vPocket: 14, // cruising speed the pocket feeds you toward, high on the face (m/s)
-  vLow: 4.5, // what you bog down to out on the shoulder or flat water (m/s)
-  vFoam: 3, // ... and in the foam
+// The rider's and board's settings. Wave-specific settings (pocket speeds,
+// zones, face limits, airs...) come from the active wave's `tune` and are
+// merged in by useWave().
+const RIDER_TUNE = {
   feed: 2.0, // how fast the pocket brings you up to speed (1/s)
   bleed: 0.9, // how fast extra speed fades / you bog down (1/s)
-  drop: 12, // speed gained per second pointing straight down a steep face (m/s^2)
-  topDropBoost: 8, // ... multiplied by up to this in the top half of the pocket (most in the top third)
   climb: 2.5, // speed lost per second pointing straight up it (m/s^2): small, so climbing is easy
   pump: 4, // m/s^2 while pumping on the face (full on the drop, less otherwise)
   turn: 5.2, // fastest turn rate (rad/s)
@@ -46,9 +44,6 @@ export const TUNE = {
   lip180Rate: 14, // the quick 180 off the top when you turn toward the whitewater (rad/s) // how fast the board pivots back down in a snap (rad/s): quick, not instant
   reboundRate: 11, // rebound off the whitewater, nose swinging down (rad/s)
   rebound180Rate: 12, // rebound 180 around through the top (rad/s)
-  foamContact: 0.25, // how much foam counts as hitting the whitewater's front edge
-  reboundMinHeight: 0.33, // meet the whitewater in the top two thirds of the wave to rebound, or it buries you
-  rebound180MinHeight: 0.67, // ... and the top third for the 180
   minTurn: 1.6, // slowest turn rate, so you can always turn (rad/s)
   rTop: 1.3, // turn radius up near the top of the face: snappy (m)
   rBottom: 4.8, // turn radius at the bottom: a long rail-to-rail arc (m)
@@ -58,36 +53,32 @@ export const TUNE = {
   topDrive: 1.6,
   maxAccel: 10, // speed never builds faster than this when slow (m/s^2, ~22 mph per second) ...
   maxAccelFast: 0.3,
-  highDropAccel: 4,
-  highDropSoftMax: 2.0, // ... and the soft speed limit rises by up to this (m/s) // pointing straight down high on the wave: up to this much more allowed acceleration // ... tapering to this fraction of it as you get fast ...
   accelTaper: [7, 14], // ... between these speeds (m/s, ~16 -> 31 mph)
   driveSmooth: 0.2, // turn drive builds in over about this long (s), no jumps
   turnWindow: 0.08, // steering this recently when you reach the lip = a turn off the top; otherwise an air
   lipExit: 1.2, // moves off the lip point you this far below the line (rad, ~70 deg)
   foamExit: 0.6, // ... but out of the whitewater, shallower (down and forward, ~35 deg) // speed gained per radian of carving up near the top of the pocket (m/s)
-  curlZone: [-0.5, 2.5], // xs range of the curl; behind it is whitewater, ahead the open face
   comboWindow: 1.6, // seconds after a bottom turn that a move counts as a combo
   moveGap: 1.0, // at least this long between moves (s), so they don't stack
-  floaterMax: 1.2,
-  floaterHeight: 0.55, // climbing the whitewater, you pop up and float above this fraction of the wave height
-  climbFoamDrag: 0.35, // climbing up the whitewater, the foam drags this much (vs 1 normally) // longest you can float along the top of the whitewater (s)
-  foamLimit: 1.8, // seconds you can sit in heavy foam before it takes you
-  airSpeed: 11.5, // board speed needed to launch off the top without turning (m/s, ~26 mph)
-  airBoostZone: 0.6, // within this far of the whitewater (m, ~2 ft) ...
-  airBoostUp: 3.0, // ... airs launch this much higher (m/s upward)
   airPop: 5.0, // upward speed off the lip for an air (m/s)
-  airCurlZone: 2.5, // within this far of the whitewater, hitting the lip without turning is always an air ...
-  airMinSpeed: 6, // ... as long as you're doing at least this (m/s, ~13 mph)
   airDrift: -1.5, // in the air the wave carries you along: you never drift back faster than this (m/s)
-  tTop: 5.3, // surface coordinate of the top of the rideable face
-  tBottom: 13.9, // ... and the bottom of the face
-  tFlats: 14.6, // how far out onto the flat water in front you can go (you bog down there)
   softMax: 14.5, // above this (~32 mph) extra speed bleeds off quickly ...
   overBleed: 1.6, // ... at this rate (1/s)
   minSpeed: 2, maxSpeed: 17.5, // hard cap ~39 mph
   standH: 1.75,
   crouchH: 1.1,
 };
+export const TUNE = {};
+let waveRef = null; // cached trough/crest heights for waveHeightFrac
+
+// Make a wave active for riding: its shape (wave.js) and its settings.
+export function useWave(w) {
+  setWave(w);
+  for (const k of Object.keys(TUNE)) delete TUNE[k];
+  Object.assign(TUNE, RIDER_TUNE, WAVE.tune);
+  waveRef = null;
+}
+
 
 const v3 = {
   add: (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]],
@@ -119,17 +110,12 @@ function rotate(a, k, ang) {
 // How much power the wave has at xs: full in the pocket, fading quickly out
 // on the shoulder and behind the curl.
 export function pocketPower(xs) {
-  if (xs >= 0) return Math.exp(-((xs / 6) ** 2));
-  return WAVE_TYPE === 'crumble' ? sstep(-6, -1, xs) : sstep(-13, -9, xs);
+  return WAVE.pocket(xs);
 }
 
-// How much foam is under the rider (crumbling wave): matches the mesh's foam.
+// How much foam is under the rider (from the wave; the mesh draws the same foam).
 export function foamAt(xs, t) {
-  if (WAVE_TYPE !== 'crumble') return phaseAt(xs) > 1.5 && t > 9.5 ? 1 : 0;
-  const s = phaseAt(xs);
-  const reach = 6 + 7 * sstep(0.0, 0.5, s); // the spill reaches further down the face further behind the curl
-  const spill = sstep(-0.15, 0.35, s) * sstep(3.6, 4.6, t) * (1 - sstep(reach - 1.2, reach + 0.6, t));
-  return Math.max(spill, sstep(0.8, 1.4, s) * sstep(3.5, 5.0, t));
+  return WAVE.foam(phaseAt(xs), t);
 }
 
 // Surface frame at (xs, t): point, tangents, outward normal, and the unit
@@ -147,7 +133,6 @@ export function frameAt(xs, t) {
 
 // How high you are as a fraction of the full open wave (trough to crest at
 // the curl), measured in real height, not position along the surface.
-let waveRef = null;
 function waveHeightFrac(y) {
   if (!waveRef) waveRef = { lo: surface(0.5, TUNE.tBottom)[1], hi: surface(0.5, 4)[1] };
   return clamp((y - waveRef.lo) / (waveRef.hi - waveRef.lo), 0, 1);
@@ -160,7 +145,7 @@ function climbingFoam(r) {
 
 // Where the rideable face tops out at xs (the barrel's roof starts earlier).
 function topOfFace(xs) {
-  return WAVE_TYPE === 'barrel' && phaseAt(xs) > 0.1 ? 11.9 : TUNE.tTop;
+  return WAVE.faceTop(phaseAt(xs));
 }
 
 export function createRider() {
@@ -250,7 +235,7 @@ function stepSurf(r, input, dt) {
   // 0 on flat water, 1 on a steep face; the pocket counts as steep even near
   // the rounded crest.
   const steep = Math.max(clamp((1 - f.n[1]) / 0.55, 0, 1), 0.85 * pk * sstep(0.05, 0.3, 1 - f.n[1]));
-  r.pocket = pk; r.foam = foam;
+  r.pocket = pk; r.foam = foam; r.height = height;
 
   // --- steering ---
   // Every input is the same rail-to-rail carve; only the direction differs:
@@ -469,7 +454,7 @@ function stepSurf(r, input, dt) {
       // Near the curl you always get an air (if you're moving); out on the
       // open face you need the speed for it, or you go over the back.
       const nearCurl = r.xs - T.curlZone[0] < T.airCurlZone;
-      const air = WAVE_TYPE === 'crumble' && !inWhitewater && sinp > 0.4
+      const air = T.airs && !inWhitewater && sinp > 0.4
         && (r.speed > T.airSpeed || (nearCurl && r.speed > T.airMinSpeed));
       // Right next to the whitewater (within ~2 ft) it throws you higher.
       const nearWhitewater = r.xs - T.airBoostZone < T.curlZone[0] || foamAt(r.xs - T.airBoostZone, r.t + 0.6) > 0.3;
@@ -578,7 +563,7 @@ function checkHazards(r, dt) {
   if (r.foamTime > TUNE.foamLimit) return wipe(r, 'Caught by the whitewater!');
   if (r.xs < -25) return wipe(r, 'Caught by the whitewater!');
 
-  if (WAVE_TYPE !== 'barrel') { r.inBarrel = false; return; }
+  if (!WAVE.tube) { r.inBarrel = false; return; }
   const c = roofClearance(r.xs, r.t, r.pos);
   r.clearance = c;
   const was = r.inBarrel;
@@ -597,3 +582,5 @@ export function groundSpeed(r) {
   if (r.mode === 'surf') return r.speed;
   return v3.len(v3.add(r.vel, [PEEL_SPEED, 0, WAVE_SPEED]));
 }
+
+useWave(WAVE);

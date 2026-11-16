@@ -132,7 +132,7 @@ export function surferObjects(pose, rider, info, dt) {
   // Wind-up and release. A bottom turn winds the shoulders round toward the
   // lip with the front shoulder and arm dropped across the body; a snap
   // springs it all open the other way and throws both arms back over.
-  const lowOnFace = rider.mode === 'surf' && rider.t > 10.5;
+  const lowOnFace = rider.mode === 'surf' && rider.height < 0.4;
   const windT = rider.mode === 'surf' && !(rider.unload > 0) && rider.carvingUp && (rider.bottomCarve || lowOnFace) ? 1 : 0;
   pose.windup = (pose.windup || 0) + (windT - (pose.windup || 0)) * (1 - Math.exp(-dt * 9));
   const unloadT = rider.unload > 0 ? 1 : 0;

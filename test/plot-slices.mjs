@@ -2,8 +2,8 @@
 import { slice, phaseAt } from '../src/wave.js';
 import { writeFileSync } from 'node:fs';
 const xsList = [30, 10, 2, -2, -5, -10, -15];
-import { setWaveType } from '../src/wave.js';
-setWaveType(process.argv[3] || 'crumble');
+import { setWave } from '../src/wave.js';
+setWave(process.argv[3] || 'point');
 const W = 1200, rowH = 200, sc = 40;
 let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${rowH * xsList.length}" style="background:#fff">`;
 xsList.forEach((xs, r) => {

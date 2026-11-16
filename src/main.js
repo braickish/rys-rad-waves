@@ -1,13 +1,13 @@
 import { createRenderer } from './renderer.js';
-import { createRider, resetRider, stepRider, groundSpeed, frameAt, v3, TUNE } from './rider.js';
-import { PEEL_SPEED, slice, verticalHits, setWaveType } from './wave.js';
+import { createRider, resetRider, stepRider, groundSpeed, frameAt, v3, TUNE, useWave } from './rider.js';
+import { PEEL_SPEED, slice, verticalHits } from './wave.js';
 import { perspective, lookAt, mul, invert } from './math.js';
 import { createPose, surferObjects } from './surfer.js';
 
 const params = new URLSearchParams(location.search);
 // Crumbling wave by default; ?wave=barrel for the barreling one. Must be set
 // before the renderer builds the wave mesh.
-setWaveType(params.get('wave') || 'crumble');
+useWave(params.get('wave') || 'point');
 
 const $ = (id) => document.getElementById(id);
 const canvas = $('gfx');
@@ -30,8 +30,8 @@ addEventListener('blur', () => keys.clear());
 // and the ?auto test mode.
 let autoUp = false;
 function autopilot() {
-  if (autoUp && rider.t < TUNE.tTop + 1) autoUp = false;
-  if (!autoUp && rider.t > 12.6) autoUp = true;
+  if (autoUp && rider.height > 0.88) autoUp = false;
+  if (!autoUp && rider.height < 0.15) autoUp = true;
   if (Math.cos(rider.phi) < 0) return { aim: [1, -0.3] }; // facing back: turn back down the line
   if (rider.xs < -1) return { aim: [1, 0.6], pump: true }; // behind the curl: climb out along the line
   return { tilt: autoUp ? 1 : -1, pump: !autoUp, crouch: rider.inBarrel };

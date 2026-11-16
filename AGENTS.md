@@ -27,6 +27,13 @@ button).
 
 ## How it works
 
+- `src/waves/`: **wave definitions**, one file per wave (`point.js` Mellow Point, `reef.js` Reef Barrel;
+  registry in `index.js`, shared keyframes in `shapes.js`). A wave defines its shape (keyframes, scale,
+  peel/phase speeds), its foam (`foam` for physics, `foamVisual` built on the same pieces for drawing),
+  translucency, spray emitter, pocket power, `faceTop`, whether it has a `tube`, and `tune`: the
+  wave-specific settings (pocket speeds, zones, airs, face limits) merged over the rider's settings by
+  `useWave()` in rider.js. Rider/board feel settings stay in `RIDER_TUNE`. `?wave=<id>` picks a wave;
+  `renderer.rebuildWave()` rebuilds the meshes after `useWave()`.
 - `src/wave.js`: the wave model. Two wave types share one 16-point layout: **crumble** (default, the
   crest spills foam down the face, no overhang) and **barrel** (the lip throws over into a tube). The game runs in the **peel frame** (moves with the breaking point),
   where the wave shape is static. Each distance `xs` from the peel point has a 2D cross-section curve
