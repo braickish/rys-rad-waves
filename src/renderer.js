@@ -2,7 +2,8 @@
 // particles (simulated in a compute shader, drawn as soft billboards).
 
 import { skyWGSL, waterWGSL, solidWGSL, particleComputeWGSL, particleRenderWGSL } from './shaders.js';
-import { buildWaterMesh, buildLipTable, LIP, boxMesh, sphereMesh, boardMesh, cylinderMesh } from './mesh.js';
+import { buildWaterTable, buildWaterIndices, slicePhases, WATER_XS, COLS, TABLE, buildLipTable, LIP, boxMesh, sphereMesh, boardMesh, cylinderMesh } from './mesh.js';
+import { SCALE } from './wave.js';
 
 export const PARTICLES = 40960;
 // Cap the render resolution: a Retina laptop at full 2x is ~5M pixels (x4 MSAA);
@@ -49,9 +50,21 @@ export async function createRenderer(canvas) {
   };
 
   // Geometry.
-  let water = buildWaterMesh();
-  let waterVB = upload(water.verts, GPUBufferUsage.VERTEX);
-  let waterIB = upload(water.idx, GPUBufferUsage.INDEX);
+  // Water: a cross-section table (rebuilt per wave), each slice's phase
+  // (every frame), and the grid's triangles (fixed).
+  const waterIdx = buildWaterIndices();
+  const waterIB = upload(waterIdx, GPUBufferUsage.INDEX);
+  let waterTable = upload(buildWaterTable(), GPUBufferUsage.STORAGE);
+  const slicePhaseData = slicePhases();
+  const sliceBuf = upload(slicePhaseData, GPUBufferUsage.STORAGE);
+  const waterInfoBuf = device.createBuffer({ size: 32, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
+  const writeWaterInfo = () => {
+    const b = new ArrayBuffer(32), u = new Uint32Array(b), f = new Float32Array(b);
+    u[0] = COLS; u[1] = WATER_XS.length; u[2] = TABLE.rows;
+    f[4] = TABLE.sMin; f[5] = TABLE.sMax; f[6] = SCALE;
+    device.queue.writeBuffer(waterInfoBuf, 0, b);
+  };
+  writeWaterInfo();
   // Solid meshes for the surfer and board, by name.
   const solids = {};
   for (const [name, data] of Object.entries({
@@ -81,14 +94,7 @@ export async function createRenderer(canvas) {
   const waterMod = mod(waterWGSL);
   const waterPipe = device.createRenderPipeline({
     layout: 'auto',
-    vertex: {
-      module: waterMod, entryPoint: 'vs',
-      buffers: [{ arrayStride: 36, attributes: [
-        { shaderLocation: 0, offset: 0, format: 'float32x3' },
-        { shaderLocation: 1, offset: 12, format: 'float32x3' },
-        { shaderLocation: 2, offset: 24, format: 'float32x3' },
-      ] }],
-    },
+    vertex: { module: waterMod, entryPoint: 'vs' },
     fragment: { module: waterMod, entryPoint: 'fs', targets: [{ format }] },
     primitive: { topology: 'triangle-list', cullMode: 'none' },
     depthStencil: depth,
@@ -157,7 +163,13 @@ export async function createRenderer(canvas) {
 
   const bg = (pipe, entries) => device.createBindGroup({ layout: pipe.getBindGroupLayout(0), entries });
   const skyBG = bg(skyPipe, [{ binding: 0, resource: { buffer: frameBuf } }]);
-  const waterBG = bg(waterPipe, [{ binding: 0, resource: { buffer: frameBuf } }]);
+  const makeWaterBG = () => bg(waterPipe, [
+    { binding: 0, resource: { buffer: frameBuf } },
+    { binding: 1, resource: { buffer: waterInfoBuf } },
+    { binding: 2, resource: { buffer: waterTable } },
+    { binding: 3, resource: { buffer: sliceBuf } },
+  ]);
+  let waterBG = makeWaterBG();
   const frameBG = device.createBindGroup({ layout: frameLayout, entries: [{ binding: 0, resource: { buffer: frameBuf } }] });
   const objBG = device.createBindGroup({ layout: objLayout, entries: [{ binding: 0, resource: { buffer: objBuf, size: 80 } }] });
   const pcBG = bg(pcPipe, [
@@ -193,6 +205,11 @@ export async function createRenderer(canvas) {
   // objects: [{ mesh: 'box'|'sphere'|'board'|'boardNose', model: Float32Array(16), color: [r,g,b] }]
   function render(f, objects, opts = {}) {
     resize();
+    // The wave changes over time (sections, set sizes): each slice's phase,
+    // the size, and where spray comes off.
+    device.queue.writeBuffer(sliceBuf, 0, slicePhases(slicePhaseData));
+    writeWaterInfo();
+    device.queue.writeBuffer(lipBuf, 0, buildLipTable());
     frameData.set(f.viewProj, 0);
     frameData.set(f.invViewProj, 16);
     frameData.set([...f.camPos, f.time], 32);
@@ -227,9 +244,8 @@ export async function createRenderer(canvas) {
 
     pass.setPipeline(waterPipe);
     pass.setBindGroup(0, waterBG);
-    pass.setVertexBuffer(0, waterVB);
     pass.setIndexBuffer(waterIB, 'uint32');
-    pass.drawIndexed(water.count);
+    pass.drawIndexed(waterIdx.length);
 
     pass.setBindGroup(0, frameBG);
     for (let i = 0; i < n && opts.outlines !== false; i++) {
@@ -261,11 +277,9 @@ export async function createRenderer(canvas) {
 
   // Rebuild everything that depends on the active wave (after useWave()).
   function rebuildWave() {
-    waterVB.destroy(); waterIB.destroy();
-    water = buildWaterMesh();
-    waterVB = upload(water.verts, GPUBufferUsage.VERTEX);
-    waterIB = upload(water.idx, GPUBufferUsage.INDEX);
-    device.queue.writeBuffer(lipBuf, 0, buildLipTable());
+    waterTable.destroy();
+    waterTable = upload(buildWaterTable(), GPUBufferUsage.STORAGE);
+    waterBG = makeWaterBG();
   }
 
   return { render, device, rebuildWave };

@@ -125,8 +125,18 @@ button).
   its inside rail (`MAX_ROLL`), more with speed and when leaning hard. Two-bone IK legs and arms.
   Knees bend with turns, crouch, and pumping (compress on the way up, extend driving down); the body
   leans into turns and the inside hand drags toward the water in a big one.
-- `src/mesh.js`: builds the static water mesh (plus far flat ocean), per-vertex foam/translucency
-  attributes, a lip lookup table for particle emitters, and the box/sphere primitives for the surfer.
+- `src/sea.js`: **sets and sections**, from the wave's `sea` settings. Each ride is the next wave of the
+  set (`setWaveSize`: bigger waves peel a bit faster). Sections (`SECTIONS` in wave.js) are stretches
+  ahead that break early for a while: they're fixed to the reef, so in the peel frame they move back
+  toward the curl; `phaseAt` raises the phase there (a flat-topped closeout into whitewater on the
+  point, a bell-shaped early barrel on the reef). Physics follows automatically (everything works from
+  the phase). Seeded (`seedSea`, `?seed=`); `?nosea` turns it off. Tests run without the sea.
+- **Water rendering:** the GPU builds the surface every frame from a cross-section table (512 phases,
+  built per wave in `buildWaterTable`) and each slice's current phase (`slicePhases`), so the wave can
+  change over time. The spray emitter table is refreshed every frame too.
+- Tube camera: low in front of the opening; if water blocks that view (a section has thrown over) it
+  cuts to the shot from inside the tube behind the surfer.
+- `src/mesh.js`: builds the water's cross-section table and grid, a lip lookup table for particle emitters, and the box/sphere primitives for the surfer.
 - `src/shaders.js`: WGSL. Water (fresnel sky reflection, backlit translucency in the lip, flowing
   ripple normals, foam), sky, solid shading, and particles (compute-shader sim of 65k particles: lip
   feathering, whitewater mist, rail spray, barrel spit; drawn as soft billboards).

@@ -69,12 +69,49 @@ struct VO {
   @location(1) n: vec3f,
   @location(2) attr: vec3f,
 };
-@vertex fn vs(@location(0) p: vec3f, @location(1) n: vec3f, @location(2) a: vec3f) -> VO {
+// The water surface, built from the cross-section table (see mesh.js).
+struct WaterInfo { cols: u32, nx: u32, rows: u32, pad: u32, sMin: f32, sMax: f32, scale: f32, pad2: f32 };
+@group(0) @binding(1) var<uniform> W: WaterInfo;
+@group(0) @binding(2) var<storage, read> table: array<vec4f>;   // [z, y, foam, thin] per (row, col)
+@group(0) @binding(3) var<storage, read> slices: array<vec2f>;  // [xs, phase] per slice
+
+fn tableAt(s: f32, j: u32) -> vec4f {
+  let f = clamp((s - W.sMin) / (W.sMax - W.sMin), 0.0, 1.0) * f32(W.rows - 1u);
+  let r0 = u32(floor(f));
+  let r1 = min(r0 + 1u, W.rows - 1u);
+  return mix(table[r0 * W.cols + j], table[r1 * W.cols + j], f - floor(f));
+}
+// Surface point for slice i, column j.
+fn surfacePoint(i: u32, j: u32) -> vec3f {
+  let sl = slices[i];
+  let e = tableAt(sl.y, j);
+  if (j == 0u || j == W.cols - 1u) { return vec3f(sl.x, 0.0, e.x); }
+  return vec3f(sl.x, e.y * W.scale, e.x * W.scale);
+}
+
+@vertex fn vs(@builtin(vertex_index) vi: u32) -> VO {
   var o: VO;
+  let i = vi / W.cols;
+  let j = vi % W.cols;
+  let p = surfacePoint(i, j);
+  var n = vec3f(0.0, 1.0, 0.0);
+  if (j > 0u && j < W.cols - 1u) {
+    let jt0 = max(j - 1u, 1u);
+    let jt1 = min(j + 1u, W.cols - 2u);
+    let i0 = select(i - 1u, 0u, i == 0u);
+    let i1 = min(i + 1u, W.nx - 1u);
+    let tu = surfacePoint(i, jt1) - surfacePoint(i, jt0);
+    let tx = surfacePoint(i1, j) - surfacePoint(i0, j);
+    n = normalize(cross(tu, tx));
+  }
+  let sl = slices[i];
+  let e = tableAt(sl.y, j);
+  // Whitewater fades a little far behind the curl.
+  let foam = e.z * (1.0 - smoothstep(10.0, 40.0, -sl.x) * 0.5 * smoothstep(0.8, 1.4, sl.y));
   o.pos = F.viewProj * vec4f(p, 1.0);
   o.wpos = p;
   o.n = n;
-  o.attr = a;
+  o.attr = vec3f(sl.y, foam, e.w);
   return o;
 }
 

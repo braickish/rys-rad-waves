@@ -42,20 +42,49 @@ let KF = WAVE.keyframes;
 // via useWave() in rider.js; the renderer rebuilds its meshes.
 export function setWave(w) {
   WAVE = typeof w === 'string' ? waveById(w) : w;
-  WAVE_TYPE = WAVE.kind; SCALE = WAVE.scale; PEEL_SPEED = WAVE.peelSpeed; WAVE_SPEED = WAVE.waveSpeed;
-  KF = WAVE.keyframes;
+  WAVE_TYPE = WAVE.kind; KF = WAVE.keyframes;
+  setWaveSize(1);
+  SECTIONS.length = 0;
+}
+
+// Size of the wave being ridden, relative to the wave's normal size (sets
+// bring bigger and smaller waves). Bigger waves peel a little faster.
+export let SIZE = 1;
+export function setWaveSize(k) {
+  SIZE = k;
+  SCALE = WAVE.scale * k;
+  PEEL_SPEED = WAVE.peelSpeed * Math.sqrt(k);
+  WAVE_SPEED = WAVE.waveSpeed * Math.sqrt(k);
+}
+
+// Sections: places along the wave that break differently for a while (a
+// section ahead that closes out, or throws early). In the peel frame they
+// are fixed to the reef/sandbar, so they move back toward the curl at the
+// peel speed. Each: { x (peel frame), age, grow (s to fully break), width, target (phase) }.
+export const SECTIONS = [];
+export function stepSections(dt) {
+  for (const sec of SECTIONS) { sec.x -= PEEL_SPEED * dt; sec.age += dt; }
+  for (let i = SECTIONS.length - 1; i >= 0; i--) if (SECTIONS[i].x < -30) SECTIONS.splice(i, 1);
 }
 export const setWaveType = setWave; // old name
 
 // Phase from distance to the peel point.
 export function phaseAt(xs) {
-  return xs >= 0 ? -xs / WAVE.phase.ahead : -xs / WAVE.phase.behind;
+  let s = xs >= 0 ? -xs / WAVE.phase.ahead : -xs / WAVE.phase.behind;
+  for (const sec of SECTIONS) {
+    const d = (xs - sec.x) / sec.width;
+    const profile = sec.kind === 'throw' ? Math.exp(-d * d) : Math.exp(-(d * d) * d * d); // a peak that throws / a flat-topped closeout
+    const ramp = smooth(Math.min(1, Math.max(0, sec.age / sec.grow)));
+    const k = profile * ramp;
+    if (k > 1e-3 && sec.target > s) s += (sec.target - s) * k;
+  }
+  return s;
 }
 
 const smooth = (f) => f * f * (3 - 2 * f);
 
 // Control points for a phase, as a Float64Array [z0, y0, z1, y1, ...], scaled.
-export function controlPoints(s, out = new Float64Array(NP * 2)) {
+export function controlPoints(s, out = new Float64Array(NP * 2), scale = SCALE) {
   let k = 0;
   if (s <= KF[0].s) k = 0;
   else if (s >= KF[KF.length - 1].s) k = KF.length - 2;
@@ -63,8 +92,8 @@ export function controlPoints(s, out = new Float64Array(NP * 2)) {
   const a = KF[k], b = KF[k + 1];
   const f = smooth(Math.min(1, Math.max(0, (s - a.s) / (b.s - a.s))));
   for (let i = 0; i < NP; i++) {
-    out[i * 2] = (a.p[i][0] + (b.p[i][0] - a.p[i][0]) * f) * SCALE;
-    out[i * 2 + 1] = (a.p[i][1] + (b.p[i][1] - a.p[i][1]) * f) * SCALE;
+    out[i * 2] = (a.p[i][0] + (b.p[i][0] - a.p[i][0]) * f) * scale;
+    out[i * 2 + 1] = (a.p[i][1] + (b.p[i][1] - a.p[i][1]) * f) * scale;
   }
   return out;
 }
@@ -74,7 +103,7 @@ export function controlPoints(s, out = new Float64Array(NP * 2)) {
 function knot(az, ay, bz, by) {
   return Math.max(1e-4, Math.sqrt(Math.hypot(bz - az, by - ay)));
 }
-function crPoint(c, t, out) {
+export function crPoint(c, t, out) {
   const n = NP - 1;
   let i = Math.floor(t);
   if (i < 0) i = 0;

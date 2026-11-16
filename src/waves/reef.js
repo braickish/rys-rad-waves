@@ -33,6 +33,14 @@ export default {
   faceTop: (s) => (s > 0.1 ? 11.9 : 5.3),
   tube: true,
 
+  sea: {
+    set: [0.95, 1.0, 1.2],
+    firstSection: [6, 10], sectionEvery: [8, 13],
+    ahead: [24, 32], width: [7, 10], grow: [2.0, 3.0],
+    closeoutChance: 0.35, closeoutPhase: 1.5, // sometimes it closes out ...
+    throwPhase: 0.75, // ... more often it throws an early barrel ahead of you
+  },
+
   tune: {
     ...point.tune,
     airs: false,

@@ -21,7 +21,7 @@
 //  - Turning back into the whitewater, high, turning as you hit: rebound.
 //    Sit in the foam too long and it takes you.
 
-import { surface, slice, phaseAt, verticalHits, segmentHit, PEEL_SPEED, WAVE_SPEED, NP, WAVE_TYPE, WAVE, setWave } from './wave.js';
+import { surface, slice, phaseAt, verticalHits, segmentHit, PEEL_SPEED, WAVE_SPEED, NP, WAVE, setWave, SCALE } from './wave.js';
 
 export const G = 9.8;
 // The rider's and board's settings. Wave-specific settings (pocket speeds,
@@ -134,7 +134,7 @@ export function frameAt(xs, t) {
 // How high you are as a fraction of the full open wave (trough to crest at
 // the curl), measured in real height, not position along the surface.
 function waveHeightFrac(y) {
-  if (!waveRef) waveRef = { lo: surface(0.5, TUNE.tBottom)[1], hi: surface(0.5, 4)[1] };
+  if (!waveRef || waveRef.scale !== SCALE) waveRef = { lo: surface(0.5, TUNE.tBottom)[1], hi: surface(0.5, 4)[1], scale: SCALE };
   return clamp((y - waveRef.lo) / (waveRef.hi - waveRef.lo), 0, 1);
 }
 

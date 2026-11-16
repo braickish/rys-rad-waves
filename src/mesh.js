@@ -1,8 +1,7 @@
-// Geometry built once on the CPU: the wave surface (static in the peel
-// frame), a lip lookup table for the GPU particle emitters, and simple
-// primitives for the surfer.
+// Geometry: the water's cross-section table, a lip lookup table for the GPU
+// particle emitters, and simple primitives for the surfer and board.
 
-import { NP, FAR, phaseAt, surface, WAVE } from './wave.js';
+import { NP, FAR, phaseAt, surface, WAVE, controlPoints, crPoint } from './wave.js';
 
 const sstep = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 
@@ -15,64 +14,55 @@ function sliceXs() {
   return xs;
 }
 
-// Water mesh. Vertex: pos(3) normal(3) attr(3: phase, foam, thin) = 9 floats.
-export function buildWaterMesh(perSeg = 10) {
-  const xsList = sliceXs();
-  const rows = (NP - 1) * perSeg + 1;
-  const cols = rows + 2; // plus far-flat ocean at each end
-  const nx = xsList.length;
-  const P = new Float32Array(nx * cols * 3);
-  const A = new Float32Array(nx * cols * 3);
-  const tOf = new Float32Array(cols);
-  const o = [0, 0, 0];
-  for (let i = 0; i < nx; i++) {
-    const xs = xsList[i];
-    const s = phaseAt(xs);
-    for (let j = 0; j < cols; j++) {
-      const k = (i * cols + j) * 3;
-      let t;
-      if (j === 0) { P[k] = xs; P[k + 1] = 0; P[k + 2] = -FAR; t = 0; }
-      else if (j === cols - 1) { P[k] = xs; P[k + 1] = 0; P[k + 2] = FAR; t = NP - 1; }
-      else {
-        t = (j - 1) / perSeg;
-        surface(xs, t, o);
-        P[k] = o[0]; P[k + 1] = o[1]; P[k + 2] = o[2];
-      }
-      tOf[j] = t;
-      const foam = WAVE.foamVisual(s, t, xs), thin = WAVE.thin(s, t);
-      A[k] = s; A[k + 1] = foam; A[k + 2] = thin;
+// Water: drawn on the GPU from a table of cross-sections. The CPU builds
+// the table once per wave (the cross-section shape, foam and translucency at
+// TABLE.rows phases through the breaking cycle, at size 1); every frame it
+// sends the GPU each slice's position and current phase (sections and sets
+// change these), and the vertex shader builds the surface from the table.
+export const WATER_XS = sliceXs();
+export const PER_SEG = 10;
+export const COLS = (NP - 1) * PER_SEG + 1 + 2; // plus far-flat ocean at each end
+export const TABLE = { rows: 512, sMin: -15, sMax: 15 };
+
+// vec4 per (row, column): [z, y, foam, thin] at scale 1.
+export function buildWaterTable() {
+  const { rows, sMin, sMax } = TABLE;
+  const data = new Float32Array(rows * COLS * 4);
+  const cp = new Float64Array(NP * 2), o = [0, 0];
+  for (let r = 0; r < rows; r++) {
+    const s = sMin + ((sMax - sMin) * r) / (rows - 1);
+    controlPoints(s, cp, 1);
+    for (let j = 0; j < COLS; j++) {
+      const k = (r * COLS + j) * 4;
+      if (j === 0) { data.set([-FAR, 0, 0, 0], k); continue; }
+      if (j === COLS - 1) { data.set([FAR, 0, 0, 0], k); continue; }
+      const t = (j - 1) / PER_SEG;
+      crPoint(cp, t, o);
+      data.set([o[0], o[1], WAVE.foamVisual(s, t, 0), WAVE.thin(s, t)], k);
     }
   }
-  // Normals from the grid: cross(dP/dt, dP/dx) points out of the water.
-  const N = new Float32Array(nx * cols * 3);
-  const g = (i, j, c) => P[(i * cols + j) * 3 + c];
-  for (let i = 0; i < nx; i++) {
-    for (let j = 0; j < cols; j++) {
-      const k = (i * cols + j) * 3;
-      if (j === 0 || j === cols - 1) { N[k + 1] = 1; continue; }
-      const i0 = Math.max(0, i - 1), i1 = Math.min(nx - 1, i + 1);
-      const j0 = Math.max(1, j - 1), j1 = Math.min(cols - 2, j + 1);
-      const tu = [g(i, j1, 0) - g(i, j0, 0), g(i, j1, 1) - g(i, j0, 1), g(i, j1, 2) - g(i, j0, 2)];
-      const tx = [g(i1, j, 0) - g(i0, j, 0), g(i1, j, 1) - g(i0, j, 1), g(i1, j, 2) - g(i0, j, 2)];
-      let n = [tu[1] * tx[2] - tu[2] * tx[1], tu[2] * tx[0] - tu[0] * tx[2], tu[0] * tx[1] - tu[1] * tx[0]];
-      const l = Math.hypot(...n) || 1;
-      N[k] = n[0] / l; N[k + 1] = n[1] / l; N[k + 2] = n[2] / l;
-    }
-  }
-  const verts = new Float32Array(nx * cols * 9);
-  for (let v = 0; v < nx * cols; v++) {
-    verts.set([P[v * 3], P[v * 3 + 1], P[v * 3 + 2], N[v * 3], N[v * 3 + 1], N[v * 3 + 2], A[v * 3], A[v * 3 + 1], A[v * 3 + 2]], v * 9);
-  }
-  const idx = new Uint32Array((nx - 1) * (cols - 1) * 6);
+  return data;
+}
+
+// Triangle indices for the water grid (slices x columns).
+export function buildWaterIndices() {
+  const nx = WATER_XS.length;
+  const idx = new Uint32Array((nx - 1) * (COLS - 1) * 6);
   let q = 0;
   for (let i = 0; i < nx - 1; i++) {
-    for (let j = 0; j < cols - 1; j++) {
-      const a = i * cols + j, b = a + 1, c = a + cols, d = c + 1;
+    for (let j = 0; j < COLS - 1; j++) {
+      const a = i * COLS + j, b = a + 1, c = a + COLS, d = c + 1;
       idx[q++] = a; idx[q++] = c; idx[q++] = b;
       idx[q++] = b; idx[q++] = c; idx[q++] = d;
     }
   }
-  return { verts, idx, count: idx.length };
+  return idx;
+}
+
+// Each slice's position and its phase right now: [xs, phase] pairs.
+export function slicePhases(out = new Float32Array(WATER_XS.length * 2)) {
+  for (let i = 0; i < WATER_XS.length; i++) { out[i * 2] = WATER_XS[i]; out[i * 2 + 1] = phaseAt(WATER_XS[i]); }
+  return out;
 }
 
 // Lip table for particle emitters: per xs, two vec4s:

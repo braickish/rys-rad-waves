@@ -2,6 +2,7 @@ import { createRenderer } from './renderer.js';
 import { createRider, resetRider, stepRider, groundSpeed, frameAt, v3, TUNE, useWave } from './rider.js';
 import { PEEL_SPEED, slice, verticalHits, WAVE } from './wave.js';
 import { WAVES } from './waves/index.js';
+import { SEA, nextWave, stepSea, waveHeightFt, seedSea } from './sea.js';
 import { perspective, lookAt, mul, invert } from './math.js';
 import { createPose, surferObjects } from './surfer.js';
 
@@ -111,12 +112,13 @@ let lastInput = {};
 function startOrRestart() {
   if (state === 'play') return;
   state = 'play';
+  nextWave(); // the next wave of the set (its own size)
   resetRider(rider);
   if (params.has('xs')) { rider.xs = Number(params.get('xs')); rider.t = 13.0; rider.pos = frameAt(rider.xs, rider.t).P; }
   score = 0; rideTime = 0;
   $('title').hidden = true;
   $('over').hidden = true;
-  flash('Drop in!');
+  flash('Drop in!', SEA.setSize > 1 ? `wave ${SEA.waveInSet} of ${SEA.setSize} · ${Math.round(waveHeightFt())} ft face` : '');
 }
 
 function flash(text, sub = '') {
@@ -176,13 +178,35 @@ function handleEvents() {
 
 // ---------- camera ----------
 let camPos = [-6, 4, 12], camTarget = [0, 1, 0], aspectNow = 1.6;
+// Is there open air all the way from a to b? (no water surface crossed)
+function clearView(a, b) {
+  for (let k = 1; k < 16; k++) {
+    const f = k / 16, q = [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f];
+    if (verticalHits(slice(q[0], 6), q[2]).filter((hit) => hit.y > q[1]).length % 2 === 1) return false;
+  }
+  return true;
+}
+let lastShot = '';
 function updateCamera(dt) {
+  let shot = 'surf';
   const p = rider.pos;
   let want, look;
   if (rider.tube && camMode !== 2) {
     // In the tube: low, just ahead of the opening, looking back in at you.
+    // If water is in the way (say a section ahead has thrown over), come in
+    // closer until the surfer is in view.
+    // If water is in the way (a section ahead has thrown over the opening),
+    // switch to the classic shot from deeper in the tube, behind you,
+    // looking out past you toward the opening.
+    const head = [p[0], p[1] + 0.9, p[2]];
     want = [p[0] + 7.5, p[1] + 1.0, p[2] + 2.6];
     look = [p[0] - 0.5, p[1] + 0.9, p[2] - 0.2];
+    shot = 'tubeFront';
+    if (!clearView(want, head)) {
+      want = [p[0] - 3.4, p[1] + 1.0, p[2] + 0.5];
+      look = [p[0] + 4, p[1] + 0.7, p[2] + 0.2];
+      shot = 'tubeInside';
+    }
   } else if (camMode === 0) {
     // From the channel in front of the wave: barrel on the left, shoulder right.
     // Ahead in the channel, looking back up the line into the tube.
@@ -203,6 +227,12 @@ function updateCamera(dt) {
   // crossings above a point means it's underwater (or inside the lip).
   const insideWater = (q) => verticalHits(slice(q[0], 6), q[2]).filter((hit) => hit.y > q[1]).length % 2 === 1;
   for (let i = 0; i < 25 && insideWater(want); i++) want[2] += 0.35;
+  // Changing shot in or out of the tube is a cut, not a slow pan (a pan
+  // would drift through the water).
+  if (shot !== lastShot && (shot.startsWith('tube') || lastShot.startsWith('tube'))) {
+    camPos = want.slice(); camTarget = look.slice();
+  }
+  lastShot = shot;
   const k = 1 - Math.exp(-dt * (rider.mode === 'wipe' ? 1.5 : 5));
   for (let i = 0; i < 3; i++) { camPos[i] += (want[i] - camPos[i]) * k; camTarget[i] += (look[i] - camTarget[i]) * k; }
 }
@@ -232,6 +262,9 @@ async function main() {
   renderer.device.lost.then((info) => showError(`GPU device lost: ${info.message}`));
   $('best').textContent = best;
   if (params.has('moveaccel')) TUNE.moveCalm = 0; // compare: the old behavior
+  if (params.has('nosea')) SEA.enabled = false; // a single fixed wave (testing)
+  if (params.has('seed')) seedSea(Number(params.get('seed')));
+  nextWave();
   // Wave picker on the title screen.
   const picker = $('waves');
   const drawPicker = () => {
@@ -244,6 +277,7 @@ async function main() {
       b.addEventListener('click', (e) => {
         e.stopPropagation();
         useWave(w.id);
+        nextWave();
         renderer.rebuildWave();
         resetRider(rider);
         try { localStorage.setItem('rys-rad-waves-wave', w.id); } catch {}
@@ -268,8 +302,12 @@ async function main() {
       lastInput = input;
       acc += dt;
       while (acc >= STEP) {
+        stepSea(STEP);
         stepRider(rider, input, STEP);
         handleEvents();
+        for (const e of SEA.events) {
+          if (e.type === 'section') flash(e.kind === 'closeout' ? 'Section closing out ahead!' : "It's throwing ahead!", e.kind === 'closeout' ? 'race it, or float over it' : 'get in there');
+        }
         acc -= STEP;
       }
       if (rider.mode === 'surf') {
@@ -289,7 +327,7 @@ async function main() {
     } else if (state === 'title') {
       // Attract mode: the autopilot surfs behind the title card.
       acc += dt;
-      while (acc >= STEP) { lastInput = autopilot(); stepRider(rider, lastInput, STEP); acc -= STEP; }
+      while (acc >= STEP) { stepSea(STEP); lastInput = autopilot(); stepRider(rider, lastInput, STEP); acc -= STEP; }
       if (rider.mode === 'wipe' && rider.wipeTimer <= 0) resetRider(rider);
     }
 
@@ -327,7 +365,7 @@ async function main() {
     }, dt), { particles: !params.has('noparticles'), outlines: !params.has('nooutline'), mirror: !!WAVE.left });
 
     frameMs = frameMs * 0.95 + (dt * 1000) * 0.05; // smoothed frame time
-    window.__dbg = { wave: WAVE.id, wind: +(pose.windup || 0).toFixed(2), unl: +(pose.unload || 0).toFixed(2), ms: +frameMs.toFixed(1), phi: +(rider.phi * 57.3).toFixed(0), turn: touch.turn, tilt: touch.tilt, bal: rider.tube ? +rider.tube.bal.toFixed(2) : null, state, mode: rider.mode, xs: +rider.xs.toFixed(1), y: +rider.pos[1].toFixed(1), score: Math.round(score), reason: rider.wipeReason };
+    window.__dbg = { cam: camPos.map((x) => +x.toFixed(2)), pos: rider.pos.map((x) => +x.toFixed(2)), rt: +rider.t.toFixed(2), tube: !!rider.tube, wave: WAVE.id, wind: +(pose.windup || 0).toFixed(2), unl: +(pose.unload || 0).toFixed(2), ms: +frameMs.toFixed(1), phi: +(rider.phi * 57.3).toFixed(0), turn: touch.turn, tilt: touch.tilt, bal: rider.tube ? +rider.tube.bal.toFixed(2) : null, state, mode: rider.mode, xs: +rider.xs.toFixed(1), y: +rider.pos[1].toFixed(1), score: Math.round(score), reason: rider.wipeReason };
     // HUD.
     msgTimer -= dt;
     if (msgTimer <= 0) $('msg').classList.remove('pop');
