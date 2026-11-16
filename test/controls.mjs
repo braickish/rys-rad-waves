@@ -19,8 +19,8 @@ function play(name, script, { secs = 8, tiltOnly = false } = {}) {
   }
   // Never faster than the board's top speed through the water (in the peel
   // frame the water itself moves back at the peel speed). Up/Down alone never
-  // point you back at the curl.
-  const ok = !nan && minVx > -(TUNE.maxSpeed + PEEL_SPEED + 0.5) && (!tiltOnly || minHx > -0.2);
+  // point you back at the curl (no longer true: Up is the same as Left).
+  const ok = !nan && minVx > -(TUNE.maxSpeed + PEEL_SPEED + 0.5);
   if (!ok) failed++;
   console.log(`${ok ? 'ok  ' : 'FAIL'} ${name.padEnd(40)} ${(i * dt).toFixed(1).padStart(4)}s minHeadingX=${minHx.toFixed(2)} minVx=${minVx.toFixed(1)} airs=${airs} ${r.mode === 'wipe' ? '(' + r.wipeReason + ')' : ''}`);
 }
@@ -42,6 +42,24 @@ setWaveType('crumble');
 // Up/Down must never reverse direction mid-press: hold Down with the nose
 // just either side of straight up the face (like coming off a snap), and
 // hold Up through a rebound 180.
+// Up must be exactly Left and Down exactly Right, in every situation (riding
+// right, riding left, near vertical, after moves): identical rides.
+console.log('-- Up == Left, Down == Right (surfer POV)');
+for (const [label, init] of [['riding right', { phi: 0.2 }], ['riding left', { phi: 2.9 }], ['nose straight up', { phi: Math.PI / 2 }], ['nose straight down', { phi: -Math.PI / 2 }]]) {
+  for (const [a, b, name] of [[{ tilt: 1 }, { turn: 1 }, 'Up vs Left'], [{ tilt: -1 }, { turn: -1 }, 'Down vs Right']]) {
+    const mk = () => { const r = createRider(); resetRider(r); Object.assign(r, { xs: 3, t: 9, speed: 12 }, init); return r; };
+    const r1 = mk(), r2 = mk(); let maxDiff = 0;
+    for (let i = 0; i < 1.5 * 120; i++) {
+      const pol = (inp) => (Math.floor(i / 30) % 2 ? {} : inp); // press, release, press...
+      stepRider(r1, pol(a), 1 / 120); stepRider(r2, pol(b), 1 / 120);
+      maxDiff = Math.max(maxDiff, Math.abs(r1.phi - r2.phi), Math.abs(r1.xs - r2.xs));
+      if (r1.mode !== 'surf' || r2.mode !== 'surf') break;
+    }
+    const ok = maxDiff < 1e-9;
+    if (!ok) failed++;
+    console.log(`${ok ? 'ok  ' : 'FAIL'} ${label}: ${name} identical (max difference ${maxDiff.toExponential(1)})`);
+  }
+}
 console.log('-- Up/Down near vertical');
 for (const phi0 of [Math.PI / 2 - 0.05, Math.PI / 2 + 0.05]) {
   for (const start of [1, -1]) {

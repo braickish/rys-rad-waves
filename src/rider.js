@@ -51,8 +51,10 @@ export const TUNE = {
   bottomCarveRadius: 1.15, // a bottom turn started pointing down: fully committed at once, a slightly wider arc ...
   bottomCarveDrive: 1.6, // ... that builds more speed
   topDrive: 1.6,
-  maxAccel: 10, // speed never builds faster than this (m/s^2, ~22 mph per second)
-  driveSmooth: 0.35, // turn drive builds in over about this long (s), no jumps
+  maxAccel: 10, // speed never builds faster than this when slow (m/s^2, ~22 mph per second) ...
+  maxAccelFast: 0.3, // ... tapering to this fraction of it as you get fast ...
+  accelTaper: [7, 14], // ... between these speeds (m/s, ~16 -> 31 mph)
+  driveSmooth: 0.2, // turn drive builds in over about this long (s), no jumps
   turnWindow: 0.3, // turned within this long (s) of reaching the lip = a turn off the top
   lipExit: 1.2, // moves off the lip point you this far below the line (rad, ~70 deg)
   foamExit: 0.6, // ... but out of the whitewater, shallower (down and forward, ~35 deg) // speed gained per radian of carving up near the top of the pocket (m/s)
@@ -126,6 +128,14 @@ export function frameAt(xs, t) {
   const e1 = v3.norm(v3.rej([1, 0, 0], n));
   const e2 = v3.norm(v3.cross(n, e1));
   return { P, Pt, Px, n, e1, e2 };
+}
+
+// How high you are as a fraction of the full open wave (trough to crest at
+// the curl), measured in real height, not position along the surface.
+let waveRef = null;
+function waveHeightFrac(y) {
+  if (!waveRef) waveRef = { lo: surface(0.5, TUNE.tBottom)[1], hi: surface(0.5, 4)[1] };
+  return clamp((y - waveRef.lo) / (waveRef.hi - waveRef.lo), 0, 1);
 }
 
 // Where the rideable face tops out at xs (the barrel's roof starts earlier).
@@ -218,16 +228,16 @@ function stepSurf(r, input, dt) {
   // Which way you're riding along the wave, with hysteresis: it only flips
   // once you're clearly heading the other way, so Up/Down can't swap
   // direction while the nose is near vertical (e.g. coming off a snap).
-  const sinNow = Math.sin(r.phi);
   if (Math.cos(r.phi) > 0.3) r.rideDir = 1;
   else if (Math.cos(r.phi) < -0.3) r.rideDir = -1;
-  const right = r.rideDir >= 0;
+  // One control, from the surfer's point of view: Left (or Up) turns the
+  // board to the surfer's left, Right (or Down) to their right. Riding right
+  // along the wave, the surfer's left is up the face. Nothing depends on
+  // which way you're riding, so it can never flip.
+  const steer = clamp((input.turn || 0) + (input.tilt || 0), -1, 1);
   let d = 0;
-  if (input.turn) d = input.turn * rate * dt;
-  else if (input.tilt) {
-    const pointed = input.tilt > 0 ? sinNow > 0.97 : sinNow < -0.97;
-    if (!pointed) d = (right ? 1 : -1) * Math.sign(input.tilt) * rate * dt;
-  } else if (input.aim && (input.aim[0] || input.aim[1])) {
+  if (steer) d = steer * rate * dt;
+  else if (input.aim && (input.aim[0] || input.aim[1])) {
     const push = Math.min(1, Math.hypot(input.aim[0], input.aim[1]));
     d = clampTurn(wrap(Math.atan2(input.aim[1], input.aim[0]) - r.phi), rate * (0.45 + 0.55 * push) * dt);
   }
@@ -266,7 +276,10 @@ function stepSurf(r, input, dt) {
   const carveDrive = r.bottomCarve ? T.bottomCarveDrive : 1 + 0.35 * hard;
   // Turn drive goes into a buffer that releases smoothly, so speed builds
   // through the turn instead of jumping.
-  if (driveLow > 0 && Math.sin(r.phi) > sinBefore && d === playerD) r.driveBank += T.bottomDrive * carveDrive * Math.abs(d) * driveLow * (0.4 + 0.6 * pk);
+  // A committed bottom turn drives from its very first moment (the nose
+  // starting to come round), not only once it's coming up the face.
+  const driving = r.bottomCarve ? true : Math.sin(r.phi) > sinBefore;
+  if (driveLow > 0 && driving && d === playerD) r.driveBank += T.bottomDrive * carveDrive * Math.abs(d) * driveLow * (0.4 + 0.6 * pk);
   if (high > 0 && d === playerD) r.driveBank += T.topDrive * Math.abs(d) * high * pk;
   const release = r.driveBank * (1 - Math.exp(-dt / T.driveSmooth));
   r.speed += release; r.driveBank -= release;
@@ -304,7 +317,8 @@ function stepSurf(r, input, dt) {
   if (r.speed > T.softMax) r.speed -= (r.speed - T.softMax) * T.overBleed * dt;
   // However many things are feeding you speed at once (drop, pocket, turn
   // drive, pump), it never surges: speed builds at most maxAccel.
-  r.speed = Math.min(r.speed, speedAtStart + T.maxAccel * dt);
+  const accelCap = T.maxAccel * (1 - (1 - T.maxAccelFast) * sstep(T.accelTaper[0], T.accelTaper[1], speedAtStart));
+  r.speed = Math.min(r.speed, speedAtStart + accelCap * dt);
   r.speed = clamp(r.speed, T.minSpeed, T.maxSpeed);
 
   // --- move ---
@@ -368,6 +382,7 @@ function stepSurf(r, input, dt) {
       // of the whitewater) it's an air; otherwise over the back you go.
       f = frameAt(r.xs, r.t);
       r.mode = 'air'; r.airSpin = 0; r.airTime = 0; r.spinArmed = false; r.overTheBack = false;
+      r.airAxis = f.n; // spins in the air turn the same way as on the face
       r.pos = f.P;
       const air = ready && WAVE_TYPE === 'crumble' && !inWhitewater && sinp > 0.5 && r.speed > T.airSpeed && ph < 0.3;
       r.launchSpeed = r.speed;
@@ -388,7 +403,7 @@ function stepSurf(r, input, dt) {
   // top (top third). Lower than that, or not turning, and it buries you.
   // Inside the gap after another move the whitewater just slows you down.
   if (ready && !r.assist && !r.floater && cosp < -0.15 && foamAt(r.xs, r.t) > T.foamContact) {
-    const hNow = clamp((T.tBottom - r.t) / (T.tBottom - topOfFace(r.xs)), 0, 1);
+    const hNow = waveHeightFrac(r.pos[1]);
     if (!r.turnDir) return wipe(r, 'Hit the whitewater straight on! (turn as you hit it)');
     if (hNow < T.reboundMinHeight) return wipe(r, 'Buried by the whitewater! (hit it higher)');
     // Turning Right only spins the 180 from the top third; lower than that
@@ -414,9 +429,11 @@ function stepAir(r, input, dt) {
   r.pos = v3.add(r.pos, v3.mul(r.vel, dt));
   r.xs = r.pos[0];
   // Spin with a fresh Left/Right press after takeoff.
-  if (!input.turn) r.spinArmed = true;
-  const spin = r.spinArmed ? (input.turn || 0) * 7.5 * dt : 0;
-  r.heading = rotate(r.heading, [0, 1, 0], -spin);
+  const steer = clamp((input.turn || 0) + (input.tilt || 0), -1, 1);
+  if (!steer) r.spinArmed = true;
+  const spin = r.spinArmed ? steer * 7.5 * dt : 0;
+  // Same direction as the turn on the face (Left/Up = to the surfer's left).
+  r.heading = rotate(r.heading, r.airAxis || [0, 0, 1], spin);
   r.airSpin += spin;
   // The nose rotates over gradually as you come down (no snap to a new angle).
   const along = r.heading[0] >= 0 ? 1 : -1;

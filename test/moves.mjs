@@ -24,7 +24,8 @@ function audit(name, init, policy, secs = 1.5) {
 const once = (inp) => { let done = false; return (r) => { if (r.events.some((e) => e.type === 'move' && e.move !== 'bottomTurn')) done = true; return done || r.assist ? {} : inp; }; };
 // Ride straight until the whitewater is right there, then turn as you hit it.
 const atFoam = (inp) => { const o = once(inp); return (r) => (r.foam > 0.05 || foamAt(r.xs - 0.6, r.t) > 0.2 ? o(r) : {}); };
-const lipTurn = (r) => (r.t < TUNE.tTop + 1.2 ? { turn: -1 } : { tilt: 1 });
+// Climb (turn nose-up only until it points up the face), then turn at the lip.
+const lipTurn = (r) => (r.t < TUNE.tTop + 1.2 ? { turn: -1 } : Math.sin(r.phi) < 0.95 && Math.cos(r.phi) > 0 ? { turn: 1 } : {});
 const rows = [
   ['snap at the curl', { xs: 0.5, t: 8, phi: 1.2, speed: 12 }, lipTurn],
   ['off the lip (open face)', { xs: 5, t: 8, phi: 1.3, speed: 12 }, lipTurn],

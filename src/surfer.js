@@ -82,9 +82,9 @@ export function surferObjects(pose, rider, info, dt) {
     ? clamp(info.turn * 0.17 * clamp(speed0 / 5, 0.85, 1.4) * (1 + 0.35 * committed), -MAX_ROLL, MAX_ROLL)
     : 0;
   if (rider.mode === 'surf' && committed > 0.5 && Math.abs(info.turn) > 0.3) {
-    rollT = Math.sign(rollT) * Math.max(Math.abs(rollT), 0.7 * committed);
+    rollT = Math.sign(rollT) * Math.max(Math.abs(rollT), (rider.bottomCarve ? 0.85 : 0.7) * committed);
   }
-  pose.roll = (pose.roll || 0) + (rollT - (pose.roll || 0)) * (1 - Math.exp(-dt * 10));
+  pose.roll = (pose.roll || 0) + (rollT - (pose.roll || 0)) * (1 - Math.exp(-dt * (rider.bottomCarve ? 16 : 10)));
   // Tilt the board's up vector toward the inside of the turn (+ roll = left
   // rail down), so the inside rail digs in.
   const ub = v3.norm(rotateAbout(u, f, -pose.roll));
@@ -100,7 +100,7 @@ export function surferObjects(pose, rider, info, dt) {
   if (rider.mode === 'air') kneeT = 0.7;
   pose.knee += (clamp(kneeT, 0, 1) - pose.knee) * (1 - Math.exp(-dt * 9));
   let leanT = clamp(info.turn * 0.2 * clamp(speed / 4, 0.8, 1.25) * (1 + 0.3 * committed), -0.85, 0.85); // + = toward L
-  if (committed > 0.5 && Math.abs(info.turn) > 0.3) leanT = Math.sign(leanT) * Math.max(Math.abs(leanT), 0.5 * committed);
+  if (committed > 0.5 && Math.abs(info.turn) > 0.3) leanT = Math.sign(leanT) * Math.max(Math.abs(leanT), (rider.bottomCarve ? 0.65 : 0.5) * committed);
   pose.lean += (leanT - pose.lean) * (1 - Math.exp(-dt * 8));
   const knee = pose.knee, lean = pose.lean;
   const reach = clamp((Math.abs(lean) - 0.25) / 0.35, 0, 1);

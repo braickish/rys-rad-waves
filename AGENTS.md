@@ -16,10 +16,10 @@ URL options: `?wave=barrel` (the barreling wave; default is a crumbling wave), `
 title), `?auto` (autopilot works the pocket), `?xs=-4` (start behind the peel), `?cam=1` (chase
 camera), `?noparticles`.
 
-Controls: every input is the same rail-to-rail carve. Left/Right carve counterclockwise/clockwise (as
-seen from the beach); Up/Down carve whichever way swings the nose up/down the face, stopping at
-straight up/down. Which way Up/Down turn follows the way you're riding, with hysteresis (`rideDir`),
-so they can't flip near vertical or through a pivot. Holding a turn progressively leans you into it harder (`hardAfter`: tighter arc,
+Controls: one control, from the surfer's point of view. Left (or Up) turns the board to the surfer's
+left, Right (or Down) to their right; Up is exactly Left and Down exactly Right in every situation
+(tested). Riding right along the wave, the surfer's left is up the face. Air spins turn the same way
+(about the face normal at takeoff). Holding a turn progressively leans you into it harder (`hardAfter`: tighter arc,
 more drive, more rail roll). Space pumps (best on the way down), C switches camera (`?cam=2` is a
 close-up for testing). Shift crouches, only needed on the barrel wave. Touch: drag on the left half to
 carve toward where you point (harder the further you push), a button to pump.
@@ -50,7 +50,8 @@ carve toward where you point (harder the further you push), a button to pump.
     (`bottomCarve`) commits at once: full lean, a slightly wider arc (`bottomCarveRadius`), more drive
     (`bottomCarveDrive`). There's no automatic bottom turn: head down
     without turning and you ride out onto the flats (`tFlats`) and bog down.
-  - Speed never builds faster than `maxAccel` (~22 mph/s), whatever is feeding it, so nothing surges.
+  - Speed never builds faster than `maxAccel` (~22 mph/s when slow, tapering to `maxAccelFast` of
+    that as you get fast), whatever is feeding it, so nothing surges.
   - Moves never add speed by themselves: they're quick board pivots, then gravity and the wave take
     over. Turn drive (bottom turns, high carves) goes through `driveBank` and releases over
     `driveSmooth`; bottom turns drive you out on the flats too. Pivots off the lip point you straight down
@@ -66,7 +67,8 @@ carve toward where you point (harder the further you push), a button to pump.
   - Turning back into the whitewater (a cutback): you must meet its front edge (`foamContact`) in the
     top two thirds of the wave (`reboundMinHeight`) and be turning as you hit: Left → **rebound**
     (nose swings down and back down the line), Right → **rebound 180** (spins around through the
-    top). Rebound needs the top two thirds (`reboundMinHeight`), the 180 the top third
+    top). Rebound needs the top two thirds of the full wave height (`reboundMinHeight`,
+    measured in real height against the open wave at the curl), the 180 the top third
     (`rebound180MinHeight`; Right in between is a plain rebound). Low, or not turning, and the
     whitewater buries you. Assisted pivots don't add speed.
   - **Floater:** any hit on the top in the whitewater while heading down the line (except a steep,
