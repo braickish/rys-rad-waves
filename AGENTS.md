@@ -155,9 +155,9 @@ button).
     (2026-11-16): a mid-face Right-turn slash, then a looser one, both slashed too often; the user
     specified the low-start rule, then asked for more scrub, less turn and a real bottom turn.
   - **Steering lock** (`r.lock`, `lockInput`): while a move has the board (snap, rebound, 180,
-    floater exit, roof deflection) your steering is ignored, and afterwards the input you were
-    holding stays ignored until you let go or change it (another key, or the touch stick), so holding
-    the turn through a move doesn't overshoot. A slash that ends while you still hold Right locks too.
+    floater exit, roof deflection) your steering is ignored; as soon as the move is done whatever
+    you're holding takes effect again, even if you never let go. (A version that kept ignoring a
+    held key until you pressed it again was tried; the user preferred just the delay.)
   - Moves need at least `moveGap` (1s) between them. Inside the gap the lip is just a plain turn and
     the whitewater just slows you.
     Sit in heavy foam longer than `foamLimit` (1.0s on the point) and it takes you. The whitewater

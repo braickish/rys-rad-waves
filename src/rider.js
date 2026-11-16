@@ -292,9 +292,10 @@ function startLipSnap(r, top, target) {
   r.roundhouse = null; r.slash = null;
 }
 
-// While a move has the board, and afterwards until you let go of (or
-// reverse) the key you were holding, your steering is ignored: holding the
-// turn through a move doesn't carry on turning you once it's done.
+// While a move has the board your steering is ignored; as soon as the move
+// is done, whatever you're holding takes effect again (even if you never let
+// go). (An earlier version kept ignoring a held key until you pressed it
+// again; the user preferred just the delay.)
 function lockInput(r) { r.lock = { dir: r.inDir }; }
 
 function stepSurf(r, input, dt) {
@@ -348,7 +349,7 @@ function stepSurf(r, input, dt) {
     const raw = clamp((input.turn || 0) + (input.tilt || 0), -1, 1);
     r.inDir = raw ? Math.sign(raw) : (input.aim && (input.aim[0] || input.aim[1]) ? 2 : 0);
     const busy = r.assist || r.lipSnap || r.snapGrip;
-    if (r.lock && !busy && r.inDir !== r.lock.dir) r.lock = null; // let go, or changed to a different input
+    if (r.lock && !busy) r.lock = null; // the move's done: your input counts again
     if (r.lock) input = { crouch: input.crouch };
   }
   const wantsTurn = !!(input.turn || input.tilt || (input.aim && (input.aim[0] || input.aim[1])));
@@ -430,7 +431,6 @@ function stepSurf(r, input, dt) {
         r.events.push({ type: 'move', move: 'slash', speed: r.speed, xs: r.xs, tube: sl.tube, combo: r.time - (r.lastBottomTurn ?? -9) < T.comboWindow });
       }
     } else if (steer >= 0 || sl.time > T.slashTime || r.assist || r.floater || r.phi - r.slide < -T.slashEnd) {
-      if (steer < 0) lockInput(r); // ended while you're still holding Right: don't carry on turning
       r.slash = null;
     }
     else {
