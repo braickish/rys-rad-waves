@@ -68,14 +68,21 @@ const RIDER_TUNE = {
   // Slash: turn to the surfer's right mid-face in the pocket (or anywhere in
   // the barrel) and the fins release: the tail slides out and the board comes
   // round much sharper for a moment, then grips again. No speed added.
-  slashRate: 8.5, // turn rate while the fins are released (rad/s) ...
-  slashTime: 0.28, // ... for up to this long (s), while you hold the turn
-  slashWindow: 0.12, // the turn has to have started this recently (s)
-  slashBand: [0.25, 0.8], // mid-face: this band of height on the open face
-  slashPocket: 0.3, // ... in the pocket (this much pocket power)
+  // Slash: on the way up out of a bottom turn, start the Right turn early,
+  // still down in the flats or at the very bottom, and the fins release: the
+  // board swings round sideways while you carry on up the face (the tail
+  // sliding), then the fins grip and you go where the board points. Start the
+  // Right turn any higher and it's an ordinary turn (a snap up at the lip).
+  slashLow: 0.2, // start the Right turn below this height on the face (the flats count) ...
+  slashClimb: 0.25, // ... while heading up the face (sin of angle) ...
+  slashWindow: 0.12, // ... the turn having started this recently (s)
+  slashPocket: 0.15, // not out on the shoulder (pocket power)
   slashMinSpeed: 5, // m/s
-  slashSlide: 0.55, // how far the tail slides out (rad, for looks)
-  slashEnd: 1.05, // the fins grip again once the nose points this far down the face (rad, ~60 deg)
+  slashSpin: 7, // how fast the board swings round on the slide (rad/s) ...
+  slashSlideMax: 1.4, // ... up to this far ahead of where you're going (rad, ~80 deg) ...
+  slashTime: 0.45, // ... for up to this long while you hold the turn (s)
+  slashEnd: 1.05, // the board stops swinging once it points this far down the face (rad, ~60 deg)
+  slashGrip: 9, // then the fins grip and your line swings round to the board this fast (rad/s)
   standH: 1.75,
   crouchH: 1.1,
 };
@@ -309,27 +316,35 @@ function stepSurf(r, input, dt) {
     if (r.turnDirAge > 0.15) r.turnDir = 0;
   }
   r.hard = r.bottomCarve ? 1 : sstep(T.hardAfter[0], T.hardAfter[1], r.turnHeld);
-  // --- slash: turning right mid-face in the pocket (or in the barrel) ---
+  // --- slash: a Right turn started low on the way up (also in the barrel) ---
+  // While it slides, your line keeps carving normally (carrying you on up the
+  // face) and the board swings round ahead of it (r.slide); when you let go,
+  // or it's swung far enough, the fins grip and your line catches up to the
+  // board. The total turn is sharper than a carve, but it's still a turn:
+  // nothing is added to your speed.
   r.rightHeld = steer < 0 ? r.rightHeld + dt : 0;
   const inTube = r.tube && !r.tube.pullIn;
-  if (!r.slash && steer < 0 && r.rightHeld <= T.slashWindow && r.moveCooldown === 0 && !r.assist && !r.floater && !r.fakie
-    && r.speed > T.slashMinSpeed
-    // (riding along the wave, not already pointing down: a cutback back
-    // toward the whitewater stays a cutback / rebound)
-    && Math.cos(r.phi) > -0.2 && Math.sin(r.phi) > -0.35
-    && (inTube || (height > T.slashBand[0] && height < T.slashBand[1] && pk > T.slashPocket && foam < 0.3))) {
+  if (!r.slash && !r.slide && steer < 0 && r.rightHeld <= T.slashWindow && r.moveCooldown === 0 && !r.assist && !r.floater && !r.fakie
+    && r.speed > T.slashMinSpeed && height < T.slashLow
+    && Math.sin(r.phi) > T.slashClimb && Math.cos(r.phi) > -0.5 // on the way up (not cutting back along the wave)
+    && (inTube || (pk > T.slashPocket && foam < 0.3))) {
     r.slash = { time: 0 };
     r.moveCooldown = T.moveGap;
     r.events.push({ type: 'move', move: 'slash', speed: r.speed, xs: r.xs, tube: !!inTube, combo: r.time - (r.lastBottomTurn ?? -9) < T.comboWindow });
   }
   if (r.slash) {
     r.slash.time += dt;
-    if (steer >= 0 || r.slash.time > T.slashTime || r.assist || r.floater || r.phi < -T.slashEnd) r.slash = null;
-    else d = steer * Math.max(rate, T.slashRate) * dt; // the fins let go: a much sharper turn
+    if (steer >= 0 || r.slash.time > T.slashTime || r.assist || r.floater || r.phi - r.slide < -T.slashEnd) r.slash = null;
+    else r.slide = Math.min(T.slashSlideMax, r.slide + T.slashSpin * Math.abs(steer) * dt); // the board swings round ahead of your line
   }
-  // The tail slides out during the slash and settles back as the fins grip.
-  r.slide += ((r.slash ? T.slashSlide : 0) - r.slide) * (1 - Math.exp(-dt * (r.slash ? 18 : 7)));
-  if (r.slide < 1e-3) r.slide = 0;
+  let gripD = 0;
+  if (r.assist) r.slide = 0; // an assisted pivot takes the board over
+  else if (!r.slash && r.slide > 0) {
+    // The fins grip: your line swings round to where the board points.
+    const c = Math.min(r.slide, T.slashGrip * dt);
+    gripD = -c; r.slide -= c; // (applied below: it isn't you steering)
+    if (r.slide < 1e-3) r.slide = 0;
+  }
   // A quick assisted turn (snap release, rebound) takes over the board for a
   // moment and then hands control straight back.
   const playerD = d;
@@ -340,6 +355,7 @@ function stepSurf(r, input, dt) {
     if (togo <= stepA) { d = r.assist.dir * Math.max(0, togo); r.assist = null; }
     else d = r.assist.dir * stepA;
   }
+  d += gripD;
   const sinBefore = Math.sin(r.phi);
   r.phi = wrap(r.phi + d);
   r.turnRate = dt > 0 ? Math.abs(d) / dt : 0;
@@ -358,8 +374,8 @@ function stepSurf(r, input, dt) {
   // (turning so the nose swings up the face, toward the wave, not further down)
   r.carvingUp = d !== 0 && Math.sign(d) === (Math.cos(r.phi - d) >= 0 ? 1 : -1);
   const driving = r.bottomCarve ? r.carvingUp : Math.sin(r.phi) > sinBefore;
-  if (driveLow > 0 && driving && d === playerD && !r.slash) r.driveBank += T.bottomDrive * carveDrive * Math.abs(d) * driveLow * (0.4 + 0.6 * pk);
-  if (high > 0 && d === playerD && !r.slash) r.driveBank += T.topDrive * Math.abs(d) * high * pk;
+  if (driveLow > 0 && driving && d === playerD && !r.slash && !r.slide) r.driveBank += T.bottomDrive * carveDrive * Math.abs(d) * driveLow * (0.4 + 0.6 * pk);
+  if (high > 0 && d === playerD && !r.slash && !r.slide) r.driveBank += T.topDrive * Math.abs(d) * high * pk;
   const release = r.driveBank * (1 - Math.exp(-dt / T.driveSmooth));
   r.speed += release; r.driveBank -= release;
   if (playerD) { r.lastTurnTime = r.time; r.lastTurnDir = Math.sign(playerD); }
