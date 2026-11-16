@@ -9,7 +9,7 @@ export default {
   kind: 'barrel',
   keyframes: KF_PIPE,
   scale: 1.75, // much bigger than the point: a heavy, tall wave
-  peelSpeed: 8.5, // peels fast: you have to race it
+  peelSpeed: 10.5, // peels fast: you have to race it (pointing up costs you more here)
   waveSpeed: 5.0,
   phase: { ahead: 8, behind: 13 }, // pitches sooner ahead of the curl; the tube runs further behind it
 
@@ -44,7 +44,7 @@ export default {
     // Tube riding (see stepTube in rider.js).
     tubeEnter: 0.12, // the curl has passed you: you're in the tube
     tubeExit: 0.06, // forward of this you're back out on the open face
-    tubeCollapse: 1.0, // past this you're pinched (~13 m behind the curl)
+    tubeCollapse: 1.3, // past this you are pinched: where the lip lands on the trough and the tube closes
     tubeLow: 0.6,
     tubeEnterLow: 0.3, // the barrel picks you up even this far below the base of the face (on a bottom turn)
     tubeFallHeight: 0.62, // above this fraction of the face in the barrel (top 3/8), the lip grabs you
