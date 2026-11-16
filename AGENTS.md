@@ -40,7 +40,8 @@ button).
   - Speed: the pocket feeds you toward a fast cruising speed (`vPocket`, faster higher on the face);
     the shoulder, flat water and foam bleed you down (`vLow`, `vFoam`). Dropping pays a lot (`drop`),
     climbing costs little (`climb`), so getting high is easy and every drop is a burst; dropping from
-    the top half of the pocket pays most (`topDropBoost`, scaled by pocket power so the shoulder still bogs).
+    the top half of the pocket pays most (`topDropBoost`, scaled by pocket power so the shoulder still bogs); pointing down high up also
+    raises the acceleration cap (`highDropAccel`) and the soft speed limit (`highDropSoftMax`).
     Above `softMax` (~32 mph) speed bleeds off fast, hard cap `maxSpeed` (~38 mph), so stacked moves
     can't run away. Pumping
     (`pump`) helps on the face, most on the drop.

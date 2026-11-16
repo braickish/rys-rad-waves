@@ -31,7 +31,7 @@ export const TUNE = {
   feed: 2.0, // how fast the pocket brings you up to speed (1/s)
   bleed: 0.9, // how fast extra speed fades / you bog down (1/s)
   drop: 12, // speed gained per second pointing straight down a steep face (m/s^2)
-  topDropBoost: 3.2, // ... multiplied by up to this in the top half of the pocket (most in the top third)
+  topDropBoost: 8, // ... multiplied by up to this in the top half of the pocket (most in the top third)
   climb: 2.5, // speed lost per second pointing straight up it (m/s^2): small, so climbing is easy
   pump: 4, // m/s^2 while pumping on the face (full on the drop, less otherwise)
   turn: 5.2, // fastest turn rate (rad/s)
@@ -56,7 +56,9 @@ export const TUNE = {
   bottomCarveDrive: 1.6, // ... that builds more speed
   topDrive: 1.6,
   maxAccel: 10, // speed never builds faster than this when slow (m/s^2, ~22 mph per second) ...
-  maxAccelFast: 0.3, // ... tapering to this fraction of it as you get fast ...
+  maxAccelFast: 0.3,
+  highDropAccel: 4,
+  highDropSoftMax: 2.0, // ... and the soft speed limit rises by up to this (m/s) // pointing straight down high on the wave: up to this much more allowed acceleration // ... tapering to this fraction of it as you get fast ...
   accelTaper: [7, 14], // ... between these speeds (m/s, ~16 -> 31 mph)
   driveSmooth: 0.2, // turn drive builds in over about this long (s), no jumps
   turnWindow: 0.3, // turned within this long (s) of reaching the lip = a turn off the top
@@ -81,7 +83,7 @@ export const TUNE = {
   tFlats: 14.6, // how far out onto the flat water in front you can go (you bog down there)
   softMax: 14.5, // above this (~32 mph) extra speed bleeds off quickly ...
   overBleed: 1.6, // ... at this rate (1/s)
-  minSpeed: 2, maxSpeed: 17, // hard cap ~38 mph
+  minSpeed: 2, maxSpeed: 17.5, // hard cap ~39 mph
   standH: 1.75,
   crouchH: 1.1,
 };
@@ -335,6 +337,7 @@ function stepSurf(r, input, dt) {
   // Pointing down pays, and pays most from the top third of the wave: that's
   // where the drop has the most height to turn into speed.
   const topThird = sstep(0.45, 0.75, height) * pk; // top half of the pocket (most in the top third); not out on the shoulder
+  const highDropNow = topThird * Math.max(0, -Math.sin(r.phi)); // pointing down, high in the pocket
   const dropSteep = Math.max(steep, 0.9 * topThird); // the rounded crest still counts as a steep drop
   if (sinp < 0) r.speed += -sinp * T.drop * (1 + (T.topDropBoost - 1) * topThird) * dropSteep * dt;
   else r.speed += -sinp * T.climb * steep * dt;
@@ -343,10 +346,13 @@ function stepSurf(r, input, dt) {
     r.pumping = true;
   }
   // Stacked moves can't run away with your speed: above softMax it bleeds off.
-  if (r.speed > T.softMax) r.speed -= (r.speed - T.softMax) * T.overBleed * dt;
+  const softMax = T.softMax + T.highDropSoftMax * highDropNow; // a drop from high up can run a bit faster
+  if (r.speed > softMax) r.speed -= (r.speed - softMax) * T.overBleed * dt;
   // However many things are feeding you speed at once (drop, pocket, turn
   // drive, pump), it never surges: speed builds at most maxAccel.
-  const accelCap = T.maxAccel * (1 - (1 - T.maxAccelFast) * sstep(T.accelTaper[0], T.accelTaper[1], speedAtStart));
+  // Pointing down high on the wave is allowed to build speed faster.
+  const highDrop = highDropNow;
+  const accelCap = T.maxAccel * (1 - (1 - T.maxAccelFast) * sstep(T.accelTaper[0], T.accelTaper[1], speedAtStart)) * (1 + T.highDropAccel * highDrop);
   r.speed = Math.min(r.speed, speedAtStart + accelCap * dt);
   // During a move, and for a moment after it, you don't speed up at all:
   // the move is a turn of the board, not a boost. (Bottom turns excluded.)
