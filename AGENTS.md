@@ -184,17 +184,21 @@ button).
     braickish/reference-images, pipe-example.jpg): a tall wall stands up well ahead of the curl
     (`phase.ahead` 14), near vertical and slightly hollow before it pitches (no overhang until the
     lip throws, so the rideable face is unchanged); the lip throws far out into a round tube about
-    as wide as it is tall, its thin curtain landing well out in front. Looks: a frothy white
+    as wide as it is tall, the lip a thin sheet (roof and curtain), landing well out in front. Looks: a frothy white
     outside on the thrown lip, feathering along the crest of the wall, light glowing through the
     wall's upper part (`thin`), and an offshore spray plume blowing back off the crest (the wave's
-    `plume(s)`, particle kind 4, from the crest position in the lip table). The reef drops you in
+    `plume(s)`, particle kind 4, from the crest position in the lip table), and whitewater bursting up
+    where the curtain lands (`lipImpact(s)`, blowing out toward shore, away from the tube). The reef drops you in
     at `startXs` (5 m) since the wall stands up further ahead. `test/plot-slices.mjs` draws the
     cross-sections (render the SVG to PNG with headless Chrome `--screenshot`).
-    Camera (main.js `tubeCamera`): placed from the barrel's actual cross-section, at the most open
-    spot inside the tube behind the surfer (at least `TUBE_CAM_MIN_ROOM` from any water, as level
-    with the surfer as it can be), looking out through the opening. If there's no room there (near
-    the pinch) or water would block the view, it moves closer (`TUBE_CAM_BACKS`); smoothing never
-    carries it out of the tube's air. Mist particles fade near the camera-to-surfer sightline
+    Barrel view (main.js `updateTubeView`, the `tube` shot): on as soon as you're close to being
+    barrelled (phase within 0.25 of `tubeEnter`), and it stays on after you come out until you're out
+    on the shoulder (`TUBE_VIEW_OUT`, 5 m ahead of the curl) or wipe out. The camera sits right
+    behind you (7 m back, a little up), looking out along the wave; in the tube it eases up into the
+    most open spot in the tube (`tubeCenter`, blended by `tubeBlend`), and back down as you come
+    out. It only slides in closer if water would block the view, and it moves smoothly (an earlier
+    version picked between fixed distances and snapped when not under the roof, so it hopped
+    around out on the flats). Mist particles fade near the camera-to-surfer sightline
     (shaders.js) so spray never covers the surfer. Reef shape is `KF_PIPE`
     (waves/shapes.js); `faceTop` lowers smoothly as the lip throws.
 - Heavy waves (`floaters: false, rebounds: false` in the wave's tune, e.g. the reef): hitting the

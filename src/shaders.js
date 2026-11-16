@@ -264,6 +264,19 @@ fn respawn(id: u32) -> P {
     p.extra = vec4f(p.pos.w, 0.06 + rnd() * 0.07 + b * 0.15, 0.0, 0.0);
     return p;
   }
+  if (r0 >= 0.37 && r0 < 0.43) {
+    // Where the lip lands: whitewater bursting up off the water in front of
+    // the tube and blowing out toward shore (away from the tube).
+    let xs = mix(-22.0, 0.0, rnd());
+    let L = lipAt(xs);
+    if (rnd() > L[2].w || L[0].x > 1.2) { p.pos = vec4f(0.0, -10.0, 0.0, 0.05 + rnd() * 0.2); return p; }
+    let pos = vec3f(xs + rs() * 0.3, max(L[0].x, -0.4) + rnd() * 0.3, L[0].y + 0.2 + rnd() * 0.6);
+    let v = vec3f(-peel * (0.3 + rnd() * 0.3) + rs() * 1.0, 2.0 + rnd() * 5.0, 1.0 + rnd() * 3.5);
+    p.pos = vec4f(pos, 0.8 + rnd() * 0.9);
+    p.vel = vec4f(v, 1.0);
+    p.extra = vec4f(p.pos.w, 0.22 + rnd() * 0.35, 0.0, 0.0);
+    return p;
+  }
   if (r0 >= 0.43 && r0 < 0.5) {
     // Offshore plume: spray torn off the top of the wave, rising and blowing
     // back over it (away from the face, so it never fills the tube).
@@ -279,7 +292,7 @@ fn respawn(id: u32) -> P {
     p.extra = vec4f(p.pos.w, 0.12 + rnd() * 0.22, 0.0, 0.0);
     return p;
   }
-  if (r0 < 0.5) {
+  if (r0 < 0.37) {
     // The lip: a light feathering along the tip, heavier where it lands.
     let xs = mix(-14.0, 3.0, rnd());
     let L = lipAt(xs);

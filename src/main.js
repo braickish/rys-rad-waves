@@ -1,6 +1,6 @@
 import { createRenderer } from './renderer.js';
 import { createRider, resetRider, stepRider, groundSpeed, frameAt, v3, TUNE, useWave, tubeDepth } from './rider.js';
-import { PEEL_SPEED, slice, verticalHits, WAVE } from './wave.js';
+import { PEEL_SPEED, slice, verticalHits, WAVE, phaseAt } from './wave.js';
 import { WAVES } from './waves/index.js';
 import { SEA, nextWave, stepSea, waveHeightFt, seedSea } from './sea.js';
 import { perspective, lookAt, mul, invert } from './math.js';
@@ -186,13 +186,8 @@ function clearView(a, b) {
   }
   return true;
 }
-// Inside-the-tube camera: deep in the tube behind the surfer, looking out
-// through the barrel toward the opening. It's placed from the barrel's actual
-// cross-section, at the most open spot inside the tube (as far from the water
-// as it can get), so it's never outside the lip or in the water. If the tube
-// is too small there (near the pinch) or water would hide the surfer, it
-// moves in closer.
-const TUBE_CAM_BACKS = [7, 5.5, 4.2, 3, 2];
+// The most open spot inside the tube (as far from the water as it can get),
+// used to lift the barrel view into the middle of the tube.
 const TUBE_CAM_MIN_ROOM = 0.7; // at least this far from any water (m)
 function airWithRoof(sl, z, y) {
   const above = verticalHits(sl, z).filter((h) => h.y > y);
@@ -230,18 +225,24 @@ function tubeCenter(xs, nearY) {
   }
   return best;
 }
-function tubeCamera(p) {
-  for (const back of TUBE_CAM_BACKS) {
-    const c = tubeCenter(p[0] - back, p[1] + 0.8);
-    if (!c) continue;
-    const cam = [p[0] - back, c.y, c.z];
-    if (clearView(cam, [p[0], p[1] + 0.9, p[2]])) return cam;
-  }
-  return null;
-}
-function insideTubeAir(q) { return airWithRoof(slice(q[0], 6), q[2], q[1]); }
+
 let lastShot = '';
+// Barrel view: on as soon as you're close to being barrelled, and it stays
+// on after you come out until you're out on the shoulder (TUBE_VIEW_OUT ahead
+// of the curl). tubeBlend eases the camera up into the tube and back down.
+const TUBE_VIEW_OUT = 5;
+let tubeView = false, tubeBlend = 0;
+function insideWaterAt(q) { return verticalHits(slice(q[0], 6), q[2]).filter((hit) => hit.y > q[1]).length % 2 === 1; }
+function updateTubeView(dt) {
+  if (!WAVE.tube || rider.mode !== 'surf' || state === 'title') { tubeView = false; tubeBlend = 0; return; }
+  const ph = phaseAt(rider.xs);
+  if (rider.tube || (ph > TUNE.tubeEnter - 0.25 && ph < TUNE.tubeCollapse)) tubeView = true;
+  else if (tubeView && rider.xs > TUBE_VIEW_OUT) tubeView = false;
+  const inTube = rider.tube && !rider.tube.pullIn ? 1 : 0;
+  tubeBlend += (inTube - tubeBlend) * (1 - Math.exp(-dt * 3));
+}
 function updateCamera(dt) {
+  updateTubeView(dt);
   let shot = 'surf';
   const p = rider.pos;
   let want, look;
@@ -252,27 +253,25 @@ function updateCamera(dt) {
     want = [8 * sc, 2.0 * sc, 34 * sc];
     look = [0, 3.0 * sc, 3];
     shot = 'photo';
-  } else if (rider.tube && !rider.tube.pullIn && camMode !== 2) {
-    // In the tube: low, just ahead of the opening, looking back in at you.
-    // If water is in the way (say a section ahead has thrown over), come in
-    // closer until the surfer is in view.
-    // The classic barrel shot: from inside the tube, behind you, looking
-    // out past you toward the opening.
-    // (three-quarter from behind, from the open side, so you see the surfer
-    // the way you do from outside, not edge-on)
-    const cam = tubeCamera(p);
-    if (cam) {
-      want = cam;
-      // Look past the surfer, out along the tube toward the opening.
-      // (aimed so the surfer sits a little above the middle of the frame)
-      look = [p[0] + 5, p[1] + 0.4, p[2] + (p[2] - cam[2]) * 0.4];
-      shot = 'tubeInside';
-    } else {
-      // No room anywhere in the tube behind you: just behind, beside you.
-      want = [p[0] - 1.5, p[1] + 1.0, p[2] + 0.6];
-      look = [p[0] + 6, p[1] + 0.9, p[2]];
-      shot = 'tubeClose';
+  } else if (tubeView && camMode !== 2) {
+    // The barrel view: right behind the surfer, looking out along the wave.
+    // In the tube it rises into the middle of the tube (the most open spot
+    // there); coming out it eases back down to just behind you, and it only
+    // slides in closer if water would be in the way. Everything moves
+    // smoothly (it used to pick between fixed distances and jump).
+    const back = 7;
+    let w = [p[0] - back, p[1] + 1.4, p[2] + 0.3];
+    if (tubeBlend > 0.01) {
+      const c = tubeCenter(p[0] - back, p[1] + 0.8);
+      if (c) w = [w[0], w[1] + (c.y - w[1]) * tubeBlend, w[2] + (c.z - w[2]) * tubeBlend];
     }
+    const eye = [p[0], p[1] + 0.9, p[2]];
+    for (let i = 0; i < 10 && (insideWaterAt(w) || !clearView(w, eye)); i++) {
+      w = [w[0] + (p[0] - 2.0 - w[0]) * 0.25, w[1] + (p[1] + 1.1 - w[1]) * 0.25, w[2] + (p[2] + 0.2 - w[2]) * 0.25];
+    }
+    want = w;
+    look = [p[0] + 5, p[1] + 0.4, p[2] + (p[2] - w[2]) * 0.4];
+    shot = 'tube';
   } else if (camMode === 0) {
     // From the channel, out in front of the surfer: balanced, so you see the
     // shoulder coming up ahead (right) and the part that's already broken
@@ -291,20 +290,18 @@ function updateCamera(dt) {
     want = [p[0] - h[0] * close, p[1] + (rider.inBarrel ? 0.9 : 1.6), p[2] - h[2] * close + 0.6];
     look = [p[0] + h[0] * 4, p[1] + 0.6, p[2] + h[2] * 4];
   }
-  // Never put the camera inside the water: an odd number of surface
-  // crossings above a point means it's underwater (or inside the lip).
-  const insideWater = (q) => verticalHits(slice(q[0], 6), q[2]).filter((hit) => hit.y > q[1]).length % 2 === 1;
-  if (shot !== 'tubeInside') for (let i = 0; i < 25 && insideWater(want); i++) want[2] += 0.35;
+  // Never put the camera inside the water.
+  if (shot !== 'tube') for (let i = 0; i < 25 && insideWaterAt(want); i++) want[2] += 0.35;
   // Changing shot in or out of the tube is a cut, not a slow pan (a pan
   // would drift through the water).
   if (shot !== lastShot && (shot.startsWith('tube') || lastShot.startsWith('tube'))) {
     camPos = want.slice(); camTarget = look.slice();
   }
   lastShot = shot;
-  const k = 1 - Math.exp(-dt * (rider.mode === 'wipe' ? 1.5 : rider.tube ? 14 : 5)); // tight in the tube
+  const k = 1 - Math.exp(-dt * (rider.mode === 'wipe' ? 1.5 : shot === 'tube' ? 9 : 5)); // close behind in the barrel view
   for (let i = 0; i < 3; i++) { camPos[i] += (want[i] - camPos[i]) * k; camTarget[i] += (look[i] - camTarget[i]) * k; }
-  // In the tube, smoothing must never carry the camera out of the barrel's air.
-  if (shot === 'tubeInside' && !insideTubeAir(camPos)) camPos = want.slice();
+  // Smoothing must never carry the camera into the water.
+  if (shot === 'tube' && insideWaterAt(camPos)) camPos = want.slice();
 }
 
 // ---------- main ----------

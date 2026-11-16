@@ -67,7 +67,8 @@ export function slicePhases(out = new Float32Array(WATER_XS.length * 2)) {
 
 // Lip table for particle emitters: per xs, three vec4s:
 //   [tipY, tipZ, dirY, dirZ], [tubeCenterY, tubeCenterZ, phase, white],
-//   [crestY, crestZ, plume, 0] (plume: spray blowing back off the crest)
+//   [crestY, crestZ, plume, impact] (plume: spray blowing back off the crest;
+//   impact: whitewater bursting up where the lip lands)
 export const LIP = { x0: -45, step: 0.25, count: 241 };
 export function buildLipTable() {
   const data = new Float32Array(LIP.count * 12);
@@ -87,7 +88,8 @@ export function buildLipTable() {
     let best = -1e9;
     for (let t = 3.0; t <= 6.5; t += 0.25) { surface(xs, t, b); if (b[1] > best) { best = b[1]; d[1] = b[1]; d[2] = b[2]; } }
     const plume = WAVE.plume ? WAVE.plume(s) : 0;
-    data.set([a[1], a[2], dy / l, dz / l, (a[1] + c[1]) * 0.5, (a[2] + c[2]) * 0.5, s, white, d[1], d[2], plume, 0], i * 12);
+    const impact = WAVE.lipImpact ? WAVE.lipImpact(s) : 0;
+    data.set([a[1], a[2], dy / l, dz / l, (a[1] + c[1]) * 0.5, (a[2] + c[2]) * 0.5, s, white, d[1], d[2], plume, impact], i * 12);
   }
   return data;
 }

@@ -38,6 +38,8 @@ export default {
   tube: true,
   // Spray blowing back off the crest: along the tall wall ahead and over the barrel.
   plume: (s) => sstep(-1.3, -0.5, s) * (1 - sstep(1.1, 1.7, s)),
+  // Whitewater bursting up where the curtain of the lip lands in front of the tube.
+  lipImpact: (s) => sstep(0.4, 0.65, s) * (1 - sstep(1.5, 2.0, s)),
 
   sea: { set: [0.95, 1.0, 1.15], sections: false },
 
