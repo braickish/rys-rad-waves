@@ -15,6 +15,7 @@ const COL = {
   top: [0.0, 0.72, 0.78], skin: [0.86, 0.63, 0.46], hair: [0.98, 0.85, 0.35],
 };
 const THIGH = 0.46, SHIN = 0.46, UPPER = 0.3, FORE = 0.3;
+const STANCE = [-0.68, -0.06]; // back and front foot along the board (m from its middle; tail is -1, nose +1)
 const CHEST_OPEN = 0.45; // how far the chest turns from the wave toward the nose (rad)
 
 const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
@@ -94,11 +95,14 @@ export function surferObjects(pose, rider, info, dt) {
   const chest = v3.norm(v3.rej(v3.add(v3.mul(L, Math.cos(CHEST_OPEN)), v3.mul(f, Math.sin(CHEST_OPEN))), bodyUp));
   const across = v3.norm(v3.cross(chest, bodyUp)); // shoulder line, roughly toward the nose
 
-  const backFoot = add(B, v3.mul(f, -0.34));
-  const frontFoot = add(B, v3.mul(f, 0.3));
+  // Stance toward the tail: back foot just ahead of the fin, front foot about
+  // the middle of the board.
+  const backFoot = add(B, v3.mul(f, STANCE[0]));
+  const frontFoot = add(B, v3.mul(f, STANCE[1]));
+  const mid = (STANCE[0] + STANCE[1]) / 2;
   // Hips drop and slide back over the heels as the knees bend.
   const hipH = 0.92 - 0.44 * knee;
-  const hip = add(B, v3.mul(f, -0.02), v3.mul(bodyUp, hipH), v3.mul(chest, -0.12 * knee));
+  const hip = add(B, v3.mul(f, mid), v3.mul(bodyUp, hipH), v3.mul(chest, -0.12 * knee));
   const hipBack = add(hip, v3.mul(f, -0.12)), hipFront = add(hip, v3.mul(f, 0.12));
   const kneePole = (s) => add(chest, v3.mul(f, 0.35 * s));
   const legB = ik(hipBack, backFoot, THIGH, SHIN, kneePole(-1));
@@ -117,11 +121,11 @@ export function surferObjects(pose, rider, info, dt) {
   let handFront = add(shFront, v3.mul(across, 0.48), v3.mul(bodyUp, -0.18), v3.mul(chest, 0.15));
   if (lean > 0) {
     // Turning toward the chest side (frontside bottom turn): back hand trails on the face.
-    handBack = lerp3(handBack, add(B, v3.mul(f, -0.15), v3.mul(L, 0.6), v3.mul(u, 0.08)), reach);
+    handBack = lerp3(handBack, add(B, v3.mul(f, mid - 0.1), v3.mul(L, 0.6), v3.mul(u, 0.08)), reach);
     handFront = lerp3(handFront, add(shFront, v3.mul(f, 0.35), v3.mul(bodyUp, 0.25), v3.mul(chest, -0.1)), reach);
   } else {
     // Turning toward the heel side: front hand reaches down behind.
-    handFront = lerp3(handFront, add(B, v3.mul(f, 0.15), v3.mul(L, -0.6), v3.mul(u, 0.08)), reach);
+    handFront = lerp3(handFront, add(B, v3.mul(f, mid + 0.2), v3.mul(L, -0.6), v3.mul(u, 0.08)), reach);
     handBack = lerp3(handBack, add(shBack, v3.mul(f, -0.35), v3.mul(bodyUp, 0.25), v3.mul(chest, 0.1)), reach);
   }
   // Arms swing a little with the pump.
