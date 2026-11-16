@@ -46,7 +46,8 @@ export const TUNE = {
   foamLimit: 1.8, // seconds you can sit in heavy foam before it takes you
   airSpeed: 12, // board speed needed to launch off the top going straight up (m/s)
   tTop: 5.3, // surface coordinate of the top of the rideable face
-  tBottom: 13.9, // ... and the bottom
+  tBottom: 13.9, // ... and the bottom of the face
+  tFlats: 14.3, // how far out onto the flat water in front you can go (you bog down there)
   minSpeed: 2, maxSpeed: 18,
   standH: 1.75,
   crouchH: 1.1,
@@ -198,12 +199,6 @@ function stepSurf(r, input, dt) {
     const push = Math.min(1, Math.hypot(input.aim[0], input.aim[1]));
     d = clampTurn(wrap(Math.atan2(input.aim[1], input.aim[0]) - r.phi), rate * (0.45 + 0.55 * push) * dt);
   }
-  // At the bottom of the face you can't go any lower: with no input the board
-  // carves its own bottom turn back up.
-  if (!d && r.t >= T.tBottom - 0.05 && Math.sin(r.phi) < 0.3) {
-    const target = Math.cos(r.phi) >= 0 ? 0.75 : Math.PI - 0.75;
-    d = clampTurn(wrap(target - r.phi), rate * dt);
-  }
   const sinBefore = Math.sin(r.phi);
   r.phi = wrap(r.phi + d);
   r.turnRate = dt > 0 ? Math.abs(d) / dt : 0;
@@ -238,7 +233,7 @@ function stepSurf(r, input, dt) {
   const cosp = Math.cos(r.phi);
   r.xs += (r.speed * cosp - PEEL_SPEED) * dt;
   r.t -= (r.speed * sinp * dt) / Math.max(0.3, Math.hypot(f.Pt[1], f.Pt[2]));
-  r.t = Math.min(r.t, T.tBottom);
+  r.t = Math.min(r.t, T.tFlats); // ride out onto the flats in front if you don't turn back up
 
   // --- the top: which move depends on where you hit it, and how ---
   if (r.t <= top && sinp > 0) {

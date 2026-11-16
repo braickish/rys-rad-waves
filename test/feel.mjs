@@ -41,6 +41,10 @@ for (const [label, o] of [['from the pocket', { xs: 1.5, t: 8, phi: 0, speed: 12
   run(r, (r, t) => ({ turn: t < 0.9 ? -1 : 0 }), 4, (e) => { if (e.type === 'move') moves.push(moveName(e)); });
   out.push(`cutback ${label} (Right 0.9s): ${moves.join(' -> ') || 'no moves'}, now ${mph(r.speed)} mph, ${r.mode === 'wipe' ? r.wipeReason : 'riding'}`);
 }
+// 6b. Top turn, then let go: you should keep heading down (no automatic turn).
+{ const r = start({ xs: 2, t: 6.5, phi: 0.9, speed: 12 }); let phiAfter = null;
+  run(r, (r, t) => { if (t > 0.6 && phiAfter === null) phiAfter = r.phi; return {}; }, 2.5);
+  out.push(`top turn then no input: heading ${(phiAfter * 57.3).toFixed(0)} deg after the turn, ${(r.phi * 57.3).toFixed(0)} deg 2.5s later (unchanged = no auto-turn), ${mph(r.speed)} mph`); }
 // 7. Shoulder bog.
 { const r = start({ xs: 12, t: 10, phi: 0, speed: 13 }); const sp = [];
   run(r, (r, t) => { if (Math.abs(t % 0.5) < dt / 2) sp.push(mph(r.speed)); return {}; }, 3);
@@ -49,7 +53,7 @@ for (const [label, o] of [['from the pocket', { xs: 1.5, t: 8, phi: 0, speed: 12
 { const r = start(); let up = true, speedSum = 0, n = 0, inPk = 0; const counts = {};
   const T = run(r, (r) => {
     if (up && r.t < TUNE.tTop + 1) up = false;
-    if (!up && r.t > 13.2) up = true;
+    if (!up && r.t > 12.6) up = true;
     speedSum += r.speed; n++; if (r.xs > -2 && r.xs < 6) inPk++;
     if (r.xs > 7 || (r.xs > 4 && r.speed < 9)) return { turn: -1 };
     return { tilt: up ? 1 : -1, pump: !up };

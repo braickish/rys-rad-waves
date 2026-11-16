@@ -32,7 +32,7 @@ addEventListener('blur', () => keys.clear());
 let autoUp = false;
 function autopilot() {
   if (autoUp && rider.t < TUNE.tTop + 1) autoUp = false;
-  if (!autoUp && rider.t > 12.8) autoUp = true;
+  if (!autoUp && rider.t > 12.6) autoUp = true;
   if (rider.xs > 7 || (rider.xs > 4 && rider.speed < 9)) return { turn: -1 };
   return { tilt: autoUp ? 1 : -1, pump: !autoUp, crouch: rider.inBarrel };
 }
