@@ -257,8 +257,7 @@ function stepSurf(r, input, dt) {
   // low on the wave, turns the drop into speed up the face.
   // Carving near the top of the wave drives you too (a high line is the fast
   // line), just less than a bottom turn.
-  const onFace = 1 - sstep(T.tBottom, T.tBottom + 0.25, r.t); // fades out past the bottom, onto the flats
-  const driveLow = (1 - sstep(0.35, 0.9, height)) * onFace; // starts higher up the face
+  const driveLow = 1 - sstep(0.35, 0.9, height); // starts higher up the face, and works out on the flats too
   const high = sstep(0.55, 0.95, height);
   // (Only your own carving drives you, not the quick assisted pivots.)
   const carveDrive = r.bottomCarve ? T.bottomCarveDrive : 1 + 0.35 * hard;

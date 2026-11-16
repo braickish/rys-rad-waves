@@ -52,7 +52,7 @@ carve toward where you point (harder the further you push), a button to pump.
     without turning and you ride out onto the flats (`tFlats`) and bog down.
   - Moves never add speed by themselves: they're quick board pivots, then gravity and the wave take
     over. Turn drive (bottom turns, high carves) goes through `driveBank` and releases over
-    `driveSmooth`, only on the face (not the flats). Pivots off the lip point you straight down
+    `driveSmooth`; bottom turns drive you out on the flats too. Pivots off the lip point you straight down
     (`lipExit`), the way you're riding.
   - The lip: you must be turning at/near it (within `turnWindow`) to get a move. Not turning, you go
     up and over the back (wipeout), or launch an air if fast enough (`airSpeed`) and out of the

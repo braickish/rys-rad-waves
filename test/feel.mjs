@@ -83,6 +83,10 @@ for (const [label, phi] of [['started pointing down', -1.0], ['started level', 0
 { const r = start({ xs: -1.5, t: 6.2, phi: 1.3, speed: 13 }); const moves = []; let foamHits = 0;
   const T = run(r, (r, t) => { if (Math.cos(r.phi) < -0.15 && r.foam > 0.25) foamHits++; return { turn: t > 0.15 ? 1 : 0 }; }, 1.5, (e, t) => { if (e.type === 'move' && e.move !== 'bottomTurn') moves.push(`${e.move}@${t.toFixed(2)}s`); });
   out.push(`snap, then carve straight back into the foam: moves ${moves.join(', ')}; ${(foamHits * dt).toFixed(2)}s heading back in foam; ${r.mode === 'wipe' ? 'WIPE at ' + T.toFixed(2) + 's: ' + r.wipeReason : 'riding'}`); }
+// 6h. Bottom turn out on the flats (past the bottom of the face) should still make speed.
+{ const r = start({ xs: 3, t: 14.4, phi: -1.2, speed: 11 }); const v0 = r.speed; let vMax = 0;
+  run(r, (r) => { vMax = Math.max(vMax, r.speed); return { turn: 1 }; }, 0.8);
+  out.push(`bottom turn out on the flats: ${mph(v0)} -> peak ${mph(vMax)} mph`); }
 // 6g. Up into the lip without turning: over the back (slow) or an air (fast).
 for (const [label, speed] of [['slow', 10], ['fast', 16]]) {
   const r = start({ xs: 4, t: 7.5, phi: 1.3, speed }); const evs = [];
