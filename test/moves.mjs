@@ -70,4 +70,17 @@ for (const [label, dir, start] of [
   const ok = dir < 0 ? minCos > -0.05 : after !== null && Math.abs(after + Math.PI / 2) < 0.1;
   console.log(`${ok ? 'ok  ' : 'FAIL'} ${label}: ${move}, ends heading ${after === null ? '?' : (after * 57.3).toFixed(0)} deg${dir < 0 ? `, never back toward the whitewater (min cos ${minCos.toFixed(2)})` : ' (straight down = -90)'}`);
 }
+// Air reverse: land a 180 backwards, ride it backwards, then it spins back round.
+{
+  const r = createRider(); Object.assign(r, { xs: 0.3, t: 7.5, phi: 1.3, speed: 14 }); r.events = []; stepRider(r, {}, 0);
+  let airT = 0, landed = null, backwards = false, revertAt = null;
+  for (let i = 0; i < 5 * 120; i++) {
+    if (r.mode === 'air') airT += 1 / 120;
+    stepRider(r, r.mode === 'air' && airT > 0.1 && Math.abs(r.airSpin) < Math.PI ? { turn: 1 } : {}, 1 / 120);
+    for (const e of r.events) { if (e.type === 'land') { landed = i; backwards = !!e.backwards; } if (e.move === 'revert') revertAt = (i - landed) / 120; }
+    if (r.mode === 'wipe') break;
+  }
+  const ok = backwards && revertAt > 1 && revertAt < 2.5 && r.heading[0] > 0 && r.mode === 'surf';
+  console.log(`${ok ? 'ok  ' : 'FAIL'} air reverse: landed ${backwards ? 'backwards' : 'forwards'}, spun back round ${revertAt === null ? 'never' : revertAt.toFixed(2) + 's'} after landing, ${r.mode}`);
+}
 console.log(`worst peak acceleration: +${worst.toFixed(0)} mph/s; moves leaving you in the foam: ${foamBad}`);

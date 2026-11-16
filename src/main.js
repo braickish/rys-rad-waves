@@ -16,7 +16,7 @@ const STEP = 1 / 120;
 
 // ---------- input ----------
 const keys = new Set();
-const touch = { stick: [0, 0], pump: false, crouch: false };
+const touch = { turn: 0, pump: false, crouch: false };
 addEventListener('keydown', (e) => {
   if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) e.preventDefault();
   keys.add(e.code);
@@ -37,37 +37,45 @@ function autopilot() {
   return { tilt: autoUp ? 1 : -1, pump: !autoUp, crouch: rider.inBarrel };
 }
 
-// Keyboard: Left/Right carve the board around (counterclockwise/clockwise as
-// you see it), Up/Down point the nose up or down the face. Touch: the stick
-// points the board where you push it.
+// Keyboard: Left/Up turn the board to the surfer's left, Right/Down to their
+// right. Touch: swipes do exactly the same (swipe left or up = Left, swipe
+// right or down = Right), harder the further you swipe.
 function readInput() {
   if (params.has('auto')) return autopilot();
   const k = (...c) => c.some((x) => keys.has(x));
   const turn = (k('ArrowLeft', 'KeyA') ? 1 : 0) - (k('ArrowRight', 'KeyD') ? 1 : 0);
   const tilt = (k('ArrowUp', 'KeyW') ? 1 : 0) - (k('ArrowDown', 'KeyS') ? 1 : 0);
-  const aim = touch.stick[0] || touch.stick[1] ? touch.stick : null;
   return {
-    turn, tilt, aim,
+    turn: touch.turn || turn, tilt,
     pump: k('Space') || touch.pump,
     crouch: k('ShiftLeft', 'ShiftRight', 'KeyJ') || touch.crouch,
   };
 }
 
-// Touch: drag on the left half to steer, buttons on the right.
+// Touch: swipe anywhere (except the pump button) to steer.
 let stickId = null, stickStart = [0, 0];
+const SWIPE_PX = 45; // full turn at this far from where the swipe started
 // The title and game-over panels cover the canvas, so taps land on them.
 for (const id of ['title', 'over']) $(id).addEventListener('pointerdown', (e) => { e.preventDefault(); startOrRestart(); });
 canvas.addEventListener('pointerdown', (e) => {
   if (state === 'title' || state === 'over') { startOrRestart(); return; }
-  if (e.clientX < innerWidth / 2) { stickId = e.pointerId; stickStart = [e.clientX, e.clientY]; }
+  stickId = e.pointerId; stickStart = [e.clientX, e.clientY];
 });
 addEventListener('pointermove', (e) => {
   if (e.pointerId !== stickId) return;
-  const dx = (e.clientX - stickStart[0]) / 50, dy = -(e.clientY - stickStart[1]) / 50;
+  let dx = (e.clientX - stickStart[0]) / SWIPE_PX, dy = (e.clientY - stickStart[1]) / SWIPE_PX;
+  // The anchor follows the finger once past a full turn, so swiping back the
+  // other way responds right away.
   const l = Math.hypot(dx, dy);
-  touch.stick = l < 0.2 ? [0, 0] : [dx / Math.max(1, l), dy / Math.max(1, l)];
+  if (l > 1) {
+    stickStart = [e.clientX - (dx / l) * SWIPE_PX, e.clientY - (dy / l) * SWIPE_PX];
+    dx /= l; dy /= l;
+  }
+  // Same as the keys: left or up = Left (+1), right or down = Right (-1).
+  const v = Math.abs(dx) > Math.abs(dy) ? -dx : -dy;
+  touch.turn = Math.abs(v) < 0.2 ? 0 : Math.sign(v) * Math.min(1, Math.abs(v));
 });
-const endStick = (e) => { if (e.pointerId === stickId) { stickId = null; touch.stick = [0, 0]; } };
+const endStick = (e) => { if (e.pointerId === stickId) { stickId = null; touch.turn = 0; } };
 addEventListener('pointerup', endStick);
 addEventListener('pointercancel', endStick);
 for (const [id, prop] of [['btn-pump', 'pump']]) {
@@ -124,7 +132,7 @@ function handleEvents() {
       const [name, base] = table[Math.min(720, e.spins)] || table[0];
       const pts = Math.round(base * (e.big ? 1.5 : 1)); // launched right off the whitewater: bigger air
       score += pts;
-      flash(e.big ? `BIG ${name.toUpperCase()}` : name, `+${pts}`);
+      flash(e.big ? `BIG ${name.toUpperCase()}` : name, `${e.backwards ? 'landed backwards  ' : ''}+${pts}`);
     }
     if (e.type === 'move') {
       const MOVES = {
@@ -134,6 +142,7 @@ function handleEvents() {
         snap: ['SNAP!', 500, 0.35],
         reentry: ['RE-ENTRY!', 700, 0.4],
         floater: ['FLOATER!', 600, 0.3],
+        revert: ['Revert', 150, 0.35],
         lip180: ['180 off the top', 250, 0.3],
         rebound: ['REBOUND!', 500, 0.4],
         rebound180: ['REBOUND 180!', 750, 0.45],
@@ -279,7 +288,7 @@ async function main() {
     }, dt), { particles: !params.has('noparticles'), outlines: !params.has('nooutline') });
 
     frameMs = frameMs * 0.95 + (dt * 1000) * 0.05; // smoothed frame time
-    window.__dbg = { ms: +frameMs.toFixed(1), state, mode: rider.mode, xs: +rider.xs.toFixed(1), y: +rider.pos[1].toFixed(1), score: Math.round(score), reason: rider.wipeReason };
+    window.__dbg = { ms: +frameMs.toFixed(1), phi: +(rider.phi * 57.3).toFixed(0), turn: touch.turn, state, mode: rider.mode, xs: +rider.xs.toFixed(1), y: +rider.pos[1].toFixed(1), score: Math.round(score), reason: rider.wipeReason };
     // HUD.
     msgTimer -= dt;
     if (msgTimer <= 0) $('msg').classList.remove('pop');

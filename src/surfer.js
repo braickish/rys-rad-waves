@@ -15,7 +15,7 @@ import { basis } from './math.js';
 // red logo, an off-white board (with a soft teal nose so the front reads).
 const COL = {
   board: [0.95, 0.93, 0.86], nose: [0.55, 0.84, 0.8], stringer: [0.72, 0.7, 0.66], fin: [0.15, 0.16, 0.2],
-  skin: [0.86, 0.6, 0.42], hair: [0.2, 0.13, 0.08], shorts: [0.42, 0.48, 0.6], shortsDark: [0.3, 0.35, 0.46],
+  skin: [0.86, 0.6, 0.42], hair: [0.42, 0.29, 0.17], shorts: [0.42, 0.48, 0.6], shortsDark: [0.3, 0.35, 0.46],
   band: [0.08, 0.08, 0.1], logo: [0.85, 0.2, 0.25],
 };
 const THIGH = 0.46, SHIN = 0.46, UPPER = 0.3, FORE = 0.3;
@@ -199,8 +199,9 @@ export function surferObjects(pose, rider, info, dt) {
   }
   // Hips (shorts) and the waistband.
   objs.push(cyl(add(hipBack, v3.mul(f, -0.05)), add(hipFront, v3.mul(f, 0.05)), 0.12, 0.12, torsoDir, COL.shorts));
-  const waist = add(hip, v3.mul(torsoDir, 0.12));
-  objs.push(cyl(add(waist, v3.mul(across, -0.17)), add(waist, v3.mul(across, 0.17)), 0.035, 0.11, torsoDir, COL.band));
+  // Waistband: just a black band of the shorts, flush with the body (same
+  // size as the bottom of the torso), no outline.
+  objs.push({ ...cyl(add(hip, v3.mul(torsoDir, 0.08)), add(hip, v3.mul(torsoDir, 0.15)), 0.131, 0.096, across, COL.band), outline: 0 });
   // Bare torso, tapering out to the shoulders.
   // (narrow waist, broad shoulders: a swimmer's V)
   objs.push(cyl(add(hip, v3.mul(torsoDir, 0.1)), add(neck, v3.mul(torsoDir, -0.12)), 0.13, 0.095, across, COL.skin));

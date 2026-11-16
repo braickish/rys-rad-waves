@@ -39,6 +39,8 @@ export const TUNE = {
   hardRate: 1.25, // ... a faster top turn rate ...
   hardRadius: 0.7, // ... and a tighter arc
   snapRate: 13,
+  fakieTime: 1.4, // after landing backwards, ride it this long (s) ...
+  fakieSpinRate: 9, // ... then the board spins back round this fast (rad/s)
   lip180Rate: 14, // the quick 180 off the top when you turn toward the whitewater (rad/s) // how fast the board pivots back down in a snap (rad/s): quick, not instant
   reboundRate: 11, // rebound off the whitewater, nose swinging down (rad/s)
   rebound180Rate: 12, // rebound 180 around through the top (rad/s)
@@ -167,7 +169,7 @@ export function createRider() {
     foam: 0, foamTime: 0, pocket: 0,
     airSpin: 0, airTime: 0, spinArmed: false,
     moveCooldown: 0, lastBottomTurn: -9, bottomArmed: false,
-    driveBank: 0, lastTurnTime: -9, lastTurnDir: 0, overTheBack: false,
+    fakie: null, driveBank: 0, lastTurnTime: -9, lastTurnDir: 0, overTheBack: false,
     rideDir: 1, turnDir: 0, turnDirAge: 9, turnHeld: 0, hard: 0, assist: null, bottomCarve: false, floater: null,
     wipeReason: '', wipeTimer: 0,
     events: [],
@@ -183,8 +185,11 @@ export function resetRider(r) {
 // Derive 3D position, heading and velocity (peel frame) from surface state.
 function syncPose(r, f) {
   r.pos = f.P;
-  r.heading = v3.norm(v3.add(v3.mul(f.e1, Math.cos(r.phi)), v3.mul(f.e2, Math.sin(r.phi))));
-  r.vel = v3.add(v3.mul(r.heading, r.speed), [-PEEL_SPEED, 0, 0]);
+  const travel = v3.norm(v3.add(v3.mul(f.e1, Math.cos(r.phi)), v3.mul(f.e2, Math.sin(r.phi))));
+  r.vel = v3.add(v3.mul(travel, r.speed), [-PEEL_SPEED, 0, 0]);
+  // Riding backwards after a reverse landing: the board points the other way
+  // from where you're going (until it spins back round).
+  r.heading = r.fakie ? v3.norm(rotate(travel, f.n, Math.PI - r.fakie.spin)) : travel;
 }
 
 function wipe(r, reason) {
@@ -210,6 +215,14 @@ function stepSurf(r, input, dt) {
   const T = TUNE;
   r.moveCooldown = Math.max(0, r.moveCooldown - dt);
   const speedAtStart = r.speed;
+  // Riding backwards: after a moment the board spins back round to forwards.
+  if (r.fakie) {
+    r.fakie.time += dt;
+    if (r.fakie.time > T.fakieTime) {
+      r.fakie.spin += T.fakieSpinRate * dt;
+      if (r.fakie.spin >= Math.PI) { r.fakie = null; r.events.push({ type: 'move', move: 'revert', speed: r.speed, xs: r.xs }); }
+    }
+  }
   let f = frameAt(r.xs, r.t);
 
   const pk = pocketPower(r.xs);
@@ -496,13 +509,19 @@ function stepAir(r, input, dt) {
     r.t = clamp(hit.t, TUNE.tTop, TUNE.tBottom);
     if (hit.nz < -0.05 || r.overTheBack) return wipe(r, r.overTheBack ? 'Went over the back! (turn at the lip)' : 'Landed over the back!');
     if (spinErr > 0.9) return wipe(r, 'Bad landing! (finish the spin)');
-    // Land keeping the board's direction along the line, nose down the face.
+    // Land travelling the way you were going (along the line, nose... or tail
+    // ... down the face). If the board came round backwards, ride it
+    // backwards for a moment, then it spins back round to forwards.
     const fl = frameAt(r.xs, r.t);
-    const ph1 = Math.atan2(v3.dot(r.heading, fl.e2), v3.dot(r.heading, fl.e1));
-    r.phi = Math.sin(ph1) > -0.2 ? (Math.cos(ph1) >= 0 ? -0.35 : Math.PI + 0.35) : ph1;
+    const vt = v3.rej(v3.add(r.vel, [PEEL_SPEED, 0, 0]), fl.n);
+    const ph1 = Math.atan2(v3.dot(vt, fl.e2), v3.dot(vt, fl.e1));
+    r.phi = Math.cos(ph1) >= 0 ? -0.35 : Math.PI + 0.35;
+    // Backwards = the nose points back along the line, against your travel.
+    const noseAlong = v3.dot(r.heading, fl.e1), travelAlong = Math.cos(r.phi);
+    r.fakie = noseAlong * travelAlong < 0 && Math.abs(noseAlong) > 0.2 ? { time: 0, spin: 0 } : null;
     r.speed = clamp((r.launchSpeed || r.speed) * 0.92, TUNE.minSpeed, TUNE.maxSpeed); // keep most of your takeoff speed
     syncPose(r, frameAt(r.xs, r.t));
-    r.events.push({ type: 'land', spins: Math.abs(half) * 180, airTime: r.airTime, big: !!r.bigAir });
+    r.events.push({ type: 'land', spins: Math.abs(half) * 180, airTime: r.airTime, big: !!r.bigAir, backwards: !!r.fakie });
     r.bigAir = false;
     return;
   }
