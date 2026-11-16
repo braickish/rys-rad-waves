@@ -2,7 +2,7 @@
 // particles (simulated in a compute shader, drawn as soft billboards).
 
 import { skyWGSL, waterWGSL, solidWGSL, particleComputeWGSL, particleRenderWGSL } from './shaders.js';
-import { buildWaterMesh, buildLipTable, LIP, boxMesh, sphereMesh } from './mesh.js';
+import { buildWaterMesh, buildLipTable, LIP, boxMesh, sphereMesh, boardMesh } from './mesh.js';
 
 export const PARTICLES = 65536;
 const SAMPLES = 4;
@@ -32,9 +32,11 @@ export async function createRenderer(canvas) {
   const water = buildWaterMesh();
   const waterVB = upload(water.verts, GPUBufferUsage.VERTEX);
   const waterIB = upload(water.idx, GPUBufferUsage.INDEX);
-  const box = boxMesh(), sphere = sphereMesh();
-  const boxVB = upload(box, GPUBufferUsage.VERTEX);
-  const sphereVB = upload(sphere, GPUBufferUsage.VERTEX);
+  // Solid meshes for the surfer and board, by name.
+  const solids = {};
+  for (const [name, data] of Object.entries({
+    box: boxMesh(), sphere: sphereMesh(), board: boardMesh(-1, 0.6), boardNose: boardMesh(0.6, 1, 8),
+  })) solids[name] = { vb: upload(data, GPUBufferUsage.VERTEX), count: data.length / 6 };
   const lipBuf = upload(buildLipTable(), GPUBufferUsage.STORAGE);
 
   // Particles start dead with staggered negative life so they trickle in.
@@ -146,7 +148,7 @@ export async function createRenderer(canvas) {
   const objData = new Float32Array((OBJ_STRIDE / 4) * MAX_OBJECTS);
 
   // f: { viewProj, invViewProj, camPos, time, sunDir, peel, rider, spray, riderVel, dt, sprayDir, frame, burst, camRight, camUp }
-  // objects: [{ mesh: 'box'|'sphere', model: Float32Array(16), color: [r,g,b] }]
+  // objects: [{ mesh: 'box'|'sphere'|'board'|'boardNose', model: Float32Array(16), color: [r,g,b] }]
   function render(f, objects, opts = {}) {
     resize();
     frameData.set(f.viewProj, 0);
@@ -192,8 +194,9 @@ export async function createRenderer(canvas) {
     for (let i = 0; i < n; i++) {
       const o = objects[i];
       pass.setBindGroup(1, objBG, [i * OBJ_STRIDE]);
-      if (o.mesh === 'sphere') { pass.setVertexBuffer(0, sphereVB); pass.draw(sphere.length / 6); }
-      else { pass.setVertexBuffer(0, boxVB); pass.draw(box.length / 6); }
+      const m = solids[o.mesh] || solids.box;
+      pass.setVertexBuffer(0, m.vb);
+      pass.draw(m.count);
     }
 
     if (opts.particles !== false) {

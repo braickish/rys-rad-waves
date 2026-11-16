@@ -16,9 +16,11 @@ URL options: `?wave=barrel` (the barreling wave; default is a crumbling wave), `
 title), `?auto` (autopilot works the pocket), `?xs=-4` (start behind the peel), `?cam=1` (chase
 camera), `?noparticles`.
 
-Controls: Left/Right carve the board around (counterclockwise/clockwise as you see it), Up/Down point
-the nose up or down the face, Space pumps (only on the way down), Shift crouches, C switches camera.
-Touch: drag on the left half to point the board, buttons for pump and crouch.
+Controls: every input is the same rail-to-rail carve. Left/Right carve counterclockwise/clockwise (as
+seen from the beach); Up/Down carve whichever way swings the nose up/down the face, stopping at
+straight up/down. Space pumps (best on the way down), Shift leans harder (tighter turns, more drive;
+also crouches in a barrel), C switches camera (`?cam=2` is a close-up for testing). Touch: drag on
+the left half to carve toward where you point (harder the further you push), buttons for pump and lean.
 
 ## How it works
 
@@ -36,9 +38,14 @@ Touch: drag on the left half to point the board, buttons for pump and crouch.
     the shoulder, flat water and foam bleed you down (`vLow`, `vFoam`). Dropping pays a lot (`drop`),
     climbing costs little (`climb`), so getting high is easy and every drop is a burst. Pumping
     (`pump`) helps on the face, most on the drop.
-  - Moves: reach the top going up → **snap** back down (a bigger kick off the crumbling whitewater);
-    cut back into the curl and hit the whitewater → **re-entry**, rebounding down the line and firing
-    out at `reboundSpeed` (the foam can't hold you for a moment). The bottom is an automatic bottom turn.
+  - Turns: the turn radius depends on height on the face (`rTop` snappy up top, `rBottom` a long
+    rail-to-rail arc at the bottom), so turn rate = speed / radius. A bottom turn (nose coming up,
+    low on the face) generates speed (`bottomDrive`). At the bottom with no input the board carves its
+    own bottom turn.
+  - Moves are decided by where you hit the top and how steep: in the whitewater (behind `curlZone`)
+    → **re-entry**, at the curl → **snap**, on the open face → **off the lip** (shallow hits are a
+    **top turn**). Within `comboWindow` of a bottom turn it's a combo. Heading back into the
+    whitewater from a cutback → **cutback** rebound, firing out at `reboundSpeed`.
     Sit in heavy foam longer than `foamLimit` and it takes you. Airs: straight up the open face above
     `airSpeed`.
   - Barrel wave: same model, the rideable face tops out under the roof, crouch to fit the tube.

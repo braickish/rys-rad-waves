@@ -88,7 +88,7 @@ let score = 0, best = 0;
 try { best = Number(localStorage.getItem('rys-rad-waves-best')) || 0; } catch {}
 let burst = 0, msgTimer = 0, rideTime = 0;
 let prevHeading = rider.heading.slice();
-let turnSigned = 0, snapSpray = 0, lastReentry = -9;
+let turnSigned = 0, snapSpray = 0, lastMove = '', lastMoveTime = -9;
 const pose = createPose();
 let lastInput = {};
 
@@ -125,20 +125,24 @@ function handleEvents() {
       score += pts;
       flash(name, `+${pts}`);
     }
-    if (e.type === 'snap') {
-      const pts = Math.round((e.whitewater ? 300 : 150) + e.speed * (e.whitewater ? 30 : 15));
+    if (e.type === 'move') {
+      const MOVES = {
+        bottomTurn: ['Bottom turn', 100, 0],
+        topTurn: ['Top turn', 150, 0.15],
+        offLip: ['Off the lip!', 350, 0.25],
+        snap: ['SNAP!', 500, 0.35],
+        reentry: ['RE-ENTRY!', 700, 0.4],
+        cutback: ['CUTBACK!', 500, 0.4],
+      };
+      const [name, base, spray] = MOVES[e.move] || ['Nice', 100, 0];
+      // Repeating the same move back to back pays less; linking a bottom
+      // turn into a move pays more.
+      const repeat = e.move === lastMove && rider.time - lastMoveTime < 1.2;
+      lastMove = e.move; lastMoveTime = rider.time;
+      const pts = Math.round(base * (e.combo ? 1.5 : 1) * (repeat ? 0.4 : 1));
       score += pts;
-      snapSpray = e.whitewater ? 0.35 : 0.2;
-      flash(e.whitewater ? 'SNAP!' : 'Off the top', `+${pts}`);
-    }
-    if (e.type === 'reentry') {
-      // Rebounding off the whitewater; spamming it pays less.
-      const fresh = rider.time - lastReentry > 1.5;
-      lastReentry = rider.time;
-      const pts = fresh ? 500 : 150;
-      score += pts;
-      snapSpray = 0.4;
-      flash(fresh ? 'RE-ENTRY!' : 'Rebound', `+${pts}`);
+      snapSpray = Math.max(snapSpray, spray);
+      if (e.move !== 'bottomTurn' || msgTimer <= 0) flash(e.combo ? `${name}` : name, `${e.combo ? 'bottom turn combo  ' : ''}+${pts}`);
     }
     if (e.type === 'wipe') {
       burst = 0.3;
@@ -158,6 +162,10 @@ function updateCamera(dt) {
     const near = aspectNow < 1 ? 0.7 : 1; // closer on a phone held upright
     want = [p[0] + 6.0 * near, 2.2 + p[1] * 0.35, p[2] + 8.0 * near];
     look = [p[0] - 1.8 * near, 1.0 + p[1] * 0.55, p[2] - 0.5];
+  } else if (camMode === 2) {
+    // Close-up (testing): beside the rider, toward the beach.
+    want = [p[0] + 2.0, p[1] + 1.3, p[2] + 3.0];
+    look = [p[0], p[1] + 0.8, p[2]];
   } else {
     const h = v3.norm([rider.heading[0], 0, rider.heading[2]]);
     const close = rider.inBarrel ? 3.2 : 5.5;

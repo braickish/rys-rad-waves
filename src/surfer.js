@@ -11,10 +11,11 @@ import { v3 } from './rider.js';
 import { basis } from './math.js';
 
 const COL = {
-  board: [1.0, 0.24, 0.55], stripe: [1.0, 0.85, 0.15], suit: [0.07, 0.08, 0.1],
+  board: [1.0, 0.24, 0.55], nose: [1.0, 0.85, 0.15], stringer: [0.98, 0.95, 0.9], fin: [0.1, 0.1, 0.12], suit: [0.07, 0.08, 0.1],
   top: [0.0, 0.72, 0.78], skin: [0.86, 0.63, 0.46], hair: [0.98, 0.85, 0.35],
 };
 const THIGH = 0.46, SHIN = 0.46, UPPER = 0.3, FORE = 0.3;
+const CHEST_OPEN = 0.45; // how far the chest turns from the wave toward the nose (rad)
 
 const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
 const add = (...vs) => vs.reduce((a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]]);
@@ -88,7 +89,10 @@ export function surferObjects(pose, rider, info, dt) {
   // Body axis: between board-normal and world-up, leaned into the turn.
   const up0 = v3.norm(add(v3.mul(u, 0.5), [0, 0.5, 0]));
   const bodyUp = v3.norm(rotateAbout(up0, f, -lean));
-  const chest = v3.norm(v3.rej(L, bodyUp)); // facing direction (toe side)
+  // Facing: toward the wave (toe side), opened up toward the nose a bit, so
+  // the surfer looks where they're going.
+  const chest = v3.norm(v3.rej(v3.add(v3.mul(L, Math.cos(CHEST_OPEN)), v3.mul(f, Math.sin(CHEST_OPEN))), bodyUp));
+  const across = v3.norm(v3.cross(chest, bodyUp)); // shoulder line, roughly toward the nose
 
   const backFoot = add(B, v3.mul(f, -0.34));
   const frontFoot = add(B, v3.mul(f, 0.3));
@@ -103,14 +107,14 @@ export function surferObjects(pose, rider, info, dt) {
   // Torso leans forward (toward the chest side) as you crouch.
   const torsoDir = v3.norm(add(bodyUp, v3.mul(chest, 0.1 + 0.6 * knee)));
   const neck = add(hip, v3.mul(torsoDir, 0.58));
-  const head = add(neck, v3.mul(torsoDir, 0.2), v3.mul(chest, 0.04));
-  const shBack = add(neck, v3.mul(f, -0.19), v3.mul(torsoDir, -0.04));
-  const shFront = add(neck, v3.mul(f, 0.19), v3.mul(torsoDir, -0.04));
+  const head = add(neck, v3.mul(torsoDir, 0.2), v3.mul(chest, 0.03), v3.mul(across, 0.03));
+  const shBack = add(neck, v3.mul(across, -0.19), v3.mul(torsoDir, -0.04));
+  const shFront = add(neck, v3.mul(across, 0.19), v3.mul(torsoDir, -0.04));
 
   // Hands: out for balance by default; in a big turn the inside hand drags
   // toward the water and the other rises.
-  let handBack = add(shBack, v3.mul(f, -0.5), v3.mul(bodyUp, -0.22), v3.mul(chest, 0.12));
-  let handFront = add(shFront, v3.mul(f, 0.48), v3.mul(bodyUp, -0.18), v3.mul(chest, 0.15));
+  let handBack = add(shBack, v3.mul(across, -0.5), v3.mul(bodyUp, -0.22), v3.mul(chest, 0.12));
+  let handFront = add(shFront, v3.mul(across, 0.48), v3.mul(bodyUp, -0.18), v3.mul(chest, 0.15));
   if (lean > 0) {
     // Turning toward the chest side (frontside bottom turn): back hand trails on the face.
     handBack = lerp3(handBack, add(B, v3.mul(f, -0.15), v3.mul(L, 0.6), v3.mul(u, 0.08)), reach);
@@ -132,17 +136,21 @@ export function surferObjects(pose, rider, info, dt) {
 
   // --- meshes ---
   const objs = [];
-  objs.push({ mesh: 'sphere', model: basis(f, u, L, 2.0, 0.08, 0.54, add(p, v3.mul(u, 0.03))), color: COL.board });
-  objs.push({ mesh: 'box', model: basis(f, u, L, 1.4, 0.085, 0.05, add(p, v3.mul(u, 0.03))), color: COL.stripe });
+  // Board: body, contrasting nose, stringer down the middle, fin under the tail.
+  const bc = add(p, v3.mul(u, 0.04));
+  objs.push({ mesh: 'board', model: basis(f, u, L, 1, 1, 1, bc), color: COL.board });
+  objs.push({ mesh: 'boardNose', model: basis(f, u, L, 1, 1, 1, bc), color: COL.nose });
+  objs.push({ mesh: 'box', model: basis(f, u, L, 1.55, 0.072, 0.025, add(bc, v3.mul(f, -0.15))), color: COL.stringer });
+  objs.push({ mesh: 'box', model: basis(f, u, L, 0.14, 0.13, 0.012, add(bc, v3.mul(f, -0.82), v3.mul(u, -0.08))), color: COL.fin });
   for (const [hp, leg, foot] of [[hipBack, legB, backFoot], [hipFront, legF, frontFoot]]) {
     objs.push(limb(hp, leg.joint, 0.16, 0.17, f, COL.suit));
     objs.push(limb(leg.joint, foot, 0.13, 0.14, f, COL.suit));
     objs.push({ mesh: 'box', model: basis(f, u, L, 0.12, 0.06, 0.26, add(foot, v3.mul(u, 0.03), v3.mul(chest, 0.04))), color: COL.skin });
   }
-  objs.push(limb(hip, neck, 0.36, 0.22, f, COL.top));
-  objs.push(limb(add(hip, v3.mul(torsoDir, -0.04)), add(hip, v3.mul(torsoDir, 0.12)), 0.38, 0.24, f, COL.suit));
+  objs.push(limb(hip, neck, 0.36, 0.22, across, COL.top));
+  objs.push(limb(add(hip, v3.mul(torsoDir, -0.04)), add(hip, v3.mul(torsoDir, 0.12)), 0.38, 0.24, across, COL.suit));
   objs.push(ball(head, 0.13, COL.skin));
-  objs.push(ball(add(head, v3.mul(torsoDir, 0.05), v3.mul(chest, -0.03)), 0.135, COL.hair, f, torsoDir, chest, 0.75));
+  objs.push(ball(add(head, v3.mul(torsoDir, 0.05), v3.mul(chest, -0.03)), 0.135, COL.hair, across, torsoDir, chest, 0.75));
   for (const [sh, arm] of [[shBack, armB], [shFront, armF]]) {
     objs.push(limb(sh, arm.joint, 0.1, 0.1, chest, COL.top));
     objs.push(limb(arm.joint, arm.end, 0.085, 0.085, chest, COL.skin));
