@@ -50,10 +50,12 @@ carve toward where you point (harder the further you push), a button to pump.
     (`bottomCarve`) commits at once: full lean, a slightly wider arc (`bottomCarveRadius`), more drive
     (`bottomCarveDrive`). There's no automatic bottom turn: head down
     without turning and you ride out onto the flats (`tFlats`) and bog down.
+  - Speed never builds faster than `maxAccel` (~22 mph/s), whatever is feeding it, so nothing surges.
   - Moves never add speed by themselves: they're quick board pivots, then gravity and the wave take
     over. Turn drive (bottom turns, high carves) goes through `driveBank` and releases over
     `driveSmooth`; bottom turns drive you out on the flats too. Pivots off the lip point you straight down
-    (`lipExit`), the way you're riding.
+    (`lipExit`), the way you're riding; in the whitewater (re-entry, floater exit) shallower
+    (`foamExit`), down and forward, and the foam can't slow you or catch you until you've cleared it.
   - The lip: you must be turning at/near it (within `turnWindow`) to get a move. Not turning, you go
     up and over the back (wipeout), or launch an air if fast enough (`airSpeed`) and out of the
     whitewater.
@@ -64,7 +66,7 @@ carve toward where you point (harder the further you push), a button to pump.
   - Turning back into the whitewater (a cutback): you must meet its front edge (`foamContact`) in the
     top two thirds of the wave (`reboundMinHeight`) and be turning as you hit: Left → **rebound**
     (nose swings down and back down the line), Right → **rebound 180** (spins around through the
-    top). Rebound needs the top half (`reboundMinHeight`), the 180 the top third
+    top). Rebound needs the top two thirds (`reboundMinHeight`), the 180 the top third
     (`rebound180MinHeight`; Right in between is a plain rebound). Low, or not turning, and the
     whitewater buries you. Assisted pivots don't add speed.
   - **Floater:** any hit on the top in the whitewater while heading down the line (except a steep,
@@ -93,6 +95,7 @@ carve toward where you point (harder the further you push), a button to pump.
 
 ```sh
 node test/feel.mjs     # the feel numbers: climb time, drop speed, cutback re-entries, pocket riding
+node test/moves.mjs    # audit every move: peak acceleration, speed before/after, bogged in foam
 node test/controls.mjs # human-style inputs on both waves: no glitches, Up/Down never flips you
 node test/pocket.mjs   # where different riding styles spend their time vs. the curl
 node test/plot-slices.mjs out.svg [crumble|barrel]   # draw the wave cross-sections
