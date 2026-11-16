@@ -34,7 +34,7 @@ for (const [label, t0] of [['up top', 6.2], ['at the bottom', 13.6]]) {
 // 5. Moves by zone: bottom turn then straight up into the top at different spots.
 for (const [label, xs] of [['into the whitewater', -6], ['at the curl', -3], ['on the open face', 2]]) {
   const r = start({ xs, t: 13.0, phi: -0.9, speed: 13 }); const moves = [];
-  run(r, (r, t) => (r.t < TUNE.tTop + 1.2 ? { turn: -1 } : { tilt: 1 }), 1.5, (e) => { if (e.type === 'move' || e.type === 'launch') moves.push(moveName(e)); });
+  run(r, (r, t) => (r.t < TUNE.tTop + 1.2 ? { turn: -1 } : Math.sin(r.phi) < 0.95 && Math.cos(r.phi) > 0 ? { turn: 1 } : {}), 1.5, (e) => { if (e.type === 'move' || e.type === 'launch') moves.push(moveName(e)); });
   out.push(`bottom turn then hit the top ${label}: ${moves.join(' -> ')}`);
 }
 // 6. Turning back into the whitewater: must be high, and turning as you hit.
