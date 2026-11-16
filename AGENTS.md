@@ -21,8 +21,9 @@ left, Right (or Down) to their right; Up is exactly Left and Down exactly Right 
 (tested). Riding right along the wave, the surfer's left is up the face. Air spins turn the same way
 (about the face normal at takeoff). Holding a turn progressively leans you into it harder (`hardAfter`: tighter arc,
 more drive, more rail roll). Space pumps (best on the way down), C switches camera (`?cam=2` is a
-close-up for testing). Shift crouches, only needed on the barrel wave. Touch: drag on the left half to
-carve toward where you point (harder the further you push), a button to pump.
+close-up for testing). Shift crouches, only needed on the barrel wave. Touch: swipes do exactly what the keys
+do (swipe left/up = Left, right/down = Right, harder the further you swipe; anywhere but the pump
+button).
 
 ## How it works
 
@@ -84,7 +85,9 @@ carve toward where you point (harder the further you push), a button to pump.
     drags less (`climbFoamDrag`) and doesn't count toward catching you while you climb it.
   - Moves need at least `moveGap` (1s) between them. Inside the gap the lip is just a plain turn and
     the whitewater just slows you.
-    Sit in heavy foam longer than `foamLimit` and it takes you. Airs: straight up the open face above
+    Sit in heavy foam longer than `foamLimit` and it takes you. Land an air backwards (nose pointing
+    back along the line) and you ride it backwards (`fakie`) for `fakieTime`, then the board spins
+    back round ("Revert"). Airs: straight up the open face above
     `airSpeed`.
   - Barrel wave: same model, the rideable face tops out under the roof, crouch to fit the tube.
 - Look: the surfer and board are drawn in an illustrated style: toon shading in flat bands and an
