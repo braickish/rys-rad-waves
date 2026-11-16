@@ -137,7 +137,8 @@ fn ripple(q: vec2f, t: f32) -> f32 {
   let t1 = normalize(vec3f(1.0, 0.0, 0.0) - n * n.x);
   let t2 = cross(n, t1);
   let dist = length(F.camPos.xyz - i.wpos);
-  let detail = 0.09 * exp(-dist * 0.04); // fine, subtle ripples (strong ones read as bumps on big waves)
+  // Fine, subtle ripples, only on the sloped part of the wave (none on the flats).
+  let detail = 0.09 * exp(-dist * 0.04) * smoothstep(0.03, 0.2, 1.0 - n.y);
   n = normalize(n - (t1 * gx + t2 * gy) * detail);
 
   let phase = i.attr.x;

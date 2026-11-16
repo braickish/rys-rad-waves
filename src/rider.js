@@ -596,7 +596,8 @@ function checkHazards(r, dt) {
   // of it = out.
   const T = TUNE;
   if (!r.tube) {
-    if (ph > T.tubeEnter && r.xs > -8) {
+    // Only once you're up on the face (at or above its base), not out on the flats.
+    if (ph > T.tubeEnter && ph < T.tubeCollapse - 0.15 && r.t <= T.tBottom) {
       // Way up in the lip as it throws: over you go. A bit high: it sucks you in.
       if (r.t < topOfFace(r.xs) - T.tubeTooHigh) return wipe(r, 'Over the falls! (caught up in the lip)');
       r.t = Math.max(r.t, topOfFace(r.xs));

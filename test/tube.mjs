@@ -26,3 +26,17 @@ for (const [label, pol] of runs) {
   }
   console.log(label.padEnd(32), ev.join(' -> ') || '-', `| deepest ${(maxDepth * 100).toFixed(0)}%`, r.mode === 'wipe' ? '| WIPE: ' + r.wipeReason : '');
 }
+
+// Out on the flats when the curl passes: no barrel. A bottom turn up onto the
+// face behind the curl: barrel.
+console.log('-- entering from the flats');
+for (const [label, pol] of [['stay out on the flats', () => ({ aim: [1, -0.3] })], ['bottom turn up into it', (r) => (r.xs < -3 || r.turnedUp ? (r.turnedUp = true, { aim: [0.35, 0.95] }) : { aim: [0.6, -0.8] })]]) {
+  const r = createRider(); Object.assign(r, { xs: 1, t: 14.4, phi: -0.2, speed: 6 }); r.events = []; stepRider(r, {}, 0);
+  let firstIn = null, i = 0;
+  for (; i < 4 * 120; i++) {
+    stepRider(r, pol(r), 1 / 120);
+    if (r.tube && firstIn === null) firstIn = `entered at height ${(r.height ?? 0).toFixed(2)}, t=${r.t.toFixed(2)}`;
+    if (r.mode === 'wipe') break;
+  }
+  console.log(label.padEnd(32), firstIn || 'never in the barrel', r.mode === 'wipe' ? '| WIPE: ' + r.wipeReason : '');
+}
