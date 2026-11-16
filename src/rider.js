@@ -158,7 +158,7 @@ export function createRider() {
     foam: 0, foamTime: 0, pocket: 0,
     airSpin: 0, airTime: 0, spinArmed: false,
     moveCooldown: 0, lastBottomTurn: -9, bottomArmed: false,
-    fakie: null, driveBank: 0, lastTurnTime: -9, lastTurnDir: 0, overTheBack: false,
+    tube: null, fakie: null, driveBank: 0, lastTurnTime: -9, lastTurnDir: 0, overTheBack: false,
     rideDir: 1, turnDir: 0, turnDirAge: 9, turnHeld: 0, hard: 0, assist: null, bottomCarve: false, floater: null,
     wipeReason: '', wipeTimer: 0,
     events: [],
@@ -215,6 +215,7 @@ export function stepRider(r, input, dt) {
 
 function stepSurf(r, input, dt) {
   const T = TUNE;
+  if (r.tube) return stepTube(r, input, dt);
   r.moveCooldown = Math.max(0, r.moveCooldown - dt);
   const speedAtStart = r.speed;
   // Riding backwards: after a moment the board spins back round to forwards.
@@ -550,7 +551,7 @@ function roofClearance(xs, t, pos) {
   const sl = slice(xs, 8);
   let best = Infinity;
   for (const h of verticalHits(sl, pos[2])) {
-    if (h.ny < -0.3 && h.t < t - 0.8 && h.y > pos[1] + 0.05) best = Math.min(best, h.y - pos[1]);
+    if (h.ny < -0.3 && h.t < t - 0.3 && h.y > pos[1] + 0.05) best = Math.min(best, h.y - pos[1]);
   }
   return best;
 }
@@ -564,17 +565,61 @@ function checkHazards(r, dt) {
   if (r.xs < -25) return wipe(r, 'Caught by the whitewater!');
 
   if (!WAVE.tube) { r.inBarrel = false; return; }
+  // Water overhead, past where the lip has thrown: you're in the tube.
   const c = roofClearance(r.xs, r.t, r.pos);
   r.clearance = c;
-  const was = r.inBarrel;
-  r.inBarrel = c < 6 && ph > 0.2;
-  if (r.inBarrel) {
-    const h = r.crouch ? TUNE.crouchH : TUNE.standH;
-    if (ph > 0.4 && c < h) return wipe(r, r.crouch ? 'Closed out!' : 'Head hit the lip! (crouch!)');
-    r.barrelTime += dt;
+  if (c < 6 && ph > TUNE.tubeEnter && !r.assist && !r.floater) {
+    r.tube = { time: 0, bal: 0, balVel: 0, depth: ph, seed: Math.random() * 100 };
+    r.inBarrel = true;
+    r.barrelTime = 0;
+    r.events.push({ type: 'barrelEnter' });
   }
-  if (was && !r.inBarrel) { r.events.push({ type: 'barrelExit', time: r.barrelTime }); r.barrelTime = 0; }
-  if (!was && r.inBarrel) r.events.push({ type: 'barrelEnter' });
+}
+
+// --- Tube riding ---
+// In the barrel the board holds its line low on the face by itself; you
+// balance (Left/Right push the balance needle left/right against the
+// wobble, which grows the deeper you are) and set your speed (Up = speed up
+// toward the exit, Down = stall deeper). Let the needle hit either end and
+// you fall; too slow and the tube closes on you; reach the open face and
+// you're out.
+function stepTube(r, input, dt) {
+  const T = TUNE;
+  const tb = r.tube;
+  tb.time += dt;
+  r.barrelTime = tb.time;
+  r.crouch = true;
+  // Line: settle into the tube's sweet spot, board along the wave.
+  r.t += (T.tubeLine - r.t) * (1 - Math.exp(-dt * 3));
+  const dir = Math.cos(r.phi) >= 0 ? 0 : Math.PI;
+  r.phi += clampTurn(wrap(dir - r.phi), 3 * dt);
+  // Speed: Up speeds you toward the exit, Down stalls you deeper.
+  const fwd = clamp(input.tilt || 0, -1, 1);
+  r.speed += (fwd * T.tubeAccel + (PEEL_SPEED + T.tubeCruise - r.speed) * 2.0) * dt;
+  r.speed = clamp(r.speed, T.tubeMinSpeed, T.tubeMaxSpeed);
+  r.xs += (r.speed * Math.cos(r.phi) - PEEL_SPEED) * dt;
+  // Balance: unstable (it falls away from the middle), with a wobble that
+  // grows the deeper you are. Left/Right push it back.
+  const ph = phaseAt(r.xs);
+  const deep = clamp((ph - T.tubeEnter) / (T.tubeCollapse - T.tubeEnter), 0, 1);
+  tb.depth = Math.max(tb.depth, ph);
+  const k = tb.time * 1.7 + tb.seed;
+  const wobble = Math.sin(k) * 0.6 + Math.sin(k * 2.3 + 1.1) * 0.3 + Math.sin(k * 4.1 + 2.7) * 0.25;
+  const steer = clamp(input.turn || 0, -1, 1);
+  tb.balVel += (T.balFall * (0.5 + deep) * tb.bal + T.balWobble * (0.35 + deep) * wobble - steer * T.balInput) * dt;
+  tb.balVel *= Math.exp(-dt * T.balDamp);
+  tb.bal += tb.balVel * dt;
+  const f = frameAt(r.xs, r.t);
+  syncPose(r, f);
+  r.pocket = WAVE.pocket(r.xs); r.foam = 0; r.height = 0.2; r.inBarrel = true;
+  // Outcomes.
+  if (Math.abs(tb.bal) >= 1) { r.tube = null; return wipe(r, 'Lost your balance in the barrel!'); }
+  if (ph > T.tubeCollapse) { r.tube = null; return wipe(r, 'The barrel closed on you! (speed up)'); }
+  if (ph < T.tubeExit) {
+    r.events.push({ type: 'barrelExit', time: tb.time, depth: tb.depth });
+    r.tube = null; r.inBarrel = false; r.barrelTime = 0;
+    r.moveCooldown = TUNE.moveGap;
+  }
 }
 
 // Speed for the HUD: board speed while surfing, ground speed in the air.

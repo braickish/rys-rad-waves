@@ -16,7 +16,7 @@ const STEP = 1 / 120;
 
 // ---------- input ----------
 const keys = new Set();
-const touch = { turn: 0, pump: false, crouch: false };
+const touch = { turn: 0, tilt: 0, pump: false, crouch: false };
 addEventListener('keydown', (e) => {
   if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) e.preventDefault();
   keys.add(e.code);
@@ -30,6 +30,10 @@ addEventListener('blur', () => keys.clear());
 // and the ?auto test mode.
 let autoUp = false;
 function autopilot() {
+  if (rider.tube) { // balance, stall a little, then speed out
+    const b = rider.tube.bal * 2.5 + rider.tube.balVel * 0.8;
+    return { turn: Math.max(-1, Math.min(1, b)), tilt: rider.tube.time < 1.5 ? -1 : 1 };
+  }
   if (autoUp && rider.height > 0.88) autoUp = false;
   if (!autoUp && rider.height < 0.15) autoUp = true;
   if (Math.cos(rider.phi) < 0) return { aim: [1, -0.3] }; // facing back: turn back down the line
@@ -46,7 +50,7 @@ function readInput() {
   const turn = (k('ArrowLeft', 'KeyA') ? 1 : 0) - (k('ArrowRight', 'KeyD') ? 1 : 0);
   const tilt = (k('ArrowUp', 'KeyW') ? 1 : 0) - (k('ArrowDown', 'KeyS') ? 1 : 0);
   return {
-    turn: touch.turn || turn, tilt,
+    turn: touch.turn || turn, tilt: touch.tilt || tilt,
     pump: k('Space') || touch.pump,
     crouch: k('ShiftLeft', 'ShiftRight', 'KeyJ') || touch.crouch,
   };
@@ -71,11 +75,12 @@ addEventListener('pointermove', (e) => {
     stickStart = [e.clientX - (dx / l) * SWIPE_PX, e.clientY - (dy / l) * SWIPE_PX];
     dx /= l; dy /= l;
   }
-  // Same as the keys: left or up = Left (+1), right or down = Right (-1).
-  const v = Math.abs(dx) > Math.abs(dy) ? -dx : -dy;
-  touch.turn = Math.abs(v) < 0.2 ? 0 : Math.sign(v) * Math.min(1, Math.abs(v));
+  // Same as the keys: a sideways swipe is Left/Right, an up/down swipe is
+  // Up/Down (whichever way you swiped most).
+  const dz = (x) => (Math.abs(x) < 0.2 ? 0 : Math.sign(x) * Math.min(1, Math.abs(x)));
+  if (Math.abs(dx) > Math.abs(dy)) { touch.turn = dz(-dx); touch.tilt = 0; } else { touch.tilt = dz(-dy); touch.turn = 0; }
 });
-const endStick = (e) => { if (e.pointerId === stickId) { stickId = null; touch.turn = 0; } };
+const endStick = (e) => { if (e.pointerId === stickId) { stickId = null; touch.turn = 0; touch.tilt = 0; } };
 addEventListener('pointerup', endStick);
 addEventListener('pointercancel', endStick);
 for (const [id, prop] of [['btn-pump', 'pump']]) {
@@ -121,11 +126,13 @@ function flash(text, sub = '') {
 
 function handleEvents() {
   for (const e of rider.events) {
-    if (e.type === 'barrelEnter') flash('In the barrel!');
+    if (e.type === 'barrelEnter') flash('In the barrel!', 'balance ← →  ·  speed ↑ ↓');
     if (e.type === 'barrelExit' && e.time > 0.4) {
-      const pts = Math.round(e.time * 1000);
+      // Time in the tube, more the deeper you got.
+      const deep = Math.max(0, (e.depth || 0) - 0.3);
+      const pts = Math.round(e.time * 1000 * (1 + deep * 2));
       score += pts;
-      flash(e.time > 2.5 ? 'DEEP BARREL!' : 'Tubed!', `${e.time.toFixed(1)}s  +${pts}`);
+      flash(e.time > 2.5 || deep > 0.3 ? 'DEEP BARREL!' : 'Tubed!', `${e.time.toFixed(1)}s  +${pts}`);
     }
     if (e.type === 'land') {
       const table = { 0: ['Air!', 300], 180: ['Air reverse!', 600], 360: ['Air 360!', 1200], 540: ['Air 540!!', 2000], 720: ['Air 720!!!', 3200] };
@@ -169,7 +176,11 @@ let camPos = [-6, 4, 12], camTarget = [0, 1, 0], aspectNow = 1.6;
 function updateCamera(dt) {
   const p = rider.pos;
   let want, look;
-  if (camMode === 0) {
+  if (rider.tube && camMode !== 2) {
+    // In the tube: low, just ahead of the opening, looking back in at you.
+    want = [p[0] + 7.5, p[1] + 1.0, p[2] + 2.6];
+    look = [p[0] - 0.5, p[1] + 0.9, p[2] - 0.2];
+  } else if (camMode === 0) {
     // From the channel in front of the wave: barrel on the left, shoulder right.
     // Ahead in the channel, looking back up the line into the tube.
     const near = aspectNow < 1 ? 0.7 : 1; // closer on a phone held upright
@@ -289,7 +300,7 @@ async function main() {
     }, dt), { particles: !params.has('noparticles'), outlines: !params.has('nooutline') });
 
     frameMs = frameMs * 0.95 + (dt * 1000) * 0.05; // smoothed frame time
-    window.__dbg = { wind: +(pose.windup || 0).toFixed(2), unl: +(pose.unload || 0).toFixed(2), ms: +frameMs.toFixed(1), phi: +(rider.phi * 57.3).toFixed(0), turn: touch.turn, state, mode: rider.mode, xs: +rider.xs.toFixed(1), y: +rider.pos[1].toFixed(1), score: Math.round(score), reason: rider.wipeReason };
+    window.__dbg = { wind: +(pose.windup || 0).toFixed(2), unl: +(pose.unload || 0).toFixed(2), ms: +frameMs.toFixed(1), phi: +(rider.phi * 57.3).toFixed(0), turn: touch.turn, tilt: touch.tilt, bal: rider.tube ? +rider.tube.bal.toFixed(2) : null, state, mode: rider.mode, xs: +rider.xs.toFixed(1), y: +rider.pos[1].toFixed(1), score: Math.round(score), reason: rider.wipeReason };
     // HUD.
     msgTimer -= dt;
     if (msgTimer <= 0) $('msg').classList.remove('pop');
@@ -298,7 +309,14 @@ async function main() {
     const tube = $('tube');
     tube.style.width = `${Math.min(100, rider.barrelTime * 25)}%`;
     tube.parentElement.classList.toggle('on', rider.inBarrel);
-    $('hint').classList.toggle('warn', rider.inBarrel && !rider.crouch);
+    // Barrel balance meter.
+    const bm = $('balance');
+    bm.hidden = !rider.tube;
+    if (rider.tube) {
+      const b = Math.max(-1, Math.min(1, rider.tube.bal));
+      $('balance-needle').style.left = `${50 + b * 50}%`;
+      bm.classList.toggle('danger', Math.abs(b) > 0.7);
+    }
     requestAnimationFrame(tick);
   }
   requestAnimationFrame(tick);

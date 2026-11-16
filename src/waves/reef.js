@@ -26,11 +26,26 @@ export default {
     Math.exp(-(((t - 8) / 2.4) ** 2)) * sstep(-0.6, 0.1, s) * (1 - sstep(1.2, 1.8, s)) * 1.1
     + Math.exp(-(((t - 9.5) / 2.5) ** 2)) * sstep(-1.6, -0.3, s) * (1 - sstep(0.3, 0.8, s)) * 0.45),
   lipT: 8,
-  white: (s) => sstep(0.7, 1.1, s) * (1 - sstep(1.4, 1.8, s)),
+  // Whitewater spray and mist: where the tube closes and behind it, not inside it.
+  white: (s) => sstep(1.1, 1.4, s) * (1 - sstep(2.0, 2.8, s)),
   pocket: (xs) => (xs >= 0 ? Math.exp(-((xs / 6) ** 2)) : sstep(-13, -9, xs)),
   // Once the lip has thrown, the face you can ride tops out under the roof.
   faceTop: (s) => (s > 0.1 ? 11.9 : 5.3),
   tube: true,
 
-  tune: { ...point.tune, airs: false },
+  tune: {
+    ...point.tune,
+    airs: false,
+    // Tube riding (see stepTube in rider.js).
+    tubeEnter: 0.2, // phase where the lip has thrown far enough to be in the tube
+    tubeExit: 0.12, // ... and where you're back out on the open face
+    tubeCollapse: 1.15, // the tube closes on you past this phase (~10 m behind the curl)
+    tubeLine: 13.4, // surface position of the sweet spot low in the tube
+    tubeCruise: -0.4, // with no input the tube settles you at the peel speed plus this: slowly drifting deeper
+    tubeAccel: 5, tubeMinSpeed: 3.5, tubeMaxSpeed: 11, // Up/Down speed control
+    balFall: 2.6, // how strongly the balance falls away from the middle
+    balWobble: 2.2, // how hard the tube knocks you about (grows with depth)
+    balInput: 3.2, // how hard Left/Right push back
+    balDamp: 1.2,
+  },
 };

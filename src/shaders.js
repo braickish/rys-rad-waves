@@ -227,7 +227,8 @@ fn respawn(id: u32) -> P {
     let L = lipAt(xs);
     let ph = L[1].z;
     let impact = L[1].w; // how active the whitewater is here
-    if (ph < -0.15 || ph > 1.8 || rnd() > 0.06 + impact * 0.6) { p.pos = vec4f(0.0, -10.0, 0.0, 0.05 + rnd() * 0.2); return p; }
+    // (no spray off the tip where it has thrown down into a tube: it would fill the tube)
+    if (ph < -0.15 || ph > 1.8 || (L[0].x < 2.5 && ph > 0.15) || rnd() > 0.06 + impact * 0.6) { p.pos = vec4f(0.0, -10.0, 0.0, 0.05 + rnd() * 0.2); return p; }
     let pos = vec3f(xs, L[0].x, L[0].y) + vec3f(rs() * 0.25, rs() * 0.15, rs() * 0.15);
     let dir = vec3f(0.0, L[0].z, L[0].w);
     let v = dir * (1.0 + rnd() * 2.5) + vec3f(-peel * (0.3 + rnd() * 0.3), 0.4 + rnd() * 1.2 + impact * 2.0, 0.6 + rnd() * 0.8) + vec3f(rs(), rs(), rs()) * 0.5;
@@ -250,9 +251,11 @@ fn respawn(id: u32) -> P {
     p.extra = vec4f(p.pos.w, 0.25 + rnd() * 0.4, 0.0, 0.0);
     return p;
   }
-  // The barrel spitting: air and mist blasting out of the tube.
+  // The barrel spitting: an occasional puff of mist blasting out of the
+  // tube. Only where there is a tube (the lip tip has thrown down low).
   let xs = mix(-10.5, -7.5, rnd());
   let L = lipAt(xs);
+  if (L[0].x > 2.5 || rnd() > 0.15) { p.pos = vec4f(0.0, -10.0, 0.0, 0.05 + rnd() * 0.2); return p; }
   let c = vec3f(xs, L[1].x, L[1].y);
   p.pos = vec4f(c + vec3f(rs() * 0.4, rs() * 0.6, rs() * 0.6), 0.45 + rnd() * 0.45);
   p.vel = vec4f(12.0 + rnd() * 9.0, rs() * 0.8, rs() * 0.8 + 0.4, 3.0);
@@ -314,6 +317,7 @@ struct VO { @builtin(position) pos: vec4f, @location(0) uv: vec2f, @location(1) 
   if (kind == 3.0) { alpha = 0.10; }
   o.a = alpha * smoothstep(0.0, 0.1, age) * (1.0 - smoothstep(0.55, 1.0, age));
   o.a *= smoothstep(0.8, 5.0, length(w - F.camPos.xyz)); // don't fog the lens
+  if (kind == 3.0) { o.a *= smoothstep(1.0, 4.0, length(p.pos.xyz - F.rider.xyz)); } // spit never hides the surfer
   o.wpos = w;
   o.kind = kind;
   return o;

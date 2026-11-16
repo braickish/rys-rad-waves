@@ -102,7 +102,13 @@ button).
     back along the line) and you ride it backwards (`fakie`) for `fakieTime`, then the board spins
     back round ("Revert"). Airs: straight up the open face above
     `airSpeed`.
-  - Barrel wave: same model, the rideable face tops out under the roof, crouch to fit the tube.
+  - **Tube riding** (waves with `tube: true`, e.g. Reef Barrel; `stepTube`): once there's water
+    overhead past `tubeEnter`, you're in tube mode. The board holds a line low in the tube
+    (`tubeLine`) and the surfer crouches; a balance needle (HUD) falls away from the middle and wobbles
+    more the deeper you are (`balFall`, `balWobble`); Left/Right push it back (`balInput`); Up/Down
+    speed up toward the exit / stall deeper (`tubeAccel`; with no input you drift slowly deeper,
+    `tubeCruise`). Needle at either end = fall; past `tubeCollapse` = closed out; back past `tubeExit`
+    = out, scored by time and depth. The camera drops low in front of the opening.
 - Look: the surfer and board are drawn in an illustrated style: toon shading in flat bands and an
   ink outline (inverted-hull pass in renderer.js; per-part thickness via `outline`, 0 = none). The
   surfer's look comes from a reference photo kept in the private `braickish/reference-images` repo
@@ -128,6 +134,7 @@ button).
 
 ```sh
 node test/feel.mjs     # the feel numbers: climb time, drop speed, cutback re-entries, pocket riding
+node test/tube.mjs     # barrel riding: balance and speed choices and their outcomes
 node test/moves.mjs    # audit every move: peak acceleration, speed before/after, bogged in foam
 node test/controls.mjs # human-style inputs on both waves: no glitches, Up/Down never flips you
 node test/pocket.mjs   # where different riding styles spend their time vs. the curl
