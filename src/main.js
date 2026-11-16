@@ -35,9 +35,9 @@ addEventListener('blur', () => keys.clear());
 let autoUp = false;
 function autopilot() {
   if (rider.tube) { // S-turns, staying off the roof
-    if (autoUp && rider.height > 0.4) autoUp = false;
+    if (autoUp && rider.height > 0.3) autoUp = false;
     if (!autoUp && rider.height < 0.08) autoUp = true;
-    const a = autoUp ? 0.6 : -0.7;
+    const a = autoUp ? 0.2 : -0.8; // the water pulls you up: climb gently, point well down
     return { aim: [Math.cos(a), Math.sin(a)] };
   }
 
