@@ -86,8 +86,12 @@ button).
   - Moves are decided by where you hit the top and how steep: in the whitewater (behind `curlZone`)
     → **re-entry**, at the curl → **snap**, on the open face → **off the lip** (shallow hits are a
     **top turn**). Within `comboWindow` of a bottom turn it's a combo. Snap / off the lip / re-entry
-    (turning away from the whitewater) **stay on the lip** (`r.lipSnap`): your line runs along the
-    lip, held there, while the fins release and the board swings round in place (`lipSnapSwing`,
+    (turning away from the whitewater) **stay on the lip** (`r.lipSnap`). Climbing with the nose
+    well up (`snapUp`), start the Right turn within `snapZone` below the top and the snap starts right
+    there, on the face, so the board stands up with its deck showing (reaching the very top while
+    turning still snaps too). It holds you at least `snapLine` below the top, on the steeper face
+    (the point's crest is nearly level: 8 deg at the top, ~26 deg at `snapLine`). Your line runs
+    along the wave, held there, while the fins release and the board swings round in place (`lipSnapSwing`,
     via `r.slide`) scrubbing speed (`lipSnapDrag`, ~28 -> 17 mph), then the fins grip (`slashGrip`,
     `r.snapGrip`) and you ride back down at `lipExit`. Your steering is ignored until they've
     gripped (holding the turn through it doesn't spin you round). The old version pivoted with
@@ -95,8 +99,12 @@ button).
     way (`rideDir < 0`) still uses the quick pivot.
   - **Roundhouse:** out on the shoulder (`roundhouseZone`, pocket below `roundhousePocket`), start a
     turn while riding along or down the line (not a bottom turn) and keep it going back toward the
-    whitewater: it tightens (`roundhouseRate`) and you lean deeper and crouch lower as it comes
-    round (`r.crouchDepth`, surfer.js), scoring once you've turned `roundhouseScore` and are heading
+    whitewater. It starts slow and wide (`roundhouseStart` of the turn rate for `roundhouseHold`),
+    eases up to the full rate over `roundhouseRamp`, never faster than `roundhouseMaxRate` (a
+    sweeping arc), and you lean deeper and crouch lower as it comes round. Going round Left (up and
+    back) needs to start mid-face or lower, or the arc reaches the lip (a 180 off the top). The
+    slower arc means a cutback from the shoulder needs starting earlier (the pocket bot in
+    pocket.mjs, which cuts back late, now meets the whitewater too low) (`r.crouchDepth`, surfer.js), scoring once you've turned `roundhouseScore` and are heading
     back. No `moveGap`/`moveCalm` from it, so it flows into a rebound off the whitewater.
   - Turning back into the whitewater (a cutback): you must meet its front edge (`foamContact`) in the
     top two thirds of the wave (`reboundMinHeight`) and be turning as you hit: Left → **rebound**

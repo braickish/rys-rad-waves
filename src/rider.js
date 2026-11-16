@@ -98,6 +98,9 @@ const RIDER_TUNE = {
   // release and the board swings round in place, scrubbing speed; then the
   // fins grip (slashGrip) and you ride back down.
   lipSnapSwing: 11, // how fast the board swings round on the lip (rad/s)
+  snapZone: 1.8, // climbing with the nose well up (snapUp), start the Right turn this close below the top (t) and the snap starts right there
+  snapUp: 0.7, // (sin of angle, ~45 deg)
+  snapLine: 1.2, // the snap holds you at least this far below the top (t), on the steeper face, so the board stands up on the face with its deck showing
   lipSnapDrag: 1.4, // speed scrubbed while it swings and grips (1/s)
   // Roundhouse: out on the shoulder, turn back toward the whitewater; the
   // further round you come the deeper you lean and the lower you crouch, and
@@ -105,7 +108,10 @@ const RIDER_TUNE = {
   roundhouseZone: 5, // out on the shoulder: at least this far ahead of the curl (m) ...
   roundhousePocket: 0.55, // ... where the pocket has faded below this
   roundhouseDepth: [0.5, 2.2], // turned this far (rad) = starting to lean .. fully deep and crouched
-  roundhouseRate: 1.35, // at full depth the turn is this much tighter
+  roundhouseStart: 0.3, // it starts as a slow, wide turn: this fraction of the normal turn rate ...
+  roundhouseHold: 0.3, // ... for the first this long you hold it (s) ...
+  roundhouseRamp: 0.6, // ... then it eases up to the full rate over this long (s) ...
+  roundhouseMaxRate: 3.5, // ... but never faster than this: a sweeping arc, even high on the face where turns are snappy (rad/s)
   roundhouseScore: 1.8, // turned at least this far (rad, ~100 deg) and heading back toward the whitewater
   standH: 1.75,
   crouchH: 1.1,
@@ -259,6 +265,15 @@ export function stepRider(r, input, dt) {
   if (r.events.some((e) => e.type === 'move' && ['snap', 'offLip', 'reentry', 'topTurn', 'lip180', 'slash'].includes(e.move))) r.unload = 0.45;
 }
 
+// Snap / off the lip / re-entry: the board swings round on the face just
+// under the lip. Your line runs along the wave (phi 0) while the board keeps
+// pointing where it was (heading = phi - slide) and then spins to the right.
+function startLipSnap(r, top, target) {
+  r.lipSnap = { t: Math.max(r.t, top + TUNE.snapLine), target, time: 0 };
+  r.slide = -r.phi; r.phi = 0;
+  r.roundhouse = null; r.slash = null;
+}
+
 function stepSurf(r, input, dt) {
   const T = TUNE;
   // Pulling in: stall low-ish on the face while the barrel comes over you.
@@ -392,13 +407,16 @@ function stepSurf(r, input, dt) {
   const bottomTurning = Math.sin(r.phi) < -0.3 && Math.sign(d) === (r.rideDir >= 0 ? 1 : -1);
   if (!r.roundhouse && d && r.turnHeld <= 0.1 && !bottomTurning && !r.assist && !r.lipSnap && !r.snapGrip && !r.slash && !r.floater && !r.tube
     && r.xs > T.roundhouseZone && pk < T.roundhousePocket && Math.cos(r.phi) > 0.2) {
-    r.roundhouse = { dir: Math.sign(d), turned: 0, depth: 0, scored: false };
+    r.roundhouse = { dir: Math.sign(d), turned: 0, depth: 0, scored: false, time: 0 };
   }
   if (r.roundhouse) {
     const rh = r.roundhouse;
     if (!d || Math.sign(d) !== rh.dir || r.assist || r.lipSnap || r.slash || r.floater) r.roundhouse = null;
     else {
-      d *= 1 + (T.roundhouseRate - 1) * rh.depth; // the deeper you are into it, the tighter it comes round
+      // A slow, wide start: hold it and it eases into the full turn.
+      rh.time += dt;
+      d *= T.roundhouseStart + (1 - T.roundhouseStart) * sstep(T.roundhouseHold, T.roundhouseHold + T.roundhouseRamp, rh.time);
+      d = clampTurn(d, T.roundhouseMaxRate * dt);
       rh.turned += Math.abs(d);
       rh.depth = sstep(T.roundhouseDepth[0], T.roundhouseDepth[1], rh.turned);
       if (!rh.scored && rh.turned > T.roundhouseScore && Math.cos(r.phi + d) < -0.3) {
@@ -526,7 +544,7 @@ function stepSurf(r, input, dt) {
   const faceLift = (T.faceFlow || 0) * steep * pk;
   r.t -= ((r.speed * sinp + faceLift) * dt) / Math.max(0.3, Math.hypot(f.Pt[1], f.Pt[2]));
   r.t = Math.min(r.t, T.tFlats); // ride out onto the flats in front if you don't turn back up
-  if (r.lipSnap) r.t = r.lipSnap.t; // the snap stays right on the lip
+  if (r.lipSnap) r.t += (r.lipSnap.t - r.t) * (1 - Math.exp(-dt * 12)); // the snap holds you just under the lip
 
   // --- floater: riding along the top of the whitewater ---
   // Pivots out of a move point you straight down from the lip (a little
@@ -579,6 +597,19 @@ function stepSurf(r, input, dt) {
     r.t = top;
     r.assist = { dir: -1, target: -0.5, rate: TUNE.snapRate };
   }
+  // Snap from just under the lip: climbing with the nose well up the face,
+  // turn Right near the top and the snap starts right there, on the face
+  // (not up on top of the crest), so the board stands up with its deck
+  // showing and spins round to the right.
+  if (ready && !r.tube && !r.floater && !r.assist && !r.lipSnap && !r.slash && r.rideDir >= 0
+    && r.t > top && r.t <= top + T.snapZone && sinp > T.snapUp
+    && r.time - (r.lastTurnTime ?? -9) < T.turnWindow && r.lastTurnDir < 0
+    && r.xs >= T.curlZone[0] && foamAt(r.xs, r.t + 0.6) <= 0.3) {
+    startLipSnap(r, top, -T.lipExit);
+    const combo = r.time - (r.lastBottomTurn ?? -9) < T.comboWindow;
+    r.events.push({ type: 'move', move: r.xs <= T.curlZone[1] ? 'snap' : 'offLip', speed: r.speed, combo, xs: r.xs });
+    r.moveCooldown = T.moveGap;
+  }
   if (!r.floater && !r.assist && !r.lipSnap && r.t <= top && sinp > 0) {
     r.t = top;
     const ph = phaseAt(r.xs);
@@ -608,9 +639,7 @@ function stepSurf(r, input, dt) {
       } else if (r.rideDir >= 0) {
         // Stay on the lip: your line runs along it and the board swings round
         // in place (it keeps pointing where it was, heading = phi - slide).
-        r.lipSnap = { t: r.t, target: -(inWhitewater ? T.foamExit : T.lipExit), time: 0 };
-        r.slide = -r.phi; r.phi = 0;
-        r.roundhouse = null; r.slash = null;
+        startLipSnap(r, top, -(inWhitewater ? T.foamExit : T.lipExit));
         if (inWhitewater) r.boost = 1.0; // a re-entry carries you out of the foam
       } else {
         r.assist = { dir: -1, target: -(inWhitewater ? T.foamExit : T.lipExit), rate: T.snapRate };

@@ -33,7 +33,7 @@ const rows = [
   ['off the lip (open face)', { xs: 5, t: 8, phi: 1.3, speed: 12 }, lipTurnOnce()],
   ['re-entry (whitewater, steep)', { xs: -2.5, t: 8, phi: 1.35, speed: 12 }, lipTurnOnce()],
   ['floater', { xs: -5, t: 8, phi: 0.5, speed: 13 }, () => ({})],
-  ['roundhouse (shoulder, Left back round)', { xs: 9, t: 10.5, phi: 0, speed: 10 }, once({ turn: 1 })],
+  ['roundhouse (shoulder, Left back round)', { xs: 9, t: 12.5, phi: 0, speed: 10 }, once({ turn: 1 })],
   ['roundhouse (shoulder, Right back round)', { xs: 9, t: 10.5, phi: 0, speed: 10 }, once({ turn: -1 })],
   ['floater climbing from the flats behind', { xs: -4, t: 13.8, phi: 0.9, speed: 11 }, () => ({})],
   ['floater from the flats, turning near top', { xs: -4, t: 13.8, phi: 0.9, speed: 11 }, (r) => (r.t < TUNE.tTop + 1.2 ? { turn: -1 } : {})],
