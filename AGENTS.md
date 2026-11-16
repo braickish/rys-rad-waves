@@ -57,7 +57,10 @@ carve toward where you point (harder the further you push), a button to pump.
     `driveSmooth`; bottom turns drive you out on the flats too. Pivots off the lip point you straight down
     (`lipExit`), the way you're riding; in the whitewater (re-entry, floater exit) shallower
     (`foamExit`), down and forward, and the foam can't slow you or catch you until you've cleared it.
-  - The lip: you must be turning at/near it (within `turnWindow`) to get a move. Not turning, you go
+  - The lip: you must be turning at/near it (within `turnWindow`) to get a move. The pivot follows
+    the way you're turning, never the way you were riding: turning away from the whitewater (surfer's
+    right when riding right) = snap / off the lip / re-entry, ending down and forward; turning toward
+    it = only a quick 180 (`lip180Rate`) ending straight back down the wave. Not turning, you go
     up and over the back (wipeout), or launch an air if fast enough (`airSpeed`) and out of the
     whitewater.
   - Moves are decided by where you hit the top and how steep: in the whitewater (behind `curlZone`)

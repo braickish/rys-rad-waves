@@ -38,7 +38,8 @@ export const TUNE = {
   hardAfter: [0.25, 0.6], // hold a turn this long (s) and you lean into it harder ...
   hardRate: 1.25, // ... a faster top turn rate ...
   hardRadius: 0.7, // ... and a tighter arc
-  snapRate: 13, // how fast the board pivots back down in a snap (rad/s): quick, not instant
+  snapRate: 13,
+  lip180Rate: 14, // the quick 180 off the top when you turn toward the whitewater (rad/s) // how fast the board pivots back down in a snap (rad/s): quick, not instant
   reboundRate: 11, // rebound off the whitewater, nose swinging down (rad/s)
   rebound180Rate: 12, // rebound 180 around through the top (rad/s)
   foamContact: 0.25, // how much foam counts as hitting the whitewater's front edge
@@ -153,7 +154,7 @@ export function createRider() {
     foam: 0, foamTime: 0, pocket: 0,
     airSpin: 0, airTime: 0, spinArmed: false,
     moveCooldown: 0, lastBottomTurn: -9, bottomArmed: false,
-    driveBank: 0, lastTurnTime: -9, overTheBack: false,
+    driveBank: 0, lastTurnTime: -9, lastTurnDir: 0, overTheBack: false,
     rideDir: 1, turnDir: 0, turnDirAge: 9, turnHeld: 0, hard: 0, assist: null, bottomCarve: false, floater: null,
     wipeReason: '', wipeTimer: 0,
     events: [],
@@ -283,7 +284,7 @@ function stepSurf(r, input, dt) {
   if (high > 0 && d === playerD) r.driveBank += T.topDrive * Math.abs(d) * high * pk;
   const release = r.driveBank * (1 - Math.exp(-dt / T.driveSmooth));
   r.speed += release; r.driveBank -= release;
-  if (playerD) r.lastTurnTime = r.time;
+  if (playerD) { r.lastTurnTime = r.time; r.lastTurnDir = Math.sign(playerD); }
 
   // Track bottom turns (for moves and combos): down low heading down, then up.
   if (sinBefore < -0.3 && height < 0.45) r.bottomArmed = true;
@@ -363,15 +364,26 @@ function stepSurf(r, input, dt) {
         r.moveCooldown = T.moveGap;
       }
     } else if (turning) {
-      // Turning at the lip: the fins release and the board pivots quickly
-      // to point straight down from the lip; then gravity takes over. Inside
-      // the gap after another move it's just a plain turn off the top.
-      r.assist = downFromLip(T.snapRate, inWhitewater ? T.foamExit : T.lipExit);
-      if (inWhitewater) r.boost = 1.0; // a re-entry carries you out of the foam
+      // Turning at the lip: the fins release and the board pivots quickly in
+      // the direction you're turning, then gravity takes over. Inside the gap
+      // after another move it's just a plain turn off the top.
+      //  - Turning away from the whitewater (to the surfer's right, nose
+      //    swinging down the line): snap / off the lip / re-entry, ending
+      //    pointed down the face and forward, away from the whitewater.
+      //  - Turning toward the whitewater: only a quick 180, carrying on round
+      //    to point straight back down the wave.
+      const towardWhitewater = (r.lastTurnDir || -1) > 0;
+      if (towardWhitewater) {
+        r.assist = { dir: 1, target: -Math.PI / 2, rate: T.lip180Rate };
+      } else {
+        r.assist = { dir: -1, target: -(inWhitewater ? T.foamExit : T.lipExit), rate: T.snapRate };
+        if (inWhitewater) r.boost = 1.0; // a re-entry carries you out of the foam
+      }
       if (ready) {
         const inCurl = !inWhitewater && r.xs <= T.curlZone[1];
         let move;
-        if (inWhitewater) move = 'reentry';
+        if (towardWhitewater) move = 'lip180';
+        else if (inWhitewater) move = 'reentry';
         else if (inCurl) move = sinp > 0.45 ? 'snap' : 'topTurn';
         else move = sinp > 0.7 ? 'offLip' : 'topTurn';
         r.events.push({ type: 'move', move, speed: r.speed, combo, xs: r.xs });

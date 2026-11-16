@@ -46,4 +46,25 @@ for (const [name, init, pol] of rows) {
   worst = Math.max(worst, o.peak);
   if (o.inFoam > 0.5) foamBad++;
 }
+// At the lip: turning away from the whitewater must never swing you back
+// toward it; turning toward it gives only the 180, ending straight down.
+console.log('-- lip direction');
+for (const [label, dir, start] of [
+  ['riding right, turn away (Right)', -1, { xs: 1, t: 6.4, phi: 1.2, speed: 12 }],
+  ['riding right, turn toward (Left)', 1, { xs: 1, t: 6.4, phi: 1.2, speed: 12 }],
+  ['nose just past vertical, turn away', -1, { xs: 1, t: 6.4, phi: 1.75, speed: 12, rideDir: -1 }],
+  ['after riding back (rideDir left), turn away', -1, { xs: 1, t: 6.4, phi: 1.4, speed: 12, rideDir: -1 }],
+]) {
+  const r = createRider(); Object.assign(r, start); r.events = []; stepRider(r, {}, 0);
+  let move = null, minCos = 1, after = null;
+  for (let i = 0; i < 0.8 * 120; i++) {
+    stepRider(r, move ? {} : { turn: dir }, 1 / 120);
+    for (const e of r.events) if (e.type === 'move' && e.move !== 'bottomTurn') move = e.move;
+    if (move && !r.assist && after === null) after = r.phi;
+    if (move && dir < 0) minCos = Math.min(minCos, Math.cos(r.phi));
+    if (r.mode !== 'surf') break;
+  }
+  const ok = dir < 0 ? minCos > -0.05 : after !== null && Math.abs(after + Math.PI / 2) < 0.1;
+  console.log(`${ok ? 'ok  ' : 'FAIL'} ${label}: ${move}, ends heading ${after === null ? '?' : (after * 57.3).toFixed(0)} deg${dir < 0 ? `, never back toward the whitewater (min cos ${minCos.toFixed(2)})` : ' (straight down = -90)'}`);
+}
 console.log(`worst peak acceleration: +${worst.toFixed(0)} mph/s; moves leaving you in the foam: ${foamBad}`);

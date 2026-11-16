@@ -133,6 +133,7 @@ function handleEvents() {
         snap: ['SNAP!', 500, 0.35],
         reentry: ['RE-ENTRY!', 700, 0.4],
         floater: ['FLOATER!', 600, 0.3],
+        lip180: ['180 off the top', 250, 0.3],
         rebound: ['REBOUND!', 500, 0.4],
         rebound180: ['REBOUND 180!', 750, 0.45],
       };
