@@ -62,7 +62,7 @@ export const TUNE = {
   highDropSoftMax: 2.0, // ... and the soft speed limit rises by up to this (m/s) // pointing straight down high on the wave: up to this much more allowed acceleration // ... tapering to this fraction of it as you get fast ...
   accelTaper: [7, 14], // ... between these speeds (m/s, ~16 -> 31 mph)
   driveSmooth: 0.2, // turn drive builds in over about this long (s), no jumps
-  turnWindow: 0.3, // turned within this long (s) of reaching the lip = a turn off the top
+  turnWindow: 0.08, // steering this recently when you reach the lip = a turn off the top; otherwise an air
   lipExit: 1.2, // moves off the lip point you this far below the line (rad, ~70 deg)
   foamExit: 0.6, // ... but out of the whitewater, shallower (down and forward, ~35 deg) // speed gained per radian of carving up near the top of the pocket (m/s)
   curlZone: [-0.5, 2.5], // xs range of the curl; behind it is whitewater, ahead the open face
@@ -469,7 +469,7 @@ function stepSurf(r, input, dt) {
       // Near the curl you always get an air (if you're moving); out on the
       // open face you need the speed for it, or you go over the back.
       const nearCurl = r.xs - T.curlZone[0] < T.airCurlZone;
-      const air = ready && WAVE_TYPE === 'crumble' && !inWhitewater && sinp > 0.4
+      const air = WAVE_TYPE === 'crumble' && !inWhitewater && sinp > 0.4
         && (r.speed > T.airSpeed || (nearCurl && r.speed > T.airMinSpeed));
       // Right next to the whitewater (within ~2 ft) it throws you higher.
       const nearWhitewater = r.xs - T.airBoostZone < T.curlZone[0] || foamAt(r.xs - T.airBoostZone, r.t + 0.6) > 0.3;
