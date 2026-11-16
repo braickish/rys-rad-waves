@@ -105,13 +105,12 @@ button).
     `airSpeed`.
   - **Tube riding** (`tube: true` waves; `stepTube` in rider.js): you get in when there's water overhead
     past `tubeEnter`, or you **pull in** (high on the face within `pullInZone` of the curl and turning:
-    you stall at `pullInSpeed` and the lip throws over you). In the tube it's about depth, not
-    balance: Up/Down = forward/back (`tubeAccel`; no input = drift slowly deeper, `tubeCruise`),
-    Left/Right = higher/lower line (`tubeLineRange`; higher runs faster, `tubeLineSpeed`). The pinch
-    (`tubePinch`) breathes in and out (`pinchBreath`, `pinchRate`) and after `tubeLong` starts closing
-    toward the exit (`tubeCloseRate`), so you have to come out. Too deep = pinched; riding high where
-    the roof is low = clipped by the lip. Scored by time x average depth. HUD shows a depth meter (out
-    to pinch). Camera: inside the tube behind the surfer, looking out. Reef shape is `KF_PIPE` in
+    you stall at `pullInSpeed` and the lip throws over you). In the tube it's about staying in the zone: Up/Down = forward/back (`tubeAccel`;
+    no input = drift slowly deeper, `tubeCruise`), Left/Right = higher/lower line (`tubeLineRange`;
+    higher runs faster). The line wanders on its own (`lineDrift`) so you steer against it. Too deep
+    (past `tubeCollapse`) = pinched; line past either edge = caught by the lip; back past `tubeExit` =
+    out. No timer. In the tube you always ride toward the exit. Scored by time x average depth. HUD shows a 2D zone box (depth
+    across, line up/down). Camera: inside the tube behind the surfer, looking out. Reef shape is `KF_PIPE` in
     waves/shapes.js (a hollow, thick-lipped reef barrel).
 - `src/surfer.js`: the articulated surfer on a 1.6 m fish (wide, rounded yellow nose, swallowtail,
   twin keel fins; shape in `boardMesh` in mesh.js).

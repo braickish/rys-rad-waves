@@ -24,12 +24,14 @@
   #msg { position: fixed; left: 50%; top: 26%; transform: translate(-50%, -50%) scale(.6); font-family: Bungee, sans-serif; font-size: clamp(30px, 7vw, 64px); color: var(--yellow); text-shadow: 3px 3px 0 var(--pink), 6px 6px 0 rgba(0,0,0,.25); opacity: 0; transition: opacity .35s, transform .35s cubic-bezier(.2,1.6,.4,1); pointer-events: none; text-align: center; white-space: nowrap; }
   #balance { position: fixed; left: 50%; bottom: 64px; transform: translateX(-50%); width: min(360px, 80vw); text-align: center; pointer-events: none; }
   #balance[hidden] { display: none; }
-  #balance .track { position: relative; height: 18px; border-radius: 9px; background: rgba(11,26,36,.55); border: 2px solid rgba(255,255,255,.85); overflow: hidden; }
+  #balance .track { position: relative; height: 64px; border-radius: 9px; background: rgba(11,26,36,.55); border: 2px solid rgba(255,255,255,.85); overflow: hidden; }
   #balance .zone { position: absolute; top: 0; bottom: 0; width: 15%; background: rgba(255,61,139,.55); }
-  #balance .zone.r { right: 0; width: 12%; }
-  #balance .zone.deep { left: 50%; width: 38%; background: rgba(0,194,199,.45); }
+  #balance .zone.r { right: 0; width: 12%; top: 0; bottom: 0; }
+  #balance .zone.deep { left: 50%; width: 38%; top: 0; bottom: 0; background: rgba(0,194,199,.35); }
+  #balance .zone.top, #balance .zone.bot { left: 0; right: 0; width: auto; height: 12%; background: rgba(255,61,139,.55); }
+  #balance .zone.top { top: 0; } #balance .zone.bot { bottom: 0; }
   #balance .ends { display: flex; justify-content: space-between; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 4px; text-shadow: 0 1px 0 rgba(0,0,0,.5); }
-  #balance-needle { position: absolute; top: -2px; bottom: -2px; width: 8px; margin-left: -4px; left: 50%; border-radius: 4px; background: var(--yellow); box-shadow: 0 0 0 2px var(--ink); }
+  #balance-needle { position: absolute; top: 50%; width: 14px; height: 14px; margin: -7px 0 0 -7px; left: 50%; border-radius: 50%; background: var(--yellow); box-shadow: 0 0 0 2px var(--ink); }
   #balance.danger .track { border-color: var(--pink); }
   #balance small { display: block; margin-top: 6px; font-size: 12px; text-shadow: 0 1px 0 rgba(0,0,0,.5); }
   #msg small { display: block; font-family: Rubik, sans-serif; font-size: 18px; color: #fff; text-shadow: 0 2px 0 rgba(0,0,0,.4); margin-top: 6px; }
@@ -78,7 +80,7 @@
   </div>
 </div>
 <div id="msg"></div>
-<div id="balance" hidden><div class="ends"><span>out</span><span>deeper ⟶ more points</span><span>pinch</span></div><div class="track"><div class="zone deep"></div><div class="zone r"></div><div id="balance-needle"></div></div><small><span class="desk">↑ forward · ↓ back · ← higher · → lower</span><span class="mob">swipe ↑ forward · ↓ back · ← higher · → lower</span></small></div>
+<div id="balance" hidden><div class="ends"><span>out</span><span>deeper ⟶ more points</span><span>pinch</span></div><div class="track"><div class="zone deep"></div><div class="zone r"></div><div class="zone top"></div><div class="zone bot"></div><div id="balance-needle"></div></div><small><span class="desk">↑ forward · ↓ back · ← higher · → lower</span><span class="mob">swipe ↑ forward · ↓ back · ← higher · → lower</span></small></div>
 <div id="hint"><span class="desk">←/↑ toward the wave · →/↓ away (hold to lean harder) · Space pump · C camera</span><span class="mob">Swipe left/up to turn left · right/down to turn right</span></div>
 
 <div id="err" hidden></div>

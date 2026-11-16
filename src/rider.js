@@ -593,16 +593,12 @@ function enterTube(r, pullIn) {
 // In the barrel it's all about depth. Up/Down = forward/back: speed up
 // toward the exit, or stall deeper. Left/Right = higher/lower in the tube: a
 // higher line runs faster, a lower one slower and with more headroom. With no
-// input you slowly drift deeper. The deeper you ride the more it scores, but
-// the tube breathes: how far back it pinches shut moves in and out, and if
-// it reaches you, you're pinched. Ride high as it pinches and the lip can
-// clip you. Reach the exit and you're out.
+// input you slowly drift deeper, and your line wanders. Stay in the zone:
+// too deep = pinched, too high or too low = the lip gets you, too far out =
+// you're out of the barrel. The deeper you ride the more it scores.
 export function tubePinch(r) {
   const T = TUNE;
-  const time = r.tube ? r.tube.time : 0;
-  // After a while the barrel starts closing down toward the exit: time to come out.
-  const closing = Math.max(0, time - T.tubeLong) * T.tubeCloseRate;
-  return Math.max(T.tubeExit - 0.02, T.tubeCollapse - closing + T.pinchBreath * Math.sin(time * T.pinchRate + (r.tube ? r.tube.seed : 0)));
+  return T.tubeCollapse;
 }
 // Where you are in the tube: 0 at the exit, 1 at the pinch.
 export function tubeDepth(r) {
@@ -616,12 +612,17 @@ function stepTube(r, input, dt) {
   r.barrelTime = tb.time;
   r.crouch = true;
   // Line: Left (toward the wave) = higher, Right = lower.
+  // The wave pushes you about: your line wanders up and down on its own and
+  // you steer against it. Go past either edge and the lip gets you.
   const lift = clamp(input.turn || 0, -1, 1);
-  tb.line = clamp((tb.line ?? 0) + lift * dt * 2.5, -1, 1); // -1 low .. +1 high
-  const targetT = T.tubeLine - tb.line * T.tubeLineRange;
+  const k = tb.time * 0.9 + tb.seed;
+  const wander = (Math.sin(k) * 0.7 + Math.sin(k * 2.3 + 1.3) * 0.3) * T.lineDrift;
+  tb.line = (tb.line ?? 0) + (lift * 1.6 + wander) * dt; // -1 low .. +1 high
+  const targetT = T.tubeLine - clamp(tb.line, -1, 1) * T.tubeLineRange;
   r.t += (targetT - r.t) * (1 - Math.exp(-dt * 4));
-  const dir = Math.cos(r.phi) >= 0 ? 0 : Math.PI;
-  r.phi += clampTurn(wrap(dir - r.phi), 3 * dt);
+  // In the tube you always ride toward the exit (the way the wave peels),
+  // whatever way you were turning as you pulled in.
+  r.phi += clampTurn(wrap(0 - r.phi), 4 * dt);
   // Speed: Up = forward, Down = back; a higher line runs faster.
   const fwd = clamp(input.tilt || 0, -1, 1);
   if (tb.pullIn) {
@@ -629,7 +630,7 @@ function stepTube(r, input, dt) {
     r.speed += (PEEL_SPEED - T.pullInSpeed - r.speed) * Math.min(1, dt * 6);
     if (phaseAt(r.xs) > T.tubeEnter + 0.05) tb.pullIn = false;
   } else {
-    const cruise = PEEL_SPEED + T.tubeCruise + tb.line * T.tubeLineSpeed + fwd * T.tubeAccel;
+    const cruise = PEEL_SPEED + T.tubeCruise + clamp(tb.line, -1, 1) * T.tubeLineSpeed + fwd * T.tubeAccel;
     r.speed += (cruise - r.speed) * Math.min(1, dt * 2.5);
   }
   r.xs += (r.speed * Math.cos(r.phi) - PEEL_SPEED) * dt;
@@ -641,8 +642,8 @@ function stepTube(r, input, dt) {
   r.pocket = WAVE.pocket(r.xs); r.foam = 0; r.height = 0.2; r.inBarrel = true;
   // Outcomes.
   if (!tb.pullIn && ph > tubePinch(r)) { r.tube = null; return wipe(r, 'Pinched! (too deep: speed up)'); }
-  const c = roofClearance(r.xs, r.t, r.pos);
-  if (!tb.pullIn && c < TUNE.crouchH) { r.tube = null; return wipe(r, 'Clipped by the lip! (ride lower)'); }
+  if (!tb.pullIn && tb.line > 1) { r.tube = null; return wipe(r, 'Too high: caught by the lip! (ride lower)'); }
+  if (!tb.pullIn && tb.line < -1) { r.tube = null; return wipe(r, 'Too low: the lip landed on you! (ride higher)'); }
   if (ph < T.tubeExit && !tb.pullIn) {
     r.events.push({ type: 'barrelExit', time: tb.time, depth: tb.depth, avgDepth: tb.depthSum / Math.max(tb.time, 1e-3) });
     r.tube = null; r.inBarrel = false; r.barrelTime = 0;

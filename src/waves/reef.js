@@ -9,7 +9,7 @@ export default {
   kind: 'barrel',
   keyframes: KF_PIPE,
   scale: 1.35, // a bit bigger than the point, so the tube has room
-  peelSpeed: 6.0,
+  peelSpeed: 8.5, // peels fast: you have to race it
   waveSpeed: 5.0,
   phase: { ahead: 8, behind: 13 }, // pitches sooner ahead of the curl; the tube runs further behind it
 
@@ -45,10 +45,8 @@ export default {
     pullInHeight: 0.5, // ... and this high on the face, turning pulls you into the barrel
     pullInSpeed: 4.5, // while pulling in, the curl catches you up this fast (m/s)
     tubeExit: 0.12, // ... and where you're back out on the open face
-    tubeCollapse: 1.2, // the tube pinches shut around this phase (~16 m behind the curl) ...
-    pinchBreath: 0.15, pinchRate: 0.9,
-    tubeLong: 6, tubeCloseRate: 0.2, // after this long (s) the pinch starts closing toward the exit this fast (phase/s) // ... breathing in and out by this much
-    tubeLine: 13.4, tubeLineRange: 0.35, // the line through the tube (surface position), and how far Left/Right move it
+    tubeCollapse: 1.0, // too deep past this phase (~13 m behind the curl) and the barrel pinches you
+    tubeLine: 13.4, tubeLineRange: 0.3, lineDrift: 1.0, // ... and how much the line wanders on its own (too high or low = the lip gets you) // the line through the tube (surface position), and how far Left/Right move it
     tubeLineSpeed: 1.5, // a high line runs this much faster (m/s), a low one this much slower
     tubeCruise: -1.2, // with no input you drift slowly deeper (m/s relative to the peel)
     tubeAccel: 4.0, // Up/Down speed you up / slow you down by this much (m/s)

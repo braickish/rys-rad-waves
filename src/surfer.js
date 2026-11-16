@@ -111,7 +111,7 @@ export function surferObjects(pose, rider, info, dt) {
   const vUp = v3.dot(rider.vel, info.e2);
   let kneeT = 0.25 + 0.45 * turnAmt + 0.15 * clamp(vUp / 3, 0, 1) + 0.2 * (rider.hard || 0);
   if (info.pump) kneeT = vUp > 0.3 ? 0.75 : 0.05; // compress going up, extend driving down
-  if (rider.crouch) kneeT = 0.92;
+  if (rider.crouch) kneeT = rider.tube ? 0.42 : 0.85; // in the tube: a compact, athletic crouch, not squatting
   if (rider.mode === 'air') kneeT = 0.7;
   pose.knee += (clamp(kneeT, 0, 1) - pose.knee) * (1 - Math.exp(-dt * 9));
   let leanT = clamp(info.turn * 0.2 * clamp(speed / 4, 0.8, 1.25) * (1 + 0.3 * committed), -0.85, 0.85); // + = toward L
@@ -152,12 +152,12 @@ export function surferObjects(pose, rider, info, dt) {
   const hipH = 0.92 - 0.44 * knee;
   const hip = add(B, v3.mul(f, mid), v3.mul(bodyUp, hipH), v3.mul(chest, -0.12 * knee));
   const hipBack = add(hip, v3.mul(f, -0.12)), hipFront = add(hip, v3.mul(f, 0.12));
-  const kneePole = (s) => add(chest, v3.mul(f, 0.35 * s));
+  const kneePole = (s) => add(chest, v3.mul(f, 0.15 * s), v3.mul(bodyUp, 0.2));
   const legB = ik(hipBack, backFoot, THIGH, SHIN, kneePole(-1));
   const legF = ik(hipFront, frontFoot, THIGH, SHIN, kneePole(1));
 
   // Torso leans forward (toward the chest side) as you crouch.
-  const torsoDir = v3.norm(add(bodyUp, v3.mul(chest, 0.1 + 0.6 * knee)));
+  const torsoDir = v3.norm(add(bodyUp, v3.mul(chest, 0.1 + 0.6 * knee + (rider.tube ? 0.35 : 0)))); // leaning into the tube
   const neck = add(hip, v3.mul(torsoDir, 0.58));
   const head = add(neck, v3.mul(torsoDir, 0.2), v3.mul(chest, 0.03), v3.mul(across, 0.03));
   // Front shoulder drops into a bottom turn; both lift as you spring open.
@@ -217,7 +217,8 @@ export function surferObjects(pose, rider, info, dt) {
   // Legs: boardshorts to just above the knee, then bare legs and feet.
   for (const [hp, leg, foot, logo] of [[hipBack, legB, backFoot, false], [hipFront, legF, frontFoot, true]]) {
     const shortsEnd = lerp3(hp, leg.joint, 0.78);
-    objs.push(cyl(hp, shortsEnd, 0.095, 0.1, f, COL.shorts));
+    objs.push(ball(hp, 0.105, COL.shorts)); // hip joint, so the thigh meets the hips cleanly
+    objs.push(cyl(hp, shortsEnd, 0.1, 0.105, f, COL.shorts));
     objs.push(cyl(shortsEnd, leg.joint, 0.062, 0.062, f, COL.skin));
     objs.push(ball(leg.joint, 0.064, COL.skin));
     objs.push(cyl(leg.joint, foot, 0.052, 0.055, f, COL.skin));
@@ -225,15 +226,16 @@ export function surferObjects(pose, rider, info, dt) {
     if (logo) objs.push({ mesh: 'box', model: basis(f, ub, Lb, 0.05, 0.04, 0.012, add(lerp3(hp, shortsEnd, 0.6), v3.mul(chest, 0.1))), color: COL.logo, outline: 0 });
   }
   // Hips (shorts) and the waistband.
-  objs.push(cyl(add(hipBack, v3.mul(f, -0.05)), add(hipFront, v3.mul(f, 0.05)), 0.12, 0.12, torsoDir, COL.shorts));
+  // Pelvis: a rounded block of boardshorts joining both thighs.
+  objs.push(ball(add(hip, v3.mul(torsoDir, 0.02)), 0.16, COL.shorts, across, torsoDir, chest, 0.85));
   // Waistband: just a black band of the shorts, flush with the body (same
   // size as the bottom of the torso), no outline.
   objs.push({ ...cyl(add(hip, v3.mul(torsoDir, 0.08)), add(hip, v3.mul(torsoDir, 0.15)), 0.131, 0.096, across, COL.band), outline: 0 });
   // Bare torso, tapering out to the shoulders.
   // (narrow waist, broad shoulders: a swimmer's V)
-  objs.push(cyl(add(hip, v3.mul(torsoDir, 0.1)), add(neck, v3.mul(torsoDir, -0.12)), 0.13, 0.095, across, COL.skin));
-  objs.push(cyl(add(neck, v3.mul(torsoDir, -0.3)), add(neck, v3.mul(torsoDir, -0.06)), 0.17, 0.105, across, COL.skin));
-  objs.push(cyl(add(shBack, v3.mul(torsoDir, -0.03)), add(shFront, v3.mul(torsoDir, -0.03)), 0.06, 0.06, torsoDir, COL.skin));
+  objs.push(cyl(add(hip, v3.mul(torsoDir, 0.1)), add(neck, v3.mul(torsoDir, -0.12)), 0.13, 0.11, across, COL.skin));
+  // Chest and shoulders: one rounded shape, broad across the shoulders.
+  objs.push({ mesh: 'sphere', model: basis(across, torsoDir, chest, 0.44, 0.36, 0.24, add(neck, v3.mul(torsoDir, -0.17))), color: COL.skin });
   objs.push(cyl(neck, add(neck, v3.mul(torsoDir, 0.1)), 0.045, 0.045, across, COL.skin));
   // Head and short dark hair (a little fringe toward the front).
   objs.push(ball(head, 0.12, COL.skin, across, torsoDir, chest, 1.12));

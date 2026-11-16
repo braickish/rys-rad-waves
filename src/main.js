@@ -35,9 +35,10 @@ addEventListener('blur', () => keys.clear());
 let autoUp = false;
 function autopilot() {
   if (rider.tube) { // sit about half way in for a few seconds, then come out
-    const d = tubeDepth(rider);
-    if (rider.tube.time > 4) return { tilt: 1 };
-    return { tilt: d > 0.58 ? 1 : d < 0.42 ? -1 : 0 };
+    const d = tubeDepth(rider), line = rider.tube.line || 0;
+    const turn = line > 0.3 ? -1 : line < -0.3 ? 1 : 0; // keep the line in the middle
+    if (rider.tube.time > 4) return { tilt: 1, turn };
+    return { tilt: d > 0.58 ? 1 : d < 0.42 ? -1 : 0, turn };
   }
   if (autoUp && rider.height > 0.88) autoUp = false;
   if (!autoUp && rider.height < 0.15) autoUp = true;
@@ -198,8 +199,10 @@ function updateCamera(dt) {
     // closer until the surfer is in view.
     // The classic barrel shot: from inside the tube, behind you, looking
     // out past you toward the opening.
-    want = [p[0] - 4.2, p[1] + 1.1, p[2] + 0.9];
-    look = [p[0] + 4, p[1] + 0.7, p[2] + 0.2];
+    // (three-quarter from behind, from the open side, so you see the surfer
+    // the way you do from outside, not edge-on)
+    want = [p[0] - 4.4, p[1] + 1.4, p[2] + 2.9];
+    look = [p[0] + 3.5, p[1] + 0.7, p[2] - 0.2];
     shot = 'tubeInside';
   } else if (camMode === 0) {
     // From the channel in front of the wave: barrel on the left, shoulder right.
@@ -227,7 +230,7 @@ function updateCamera(dt) {
     camPos = want.slice(); camTarget = look.slice();
   }
   lastShot = shot;
-  const k = 1 - Math.exp(-dt * (rider.mode === 'wipe' ? 1.5 : 5));
+  const k = 1 - Math.exp(-dt * (rider.mode === 'wipe' ? 1.5 : rider.tube ? 14 : 5)); // tight in the tube
   for (let i = 0; i < 3; i++) { camPos[i] += (want[i] - camPos[i]) * k; camTarget[i] += (look[i] - camTarget[i]) * k; }
 }
 
@@ -372,8 +375,10 @@ async function main() {
     bm.hidden = !rider.tube;
     if (rider.tube) {
       const d = tubeDepth(rider);
+      const line = Math.max(-1, Math.min(1, rider.tube.line || 0));
       $('balance-needle').style.left = `${d * 100}%`;
-      bm.classList.toggle('danger', d > 0.85);
+      $('balance-needle').style.top = `${50 - line * 44}%`; // up = higher on the face
+      bm.classList.toggle('danger', d > 0.85 || Math.abs(line) > 0.8);
     }
     requestAnimationFrame(tick);
   }
