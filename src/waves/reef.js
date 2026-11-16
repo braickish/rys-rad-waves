@@ -47,7 +47,8 @@ export default {
     tubeCollapse: 1.3, // past this you are pinched: where the lip lands on the trough and the tube closes
     tubeLow: 0.6,
     tubeDrive: 4.5, // in the barrel, trimming flat or down the line adds this much acceleration (m/s^2) ...
-    tubeTrimOver: 0.25, // ... up to this much faster than the wave peels (m/s): 24 mph here
+    tubeTrimOver: 0.25, // ... up to this much faster than the wave peels (m/s): 24 mph here ...
+    tubeTrimOverHigh: 1.15, // ... or this much in the top half of the barrel: 26 mph
     tubeEnterLow: 0.3, // the barrel picks you up even this far below the base of the face (on a bottom turn)
     tubeFallHeight: 0.62, // above this fraction of the face in the barrel (top 3/8), the lip grabs you
     pullInZone: 4.0, pullInHeight: 0.4, // up this high on the face, within this far ahead of the curl, and turning: you pull in

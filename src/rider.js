@@ -363,9 +363,14 @@ function stepSurf(r, input, dt) {
   // In the barrel, the wave drives you: trimming flat or pointing down the
   // line picks up extra speed (fading out as you point up the face)
   // (it only tops you up to just faster than the wave, not beyond)
-  if (r.tube && !r.tube.pullIn && Math.cos(r.phi) > 0 && r.speed < PEEL_SPEED + T.tubeTrimOver) {
-    r.speed = Math.min(PEEL_SPEED + T.tubeTrimOver, r.speed + T.tubeDrive * (1 - sstep(0.0, 0.35, sinp)) * dt);
+  // (higher up in the barrel, the top half, it runs a bit faster)
+  const trimCap = PEEL_SPEED + T.tubeTrimOver + (T.tubeTrimOverHigh - T.tubeTrimOver) * sstep(0.42, 0.52, height);
+  if (r.tube && !r.tube.pullIn && Math.cos(r.phi) > 0 && r.speed < trimCap) {
+    r.speed = Math.min(trimCap, r.speed + T.tubeDrive * (1 - sstep(0.0, 0.35, sinp)) * dt);
   }
+  // ... and trimming in the barrel settles you at that speed (dropping down
+  // the face can still take you past it).
+  if (r.tube && !r.tube.pullIn && sinp > -0.2 && r.speed > trimCap) r.speed -= (r.speed - trimCap) * 3 * dt;
   // Stacked moves can't run away with your speed: above softMax it bleeds off.
   const softMax = T.softMax + T.highDropSoftMax * highDropNow; // a drop from high up can run a bit faster
   if (r.speed > softMax) r.speed -= (r.speed - softMax) * T.overBleed * dt;
