@@ -2,15 +2,32 @@
 // particles (simulated in a compute shader, drawn as soft billboards).
 
 import { skyWGSL, waterWGSL, solidWGSL, particleComputeWGSL, particleRenderWGSL } from './shaders.js';
-import { buildWaterMesh, buildLipTable, LIP, boxMesh, sphereMesh, boardMesh } from './mesh.js';
+import { buildWaterMesh, buildLipTable, LIP, boxMesh, sphereMesh, boardMesh, cylinderMesh } from './mesh.js';
 
 export const PARTICLES = 40960;
 // Cap the render resolution: a Retina laptop at full 2x is ~5M pixels (x4 MSAA);
 // this keeps it sharp but much cheaper.
 const MAX_PIXELS = 3.2e6;
 const SAMPLES = 4;
-const MAX_OBJECTS = 32;
+const MAX_OBJECTS = 48;
 const OBJ_STRIDE = 256;
+
+// Make every triangle wind the same way relative to its normals, so the
+// outline pass works for every mesh, whichever way its builder wound them.
+function orientTriangles(v) {
+  const out = new Float32Array(v);
+  for (let i = 0; i < out.length; i += 18) {
+    const a = [out[i], out[i + 1], out[i + 2]], b = [out[i + 6], out[i + 7], out[i + 8]], c = [out[i + 12], out[i + 13], out[i + 14]];
+    const e1 = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], e2 = [c[0] - a[0], c[1] - a[1], c[2] - a[2]];
+    const fn = [e1[1] * e2[2] - e1[2] * e2[1], e1[2] * e2[0] - e1[0] * e2[2], e1[0] * e2[1] - e1[1] * e2[0]];
+    const vn = [out[i + 3] + out[i + 9] + out[i + 15], out[i + 4] + out[i + 10] + out[i + 16], out[i + 5] + out[i + 11] + out[i + 17]];
+    if (fn[0] * vn[0] + fn[1] * vn[1] + fn[2] * vn[2] < 0) {
+      // swap the second and third vertices
+      for (let k = 0; k < 6; k++) { const t = out[i + 6 + k]; out[i + 6 + k] = out[i + 12 + k]; out[i + 12 + k] = t; }
+    }
+  }
+  return out;
+}
 
 export async function createRenderer(canvas) {
   if (!navigator.gpu) throw new Error('no-webgpu');
@@ -38,8 +55,8 @@ export async function createRenderer(canvas) {
   // Solid meshes for the surfer and board, by name.
   const solids = {};
   for (const [name, data] of Object.entries({
-    box: boxMesh(), sphere: sphereMesh(), board: boardMesh(-1, 0.6), boardNose: boardMesh(0.6, 1, 8),
-  })) solids[name] = { vb: upload(data, GPUBufferUsage.VERTEX), count: data.length / 6 };
+    box: boxMesh(), sphere: sphereMesh(12, 18), cyl: cylinderMesh(), board: boardMesh(-1, 0.6), boardNose: boardMesh(0.6, 1, 8),
+  })) solids[name] = { vb: upload(orientTriangles(data), GPUBufferUsage.VERTEX), count: data.length / 6 };
   const lipBuf = upload(buildLipTable(), GPUBufferUsage.STORAGE);
 
   // Particles start dead with staggered negative life so they trickle in.
@@ -99,6 +116,26 @@ export async function createRenderer(canvas) {
     depthStencil: depth,
     multisample: ms,
   });
+  // Ink outlines (inverted hull: the inside of each part, pushed out along
+  // its normals). A mirrored (left-handed) model matrix flips which side of
+  // a triangle faces the camera, so there's a pipeline for each.
+  const makeOutlinePipe = (cullMode) => device.createRenderPipeline({
+    layout: device.createPipelineLayout({ bindGroupLayouts: [frameLayout, objLayout] }),
+    vertex: {
+      module: solidMod, entryPoint: 'vsOutline',
+      buffers: [{ arrayStride: 24, attributes: [
+        { shaderLocation: 0, offset: 0, format: 'float32x3' },
+        { shaderLocation: 1, offset: 12, format: 'float32x3' },
+      ] }],
+    },
+    fragment: { module: solidMod, entryPoint: 'fsOutline', targets: [{ format }] },
+    primitive: { topology: 'triangle-list', cullMode },
+    depthStencil: depth,
+    multisample: ms,
+  });
+  const outlinePipe = makeOutlinePipe('front'), outlinePipeMirrored = makeOutlinePipe('back');
+  const mirrored = (m) => // determinant of the 3x3 part < 0
+    m[0] * (m[5] * m[10] - m[6] * m[9]) - m[4] * (m[1] * m[10] - m[2] * m[9]) + m[8] * (m[1] * m[6] - m[2] * m[5]) < 0;
 
   const pcMod = mod(particleComputeWGSL);
   const pcPipe = device.createComputePipeline({ layout: 'auto', compute: { module: pcMod, entryPoint: 'cs' } });
@@ -169,7 +206,7 @@ export async function createRenderer(canvas) {
     const n = Math.min(objects.length, MAX_OBJECTS);
     for (let i = 0; i < n; i++) {
       objData.set(objects[i].model, i * 64);
-      objData.set([...objects[i].color, 1], i * 64 + 16);
+      objData.set([...objects[i].color, objects[i].outline ?? 0.018], i * 64 + 16); // w = outline thickness
     }
     if (n) device.queue.writeBuffer(objBuf, 0, objData, 0, n * 64);
 
@@ -194,6 +231,15 @@ export async function createRenderer(canvas) {
     pass.setIndexBuffer(waterIB, 'uint32');
     pass.drawIndexed(water.count);
 
+    pass.setBindGroup(0, frameBG);
+    for (let i = 0; i < n && opts.outlines !== false; i++) {
+      if ((objects[i].outline ?? 0.018) <= 0) continue;
+      pass.setPipeline(mirrored(objects[i].model) ? outlinePipeMirrored : outlinePipe);
+      pass.setBindGroup(1, objBG, [i * OBJ_STRIDE]);
+      const m = solids[objects[i].mesh] || solids.box;
+      pass.setVertexBuffer(0, m.vb);
+      pass.draw(m.count);
+    }
     pass.setPipeline(solidPipe);
     pass.setBindGroup(0, frameBG);
     for (let i = 0; i < n; i++) {

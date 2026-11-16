@@ -276,7 +276,7 @@ async function main() {
     }, surferObjects(pose, rider, {
       n, e2: v3.norm(v3.cross(n, v3.norm(v3.rej([1, 0, 0], n)))), turn: turnSigned,
       pump: !!lastInput.pump && surfing,
-    }, dt), { particles: !params.has('noparticles') });
+    }, dt), { particles: !params.has('noparticles'), outlines: !params.has('nooutline') });
 
     frameMs = frameMs * 0.95 + (dt * 1000) * 0.05; // smoothed frame time
     window.__dbg = { ms: +frameMs.toFixed(1), state, mode: rider.mode, xs: +rider.xs.toFixed(1), y: +rider.pos[1].toFixed(1), score: Math.round(score), reason: rider.wipeReason };

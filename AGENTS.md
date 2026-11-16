@@ -87,6 +87,11 @@ carve toward where you point (harder the further you push), a button to pump.
     Sit in heavy foam longer than `foamLimit` and it takes you. Airs: straight up the open face above
     `airSpeed`.
   - Barrel wave: same model, the rideable face tops out under the roof, crouch to fit the tube.
+- Look: the surfer and board are drawn in an illustrated style: toon shading in flat bands and an
+  ink outline (inverted-hull pass in renderer.js; per-part thickness via `outline`, 0 = none). The
+  surfer's look comes from a reference photo kept in the private `braickish/reference-images` repo
+  (not in this repo): shirtless, tanned, short dark hair, grey-blue boardshorts with a black waistband,
+  off-white board. `?nooutline` turns outlines off for testing.
 - `src/surfer.js`: the articulated surfer on a 1.6 m fish (wide, rounded yellow nose, swallowtail,
   twin keel fins; shape in `boardMesh` in mesh.js).
   Stance toward the tail (`STANCE`), chest opened toward the nose. In hard turns the board banks onto

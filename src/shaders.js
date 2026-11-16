@@ -149,16 +149,34 @@ struct VO { @builtin(position) pos: vec4f, @location(0) wpos: vec3f, @location(1
   o.n = (O.model * vec4f(n, 0.0)).xyz;
   return o;
 }
+// Illustrated look: toon shading in a few flat bands, plus a thin ink
+// outline drawn by the outline pass below.
 @fragment fn fs(i: VO) -> @location(0) vec4f {
   let n = normalize(i.n);
   let sun = F.sunDir.xyz;
   let v = normalize(F.camPos.xyz - i.wpos);
-  let diff = max(dot(n, sun), 0.0);
-  let amb = mix(vec3f(0.22, 0.30, 0.34), vec3f(0.55, 0.68, 0.80), n.y * 0.5 + 0.5);
-  let rim = pow(1.0 - max(dot(n, v), 0.0), 3.0) * 0.35;
-  var col = O.color.rgb * (amb + vec3f(1.0, 0.92, 0.8) * diff * 0.9) + rim;
+  let l = dot(n, sun);
+  let band = 0.5 + 0.25 * smoothstep(-0.05, 0.05, l) + 0.25 * smoothstep(0.45, 0.55, l);
+  let sky = mix(vec3f(0.55, 0.62, 0.72), vec3f(0.85, 0.92, 1.0), smoothstep(-0.2, 0.2, n.y));
+  let rim = smoothstep(0.62, 0.7, 1.0 - max(dot(n, v), 0.0)) * 0.18;
+  var col = O.color.rgb * mix(sky * 0.55, vec3f(1.05, 0.97, 0.88), band) + rim;
   col = fogMix(col, i.wpos);
   return vec4f(tonemap(col), 1.0);
+}
+
+// Ink outline: the back faces of each part, pushed out along the normal.
+// O.color.w is the line thickness (m).
+@vertex fn vsOutline(@location(0) p: vec3f, @location(1) n: vec3f) -> VO {
+  var o: VO;
+  let nw = normalize((O.model * vec4f(n, 0.0)).xyz);
+  let w = (O.model * vec4f(p, 1.0)).xyz + nw * O.color.w;
+  o.pos = F.viewProj * vec4f(w, 1.0);
+  o.wpos = w;
+  o.n = nw;
+  return o;
+}
+@fragment fn fsOutline(i: VO) -> @location(0) vec4f {
+  return vec4f(tonemap(fogMix(vec3f(0.07, 0.07, 0.1), i.wpos)), 1.0);
 }
 `;
 

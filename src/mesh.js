@@ -200,3 +200,22 @@ export function boardMesh(u0 = -1, u1 = 1, segs = 28, ring = 14) {
   }
   return new Float32Array(v);
 }
+
+// Unit cylinder along y (-0.5..0.5), radius 0.5, smooth sides and flat caps.
+// Used for the surfer's limbs and torso (joints are covered by spheres).
+export function cylinderMesh(seg = 16) {
+  const v = [];
+  for (let i = 0; i < seg; i++) {
+    const a0 = (i / seg) * Math.PI * 2, a1 = ((i + 1) / seg) * Math.PI * 2;
+    const c0 = Math.cos(a0), s0 = Math.sin(a0), c1 = Math.cos(a1), s1 = Math.sin(a1);
+    const P = (c, s, y) => [c * 0.5, y, s * 0.5];
+    // side
+    for (const [c, s, y] of [[c0, s0, -0.5], [c1, s1, 0.5], [c1, s1, -0.5], [c0, s0, -0.5], [c0, s0, 0.5], [c1, s1, 0.5]]) v.push(...P(c, s, y), c, 0, s);
+    // caps
+    for (const y of [-0.5, 0.5]) {
+      const ny = Math.sign(y);
+      for (const [c, s] of [[0, 0], [c0, s0], [c1, s1]]) v.push(c * 0.5, y, s * 0.5, 0, ny, 0);
+    }
+  }
+  return new Float32Array(v);
+}
