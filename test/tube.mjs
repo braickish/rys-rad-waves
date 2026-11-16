@@ -7,10 +7,9 @@ useWave('reef');
 const sturns = (lo, hi, ang = 0.7) => { let up = true; return (r) => { if (up && r.height > hi) up = false; if (!up && r.height < lo) up = true; const a = up ? ang : -ang; return { aim: [Math.cos(a), Math.sin(a)] }; }; };
 const runs = [
   ['no input (trim)', () => ({})],
-  ['S-turns low-mid (0.1 - 0.6)', sturns(0.1, 0.6)],
-  ['S-turns big (0.05 - 0.85)', sturns(0.05, 0.85)],
-  ['S-turns into the roof (to 1.0)', sturns(0.1, 1.01)],
-  ['straight up into the roof', sturns(0.1, 1.01, 1.45)],
+  ['S-turns low-mid (0.08 - 0.4)', sturns(0.08, 0.4, 0.6)],
+  ['S-turns up to half way', sturns(0.08, 0.5, 0.6)],
+  ['climb into the top 3/8', sturns(0.1, 0.9)],
   ['point down, never turn up (too low)', () => ({ aim: [0.3, -1] })],
 ];
 for (const [label, pol] of runs) {

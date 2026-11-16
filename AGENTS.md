@@ -27,6 +27,8 @@ button).
 
 ## How it works
 
+- Wave shape between keyframes is a smooth cubic (Catmull-Rom slopes) and the phase rate changes
+  smoothly through the curl: piecewise easing left visible creases on the wave.
 - `src/waves/`: **wave definitions**, one file per wave (`point.js` Mellow Point, `reef.js` Reef Barrel;
   registry in `index.js`, shared keyframes in `shapes.js`). A wave defines its shape (keyframes, scale,
   peel/phase speeds), its foam (`foam` for physics, `foamVisual` built on the same pieces for drawing),
@@ -46,8 +48,8 @@ button).
   (surface coordinate; smaller = higher), board speed `speed`, direction `phi` (0 = down the line,
   +π/2 = straight up the face, π = back toward the curl). Knobs are in `TUNE`.
   - Speed: the pocket feeds you toward a fast cruising speed (`vPocket`, faster higher on the face);
-    the shoulder, flat water and foam bleed you down (`vLow`, `vFoam`). Dropping pays a lot (`drop`),
-    climbing costs little (`climb`), so getting high is easy and every drop is a burst; dropping from
+    the shoulder, flat water and foam bleed you down (`vLow`, `vFoam`). Dropping pays a lot (`drop`);
+    climbing costs real speed (`climb`) and the pocket stops feeding you while you point up the face; dropping from
     the top half of the pocket pays most (`topDropBoost`, scaled by pocket power so the shoulder still bogs); pointing down high up also
     raises the acceleration cap (`highDropAccel`) and the soft speed limit (`highDropSoftMax`).
     Above `softMax` (~32 mph) speed bleeds off fast, hard cap `maxSpeed` (~38 mph), so stacked moves
@@ -109,7 +111,8 @@ button).
     until the curl passes you. In the tube: past `tubeCollapse` = pinched; driving straight into the
     roof (steeper than `roofCrash`) = over the falls (brushing it deflects you down); way below the bottom
     (`tubeLow`) = the lip lands on you; back past `tubeExit` = out. Caught way up in the lip as it throws
-    (`tubeTooHigh`) = over the falls. Scored by time x average depth. HUD: depth across, height up/down.
+    (`tubeTooHigh`), or riding in the top 3/8 of the barrel (`tubeFallHeight`) = over the falls. The barrel
+    picks you up once you're on the face or just below its base (`tubeEnterLow`). Scored by time x average depth. HUD: depth across, height up/down.
     Camera: inside the tube behind the surfer (only once you're actually in). Reef shape is `KF_PIPE`
     (waves/shapes.js); `faceTop` lowers smoothly as the lip throws.
 - Heavy waves (`floaters: false, rebounds: false` in the wave's tune, e.g. the reef): hitting the

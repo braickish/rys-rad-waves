@@ -70,7 +70,10 @@ export const setWaveType = setWave; // old name
 
 // Phase from distance to the peel point.
 export function phaseAt(xs) {
-  let s = xs >= 0 ? -xs / WAVE.phase.ahead : -xs / WAVE.phase.behind;
+  // (the rate changes smoothly through the curl: a sharp change there shows
+  // as a crease in the wave)
+  const k = smooth(Math.min(1, Math.max(0, (xs + 4) / 8)));
+  let s = -xs / (WAVE.phase.behind + (WAVE.phase.ahead - WAVE.phase.behind) * k);
   for (const sec of SECTIONS) {
     const d = (xs - sec.x) / sec.width;
     const profile = sec.kind === 'throw' ? Math.exp(-d * d) : Math.exp(-(d * d) * d * d); // a peak that throws / a flat-topped closeout
@@ -85,15 +88,27 @@ const smooth = (f) => f * f * (3 - 2 * f);
 
 // Control points for a phase, as a Float64Array [z0, y0, z1, y1, ...], scaled.
 export function controlPoints(s, out = new Float64Array(NP * 2), scale = SCALE) {
+  // A smooth curve through the keyframes (cubic Hermite with Catmull-Rom
+  // slopes), so the wave has no creases where one keyframe hands over to
+  // the next.
+  const n = KF.length;
   let k = 0;
-  if (s <= KF[0].s) k = 0;
-  else if (s >= KF[KF.length - 1].s) k = KF.length - 2;
-  else while (k < KF.length - 2 && s > KF[k + 1].s) k++;
+  if (s <= KF[0].s) { s = KF[0].s; k = 0; }
+  else if (s >= KF[n - 1].s) { s = KF[n - 1].s; k = n - 2; }
+  else while (k < n - 2 && s > KF[k + 1].s) k++;
   const a = KF[k], b = KF[k + 1];
-  const f = smooth(Math.min(1, Math.max(0, (s - a.s) / (b.s - a.s))));
+  const h = b.s - a.s;
+  const f = Math.min(1, Math.max(0, (s - a.s) / h));
+  const h00 = 2 * f ** 3 - 3 * f * f + 1, h10 = f ** 3 - 2 * f * f + f, h01 = -2 * f ** 3 + 3 * f * f, h11 = f ** 3 - f * f;
+  const pa = KF[Math.max(0, k - 1)], pb = KF[Math.min(n - 1, k + 2)];
   for (let i = 0; i < NP; i++) {
-    out[i * 2] = (a.p[i][0] + (b.p[i][0] - a.p[i][0]) * f) * scale;
-    out[i * 2 + 1] = (a.p[i][1] + (b.p[i][1] - a.p[i][1]) * f) * scale;
+    for (let c = 0; c < 2; c++) {
+      const y0 = a.p[i][c], y1 = b.p[i][c];
+      // slopes per unit phase, scaled to this interval (zero at the ends)
+      const m0 = k > 0 ? ((b.p[i][c] - pa.p[i][c]) / (b.s - pa.s)) * h : 0;
+      const m1 = k + 2 < n ? ((pb.p[i][c] - a.p[i][c]) / (pb.s - a.s)) * h : 0;
+      out[i * 2 + c] = (h00 * y0 + h10 * m0 + h01 * y1 + h11 * m1) * scale;
+    }
   }
   return out;
 }

@@ -42,11 +42,13 @@ export default {
     airs: false,
     floaters: false, rebounds: false, // too heavy: hit the whitewater or the lip next to it and you go over the falls
     // Tube riding (see stepTube in rider.js).
-    tubeEnter: 0.2, // the curl has passed you: you're in the tube
-    tubeExit: 0.12, // forward of this you're back out on the open face
+    tubeEnter: 0.12, // the curl has passed you: you're in the tube
+    tubeExit: 0.06, // forward of this you're back out on the open face
     tubeCollapse: 1.0, // past this you're pinched (~13 m behind the curl)
     tubeLow: 0.6,
-    pullInZone: 3.0, pullInHeight: 0.5, // up this high on the face, within this far ahead of the curl, and turning: you pull in
+    tubeEnterLow: 0.3, // the barrel picks you up even this far below the base of the face (on a bottom turn)
+    tubeFallHeight: 0.62, // above this fraction of the face in the barrel (top 3/8), the lip grabs you
+    pullInZone: 4.0, pullInHeight: 0.4, // up this high on the face, within this far ahead of the curl, and turning: you pull in
     pullInSpeed: 4.5, // ... and stall (the curl catches you up this fast, m/s)
     pullInLine: 13.0, // ... settling here on the face while the barrel comes over you
     tubeTooHigh: 2.5, // further than this above the roof line as the lip throws = over the falls

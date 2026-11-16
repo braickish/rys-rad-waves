@@ -30,7 +30,7 @@ export const G = 9.8;
 const RIDER_TUNE = {
   feed: 2.0, // how fast the pocket brings you up to speed (1/s)
   bleed: 0.9, // how fast extra speed fades / you bog down (1/s)
-  climb: 2.5, // speed lost per second pointing straight up it (m/s^2): small, so climbing is easy
+  climb: 6, // speed lost per second pointing straight up it (m/s^2)
   pump: 4, // m/s^2 while pumping on the face (full on the drop, less otherwise)
   turn: 5.2, // fastest turn rate (rad/s)
   hardAfter: [0.25, 0.6], // hold a turn this long (s) and you lean into it harder ...
@@ -344,7 +344,10 @@ function stepSurf(r, input, dt) {
   if (r.boost > 0) { /* just rebounded: the foam can't slow you for a moment */ }
   else if (r.floater) target = Math.max(target, r.speed); // floating holds your speed
   else target += (T.vFoam - target) * foam * (climbingFoam(r) ? T.climbFoamDrag : 1); // climbing up the whitewater drags less
-  r.speed += (target - r.speed) * (r.speed < target ? T.feed : T.bleed) * dt;
+  // The pocket only feeds you while you're not climbing: point up the face
+  // and you slow down for real.
+  const climbing = sstep(0.15, 0.6, Math.sin(r.phi));
+  r.speed += (target - r.speed) * (r.speed < target ? T.feed * (1 - climbing) : T.bleed) * dt;
   const sinp = Math.sin(r.phi);
   // Pointing down pays, and pays most from the top third of the wave: that's
   // where the drop has the most height to turn into speed.
@@ -597,7 +600,7 @@ function checkHazards(r, dt) {
   const T = TUNE;
   if (!r.tube) {
     // Only once you're up on the face (at or above its base), not out on the flats.
-    if (ph > T.tubeEnter && ph < T.tubeCollapse - 0.15 && r.t <= T.tBottom) {
+    if (ph > T.tubeEnter && ph < T.tubeCollapse - 0.15 && r.t <= T.tBottom + T.tubeEnterLow) {
       // Way up in the lip as it throws: over you go. A bit high: it sucks you in.
       if (r.t < topOfFace(r.xs) - T.tubeTooHigh) return wipe(r, 'Over the falls! (caught up in the lip)');
       r.t = Math.max(r.t, topOfFace(r.xs));
@@ -613,6 +616,8 @@ function checkHazards(r, dt) {
   tb.depthSum += depth * dt;
   if (tb.pullIn) return;
   if (ph > T.tubeCollapse) { r.tube = null; r.inBarrel = false; return wipe(r, 'Pinched! (too deep: drop down and drive forward)'); }
+  // Up in the top of the barrel the lip grabs you and throws you over.
+  if (r.height > T.tubeFallHeight) { r.tube = null; r.inBarrel = false; return wipe(r, 'Over the falls! (too high in the barrel)'); }
   if (r.t > T.tBottom + T.tubeLow) { r.tube = null; r.inBarrel = false; return wipe(r, 'The lip landed on you! (too low)'); }
   if (ph < T.tubeExit) {
     r.events.push({ type: 'barrelExit', time: tb.time, depth: tb.depth, avgDepth: tb.depthSum / Math.max(tb.time, 1e-3) });
