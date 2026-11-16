@@ -19,13 +19,17 @@ export const TUNE = {
   flowUp: 0.6, // effective up-face water flow the keel feels (m/s); sets where the sweet spot is
   drag: 0.06, // along-board drag (1/s)
   power: 0, // small baseline wave push while trimming the steep face (m/s^2 at vertical)
-  lift: 1.3, // fraction of gravity's pull-back the wave cancels while you climb the face
+  lift: 1.3, // how strongly the wave carries you up the face while climbing (scaled by steepness)
+  liftCap: 0.9, // never cancel more than this fraction of gravity, or climbing would speed you up
   railGrip: 0.95, // how much of a turn redirects momentum (vs. skidding)
   scrub: 0.006, // extra drag per (rad/s)^2 of turning: smooth turns keep speed
-  pump: 3.5, // m/s^2 when pumping on the drop (heading down the face)
+  pump: 5.0,
+  glide: 5.0, // minimum board speed through the water on a live wave (m/s) // m/s^2 when pumping on the drop (heading down the face)
   turn: 2.6, // rad/s
+  lipT: 5.6, // surface coordinate of the lip on an open face (crest is 4)
+  bottomT: 14.2, // bottom of the face
+  airSpeed: 5.5, // up-face speed needed to launch off the lip (m/s)
   crouchTurn: 3.6,
-  stick: 3.0, // extra m/s^2 of "suction" before leaving the surface
   standH: 1.75,
   crouchH: 1.1,
 };
@@ -133,25 +137,38 @@ function stepSurf(r, input, dt) {
   let f = frameAt(r.xs, r.t);
   const n = f.n;
 
-  // Board heading stays in the tangent plane; turn toward the stick direction.
+  // Board heading stays in the tangent plane. Steering is relative to
+  // riding down the line (e1): Up/Down tilt the nose up or down the face, at
+  // most MAX_TILT, so a turn from up to down always swings through the front.
+  // Only holding Left (a cutback) can point the board back toward the curl.
   let h = v3.norm(v3.rej(r.heading, n));
-  const e1 = v3.norm(v3.rej([1, 0, 0], n)); // along the wave
+  const e1 = v3.norm(v3.rej([1, 0, 0], n)); // down the line
   const e2 = v3.norm(v3.cross(n, e1)); // up the face
   const [sx, sy] = input.steer;
   r.carve *= Math.exp(-dt * 6);
   r.turnRate = 0;
   if (sx || sy) {
-    const target = v3.norm(v3.add(v3.mul(e1, sx), v3.mul(e2, sy)));
-    const ang = Math.atan2(v3.dot(v3.cross(h, target), n), v3.dot(h, target));
+    const phi = Math.atan2(v3.dot(h, e2), v3.dot(h, e1));
+    const cutback = sx < 0;
+    // Up alone = steep (~65 deg), Right+Up = diagonal (~34 deg), Right = level.
+    const target = cutback ? Math.atan2(sy, sx) : Math.atan2(sy, sx + 0.47);
+    let ang = target - phi;
+    if (cutback) ang = Math.atan2(Math.sin(ang), Math.cos(ang)); // shortest way round
+    else if (Math.abs(phi) > Math.PI / 2) ang = Math.atan2(Math.sin(ang), Math.cos(ang)); // coming out of a cutback
     const rate = r.crouch ? T.crouchTurn : T.turn;
     const d = Math.sign(ang) * Math.min(Math.abs(ang), rate * dt);
-    h = rotate(h, n, d);
-    r.turnRate = Math.abs(d) / dt;
-    // Carving: the rail bends your momentum with the board instead of
-    // skidding it off. Rotate velocity relative to the water by the turn.
+    // Carving: the rail bends your forward momentum with the board. Only the
+    // forward part turns; sideways slide is left for the fins to kill.
     const w0 = v3.rej([-PEEL_SPEED, 0, -T.flowUp], n);
-    const rel = rotate(v3.sub(v3.rej(r.vel, n), w0), n, d * T.railGrip);
-    r.vel = v3.add(rel, w0);
+    const rel = v3.sub(v3.rej(r.vel, n), w0);
+    const along = v3.dot(rel, h);
+    if (along > 0) {
+      const sidePart = v3.sub(rel, v3.mul(h, along));
+      const fwd = v3.mul(rotate(h, n, d * T.railGrip), along);
+      r.vel = v3.add(v3.add(fwd, sidePart), w0);
+    }
+    h = v3.norm(rotate(h, n, d));
+    r.turnRate = Math.abs(d) / dt;
     r.carve = Math.min(1, r.carve + Math.abs(d) / (rate * dt) * dt * 8);
   }
   r.heading = h;
@@ -175,9 +192,12 @@ function stepSurf(r, input, dt) {
   // full gravity; climbing back up, the rising wave carries you, so gravity
   // takes back less. Each linked turn nets energy, more in the pocket.
   const gAlong = v3.dot(g, h);
-  if (gAlong < 0) a = v3.add(a, v3.mul(h, -gAlong * T.lift * Math.min(1, steep * 2.2)));
+  if (gAlong < 0) a = v3.add(a, v3.mul(h, -gAlong * Math.min(T.liftCap, T.lift * steep * 2.2)));
   // A little push for trimming the steep face, not enough to keep up alone.
   a = v3.add(a, v3.mul(h, T.power * steep * Math.max(0, v3.dot(h, e1))));
+  // Glide: on a live wave the board never stalls completely in the water, so
+  // you can always turn back up. Not enough to keep pace with the peel alone.
+  if (ph < 1.3 && ph > -2.5 && along < T.glide) a = v3.add(a, v3.mul(h, (T.glide - along) * 1.5));
   // Turning too hard scrubs speed.
   a = v3.sub(a, v3.mul(h, T.scrub * r.turnRate * r.turnRate * Math.max(0, v3.dot(vr, h))));
   // Pumping only works on the way down (compress into the drop).
@@ -187,17 +207,40 @@ function stepSurf(r, input, dt) {
   }
   r.vel = v3.rej(v3.add(r.vel, v3.mul(a, dt)), n);
 
-  // Leave the surface if it curves away faster than gravity can hold us.
-  const vt = v3.dot(r.vel, f.T);
-  const normalForce = -f.kappa * vt * vt + G * n[1] + T.stick;
-  if (normalForce < 0 && v3.dot(r.vel, f.T) !== 0) {
-    r.mode = 'air';
-    r.airSpin = 0;
-    r.airTime = 0;
-    r.pos = f.P;
-    r.vel = v3.add(r.vel, v3.mul(n, 0.6)); // small pop off the lip
-    r.events.push({ type: 'launch' });
-    return;
+  // The top and bottom of the face are soft walls (arcade, not physics):
+  //  - Hit the open lip fast enough and you launch an air.
+  //  - Otherwise the lip (or the barrel's roof, where the surface starts to
+  //    overhang) gives you a snappy top turn back down the face.
+  //  - At the bottom, a bottom turn swings you back up instead of riding off
+  //    the front of the wave.
+  r.wallCooldown = Math.max(0, (r.wallCooldown || 0) - dt);
+  const vUp = v3.dot(r.vel, e2);
+  const atLip = r.t < T.lipT;
+  const atRoof = n[1] < -0.05;
+  if ((atLip || atRoof) && vUp > 0) {
+    if (atLip && !atRoof && n[2] > 0.1 && vUp > T.airSpeed && ph < 0.6) {
+      // Air: turn the up-the-face speed into height, drifting slightly toward
+      // shore, so you come down on the face rather than over the back.
+      r.mode = 'air';
+      r.airSpin = 0;
+      r.airTime = 0;
+      r.spinArmed = false;
+      r.pos = f.P;
+      r.vel = [r.vel[0], Math.min(4.5, vUp * 0.6 + 1.5), 1.2];
+      r.events.push({ type: 'launch' });
+      return;
+    }
+    r.vel = v3.sub(r.vel, v3.mul(e2, vUp * 1.25));
+    r.heading = snapToward(r.heading, n, e1, e2, -0.8, T.turn * 3 * dt);
+    if (r.wallCooldown === 0 && vUp > 2.5) {
+      r.events.push({ type: atRoof ? 'roofTurn' : 'topTurn', speed: vUp });
+      r.carve = 1;
+    }
+    r.wallCooldown = 0.5;
+  }
+  if (r.t > T.bottomT && vUp < 0) {
+    r.vel = v3.sub(r.vel, v3.mul(e2, vUp * 1.1));
+    r.heading = snapToward(r.heading, n, e1, e2, 0.7, T.turn * 2 * dt);
   }
 
   // Move in surface coordinates: solve [Px Pt] [dxs dt]^T ~= vel*dt.
@@ -219,14 +262,25 @@ function stepSurf(r, input, dt) {
   checkHazards(r, dt, f);
 }
 
+// Rotate heading toward a tilt angle off the line (used by top/bottom turns).
+function snapToward(h, n, e1, e2, targetPhi, maxStep) {
+  const phi = Math.atan2(v3.dot(h, e2), v3.dot(h, e1));
+  let ang = targetPhi - phi;
+  ang = Math.atan2(Math.sin(ang), Math.cos(ang));
+  const d = Math.sign(ang) * Math.min(Math.abs(ang), maxStep);
+  return v3.norm(rotate(h, n, d));
+}
+
 function stepAir(r, input, dt) {
   r.airTime += dt;
   const prev = r.pos;
   r.vel = v3.add(r.vel, [0, -G * dt, 0]);
   r.pos = v3.add(r.pos, v3.mul(r.vel, dt));
   r.xs = r.pos[0];
-  // Spin with left/right.
-  const spin = (input.steer[0] || 0) * 7.5 * dt;
+  // Spin with a fresh Left/Right press after takeoff, so holding Right
+  // through the launch doesn't twist the board.
+  if (!input.steer[0]) r.spinArmed = true;
+  const spin = r.spinArmed ? (input.steer[0] || 0) * 7.5 * dt : 0;
   r.heading = rotate(r.heading, [0, 1, 0], -spin);
   r.airSpin += spin;
 
@@ -242,16 +296,20 @@ function stepAir(r, input, dt) {
       r.pos = f.P;
       const vt = v3.rej(r.vel, f.n);
       const impact = -v3.dot(r.vel, f.n);
-      const h = v3.norm(v3.rej(r.heading, f.n));
-      const align = v3.dot(v3.norm(vt), h);
+      // Spins must come round close to a multiple of 180 degrees.
+      const half = Math.round(r.airSpin / Math.PI);
+      const spinErr = Math.abs(r.airSpin - half * Math.PI);
+      const spins = Math.abs(half) * 180;
       r.mode = 'surf';
-      r.heading = h;
-      r.vel = vt;
-      const spins = Math.round(Math.abs(r.airSpin) / Math.PI) * 180;
+      if (f.n[2] < -0.05) return wipe(r, 'Landed over the back!');
       if (impact > 11) return wipe(r, 'Too much air!');
-      if (align < 0.3 && v3.len(vt) > 2) return wipe(r, 'Bad landing!');
-      // Landing backwards is fine if you're going slowly; flip the board.
-      if (align < 0) r.heading = v3.mul(h, -1);
+      if (spinErr > 0.9) return wipe(r, 'Bad landing! (finish the spin)');
+      // Re-entry: the board lines up down the line, angled down the face.
+      const e1 = v3.norm(v3.rej([1, 0, 0], f.n));
+      const e2 = v3.norm(v3.cross(f.n, e1));
+      r.heading = v3.norm(v3.add(e1, v3.mul(e2, -0.6)));
+      const w = v3.rej([-PEEL_SPEED, 0, -TUNE.flowUp], f.n);
+      r.vel = v3.add(v3.mul(r.heading, Math.max(TUNE.glide, v3.len(v3.sub(vt, w)) * 0.85)), w);
       r.events.push({ type: 'land', spins, airTime: r.airTime });
       checkHazards(r, dt, f);
       return;
@@ -262,13 +320,15 @@ function stepAir(r, input, dt) {
 
 function checkHazards(r, dt, f) {
   const ph = phaseAt(r.xs);
+  // Up on the lip itself (not the face) where the wave is pitching, and the
+  // surface tips past vertical under you: you go with it.
+  if (ph > 0 && r.t < 11.5 && f.n[1] < 0.1) return wipe(r, 'Over the falls!');
   // Caught by the whitewater.
   if (ph > 1.55 && r.t > 9.5) return wipe(r, 'Caught by the whitewater!');
   if (r.xs < -30) return wipe(r, 'Caught by the whitewater!');
   // Fell off the back or washed out in front.
   if (r.t < 2.2) return wipe(r, 'Pulled over the back!');
   if (r.t > 14.6) return wipe(r, 'Lost the wave!');
-  if (r.xs > 70) return wipe(r, 'Outran the wave!');
 
   // Barrel?
   const c = roofClearance(r.xs, r.pos);

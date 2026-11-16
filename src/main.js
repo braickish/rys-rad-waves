@@ -109,6 +109,10 @@ function handleEvents() {
       score += pts;
       flash(name, `+${pts}`);
     }
+    if (e.type === 'topTurn' && e.speed > 3.5) {
+      score += 250;
+      flash('Off the lip!', '+250');
+    }
     if (e.type === 'wipe') {
       burst = 0.3;
       flash('WIPEOUT!', e.reason);

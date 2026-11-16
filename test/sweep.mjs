@@ -16,12 +16,12 @@ function sturns(yHi, yLo, pump) {
 const trim = (yT) => (r) => ({ steer: [1, Math.max(-0.6, Math.min(0.6, (yT - r.pos[1]) * 0.8))] });
 const base = { ...TUNE };
 const rows = [];
-for (const flowUp of [0, 0.6]) for (const lift of [1.0, 1.3]) for (const scrub of [0.004, 0.01]) for (const power of [0]) for (const drag of [0.05, 0.08]) {
-  Object.assign(TUNE, base, { flowUp, lift, scrub, power, drag });
+for (const liftCap of [0.9, 1.0]) for (const pump of [3.5, 5.0]) for (const power of [0, 0.5]) for (const drag of [0.04, 0.06]) {
+  Object.assign(TUNE, base, { liftCap, pump, power, drag });
   const tr = [1.2, 1.8].map((y) => ride(trim(y)));
   const st = [[2.6, 0.9], [3.0, 1.2]].map(([a, b]) => ride(sturns(a, b, false)));
   const sp = [[2.6, 0.9], [3.0, 1.2]].map(([a, b]) => ride(sturns(a, b, true)));
   const f = (xs) => xs.map((x) => `${x.vx.toFixed(1)}/${x.t.toFixed(0)}s`).join(' ');
-  rows.push(`flow ${flowUp} lift ${lift} scrub ${scrub} power ${power} drag ${drag} | trim ${f(tr)} | S ${f(st)} | S+pump ${f(sp)}`);
+  rows.push(`cap ${liftCap} pump ${pump} power ${power} drag ${drag} | trim ${f(tr)} | S ${f(st)} | S+pump ${f(sp)}`);
 }
 console.log(rows.join('\n'));
