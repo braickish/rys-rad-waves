@@ -12,12 +12,18 @@ python3 -m http.server 8765 --bind 127.0.0.1   # then open http://127.0.0.1:8765
 
 It needs a WebGPU browser (recent Chrome/Edge, or Safari on macOS/iOS 26+).
 
-URL test hooks: `?play` (skip the title), `?auto` (autopilot S-turns), `?xs=-4` (start deep, behind the
-peel), `?cam=1` (chase camera), `?noparticles`.
+URL options: `?wave=barrel` (the barreling wave; default is a crumbling wave), `?play` (skip the
+title), `?auto` (autopilot works the pocket), `?xs=-4` (start behind the peel), `?cam=1` (chase
+camera), `?noparticles`.
+
+Controls: Left/Right carve the board around (counterclockwise/clockwise as you see it), Up/Down point
+the nose up or down the face, Space pumps (only on the way down), Shift crouches, C switches camera.
+Touch: drag on the left half to point the board, buttons for pump and crouch.
 
 ## How it works
 
-- `src/wave.js`: the wave model. The game runs in the **peel frame** (moves with the breaking point),
+- `src/wave.js`: the wave model. Two wave types share one 16-point layout: **crumble** (default, the
+  crest spills foam down the face, no overhang) and **barrel** (the lip throws over into a tube). The game runs in the **peel frame** (moves with the breaking point),
   where the wave shape is static. Each distance `xs` from the peel point has a 2D cross-section curve
   through 16 control points, keyframed by phase (swell → steep → pitching → barrel → closing →
   whitewater) and smoothed with centripetal Catmull-Rom. Because it's one curve and not a heightfield,
@@ -25,16 +31,21 @@ peel), `?cam=1` (chase camera), `?noparticles`.
 - `src/rider.js`: surf physics, pure JS. Rider pinned to the surface in `(xs, t)`; gravity, fin/keel
   grip, rail carving (turns redirect forward momentum only), landing via segment/curve intersection,
   and barrel clearance (crouch to fit). All knobs are in `TUNE`.
-  **Speed model:** speed comes from going up and down. Climbing the face is partly subsidized by the
-  rising wave (`lift`, capped below gravity by `liftCap` so climbing never speeds you up), dropping
-  isn't, so linked turns net energy. Pumping only works on the drop. A `glide` floor stops the board
-  stalling on a live wave. Sharp turns scrub speed.
-  **Arcade rules (deliberately not physics):** steering is relative to riding down the line: Up/Down
-  tilt the nose (Up ≈ 65°, Right+Up ≈ 34°), turns always swing through the front, and only Left
-  (cutback) can point the board back at the curl. The lip, the barrel's roof, and the trough are soft
-  walls with automatic top and bottom turns. You only launch an air off the open lip above `airSpeed`,
-  airs go up (not out to sea), spins need a fresh Left/Right press in the air, and landings line the
-  board up for re-entry. Being on the thrown lip itself as it pitches = "Over the falls!".
+  **Speed model: the pocket.** `pocketPower(xs)` is full at the curl and fades fast out on the
+  shoulder (`pocketWidth`) and behind it into the foam. All the wave's drive scales with it: the climb
+  subsidy (`lift`, capped below gravity by `liftCap`), the curl's push when trimming high on the face
+  (`curlPush`), and the `glide` floor (only while turning back up the face, only on the face). Out on
+  the shoulder and on flat water the board bogs down (`shoulderDrag`); in crumbling foam harder
+  (`foamDrag`). So you can trim high in the pocket, but anywhere else you have to work: drop and pump
+  (pump only works on the way down), turn back up, snap off the crumble. Sharp turns scrub speed.
+  **Arcade rules (deliberately not physics):** the lip, the barrel's roof, and the trough are soft
+  walls with automatic top and bottom turns (a "snap" when it's the crumbling crest). You only launch
+  an air off the open face ahead of the curl above `airSpeed`; airs go up (not out to sea), spins need
+  a fresh Left/Right press in the air, and landings line the board up for re-entry. On the barrel
+  wave, being on the thrown lip itself = "Over the falls!" and the lip only hurts once it's landing.
+- `src/surfer.js`: the articulated surfer. Two-bone IK legs (feet planted on the board) and arms.
+  Knees bend with turns, crouch, and pumping (compress on the way up, extend driving down); the body
+  leans into turns and the inside hand drags toward the water in a big one.
 - `src/mesh.js`: builds the static water mesh (plus far flat ocean), per-vertex foam/translucency
   attributes, a lip lookup table for particle emitters, and the box/sphere primitives for the surfer.
 - `src/shaders.js`: WGSL. Water (fresnel sky reflection, backlit translucency in the lip, flowing
@@ -46,18 +57,19 @@ peel), `?cam=1` (chase camera), `?noparticles`.
 ## Tests
 
 ```sh
-node test/controls.mjs # human-style inputs: board never flips to face the curl, never flung backward
-node test/energy.mjs   # riding styles vs. the peel: linked turns with pumps should do best
-node test/sim.mjs      # scripted riders: survival time, barrel time, wipeout reasons
-node test/sweep.mjs    # parameter sweep for the speed model
-node test/plot-slices.mjs out.svg   # draw the wave cross-sections
-node test/drive.mjs <outPrefix> "<query>" <ms,...> ['<keys json>']   # headless Chrome screenshots + console
+node test/controls.mjs # human-style inputs on both waves: no glitches, Up/Down never flips you
+node test/pocket.mjs   # where riders spend their time vs. the curl; who survives and why
+node test/plot-slices.mjs out.svg [crumble|barrel]   # draw the wave cross-sections
+node test/drive.mjs <outPrefix> "<query>" <ms,...> ['<input json>']   # headless Chrome screenshots + console
+MOBILE=1 node test/drive.mjs ...   # same, emulating a phone (390x844, touch)
 ```
 
-`drive.mjs` needs the local server running. It drives headless Chrome over the DevTools protocol with
+Input json entries: `[ms, 'down'|'up', 'ArrowLeft']` for keys, `[ms, 'touchStart'|'touchMove'|'touchEnd', x, y]`
+for touch. `drive.mjs` needs the local server running. It drives headless Chrome over the DevTools protocol with
 WebGPU enabled, so it catches WGSL/pipeline errors and shows real frames.
 
 ## Ideas not done yet
 
-Sound (surf roar, spray), more trick moves, wave sets with varying size and peel speed, a better surfer
-model, and touch controls tested on a real phone.
+Sound (surf roar, spray), more trick moves, wave sets with varying size and peel speed, bringing
+the barrel back into the default wave, and testing on a real iPhone (only emulated so far; GPU errors
+now show on screen to help).

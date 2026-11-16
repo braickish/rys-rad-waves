@@ -45,6 +45,8 @@
   .touchbtns button { width: 84px; height: 84px; border-radius: 50%; border: 0; font-family: Bungee, sans-serif; font-size: 14px; color: #fff; background: rgba(255,61,139,.75); box-shadow: 3px 3px 0 rgba(0,0,0,.3); touch-action: none; }
   .touchbtns button#btn-crouch { background: rgba(0,194,199,.75); }
   .mob { display: none; }
+  #err { position: fixed; left: 12px; right: 12px; bottom: 60px; background: #b3123f; color: #fff; padding: 10px 14px; border-radius: 10px; font-size: 13px; z-index: 5; }
+  #err[hidden] { display: none; }
   body.touch .mob { display: inline; }
 </style>
 </head>
@@ -62,8 +64,9 @@
   </div>
 </div>
 <div id="msg"></div>
-<div id="hint"><span class="desk">↑↓ up/down the face · Space pump on the drop · Shift crouch · ← cutback · C camera</span><span class="mob">Drag left side to steer</span></div>
+<div id="hint"><span class="desk">←→ carve · ↑↓ up/down the face · Space pump on the drop · Shift crouch · C camera</span><span class="mob">Drag the left side to point the board</span></div>
 
+<div id="err" hidden></div>
 <div class="touchbtns"><button id="btn-pump">Pump</button><button id="btn-crouch">Crouch</button></div>
 
 <div class="panel" id="title">
@@ -71,15 +74,14 @@
     <h1 class="logo">Ry's Rad<span>Waves</span></h1>
     <div class="go"><span class="desk">Press Space to drop in</span><span class="mob">Tap to drop in</span></div>
     <div class="keys desk">
-      <b>↑ ↓</b><span>Angle the board up or down the face</span>
-      <b>→</b><span>Straighten out down the line</span>
-      <b>←</b><span>Cutback toward the curl</span>
+      <b>← →</b><span>Carve the board around (← turns up the face, → turns down)</span>
+      <b>↑ ↓</b><span>Or point the nose straight up or down the face</span>
       <b>Space</b><span>Pump: works on the way <em>down</em></span>
-      <b>Shift</b><span>Crouch: you'll need it in the barrel</span>
+      <b>Shift</b><span>Crouch</span>
       <b>← → in the air</b><span>Spin (finish it to land)</span>
       <b>C</b><span>Switch camera</span>
     </div>
-    <p class="tip">Speed comes from going up and down: drop and pump, bottom turn, hit the lip, repeat.<br>Ride a straight line and you'll fall behind and get eaten.</p>
+    <p class="tip">Your speed comes from the pocket, the steep bit right next to where the wave is breaking.<br>Stay close to it: drop and pump, turn back up, snap off the crumbling lip. Wander out on the shoulder and you'll bog down.</p>
   </div>
 </div>
 
@@ -97,6 +99,7 @@
     <h1 class="logo" style="font-size:44px">Ry's Rad<span>Waves</span></h1>
     <p>This game needs <b>WebGPU</b>, which this browser doesn't have turned on.</p>
     <p>Try a recent Chrome, Edge, or Safari (macOS 26 / iOS 26 or newer).</p>
+    <p id="nogpu-detail" style="font-size:13px;opacity:.8"></p>
   </div>
 </div>
 

@@ -31,7 +31,7 @@ export const FAR = 1500; // flat ocean extent, added by the mesh builder
 // Keyframes: [z, y] pairs, before SCALE. `s` is the wave's phase:
 // negative = unbroken (more negative = smaller), 0 = starting to pitch,
 // ~0.8 = full barrel, >1.3 = collapsing into whitewater.
-const KF = [
+const KF_BARREL = [
   { s: -14, p: [[-40, 0], [-30, 0], [-10, 0], [-4, 0], [0, 0], [1, 0], [2, 0], [3, 0], [4, 0], [5, 0], [6, 0], [7, 0], [8, 0], [10, 0], [13, 0], [22, 0]] },
   { s: -3.5, p: [[-40, 0], [-30, 0], [-10, 0.25], [-4, 0.7], [0, 0.9], [1.2, 0.86], [2.2, 0.78], [3.0, 0.68], [3.7, 0.58], [4.4, 0.48], [5.2, 0.38], [6.0, 0.29], [7.0, 0.2], [9.0, 0.08], [13, 0], [22, 0]] },
   { s: -1.2, p: [[-40, 0], [-30, 0], [-10, 0.4], [-4, 1.5], [0, 2.2], [0.9, 2.15], [1.7, 2.0], [2.3, 1.82], [2.8, 1.62], [3.25, 1.4], [3.7, 1.17], [4.2, 0.92], [4.8, 0.65], [6.0, 0.25], [8.5, -0.1], [22, 0]] },
@@ -43,6 +43,27 @@ const KF = [
   { s: 3.5, p: [[-40, 0], [-30, 0], [-10, 0.3], [-4, 0.65], [0, 0.8], [1, 0.8], [2, 0.78], [3, 0.72], [4, 0.64], [5, 0.55], [6, 0.46], [7, 0.37], [8, 0.28], [10, 0.14], [13, 0.02], [22, 0]] },
   { s: 14, p: [[-40, 0], [-30, 0], [-10, 0], [-4, 0], [0, 0], [1, 0], [2, 0], [3, 0], [4, 0], [5, 0], [6, 0], [7, 0], [8, 0], [10, 0], [13, 0], [22, 0]] },
 ];
+
+// A crumbling (spilling) wave: the crest steepens, then spills foam down the
+// face instead of throwing a lip. Same 16-point layout, but the curve never
+// overhangs, so there's no barrel. Phase 0 is where it starts to crumble.
+const KF_CRUMBLE = [
+  KF_BARREL[0],
+  KF_BARREL[1],
+  KF_BARREL[2],
+  { s: -0.25, p: [[-40, 0], [-30, 0], [-10, 0.5], [-3.5, 2.1], [0, 2.95], [0.9, 2.98], [1.6, 2.85], [2.1, 2.62], [2.45, 2.35], [2.7, 2.05], [2.9, 1.75], [3.1, 1.45], [3.4, 1.1], [4.1, 0.45], [6.0, -0.2], [22, 0]] },
+  { s: 0.4, p: [[-40, 0], [-30, 0], [-10, 0.5], [-3.5, 2.0], [0, 2.75], [1.0, 2.8], [1.8, 2.66], [2.4, 2.42], [2.8, 2.12], [3.1, 1.8], [3.35, 1.48], [3.6, 1.18], [4.0, 0.85], [4.8, 0.4], [6.5, -0.2], [22, 0]] },
+  { s: 1.2, p: [[-40, 0], [-30, 0], [-10, 0.45], [-3.5, 1.5], [0, 2.0], [1.2, 2.02], [2.3, 1.9], [3.2, 1.7], [3.9, 1.48], [4.4, 1.28], [4.8, 1.1], [5.2, 0.92], [5.7, 0.72], [6.6, 0.3], [8.5, -0.15], [22, 0]] },
+  KF_BARREL[8],
+  KF_BARREL[9],
+];
+
+export let WAVE_TYPE = 'crumble';
+let KF = KF_CRUMBLE;
+export function setWaveType(type) {
+  WAVE_TYPE = type === 'barrel' ? 'barrel' : 'crumble';
+  KF = WAVE_TYPE === 'barrel' ? KF_BARREL : KF_CRUMBLE;
+}
 
 // Phase from distance to the peel point.
 export function phaseAt(xs) {
