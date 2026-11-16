@@ -68,7 +68,11 @@ export const TUNE = {
   foamLimit: 1.8, // seconds you can sit in heavy foam before it takes you
   airSpeed: 11.5, // board speed needed to launch off the top without turning (m/s, ~26 mph)
   airBoostZone: 0.6, // within this far of the whitewater (m, ~2 ft) ...
-  airBoostUp: 2.5, // ... airs launch this much higher (m/s upward)
+  airBoostUp: 3.0, // ... airs launch this much higher (m/s upward)
+  airPop: 5.0, // upward speed off the lip for an air (m/s)
+  airCurlZone: 2.5, // within this far of the whitewater, hitting the lip without turning is always an air ...
+  airMinSpeed: 6, // ... as long as you're doing at least this (m/s, ~13 mph)
+  airDrift: -1.5, // in the air the wave carries you along: you never drift back faster than this (m/s)
   tTop: 5.3, // surface coordinate of the top of the rideable face
   tBottom: 13.9, // ... and the bottom of the face
   tFlats: 14.6, // how far out onto the flat water in front you can go (you bog down there)
@@ -418,12 +422,16 @@ function stepSurf(r, input, dt) {
       r.mode = 'air'; r.airSpin = 0; r.airTime = 0; r.spinArmed = false; r.overTheBack = false;
       r.airAxis = f.n; // spins in the air turn the same way as on the face
       r.pos = f.P;
-      const air = ready && WAVE_TYPE === 'crumble' && !inWhitewater && sinp > 0.4 && r.speed > T.airSpeed;
+      // Near the curl you always get an air (if you're moving); out on the
+      // open face you need the speed for it, or you go over the back.
+      const nearCurl = r.xs - T.curlZone[0] < T.airCurlZone;
+      const air = ready && WAVE_TYPE === 'crumble' && !inWhitewater && sinp > 0.4
+        && (r.speed > T.airSpeed || (nearCurl && r.speed > T.airMinSpeed));
       // Right next to the whitewater (within ~2 ft) it throws you higher.
       const nearWhitewater = r.xs - T.airBoostZone < T.curlZone[0] || foamAt(r.xs - T.airBoostZone, r.t + 0.6) > 0.3;
       r.launchSpeed = r.speed;
       if (air) {
-        r.vel = [r.speed * cosp - PEEL_SPEED, 3.5 + (r.speed - T.airSpeed) * 0.3 + (nearWhitewater ? T.airBoostUp : 0), 1.2];
+        r.vel = [r.speed * cosp - PEEL_SPEED, T.airPop + Math.max(0, r.speed - T.airSpeed) * 0.3 + (nearWhitewater ? T.airBoostUp : 0), 1.2];
         r.events.push({ type: 'launch', big: nearWhitewater });
         r.bigAir = nearWhitewater;
         r.moveCooldown = T.moveGap;
@@ -463,6 +471,7 @@ function stepAir(r, input, dt) {
   r.airTime += dt;
   const prev = r.pos;
   r.vel = v3.add(r.vel, [0, -G * dt, 0]);
+  if (!r.overTheBack) r.vel[0] = Math.max(r.vel[0], TUNE.airDrift); // the wave carries you along (no drifting back into the whitewater)
   r.pos = v3.add(r.pos, v3.mul(r.vel, dt));
   r.xs = r.pos[0];
   // Spin with a fresh Left/Right press after takeoff.

@@ -62,7 +62,9 @@ carve toward where you point (harder the further you push), a button to pump.
     right when riding right) = snap / off the lip / re-entry, ending down and forward; turning toward
     it = only a quick 180 (`lip180Rate`) ending straight back down the wave. Not turning, you go
     up and over the back (wipeout), or launch an air if fast enough (`airSpeed`, ~26 mph) and out of
-    the whitewater; within `airBoostZone` (~2 ft) of the whitewater it launches higher (`airBoostUp`,
+    the whitewater. Within `airCurlZone` of the whitewater it's always an air (above `airMinSpeed`),
+    never over the back. Airs pop up at `airPop`, and the wave carries you along in the air
+    (`airDrift`) so you don't drift back into the whitewater; within `airBoostZone` (~2 ft) of the whitewater it launches higher (`airBoostUp`,
     "BIG AIR").
   - Moves are decided by where you hit the top and how steep: in the whitewater (behind `curlZone`)
     → **re-entry**, at the curl → **snap**, on the open face → **off the lip** (shallow hits are a
