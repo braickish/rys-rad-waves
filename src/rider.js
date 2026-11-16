@@ -38,7 +38,7 @@ const RIDER_TUNE = {
   hardRadius: 0.7, // ... and a tighter arc
   snapRate: 13,
   moveCalm: 0.95,
-  moveScrub: { slash: 0.04, snap: 0.08, offLip: 0.07, reentry: 0.08, topTurn: 0.04, lip180: 0.1, floater: 0.05, rebound: 0.1, rebound180: 0.1, revert: 0.05, land: 0.05 }, // speed each move costs // no speeding up for this long after a move (s); 0 = off (?moveaccel)
+  moveScrub: { slash: 0.08, snap: 0.08, offLip: 0.07, reentry: 0.08, topTurn: 0.04, lip180: 0.1, floater: 0.05, rebound: 0.1, rebound180: 0.1, revert: 0.05, land: 0.05 }, // speed each move costs // no speeding up for this long after a move (s); 0 = off (?moveaccel)
   fakieTime: 0.7, // after landing backwards, ride it this long (s) ...
   fakieSpinRate: 18, // ... then the board spins back round this fast (rad/s)
   lip180Rate: 14, // the quick 180 off the top when you turn toward the whitewater (rad/s) // how fast the board pivots back down in a snap (rad/s): quick, not instant
@@ -82,7 +82,9 @@ const RIDER_TUNE = {
   slashSlideMax: 1.4, // ... up to this far ahead of where you're going (rad, ~80 deg) ...
   slashTime: 0.45, // ... for up to this long while you hold the turn (s)
   slashEnd: 1.05, // the board stops swinging once it points this far down the face (rad, ~60 deg)
+  slashFollow: 0.4, // while it slides, your line swings round this fraction as fast as the board, so you don't carry on up as far
   slashGrip: 9, // then the fins grip and your line swings round to the board this fast (rad/s)
+  slashDrag: 1.3, // while the board is sideways it scrubs speed (1/s, at fully sideways), so you don't carry on up as far and stay nearer the pocket
   standH: 1.75,
   crouchH: 1.1,
 };
@@ -332,12 +334,15 @@ function stepSurf(r, input, dt) {
     r.moveCooldown = T.moveGap;
     r.events.push({ type: 'move', move: 'slash', speed: r.speed, xs: r.xs, tube: !!inTube, combo: r.time - (r.lastBottomTurn ?? -9) < T.comboWindow });
   }
+  let gripD = 0;
   if (r.slash) {
     r.slash.time += dt;
     if (steer >= 0 || r.slash.time > T.slashTime || r.assist || r.floater || r.phi - r.slide < -T.slashEnd) r.slash = null;
-    else r.slide = Math.min(T.slashSlideMax, r.slide + T.slashSpin * Math.abs(steer) * dt); // the board swings round ahead of your line
+    else {
+      r.slide = Math.min(T.slashSlideMax, r.slide + T.slashSpin * Math.abs(steer) * dt); // the board swings round ahead of your line ...
+      gripD = -T.slashFollow * T.slashSpin * Math.abs(steer) * dt; // ... and your line partly follows it
+    }
   }
-  let gripD = 0;
   if (r.assist) r.slide = 0; // an assisted pivot takes the board over
   else if (!r.slash && r.slide > 0) {
     // The fins grip: your line swings round to where the board points.
@@ -436,6 +441,8 @@ function stepSurf(r, input, dt) {
   // the move is a turn of the board, not a boost. (Bottom turns excluded.)
   r.calm = Math.max(0, (r.calm || 0) - dt);
   if (r.assist || r.floater || r.calm > 0) r.speed = Math.min(r.speed, speedAtStart);
+  // Sliding sideways in a slash scrubs speed, and nothing builds it meanwhile.
+  if (r.slide > 0) r.speed = Math.min(r.speed, speedAtStart) * (1 - T.slashDrag * Math.sin(Math.min(r.slide, Math.PI / 2)) * dt);
   r.speed = clamp(r.speed, T.minSpeed, T.maxSpeed);
 
   // --- move ---

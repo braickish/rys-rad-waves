@@ -105,8 +105,11 @@ button).
     up the face) while the board swings round ahead of it (`r.slide`, at `slashSpin` up to
     `slashSlideMax`, drawn via the heading in `syncPose`). Let go, or once the board points
     `slashEnd` down, the fins grip and your line swings round to the board (`slashGrip`). Start the
-    Right turn any higher and it's an ordinary turn (a snap / off the lip at the top). It scrubs a
-    little speed and adds none; no `moveCalm` after it. History (2026-11-16): a mid-face Right-turn
+    Right turn any higher and it's an ordinary turn (a snap / off the lip at the top). While it
+    slides your line partly follows the board (`slashFollow`), and sliding sideways scrubs speed
+    (`slashDrag`, plus `moveScrub.slash` up front; nothing builds speed meanwhile), so you don't
+    carry far up the face and you settle back toward the pocket (~30 -> 17 mph on the point). No
+    `moveCalm` after it. History (2026-11-16): a mid-face Right-turn
     slash, then a looser version of it, both slashed too often; the user specified this rule.
   - Moves need at least `moveGap` (1s) between them. Inside the gap the lip is just a plain turn and
     the whitewater just slows you.
