@@ -14,9 +14,11 @@ const moveName = (e) => (e.type === 'launch' ? 'AIR' : e.move) + (e.combo ? '+co
 { const r = start({ xs: 2, t: 13.5, phi: 0, speed: 9 }); let top = null;
   run(r, () => ({ tilt: 1 }), 3, (e, t) => { if (((e.type === 'move' && e.move !== 'bottomTurn') || e.type === 'launch') && top === null) top = t; });
   out.push(`climb bottom->top holding Up: ${top === null ? 'never' : top.toFixed(2) + 's'}`); }
-// 2. Drop from the top.
-{ const r = start({ xs: 2, t: 6, phi: 0, speed: 9 }); const v0 = r.speed; run(r, () => ({ tilt: -1 }), 0.6);
-  out.push(`drop from the top: ${mph(v0)} -> ${mph(r.speed)} mph in 0.6s`); }
+// 2. Dropping: from the top third vs from mid-face, pointing down for 0.4s.
+for (const [label, t0] of [['top third', 6.0], ['mid-face', 10.0]]) {
+  const r = start({ xs: 2, t: t0, phi: -0.9, speed: 11 }); const v0 = r.speed; run(r, () => ({}), 0.4);
+  out.push(`drop from the ${label}: ${mph(v0)} -> ${mph(r.speed)} mph in 0.4s`);
+}
 // 3. Turn rate: a 180-degree turn up top vs at the bottom (same speed).
 for (const [label, t0] of [['up top', 6.2], ['at the bottom', 13.6]]) {
   const r = start({ xs: 2, t: t0, phi: 0, speed: 12 }); let i = 0;

@@ -30,6 +30,7 @@ export const TUNE = {
   feed: 2.0, // how fast the pocket brings you up to speed (1/s)
   bleed: 0.9, // how fast extra speed fades / you bog down (1/s)
   drop: 12, // speed gained per second pointing straight down a steep face (m/s^2)
+  topDropBoost: 2.6, // ... multiplied by this from the top third of the wave
   climb: 2.5, // speed lost per second pointing straight up it (m/s^2): small, so climbing is easy
   pump: 4, // m/s^2 while pumping on the face (full on the drop, less otherwise)
   turn: 5.2, // fastest turn rate (rad/s)
@@ -257,7 +258,12 @@ function stepSurf(r, input, dt) {
   else target += (T.vFoam - target) * foam;
   r.speed += (target - r.speed) * (r.speed < target ? T.feed : T.bleed) * dt;
   const sinp = Math.sin(r.phi);
-  r.speed += (sinp < 0 ? -sinp * T.drop : -sinp * T.climb) * steep * dt;
+  // Pointing down pays, and pays most from the top third of the wave: that's
+  // where the drop has the most height to turn into speed.
+  const topThird = sstep(0.6, 0.8, height) * pk; // only where the wave has power, not out on the shoulder
+  const dropSteep = Math.max(steep, 0.9 * topThird); // the rounded crest still counts as a steep drop
+  if (sinp < 0) r.speed += -sinp * T.drop * (1 + (T.topDropBoost - 1) * topThird) * dropSteep * dt;
+  else r.speed += -sinp * T.climb * steep * dt;
   if (input.pump && steep > 0.2) {
     r.speed += T.pump * (sinp < -0.1 ? 1 : 0.35) * (0.3 + 0.7 * pk) * (0.7 + 0.6 * height) * dt;
     r.pumping = true;

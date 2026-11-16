@@ -37,7 +37,8 @@ carve toward where you point (harder the further you push), a button to pump.
   +π/2 = straight up the face, π = back toward the curl). Knobs are in `TUNE`.
   - Speed: the pocket feeds you toward a fast cruising speed (`vPocket`, faster higher on the face);
     the shoulder, flat water and foam bleed you down (`vLow`, `vFoam`). Dropping pays a lot (`drop`),
-    climbing costs little (`climb`), so getting high is easy and every drop is a burst. Pumping
+    climbing costs little (`climb`), so getting high is easy and every drop is a burst; dropping from
+    the top third of the pocket pays most (`topDropBoost`, scaled by pocket power so the shoulder still bogs). Pumping
     (`pump`) helps on the face, most on the drop.
   - Turns: the turn radius depends on height on the face (`rTop` snappy up top, `rBottom` a long
     rail-to-rail arc at the bottom), so turn rate = speed / radius. A bottom turn (nose coming up,
