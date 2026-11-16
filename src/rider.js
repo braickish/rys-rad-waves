@@ -29,7 +29,6 @@ export const G = 9.8;
 // merged in by useWave().
 const RIDER_TUNE = {
   feed: 2.0, // how fast the pocket brings you up to speed (1/s)
-  levelHoldTime: 1.5, // after coming out of the barrel, keep the board's downward angle this long (keepLevelAngle waves)
   shoulderReach: 0, // the pocket's speed (and the water flowing up the face) carries this much further out toward the shoulder before it fades (m); per wave
   bleed: 0.9, // how fast extra speed fades / you bog down (1/s)
   climb: 6, // speed lost per second pointing straight up it (m/s^2)
@@ -94,7 +93,7 @@ const RIDER_TUNE = {
   slashDrag: 3.2, // while the board is sideways it scrubs speed (1/s, at fully sideways), so you don't carry on up as far and stay nearer the pocket
   // In the barrel a slash is a smaller, scrubbier slide: it turns about half as
   // far and scrubs harder (these override the settings above in the tube).
-  slashTube: { slashSpin: 4, slashSlideMax: 0.35, slashFollow: 0.15, slashCarve: 0.3, slashDrag: 5.0 },
+  slashTube: { slashSpin: 4, slashSlideMax: 0.35, slashFollow: 0.4, slashCarve: 0.3, slashDrag: 7.0, scrub: 0.35, lift: 0.35 }, // (scrub: up-front speed cost in the barrel; lift: the water lifts you only this much while the board is sideways, it digs in)
   // Snap / off the lip / re-entry (turning away from the whitewater at the
   // lip): you stay on the lip, your line running along it, while the fins
   // release and the board swings round in place, scrubbing speed; then the
@@ -178,21 +177,23 @@ export function frameAt(xs, t) {
   const Pt = v3.mul(v3.sub(surface(xs, t + h), surface(xs, t - h)), 1 / (2 * h));
   const Px = v3.mul(v3.sub(surface(xs + hx, t), surface(xs - hx, t)), 1 / (2 * hx));
   const n = v3.norm(v3.cross(Pt, Px));
-  const e1 = v3.norm(v3.rej([1, 0, 0], n));
-  const e2 = v3.norm(v3.cross(n, e1));
+  // e1: level along the wave (the horizontal direction on the face), so a
+  // board angle means the same thing everywhere. (It used to be the beach
+  // direction laid onto the surface, which tilts up and down wherever the
+  // wave changes shape along the beach, e.g. coming out of the barrel.) On
+  // flat water there's no level direction on the face, so it blends back to
+  // the beach direction.
+  const eBeach = v3.norm(v3.rej([1, 0, 0], n));
+  let e1 = eBeach;
+  const hl = Math.hypot(n[2], n[0]);
+  if (hl > 1e-4) {
+    let h = [n[2] / hl, 0, -n[0] / hl];
+    if (h[0] < 0) h = v3.mul(h, -1);
+    const w = sstep(0.05, 0.25, hl);
+    e1 = v3.norm(v3.add(v3.mul(eBeach, 1 - w), v3.mul(h, w)));
+  }
+  const e2 = v3.norm(v3.cross(n, e1)); // straight up the face
   return { P, Pt, Px, n, e1, e2 };
-}
-
-// How far the frame's "along the wave" direction (e1) tilts above level,
-// measured on the face (rad, + = tilted up toward the shoulder). It changes
-// wherever the wave changes shape along the beach (e.g. around the barrel).
-function frameTilt(f) {
-  const hl = Math.hypot(f.n[2], f.n[0]);
-  if (hl < 0.2) return null; // flat water: no level direction to speak of
-  let h = [f.n[2] / hl, 0, -f.n[0] / hl];
-  if (h[0] < 0) h = v3.mul(h, -1);
-  const up = v3.cross(f.n, h); // straight up the face
-  return Math.atan2(v3.dot(f.e1, up), v3.dot(f.e1, h));
 }
 
 // How high you are as a fraction of the full open wave (trough to crest at
@@ -263,7 +264,7 @@ export function stepRider(r, input, dt) {
   r.pumping = false;
   if (r.mode === 'wipe') { r.wipeTimer -= dt; return; }
   if (r.mode === 'surf') stepSurf(r, input, dt);
-  else { r.prevXs = null; stepAir(r, input, dt); }
+  else stepAir(r, input, dt);
   for (const e of r.events) {
     if ((e.type === 'move' && e.move !== 'bottomTurn') || e.type === 'land') {
       // (no calm after a slash: it's a sharper turn, not a pivot off the lip,
@@ -271,7 +272,7 @@ export function stepRider(r, input, dt) {
       if (e.move !== 'slash' && e.move !== 'roundhouse') r.calm = TUNE.moveCalm; // (a roundhouse flows into the rebound)
       // A move costs a little speed (the board scrubs as it pivots), and any
       // drive still banked from the bottom turn is spent.
-      r.speed *= 1 - (TUNE.moveScrub[e.move || 'land'] || 0);
+      r.speed *= 1 - (e.move === 'slash' && e.tube ? TUNE.slashTube.scrub : (TUNE.moveScrub[e.move || 'land'] || 0));
       r.postMove = true;
       r.driveBank = 0;
     }
@@ -321,22 +322,6 @@ function stepSurf(r, input, dt) {
     }
   }
   let f = frameAt(r.xs, r.t);
-  // Coming out of the barrel (keepLevelAngle, for `levelHoldTime` after the
-  // exit): "along the wave" tilts up there, so the same board angle would
-  // flatten out. As you ride out along the wave the board turns down by the
-  // same amount instead, keeping the downward angle you were holding. Only
-  // the tilt change from moving out along the wave counts, only turning you down, and
-  // only on the face (fading out below ~17 degrees). (Doing
-  // this everywhere was tried: right by the curl the tilt swings wildly and
-  // it turned you up into the lip.)
-  if (T.keepLevelAngle && r.time < (r.levelHoldUntil ?? -9)) {
-    if (r.prevXs != null && r.xs > r.prevXs && !r.assist && !r.lipSnap && !r.floater) {
-      const now = frameTilt(f), before = frameTilt(frameAt(r.prevXs, r.prevT));
-      const steepFace = sstep(0.3, 0.6, Math.hypot(f.n[2], f.n[0]));
-      if (now !== null && before !== null && now > before) r.phi = wrap(r.phi - (now - before) * steepFace);
-    }
-    r.prevXs = r.xs; r.prevT = r.t;
-  } else r.prevXs = null;
 
   const pk = pocketPower(r.xs);
   const foam = foamAt(r.xs, r.t);
@@ -596,10 +581,19 @@ function stepSurf(r, input, dt) {
 
   // --- move ---
   const cosp = Math.cos(r.phi);
-  r.xs += (r.speed * cosp - PEEL_SPEED) * dt;
+  const dxs = (r.speed * cosp - PEEL_SPEED) * dt;
+  r.xs += dxs;
+  // Moving along the wave keeps your real height (only pointing up or down
+  // the face changes it). The wave's cross-section reshapes along the beach
+  // (most of all around the barrel), so staying at the same place in the
+  // shape would carry you up and down over a lump that isn't in the water.
+  if (Math.abs(f.Pt[1]) > 0.25 * Math.hypot(f.Pt[1], f.Pt[2])) {
+    r.t += clamp(-(f.Px[1] * dxs) / f.Pt[1], -0.5, 0.5);
+  }
   // On a heavy wave the water rushes up the face and carries you with it:
   // trimming level drifts you up, so you hold your line pointing a little down.
-  const faceLift = (T.faceFlow || 0) * steep * pkSpeed; // (carries as far out as the pocket's speed)
+  let faceLift = (T.faceFlow || 0) * steep * pkSpeed; // (carries as far out as the pocket's speed)
+  if (r.tube && (r.slide > 0 || (r.slash && r.slash.released))) faceLift *= T.slashTube.lift; // a barrel slash digs in against the water rushing up
   r.t -= ((r.speed * sinp + faceLift) * dt) / Math.max(0.3, Math.hypot(f.Pt[1], f.Pt[2]));
   r.t = Math.min(r.t, T.tFlats); // ride out onto the flats in front if you don't turn back up
   if (r.lipSnap) r.t += (r.lipSnap.t - r.t) * (1 - Math.exp(-dt * 12)); // the snap holds you just under the lip
@@ -883,7 +877,6 @@ function checkHazards(r, dt) {
   if (r.t > T.tBottom + T.tubeLow) { r.tube = null; r.inBarrel = false; return wipe(r, 'The lip landed on you! (too low)'); }
   if (ph < T.tubeExit) {
     r.events.push({ type: 'barrelExit', time: tb.time, depth: tb.depth, avgDepth: tb.depthSum / Math.max(tb.time, 1e-3) });
-    r.levelHoldUntil = r.time + T.levelHoldTime; // keep the downward angle as you ride out
     r.tube = null; r.inBarrel = false; r.barrelTime = 0;
   }
 }

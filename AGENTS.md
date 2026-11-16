@@ -45,8 +45,15 @@ button).
   it can wrap around into a tube. Surface coords are `(xs, t)`, with `t` in `[0, 15]` along the curve.
 - `src/rider.js`: **arcade surf control, designed for feel, not physics** (the physics-driven
   versions were tried and weren't fun). State on the face: `xs` (distance ahead of the curl), `t`
-  (surface coordinate; smaller = higher), board speed `speed`, direction `phi` (0 = down the line,
-  +π/2 = straight up the face, π = back toward the curl). Knobs are in `TUNE`.
+  (surface coordinate; smaller = higher), board speed `speed`, direction `phi` (0 = level along
+  the wave, +π/2 = straight up the face, π = back toward the curl). Knobs are in `TUNE`.
+  The face frame (`frameAt`): `e1` is the level direction on the face (it used to be the beach
+  direction laid onto the surface, which tilted up/down wherever the wave reshapes along the beach,
+  ±10-27 deg around the barrel exit, so a held board angle flattened out coming out of the tube),
+  `e2` straight up the face. Moving along the wave keeps your real height (`t` corrected by
+  `-Px.y·dxs/Pt.y`): staying at the same place in the cross-section carried you up and down over a
+  lump that wasn't in the water. (A post-exit angle correction and a full re-solve of motion in
+  the level frame were tried first: the first was a patch, the second changed how the barrel rode.)
   - Speed: the pocket feeds you toward a fast cruising speed (`vPocket`, faster higher on the face);
     the shoulder, flat water and foam bleed you down (`vLow`, `vFoam`). Dropping pays a lot (`drop`);
     climbing costs real speed (`climb`) and the pocket stops feeding you while you point up the face; dropping from
@@ -140,7 +147,9 @@ button).
     `moveScrub.slash` up front, nothing builds speed meanwhile): ~30 -> 17 mph on a short slash on
     the point. Let go, or once the board points `slashEnd` down, the fins grip and your line swings
     round to the board (`slashGrip`). In the barrel (`slashTube` overrides) it's a smaller,
-    scrubbier slide. An armed slash takes priority over pulling in. Start the Right turn higher and
+    scrubbier slide: a bigger up-front scrub (`scrub`), harder drag, your line follows the board
+    more, and while the board is sideways the water rushing up the face lifts you only `lift` as
+    much, so it doesn't carry you up toward the roof. An armed slash takes priority over pulling in. Start the Right turn higher and
     it's an ordinary turn (a snap / off the lip at the top). No `moveCalm` after it.
     `node test/slash.mjs` reports and checks all of this, including player-style timing. History
     (2026-11-16): a mid-face Right-turn slash, then a looser one, both slashed too often; the user
@@ -169,14 +178,7 @@ button).
     line adds acceleration (`tubeDrive`) (brushing it deflects you down); way below the bottom
     (`tubeLow`) = the lip lands on you; back past `tubeExit` = out. Caught way up in the lip as it throws
     (`tubeTooHigh`), or riding in the top 3/8 of the barrel (`tubeFallHeight`) = over the falls. The barrel
-    picks you up once you're on the face or just below its base (`tubeEnterLow`).
-    Coming out of the barrel (`keepLevelAngle`, reef only, for `levelHoldTime` after the exit) the
-    board keeps the downward angle you were holding: the frame's "along the wave" (`e1`, the beach
-    direction laid onto the surface) tilts up ~8-11 deg outside the barrel, so the same `phi` used
-    to flatten out (even nose-up). As you ride out, the board turns down by the tilt change
-    (`frameTilt`), only ever down, fading out on flat water. Doing this everywhere, or changing
-    the frame itself to a level one, was tried: right by the curl the tilt swings wildly and it
-    turned riders up into the lip, and a level frame changed how the barrel rides. Scored by time x average depth. HUD: depth across, height up/down.
+    picks you up once you're on the face or just below its base (`tubeEnterLow`). Scored by time x average depth. HUD: depth across, height up/down.
     Camera (main.js `tubeCamera`): placed from the barrel's actual cross-section, at the most open
     spot inside the tube behind the surfer (at least `TUBE_CAM_MIN_ROOM` from any water, as level
     with the surfer as it can be), looking out through the opening. If there's no room there (near

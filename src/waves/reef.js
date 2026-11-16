@@ -41,7 +41,6 @@ export default {
     curlZone: [-16, 2.5], // behind the curl is the tube, not whitewater
     airs: false,
     shoulderReach: 0, // (the reef keeps its own feel)
-    keepLevelAngle: true, // coming out of the barrel the board keeps the downward angle you were holding (rider.js frameTilt)
     faceFlow: 5.7, // water rushing up the face (m/s): point a little down to hold your line
     floaters: false, rebounds: false, // too heavy: hit the whitewater or the lip next to it and you go over the falls
     // Tube riding (see stepTube in rider.js).

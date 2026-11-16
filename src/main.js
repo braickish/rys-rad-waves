@@ -37,7 +37,7 @@ function autopilot() {
   if (rider.tube) { // S-turns, staying off the roof
     if (autoUp && rider.height > 0.3) autoUp = false;
     if (!autoUp && rider.height < 0.08) autoUp = true;
-    const a = autoUp ? 0.2 : -0.8; // the water pulls you up: climb gently, point well down
+    const a = autoUp ? 0.05 : -0.6; // (angles from level) the water pulls you up: climb gently, point well down to drop
     return { aim: [Math.cos(a), Math.sin(a)] };
   }
 
