@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ry's Rad Waves</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bungee&family=Bungee+Shade&family=Rubik:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --pink: #ff3d8b; --yellow: #ffd426; --teal: #00c2c7; --ink: #0b1a24;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #b3d6eb; font-family: Rubik, system-ui, sans-serif; color: #fff; }
+  canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+  .hud { position: fixed; top: 0; left: 0; right: 0; display: flex; justify-content: space-between; align-items: flex-start; padding: 14px 18px; pointer-events: none; text-shadow: 0 2px 0 rgba(0,0,0,.35); }
+  .stat { font-family: Bungee, sans-serif; font-size: 28px; line-height: 1; }
+  .stat small { display: block; font-family: Rubik, sans-serif; font-size: 11px; letter-spacing: .14em; text-transform: uppercase; opacity: .85; margin-bottom: 4px; }
+  .right { text-align: right; }
+  .tubebar { margin-top: 10px; width: 160px; height: 10px; border-radius: 5px; background: rgba(0,0,0,.25); overflow: hidden; opacity: .35; transition: opacity .2s; }
+  .tubebar.on { opacity: 1; }
+  .tubebar div { height: 100%; width: 0; background: linear-gradient(90deg, var(--teal), var(--yellow), var(--pink)); }
+  #msg { position: fixed; left: 50%; top: 26%; transform: translate(-50%, -50%) scale(.6); font-family: Bungee, sans-serif; font-size: clamp(30px, 7vw, 64px); color: var(--yellow); text-shadow: 3px 3px 0 var(--pink), 6px 6px 0 rgba(0,0,0,.25); opacity: 0; transition: opacity .35s, transform .35s cubic-bezier(.2,1.6,.4,1); pointer-events: none; text-align: center; white-space: nowrap; }
+  #msg small { display: block; font-family: Rubik, sans-serif; font-size: 18px; color: #fff; text-shadow: 0 2px 0 rgba(0,0,0,.4); margin-top: 6px; }
+  #msg.pop { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  #hint { position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%); font-size: 13px; background: rgba(11,26,36,.45); padding: 7px 14px; border-radius: 20px; pointer-events: none; white-space: nowrap; }
+  #hint.warn { background: var(--pink); }
+  #hint.warn::after { content: "  ·  CROUCH (Shift) in the barrel!"; font-weight: 700; }
+  .panel { position: fixed; inset: 0; display: grid; place-items: center; background: linear-gradient(180deg, rgba(11,26,36,.15), rgba(11,26,36,.55)); text-align: center; padding: 16px; }
+  .panel[hidden] { display: none; }
+  .logo { font-family: 'Bungee Shade', Bungee, sans-serif; font-size: clamp(40px, 11vw, 112px); line-height: .92; color: var(--yellow); text-shadow: 4px 4px 0 var(--pink), 8px 8px 0 var(--teal); transform: rotate(-4deg); margin: 0 0 24px; }
+  .logo span { display: block; color: #fff; }
+  .card { max-width: 460px; margin: 0 auto; }
+  .go { display: inline-block; font-family: Bungee, sans-serif; font-size: 20px; background: var(--pink); color: #fff; padding: 12px 22px; border-radius: 10px; box-shadow: 4px 4px 0 var(--ink); animation: bob 1.2s ease-in-out infinite; }
+  @keyframes bob { 50% { transform: translateY(-4px); } }
+  .keys { margin: 22px auto 0; display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; text-align: left; font-size: 14px; background: rgba(11,26,36,.5); padding: 14px 18px; border-radius: 12px; max-width: 400px; }
+  .keys b { font-family: Bungee, sans-serif; font-weight: 400; color: var(--yellow); white-space: nowrap; }
+  .tip { margin-top: 14px; font-size: 13px; opacity: .9; }
+  .big { font-family: Bungee, sans-serif; font-size: 56px; color: var(--yellow); text-shadow: 3px 3px 0 var(--pink); }
+  #nogpu .card { background: rgba(11,26,36,.8); padding: 24px; border-radius: 14px; }
+  .touchbtns { display: none; position: fixed; right: 16px; bottom: 56px; gap: 12px; flex-direction: column; }
+  body.touch .touchbtns { display: flex; }
+  body.touch .desk { display: none; }
+  .touchbtns button { width: 84px; height: 84px; border-radius: 50%; border: 0; font-family: Bungee, sans-serif; font-size: 14px; color: #fff; background: rgba(255,61,139,.75); box-shadow: 3px 3px 0 rgba(0,0,0,.3); touch-action: none; }
+  .touchbtns button#btn-crouch { background: rgba(0,194,199,.75); }
+  .mob { display: none; }
+  body.touch .mob { display: inline; }
+</style>
+</head>
+<body>
+<canvas id="gfx"></canvas>
+
+<div class="hud">
+  <div>
+    <div class="stat"><small>Score</small><span id="score">0</span></div>
+    <div class="tubebar"><div id="tube"></div></div>
+  </div>
+  <div class="right">
+    <div class="stat"><small>Speed mph</small><span id="speed">0</span></div>
+    <div class="stat" style="font-size:18px;margin-top:8px"><small>Best</small><span id="best">0</span></div>
+  </div>
+</div>
+<div id="msg"></div>
+<div id="hint"><span class="desk">Arrows steer · Space pump on the drop · Shift crouch · C camera</span><span class="mob">Drag left side to steer</span></div>
+
+<div class="touchbtns"><button id="btn-pump">Pump</button><button id="btn-crouch">Crouch</button></div>
+
+<div class="panel" id="title">
+  <div class="card">
+    <h1 class="logo">Ry's Rad<span>Waves</span></h1>
+    <div class="go"><span class="desk">Press Space to drop in</span><span class="mob">Tap to drop in</span></div>
+    <div class="keys desk">
+      <b>← → ↑ ↓</b><span>Point the board: along the wave, up or down the face</span>
+      <b>Space</b><span>Pump: works on the way <em>down</em></span>
+      <b>Shift</b><span>Crouch: you'll need it in the barrel</span>
+      <b>C</b><span>Switch camera</span>
+    </div>
+    <p class="tip">Speed comes from going up and down. Drop, bottom turn, climb, repeat.<br>Trimming in a straight line, you'll fall behind and get eaten.</p>
+  </div>
+</div>
+
+<div class="panel" id="over" hidden>
+  <div class="card">
+    <div id="over-reason" style="font-size:18px;margin-bottom:6px"></div>
+    <div class="big" id="over-score">0</div>
+    <div style="margin:6px 0 18px">points in <span id="over-time">0</span>s</div>
+    <div class="go"><span class="desk">Space to paddle back out</span><span class="mob">Tap to paddle back out</span></div>
+  </div>
+</div>
+
+<div class="panel" id="nogpu" hidden>
+  <div class="card">
+    <h1 class="logo" style="font-size:44px">Ry's Rad<span>Waves</span></h1>
+    <p>This game needs <b>WebGPU</b>, which this browser doesn't have turned on.</p>
+    <p>Try a recent Chrome, Edge, or Safari (macOS 26 / iOS 26 or newer).</p>
+  </div>
+</div>
+
+<script type="module" src="src/main.js"></script>
+</body>
+</html>
