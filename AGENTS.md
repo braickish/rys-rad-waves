@@ -22,7 +22,7 @@ left, Right (or Down) to their right; Up is exactly Left and Down exactly Right 
 (about the face normal at takeoff). Holding a turn progressively leans you into it harder (`hardAfter`: tighter arc,
 more drive, more rail roll). C switches camera (`?cam=2` is a
 close-up for testing). Shift crouches, only needed on the barrel wave. Touch: swipes do exactly what the keys
-do (swipe left/up = Left, right/down = Right, harder the further you swipe; anywhere but the pump
+do (swipe left/up = Left, right/down = Right, harder the further you swipe; anywhere on the
 button).
 
 ## How it works
@@ -56,7 +56,7 @@ button).
   - Turns: the turn radius depends on height on the face (`rTop` snappy up top, `rBottom` a long
     rail-to-rail arc at the bottom), so turn rate = speed / radius. A bottom turn (nose coming up,
     low on the face) generates a lot of speed (`bottomDrive`); carving up near the top adds some too
-    (`topDrive`), and cruising speed and pumping both climb with height, so the high line is fast. A turn started while pointing down the face
+    (`topDrive`), and cruising speed climbs with height, so the high line is fast. A turn started while pointing down the face
     (`bottomCarve`) commits at once: full lean, a slightly wider arc (`bottomCarveRadius`), more drive
     (`bottomCarveDrive`). There's no automatic bottom turn: head down
     without turning and you ride out onto the flats (`tFlats`) and bog down.
@@ -118,7 +118,7 @@ button).
   lip with the front shoulder and arm dropped across the body (`windup`, only while the nose is coming
   up: `carvingUp`); turns off the lip spring it open, both arms swinging across the body at chest height (`unload`). In hard turns the board banks onto
   its inside rail (`MAX_ROLL`), more with speed and when leaning hard. Two-bone IK legs and arms.
-  Knees bend with turns, crouch, and pumping (compress on the way up, extend driving down); the body
+  Knees bend with turns and crouch; the body
   leans into turns and the inside hand drags toward the water in a big one.
 - Heavy waves (`floaters: false, rebounds: false` in the wave's tune, e.g. the reef): hitting the
   whitewater or the lip next to it is a crash ("Over the falls"), not a floater or rebound.
