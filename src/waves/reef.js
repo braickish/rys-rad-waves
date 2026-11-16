@@ -18,7 +18,7 @@ export default {
     const front = sstep(3.5, 5.5, t); // the front half of the wave, not the back
     return Math.max(
       sstep(1.4, 2.0, s) * front * (1 - sstep(10, 40, -xs) * 0.5), // whitewater behind the barrel
-      Math.exp(-(((t - 8.2) / 0.8) ** 2)) * sstep(0.6, 1.2, s) * (1 - sstep(1.7, 2.5, s)) * 0.45, // the lip
+      Math.exp(-(((t - 8.1) / 0.7) ** 2)) * sstep(0.45, 0.75, s) * (1 - sstep(1.7, 2.5, s)) * 0.95, // the lip crashing onto the water
       sstep(13.6, 14.3, t) * sstep(0.9, 1.3, s) * (1 - sstep(3, 6, s)) * 0.55, // where it lands
     );
   },

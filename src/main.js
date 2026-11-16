@@ -184,7 +184,7 @@ function clearView(a, b) {
 }
 // Inside-the-tube camera: low and deep in the tube behind the surfer, looking
 // out through the barrel toward the opening.
-const TUBE_CAM = { back: [-7.5, 0.9, 1.6], look: [6, 1.0, 0.6] };
+const TUBE_CAM = { back: [-7.5, 1.1, 0.7], look: [6, 1.1, 0.2] };
 let lastShot = '';
 function updateCamera(dt) {
   let shot = 'surf';

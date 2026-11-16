@@ -1,10 +1,10 @@
 // Renders wave cross-sections to an SVG for eyeballing the shapes.
 import { slice, phaseAt } from '../src/wave.js';
 import { writeFileSync } from 'node:fs';
-const xsList = [30, 10, 2, -2, -5, -10, -15];
+const xsList = (process.argv[4] || "30,10,2,-2,-5,-10,-15").split(",").map(Number);
 import { setWave } from '../src/wave.js';
 setWave(process.argv[3] || 'point');
-const W = 1200, rowH = 300, sc = 40;
+const W = 1200, rowH = 300, sc = Number(process.env.SC || 40);
 let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${rowH * xsList.length}" style="background:#fff">`;
 xsList.forEach((xs, r) => {
   const sl = slice(xs, 12);
