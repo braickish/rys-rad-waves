@@ -154,16 +154,20 @@ function handleEvents() {
         lip180: ['180 off the top', 250, 0.3],
         rebound: ['REBOUND!', 500, 0.4],
         rebound180: ['REBOUND 180!', 750, 0.45],
+        slash: ['SLASH!', 400, 0.6],
       };
-      const [name, base, spray] = MOVES[e.move] || ['Nice', 100, 0];
+      // Bottom and top turns aren't called out as moves: they just add points.
+      const quiet = e.move === 'bottomTurn' || e.move === 'topTurn';
+      let [name, base, spray] = MOVES[e.move] || ['Nice', 100, 0];
+      if (e.move === 'slash' && e.tube) { name = 'BARREL SLASH!'; base = 650; }
       // Repeating the same move back to back pays less; linking a bottom
       // turn into a move pays more.
-      const repeat = e.move === lastMove && rider.time - lastMoveTime < 1.2;
-      lastMove = e.move; lastMoveTime = rider.time;
+      const repeat = !quiet && e.move === lastMove && rider.time - lastMoveTime < 1.2;
+      if (!quiet) { lastMove = e.move; lastMoveTime = rider.time; }
       const pts = Math.round(base * (e.combo ? 1.5 : 1) * (repeat ? 0.4 : 1));
       score += pts;
       snapSpray = Math.max(snapSpray, spray);
-      if (e.move !== 'bottomTurn' || msgTimer <= 0) flash(e.combo ? `${name}` : name, `${e.combo ? 'bottom turn combo  ' : ''}+${pts}`);
+      if (!quiet) flash(e.combo ? `${name}` : name, `${e.combo ? 'bottom turn combo  ' : ''}+${pts}`);
     }
     if (e.type === 'wipe') {
       burst = 0.3;
@@ -182,9 +186,60 @@ function clearView(a, b) {
   }
   return true;
 }
-// Inside-the-tube camera: low and deep in the tube behind the surfer, looking
-// out through the barrel toward the opening.
-const TUBE_CAM = { back: [-7.5, 1.1, 0.7], look: [6, 1.1, 0.2] };
+// Inside-the-tube camera: deep in the tube behind the surfer, looking out
+// through the barrel toward the opening. It's placed from the barrel's actual
+// cross-section, at the most open spot inside the tube (as far from the water
+// as it can get), so it's never outside the lip or in the water. If the tube
+// is too small there (near the pinch) or water would hide the surfer, it
+// moves in closer.
+const TUBE_CAM_BACKS = [7, 5.5, 4.2, 3, 2];
+const TUBE_CAM_MIN_ROOM = 0.7; // at least this far from any water (m)
+function airWithRoof(sl, z, y) {
+  const above = verticalHits(sl, z).filter((h) => h.y > y);
+  if (above.length % 2 === 1 || !above.length) return false; // in the water, or open sky
+  return above.reduce((a, b) => (b.y < a.y ? b : a)).ny < 0; // the nearest water above is the roof
+}
+function distToSlice(sl, z, y) {
+  let best = Infinity;
+  for (let i = 0; i < sl.count - 1; i++) {
+    const az = sl.z[i], ay = sl.y[i], dz = sl.z[i + 1] - az, dy = sl.y[i + 1] - ay;
+    const u = Math.max(0, Math.min(1, ((z - az) * dz + (y - ay) * dy) / (dz * dz + dy * dy || 1)));
+    best = Math.min(best, Math.hypot(z - az - dz * u, y - ay - dy * u));
+  }
+  return best;
+}
+// The most open point inside the tube at xs (a little favoring the rider's
+// height), or null if there's no room in the tube there.
+function tubeCenter(xs, nearY) {
+  const sl = slice(xs, 6);
+  let zMin = Infinity, zMax = -Infinity, yMin = Infinity, yMax = -Infinity;
+  for (let i = 0; i < sl.count; i++) {
+    if (sl.y[i] < -4) continue;
+    zMin = Math.min(zMin, sl.z[i]); zMax = Math.max(zMax, sl.z[i]);
+    yMin = Math.min(yMin, sl.y[i]); yMax = Math.max(yMax, sl.y[i]);
+  }
+  let best = null;
+  const N = 28;
+  for (let a = 0; a <= N; a++) for (let b = 0; b <= N; b++) {
+    const z = zMin + ((zMax - zMin) * a) / N, y = yMin + ((yMax - yMin) * b) / N;
+    if (!airWithRoof(sl, z, y)) continue;
+    const room = distToSlice(sl, z, y);
+    if (room < TUBE_CAM_MIN_ROOM) continue;
+    const score = Math.min(room, 2.2) - 0.35 * Math.abs(y - nearY); // roomy enough, then as level with the surfer as it can be
+    if (!best || score > best.score) best = { z, y, room, score };
+  }
+  return best;
+}
+function tubeCamera(p) {
+  for (const back of TUBE_CAM_BACKS) {
+    const c = tubeCenter(p[0] - back, p[1] + 0.8);
+    if (!c) continue;
+    const cam = [p[0] - back, c.y, c.z];
+    if (clearView(cam, [p[0], p[1] + 0.9, p[2]])) return cam;
+  }
+  return null;
+}
+function insideTubeAir(q) { return airWithRoof(slice(q[0], 6), q[2], q[1]); }
 let lastShot = '';
 function updateCamera(dt) {
   let shot = 'surf';
@@ -198,10 +253,19 @@ function updateCamera(dt) {
     // out past you toward the opening.
     // (three-quarter from behind, from the open side, so you see the surfer
     // the way you do from outside, not edge-on)
-    const tc = TUBE_CAM;
-    want = [p[0] + tc.back[0], p[1] + tc.back[1], p[2] + tc.back[2]];
-    look = [p[0] + tc.look[0], p[1] + tc.look[1], p[2] + tc.look[2]];
-    shot = 'tubeInside';
+    const cam = tubeCamera(p);
+    if (cam) {
+      want = cam;
+      // Look past the surfer, out along the tube toward the opening.
+      // (aimed so the surfer sits a little above the middle of the frame)
+      look = [p[0] + 5, p[1] + 0.4, p[2] + (p[2] - cam[2]) * 0.4];
+      shot = 'tubeInside';
+    } else {
+      // No room anywhere in the tube behind you: just behind, beside you.
+      want = [p[0] - 1.5, p[1] + 1.0, p[2] + 0.6];
+      look = [p[0] + 6, p[1] + 0.9, p[2]];
+      shot = 'tubeClose';
+    }
   } else if (camMode === 0) {
     // From the channel in front of the wave: barrel on the left, shoulder right.
     // Ahead in the channel, looking back up the line into the tube.
@@ -221,7 +285,7 @@ function updateCamera(dt) {
   // Never put the camera inside the water: an odd number of surface
   // crossings above a point means it's underwater (or inside the lip).
   const insideWater = (q) => verticalHits(slice(q[0], 6), q[2]).filter((hit) => hit.y > q[1]).length % 2 === 1;
-  for (let i = 0; i < 25 && insideWater(want); i++) want[2] += 0.35;
+  if (shot !== 'tubeInside') for (let i = 0; i < 25 && insideWater(want); i++) want[2] += 0.35;
   // Changing shot in or out of the tube is a cut, not a slow pan (a pan
   // would drift through the water).
   if (shot !== lastShot && (shot.startsWith('tube') || lastShot.startsWith('tube'))) {
@@ -230,6 +294,8 @@ function updateCamera(dt) {
   lastShot = shot;
   const k = 1 - Math.exp(-dt * (rider.mode === 'wipe' ? 1.5 : rider.tube ? 14 : 5)); // tight in the tube
   for (let i = 0; i < 3; i++) { camPos[i] += (want[i] - camPos[i]) * k; camTarget[i] += (look[i] - camTarget[i]) * k; }
+  // In the tube, smoothing must never carry the camera out of the barrel's air.
+  if (shot === 'tubeInside' && !insideTubeAir(camPos)) camPos = want.slice();
 }
 
 // ---------- main ----------
@@ -305,10 +371,7 @@ async function main() {
         }
         acc -= STEP;
       }
-      if (rider.mode === 'surf') {
-        rideTime += dt;
-        score += groundSpeed(rider) * dt * 3;
-      }
+      if (rider.mode === 'surf') rideTime += dt; // (only moves score, not just riding)
       if (rider.mode === 'wipe' && rider.wipeTimer <= 0) {
         state = 'over';
         const s = Math.round(score);
@@ -358,7 +421,7 @@ async function main() {
     }, dt), { particles: !params.has('noparticles'), outlines: !params.has('nooutline') });
 
     frameMs = frameMs * 0.95 + (dt * 1000) * 0.05; // smoothed frame time
-    window.__dbg = { cam: camPos.map((x) => +x.toFixed(2)), pos: rider.pos.map((x) => +x.toFixed(2)), rt: +rider.t.toFixed(2), tube: !!rider.tube, wave: WAVE.id, wind: +(pose.windup || 0).toFixed(2), unl: +(pose.unload || 0).toFixed(2), ms: +frameMs.toFixed(1), phi: +(rider.phi * 57.3).toFixed(0), turn: touch.turn, tilt: touch.tilt, depth: rider.tube ? +tubeDepth(rider).toFixed(2) : null, state, mode: rider.mode, xs: +rider.xs.toFixed(1), y: +rider.pos[1].toFixed(1), score: Math.round(score), reason: rider.wipeReason };
+    window.__dbg = { cam: camPos.map((x) => +x.toFixed(2)), pos: rider.pos.map((x) => +x.toFixed(2)), rt: +rider.t.toFixed(2), tube: !!rider.tube, wave: WAVE.id, wind: +(pose.windup || 0).toFixed(2), unl: +(pose.unload || 0).toFixed(2), ms: +frameMs.toFixed(1), phi: +(rider.phi * 57.3).toFixed(0), turn: touch.turn, tilt: touch.tilt, depth: rider.tube ? +tubeDepth(rider).toFixed(2) : null, state, mode: rider.mode, xs: +rider.xs.toFixed(1), y: +rider.pos[1].toFixed(1), score: Math.round(score), reason: rider.wipeReason, slash: !!rider.slash, slide: +(rider.slide * 57.3).toFixed(0) };
     // HUD.
     msgTimer -= dt;
     if (msgTimer <= 0) $('msg').classList.remove('pop');

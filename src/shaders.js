@@ -356,6 +356,12 @@ struct VO { @builtin(position) pos: vec4f, @location(0) uv: vec2f, @location(1) 
   o.a = alpha * smoothstep(0.0, 0.1, age) * (1.0 - smoothstep(0.55, 1.0, age));
   o.a *= smoothstep(0.8, 5.0, length(w - F.camPos.xyz)); // don't fog the lens
   if (kind == 3.0) { o.a *= smoothstep(1.0, 4.0, length(p.pos.xyz - F.rider.xyz)); } // spit never hides the surfer
+  if (kind == 1.0 || kind == 3.0) {
+    // Mist never covers the surfer: fade it near the line from the camera to them.
+    let ab = F.rider.xyz + vec3f(0.0, 0.9, 0.0) - F.camPos.xyz;
+    let u = clamp(dot(p.pos.xyz - F.camPos.xyz, ab) / max(dot(ab, ab), 1e-3), 0.0, 1.0);
+    o.a *= smoothstep(0.6, 2.2, length(p.pos.xyz - (F.camPos.xyz + ab * u)) - size);
+  }
   o.wpos = w;
   o.kind = kind;
   return o;

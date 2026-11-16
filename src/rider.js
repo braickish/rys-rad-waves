@@ -38,7 +38,7 @@ const RIDER_TUNE = {
   hardRadius: 0.7, // ... and a tighter arc
   snapRate: 13,
   moveCalm: 0.95,
-  moveScrub: { snap: 0.08, offLip: 0.07, reentry: 0.08, topTurn: 0.04, lip180: 0.1, floater: 0.05, rebound: 0.1, rebound180: 0.1, revert: 0.05, land: 0.05 }, // speed each move costs // no speeding up for this long after a move (s); 0 = off (?moveaccel)
+  moveScrub: { slash: 0.04, snap: 0.08, offLip: 0.07, reentry: 0.08, topTurn: 0.04, lip180: 0.1, floater: 0.05, rebound: 0.1, rebound180: 0.1, revert: 0.05, land: 0.05 }, // speed each move costs // no speeding up for this long after a move (s); 0 = off (?moveaccel)
   fakieTime: 0.7, // after landing backwards, ride it this long (s) ...
   fakieSpinRate: 18, // ... then the board spins back round this fast (rad/s)
   lip180Rate: 14, // the quick 180 off the top when you turn toward the whitewater (rad/s) // how fast the board pivots back down in a snap (rad/s): quick, not instant
@@ -65,6 +65,18 @@ const RIDER_TUNE = {
   softMax: 14.5, // above this (~32 mph) extra speed bleeds off quickly ...
   overBleed: 1.6, // ... at this rate (1/s)
   minSpeed: 2, maxSpeed: 17.5, // hard cap ~39 mph
+  // Slash: turn to the surfer's right mid-face in the pocket (or anywhere in
+  // the barrel) and the fins release: the tail slides out and the board comes
+  // round much sharper for a moment, then grips again. No speed added.
+  slashRate: 8.5, // turn rate while the fins are released (rad/s) ...
+  slashTime: 0.28, // ... for up to this long (s), while you hold the turn
+  slashWindow: 0.25, // the turn has to have started this recently (s) (so starting it a touch low still counts)
+  slashBand: [0.15, 0.8], // mid-face: this band of height on the open face (below the lip, where it's a snap)
+  slashPocket: 0.3, // ... in the pocket (this much pocket power), or coming out of a bottom turn (within comboWindow)
+  slashMinSpeed: 5, // m/s
+  slashSlide: 0.55, // how far the tail slides out (rad, for looks)
+  slashFoamClear: 3, // heading back up the face, the slash needs this much clear water before the whitewater (m); closer, it's a rebound
+  slashEnd: 1.05, // the fins grip again once the nose points this far down the face (rad, ~60 deg)
   standH: 1.75,
   crouchH: 1.1,
 };
@@ -159,7 +171,7 @@ export function createRider() {
     airSpin: 0, airTime: 0, spinArmed: false,
     moveCooldown: 0, lastBottomTurn: -9, bottomArmed: false,
     tube: null, fakie: null, driveBank: 0, lastTurnTime: -9, lastTurnDir: 0, overTheBack: false,
-    rideDir: 1, turnDir: 0, turnDirAge: 9, turnHeld: 0, hard: 0, assist: null, bottomCarve: false, floater: null,
+    rideDir: 1, slash: null, slide: 0, rightHeld: 0, turnDir: 0, turnDirAge: 9, turnHeld: 0, hard: 0, assist: null, bottomCarve: false, floater: null,
     wipeReason: '', wipeTimer: 0,
     events: [],
     time: 0,
@@ -178,7 +190,9 @@ function syncPose(r, f) {
   r.vel = v3.add(v3.mul(travel, r.speed), [-PEEL_SPEED, 0, 0]);
   // Riding backwards after a reverse landing: the board points the other way
   // from where you're going (until it spins back round).
-  r.heading = r.fakie ? v3.norm(rotate(travel, f.n, Math.PI - r.fakie.spin)) : travel;
+  // In a slash the tail slides out, so the nose points further into the turn.
+  r.heading = r.fakie ? v3.norm(rotate(travel, f.n, Math.PI - r.fakie.spin))
+    : r.slide ? v3.norm(rotate(travel, f.n, -r.slide)) : travel;
 }
 
 function wipe(r, reason) {
@@ -200,7 +214,9 @@ export function stepRider(r, input, dt) {
   else stepAir(r, input, dt);
   for (const e of r.events) {
     if ((e.type === 'move' && e.move !== 'bottomTurn') || e.type === 'land') {
-      r.calm = TUNE.moveCalm;
+      // (no calm after a slash: it's a sharper turn, not a pivot off the lip,
+      // so carving through it keeps its flow; it still scrubs a little)
+      if (e.move !== 'slash') r.calm = TUNE.moveCalm;
       // A move costs a little speed (the board scrubs as it pivots), and any
       // drive still banked from the bottom turn is spent.
       r.speed *= 1 - (TUNE.moveScrub[e.move || 'land'] || 0);
@@ -210,7 +226,7 @@ export function stepRider(r, input, dt) {
   }
   // A turn off the lip springs the body open (for the surfer's pose).
   r.unload = Math.max(0, (r.unload || 0) - dt);
-  if (r.events.some((e) => e.type === 'move' && ['snap', 'offLip', 'reentry', 'topTurn', 'lip180'].includes(e.move))) r.unload = 0.45;
+  if (r.events.some((e) => e.type === 'move' && ['snap', 'offLip', 'reentry', 'topTurn', 'lip180', 'slash'].includes(e.move))) r.unload = 0.45;
 }
 
 function stepSurf(r, input, dt) {
@@ -294,6 +310,30 @@ function stepSurf(r, input, dt) {
     if (r.turnDirAge > 0.15) r.turnDir = 0;
   }
   r.hard = r.bottomCarve ? 1 : sstep(T.hardAfter[0], T.hardAfter[1], r.turnHeld);
+  // --- slash: turning right mid-face in the pocket (or in the barrel) ---
+  r.rightHeld = steer < 0 ? r.rightHeld + dt : 0;
+  const inTube = r.tube && !r.tube.pullIn;
+  if (!r.slash && steer < 0 && r.rightHeld <= T.slashWindow && r.moveCooldown === 0 && !r.assist && !r.floater && !r.fakie
+    && r.speed > T.slashMinSpeed
+    // (riding along or up the wave, even up and a little back after a big
+    // bottom turn; not already pointing down, and not cutting back along the
+    // wave toward the whitewater: that stays a cutback / rebound)
+    && (Math.cos(r.phi) > -0.2 || (Math.sin(r.phi) > 0.45 && r.xs - T.slashFoamClear > T.curlZone[0]
+      && foamAt(r.xs - T.slashFoamClear, r.t) < 0.3)) && Math.sin(r.phi) > -0.35
+    && (inTube || (height > T.slashBand[0] && height < T.slashBand[1] && foam < 0.3
+      && (pk > T.slashPocket || r.time - (r.lastBottomTurn ?? -9) < T.comboWindow)))) {
+    r.slash = { time: 0 };
+    r.moveCooldown = T.moveGap;
+    r.events.push({ type: 'move', move: 'slash', speed: r.speed, xs: r.xs, tube: !!inTube, combo: r.time - (r.lastBottomTurn ?? -9) < T.comboWindow });
+  }
+  if (r.slash) {
+    r.slash.time += dt;
+    if (steer >= 0 || r.slash.time > T.slashTime || r.assist || r.floater || r.phi < -T.slashEnd) r.slash = null;
+    else d = steer * Math.max(rate, T.slashRate) * dt; // the fins let go: a much sharper turn
+  }
+  // The tail slides out during the slash and settles back as the fins grip.
+  r.slide += ((r.slash ? T.slashSlide : 0) - r.slide) * (1 - Math.exp(-dt * (r.slash ? 18 : 7)));
+  if (r.slide < 1e-3) r.slide = 0;
   // A quick assisted turn (snap release, rebound) takes over the board for a
   // moment and then hands control straight back.
   const playerD = d;
@@ -322,8 +362,8 @@ function stepSurf(r, input, dt) {
   // (turning so the nose swings up the face, toward the wave, not further down)
   r.carvingUp = d !== 0 && Math.sign(d) === (Math.cos(r.phi - d) >= 0 ? 1 : -1);
   const driving = r.bottomCarve ? r.carvingUp : Math.sin(r.phi) > sinBefore;
-  if (driveLow > 0 && driving && d === playerD) r.driveBank += T.bottomDrive * carveDrive * Math.abs(d) * driveLow * (0.4 + 0.6 * pk);
-  if (high > 0 && d === playerD) r.driveBank += T.topDrive * Math.abs(d) * high * pk;
+  if (driveLow > 0 && driving && d === playerD && !r.slash) r.driveBank += T.bottomDrive * carveDrive * Math.abs(d) * driveLow * (0.4 + 0.6 * pk);
+  if (high > 0 && d === playerD && !r.slash) r.driveBank += T.topDrive * Math.abs(d) * high * pk;
   const release = r.driveBank * (1 - Math.exp(-dt / T.driveSmooth));
   r.speed += release; r.driveBank -= release;
   if (playerD) { r.lastTurnTime = r.time; r.lastTurnDir = Math.sign(playerD); }

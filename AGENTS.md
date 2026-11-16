@@ -99,6 +99,17 @@ button).
     then drop back down. Climbing up the whitewater from the flats behind it, you pop onto it and
     float once you're above `floaterHeight` of the wave (no need to reach the very top), and the foam
     drags less (`climbFoamDrag`) and doesn't count toward catching you while you climb it.
+  - **Slash:** start a turn to the surfer's right mid-face (`slashBand`, from low-mid up to below
+    the lip) in the pocket (`slashPocket`) or coming out of a bottom turn (within `comboWindow`,
+    which carries you a bit out of the pocket), or anywhere in the barrel, while riding along or up
+    the wave (up-and-back after a big bottom turn counts, if there's `slashFoamClear` of clear water
+    before the whitewater) and not already pointing down. A Right turn already held counts for
+    `slashWindow` after you start it: the fins release, the tail slides out (`slide`, drawn via the board heading in
+    `syncPose`) and the board turns much sharper (`slashRate`) while you hold it, for up to
+    `slashTime` or until the nose points `slashEnd` down the face. It scrubs a little speed but has
+    no `moveCalm` (it's a sharper turn, not a lip pivot), and it never fires on a cutback back
+    toward the whitewater (that stays a rebound). Because Right is now sharper than Left, blind
+    symmetric Left/Right wiggling drifts back into the whitewater (feel/controls/pocket tests show it).
   - Moves need at least `moveGap` (1s) between them. Inside the gap the lip is just a plain turn and
     the whitewater just slows you.
     Sit in heavy foam longer than `foamLimit` and it takes you. Land an air backwards (nose pointing
@@ -116,7 +127,12 @@ button).
     (`tubeLow`) = the lip lands on you; back past `tubeExit` = out. Caught way up in the lip as it throws
     (`tubeTooHigh`), or riding in the top 3/8 of the barrel (`tubeFallHeight`) = over the falls. The barrel
     picks you up once you're on the face or just below its base (`tubeEnterLow`). Scored by time x average depth. HUD: depth across, height up/down.
-    Camera: low and deep in the tube behind the surfer, looking out through the barrel (only once you are actually in). Reef shape is `KF_PIPE`
+    Camera (main.js `tubeCamera`): placed from the barrel's actual cross-section, at the most open
+    spot inside the tube behind the surfer (at least `TUBE_CAM_MIN_ROOM` from any water, as level
+    with the surfer as it can be), looking out through the opening. If there's no room there (near
+    the pinch) or water would block the view, it moves closer (`TUBE_CAM_BACKS`); smoothing never
+    carries it out of the tube's air. Mist particles fade near the camera-to-surfer sightline
+    (shaders.js) so spray never covers the surfer. Reef shape is `KF_PIPE`
     (waves/shapes.js); `faceTop` lowers smoothly as the lip throws.
 - Heavy waves (`floaters: false, rebounds: false` in the wave's tune, e.g. the reef): hitting the
   whitewater or the lip next to it is a crash ("Over the falls"), not a floater or rebound.
@@ -129,8 +145,8 @@ button).
 - **Water rendering:** the GPU builds the surface every frame from a cross-section table (512 phases,
   built per wave in `buildWaterTable`) and each slice's current phase (`slicePhases`), so the wave can
   change over time. The spray emitter table is refreshed every frame too.
-- Tube camera: low in front of the opening; if water blocks that view (a section has thrown over) it
-  cuts to the shot from inside the tube behind the surfer.
+- **Scoring:** only moves, airs and barrels score; riding by itself doesn't. Bottom turns and top
+  turns aren't called out as moves: they add their points quietly (main.js `handleEvents`).
 - `src/mesh.js`: builds the water's cross-section table and grid, a lip lookup table for particle emitters, and the box/sphere primitives for the surfer.
 - `src/shaders.js`: WGSL. Water (fresnel sky reflection, backlit translucency in the lip, flowing
   ripple normals, foam), sky, solid shading, and particles (compute-shader sim of 65k particles: lip
