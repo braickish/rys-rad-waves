@@ -52,6 +52,9 @@ button).
     climbing costs real speed (`climb`) and the pocket stops feeding you while you point up the face; dropping from
     the top half of the pocket pays most (`topDropBoost`, scaled by pocket power so the shoulder still bogs); pointing down high up also
     raises the acceleration cap (`highDropAccel`) and the soft speed limit (`highDropSoftMax`).
+    On the point the pocket's speed (cruising target, the drop boost and the water flowing up the
+    face) carries `shoulderReach` (2 m) further out toward the shoulder than the pocket itself before
+    it fades (the user found you slowed a little too soon); the reef keeps 0.
     Above `softMax` (~32 mph) speed bleeds off fast, hard cap `maxSpeed` (~38 mph), so stacked moves
     can't run away. There is no pump control (removed by design): speed comes from
     the wave and from carving.

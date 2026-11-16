@@ -29,6 +29,7 @@ export const G = 9.8;
 // merged in by useWave().
 const RIDER_TUNE = {
   feed: 2.0, // how fast the pocket brings you up to speed (1/s)
+  shoulderReach: 0, // the pocket's speed (and the water flowing up the face) carries this much further out toward the shoulder before it fades (m); per wave
   bleed: 0.9, // how fast extra speed fades / you bog down (1/s)
   climb: 6, // speed lost per second pointing straight up it (m/s^2)
   pump: 4, // m/s^2 while pumping on the face (full on the drop, less otherwise)
@@ -509,7 +510,9 @@ function stepSurf(r, input, dt) {
 
   // --- speed ---
   // Cruising speed climbs with height: up near the top of the pocket is fastest.
-  let target = T.vLow + (T.vPocket - T.vLow) * pk * steep * (0.45 + 0.75 * height);
+  // (speed fades a little further out than the pocket itself: shoulderReach)
+  const pkSpeed = r.xs > 0 ? pocketPower(Math.max(0, r.xs - T.shoulderReach)) : pk;
+  let target = T.vLow + (T.vPocket - T.vLow) * pkSpeed * steep * (0.45 + 0.75 * height);
   r.boost = Math.max(0, (r.boost || 0) - dt);
   if (r.boost > 0 && r.boost < 0.85 && foam < 0.2) r.boost = 0; // cleared the foam you bounced off
   if (r.boost > 0) { /* just rebounded: the foam can't slow you for a moment */ }
@@ -522,7 +525,7 @@ function stepSurf(r, input, dt) {
   const sinp = Math.sin(r.phi);
   // Pointing down pays, and pays most from the top third of the wave: that's
   // where the drop has the most height to turn into speed.
-  const topThird = sstep(0.45, 0.75, height) * pk; // top half of the pocket (most in the top third); not out on the shoulder
+  const topThird = sstep(0.45, 0.75, height) * pkSpeed; // top half of the pocket (most in the top third); not out on the shoulder
   // (The drop off a move doesn't count: no high-drop boost until you've come
   // back down below mid-face.)
   if (height < 0.45) r.postMove = false;
@@ -567,7 +570,7 @@ function stepSurf(r, input, dt) {
   r.xs += (r.speed * cosp - PEEL_SPEED) * dt;
   // On a heavy wave the water rushes up the face and carries you with it:
   // trimming level drifts you up, so you hold your line pointing a little down.
-  const faceLift = (T.faceFlow || 0) * steep * pk;
+  const faceLift = (T.faceFlow || 0) * steep * pkSpeed; // (carries as far out as the pocket's speed)
   r.t -= ((r.speed * sinp + faceLift) * dt) / Math.max(0.3, Math.hypot(f.Pt[1], f.Pt[2]));
   r.t = Math.min(r.t, T.tFlats); // ride out onto the flats in front if you don't turn back up
   if (r.lipSnap) r.t += (r.lipSnap.t - r.t) * (1 - Math.exp(-dt * 12)); // the snap holds you just under the lip

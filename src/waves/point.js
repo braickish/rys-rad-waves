@@ -55,6 +55,7 @@ export default {
     floaterHeight: 0.55, floaterMax: 1.2, climbFoamDrag: 0.35, foamLimit: 1.0,
     airs: true, floaters: true, rebounds: true, airSpeed: 11.5, airMinSpeed: 6, airCurlZone: 2.5, airBoostZone: 0.6, airBoostUp: 3.0,
     tTop: 5.3, tBottom: 13.9, tFlats: 14.6,
+    shoulderReach: 2.0, // speed carries ~2 m further out toward the shoulder before it fades
     faceFlow: 3.8, // water flowing up the face (m/s), 2/3 of the reef's: riding level drifts you up
   },
 };
