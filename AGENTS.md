@@ -114,7 +114,7 @@ button).
     (`tubeLow`) = the lip lands on you; back past `tubeExit` = out. Caught way up in the lip as it throws
     (`tubeTooHigh`), or riding in the top 3/8 of the barrel (`tubeFallHeight`) = over the falls. The barrel
     picks you up once you're on the face or just below its base (`tubeEnterLow`). Scored by time x average depth. HUD: depth across, height up/down.
-    Camera: inside the tube behind the surfer (only once you're actually in). Reef shape is `KF_PIPE`
+    Camera: low and deep in the tube behind the surfer, looking out through the barrel (only once you are actually in). Reef shape is `KF_PIPE`
     (waves/shapes.js); `faceTop` lowers smoothly as the lip throws.
 - Heavy waves (`floaters: false, rebounds: false` in the wave's tune, e.g. the reef): hitting the
   whitewater or the lip next to it is a crash ("Over the falls"), not a floater or rebound.
