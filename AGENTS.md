@@ -14,7 +14,8 @@ It needs a WebGPU browser (recent Chrome/Edge, or Safari on macOS/iOS 26+).
 
 URL options: `?wave=barrel` (the barreling wave; default is a crumbling wave), `?play` (skip the
 title), `?auto` (autopilot works the pocket), `?xs=-4` (start behind the peel), `?cam=1` (chase
-camera), `?noparticles`.
+camera), `?cam=3` (testing: fixed out in the channel, looking at the curl side-on, like a photo
+from the channel; used to compare the reef with reference photos), `?noparticles`.
 
 Controls: one control, from the surfer's point of view. Left (or Up) turns the board to the surfer's
 left, Right (or Down) to their right; Up is exactly Left and Down exactly Right in every situation
@@ -179,6 +180,16 @@ button).
     (`tubeLow`) = the lip lands on you; back past `tubeExit` = out. Caught way up in the lip as it throws
     (`tubeTooHigh`), or riding in the top 3/8 of the barrel (`tubeFallHeight`) = over the falls. The barrel
     picks you up once you're on the face or just below its base (`tubeEnterLow`). Scored by time x average depth. HUD: depth across, height up/down.
+    Reef shape (`KF_PIPE`, reshaped 2026-11-16 after a reference photo of a heavy reef barrel in
+    braickish/reference-images, pipe-example.jpg): a tall wall stands up well ahead of the curl
+    (`phase.ahead` 14), near vertical and slightly hollow before it pitches (no overhang until the
+    lip throws, so the rideable face is unchanged); the lip throws far out into a round tube about
+    as wide as it is tall, its thin curtain landing well out in front. Looks: a frothy white
+    outside on the thrown lip, feathering along the crest of the wall, light glowing through the
+    wall's upper part (`thin`), and an offshore spray plume blowing back off the crest (the wave's
+    `plume(s)`, particle kind 4, from the crest position in the lip table). The reef drops you in
+    at `startXs` (5 m) since the wall stands up further ahead. `test/plot-slices.mjs` draws the
+    cross-sections (render the SVG to PNG with headless Chrome `--screenshot`).
     Camera (main.js `tubeCamera`): placed from the barrel's actual cross-section, at the most open
     spot inside the tube behind the surfer (at least `TUBE_CAM_MIN_ROOM` from any water, as level
     with the surfer as it can be), looking out through the opening. If there's no room there (near

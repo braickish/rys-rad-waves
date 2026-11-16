@@ -158,7 +158,7 @@ fn ripple(q: vec2f, t: f32) -> f32 {
   body *= 0.6 + 0.4 * diff;
   // Light shining through thin water (the lip) glows green.
   let toward = max(dot(-v, sun), 0.0);
-  let sss = vec3f(0.18, 0.85, 0.62) * thin * (0.35 + 1.6 * pow(toward, 2.5));
+  let sss = vec3f(0.10, 0.66, 0.72) * thin * (0.35 + 1.6 * pow(toward, 2.5));
   var col = body + sss;
   col = mix(col, refl, fres * (1.0 - thin * 0.5));
   let hv = normalize(sun + v);
@@ -223,7 +223,8 @@ struct VO { @builtin(position) pos: vec4f, @location(0) wpos: vec3f, @location(1
 `;
 
 // Particles: pos (xyz, life), vel (xyz, kind), extra (maxLife, size, -, -).
-// Kinds: 0 lip spray, 1 whitewater mist, 2 rider spray, 3 barrel spit.
+// Kinds: 0 lip spray, 1 whitewater mist, 2 rider spray, 3 barrel spit,
+// 4 offshore plume (spray blowing back off the crest).
 const particleCommon = /* wgsl */ `
 struct P { pos: vec4f, vel: vec4f, extra: vec4f };
 `;
@@ -241,10 +242,10 @@ var<private> seed: u32;
 fn rnd() -> f32 { seed = pcg(seed); return f32(seed) / 4294967295.0; }
 fn rs() -> f32 { return rnd() * 2.0 - 1.0; }
 
-fn lipAt(xs: f32) -> array<vec4f, 2> {
+fn lipAt(xs: f32) -> array<vec4f, 3> {
   let n = i32(F.params.z);
   let k = clamp(i32((xs - F.params.x) / F.params.y), 0, n - 1);
-  return array<vec4f, 2>(lip[k * 2], lip[k * 2 + 1]);
+  return array<vec4f, 3>(lip[k * 3], lip[k * 3 + 1], lip[k * 3 + 2]);
 }
 
 fn respawn(id: u32) -> P {
@@ -261,6 +262,21 @@ fn respawn(id: u32) -> P {
           + vec3f(0.0, 1.8 + rnd() * 3.5 + b * 4.0, 0.0) + F.riderVel.xyz * 0.35;
     p.vel = vec4f(v, 2.0);
     p.extra = vec4f(p.pos.w, 0.06 + rnd() * 0.07 + b * 0.15, 0.0, 0.0);
+    return p;
+  }
+  if (r0 >= 0.43 && r0 < 0.5) {
+    // Offshore plume: spray torn off the top of the wave, rising and blowing
+    // back over it (away from the face, so it never fills the tube).
+    let xs = mix(-18.0, 14.0, rnd());
+    let L = lipAt(xs);
+    if (rnd() > L[2].z) { p.pos = vec4f(0.0, -10.0, 0.0, 0.05 + rnd() * 0.2); return p; }
+    let pos = vec3f(xs, L[2].x - 0.1 + rnd() * 0.2, L[2].y + 0.2 + rs() * 0.3);
+    // fanning up and back off the lip: some straight up, some streaming back
+    let up = 2.0 + rnd() * 4.0;
+    let v = vec3f(-peel * (0.25 + rnd() * 0.3) + rs() * 0.5, up, -(0.5 + rnd() * 4.5));
+    p.pos = vec4f(pos, 1.0 + rnd() * 1.2);
+    p.vel = vec4f(v, 4.0);
+    p.extra = vec4f(p.pos.w, 0.12 + rnd() * 0.22, 0.0, 0.0);
     return p;
   }
   if (r0 < 0.5) {
@@ -322,6 +338,7 @@ fn cs(@builtin(global_invocation_id) gid: vec3u) {
   var drag = 0.5;
   if (kind == 1.0) { grav = 1.5; drag = 1.2; }
   if (kind == 3.0) { grav = 0.6; drag = 2.2; }
+  if (kind == 4.0) { grav = 0.7; drag = 0.7; }
   var v = p.vel.xyz;
   v.y -= grav * dt;
   v *= max(0.0, 1.0 - drag * dt);
@@ -348,7 +365,8 @@ struct VO { @builtin(position) pos: vec4f, @location(0) uv: vec2f, @location(1) 
   // most (overdraw), especially on high-DPI screens.
   let camDist = length(p.pos.xyz - F.camPos.xyz);
   if (camDist < 2.5) { o.pos = vec4f(0.0, 0.0, 2.0, 1.0); return o; }
-  let size = min(p.extra.y * (0.7 + age * 1.0), camDist * 0.06);
+  let grow = select(1.0, 1.0 + age * 2.5, p.vel.w == 4.0); // the plume billows out as it goes
+  let size = min(p.extra.y * (0.7 + age * 1.0) * grow, camDist * 0.06);
   let w = p.pos.xyz + (cam[0].xyz * corner.x + cam[1].xyz * corner.y) * size;
   o.pos = F.viewProj * vec4f(w, 1.0);
   o.uv = corner;
@@ -357,10 +375,11 @@ struct VO { @builtin(position) pos: vec4f, @location(0) uv: vec2f, @location(1) 
   if (kind == 0.0) { alpha = 0.2; }
   if (kind == 1.0) { alpha = 0.15; }
   if (kind == 3.0) { alpha = 0.10; }
+  if (kind == 4.0) { alpha = 0.07 * (1.0 - age * 0.6); } // wispy, thinning out as it billows
   o.a = alpha * smoothstep(0.0, 0.1, age) * (1.0 - smoothstep(0.55, 1.0, age));
   o.a *= smoothstep(0.8, 5.0, length(w - F.camPos.xyz)); // don't fog the lens
   if (kind == 3.0) { o.a *= smoothstep(1.0, 4.0, length(p.pos.xyz - F.rider.xyz)); } // spit never hides the surfer
-  if (kind == 1.0 || kind == 3.0) {
+  if (kind == 1.0 || kind == 3.0 || kind == 4.0) {
     // Mist never covers the surfer: fade it near the line from the camera to them.
     let ab = F.rider.xyz + vec3f(0.0, 0.9, 0.0) - F.camPos.xyz;
     let u = clamp(dot(p.pos.xyz - F.camPos.xyz, ab) / max(dot(ab, ab), 1e-3), 0.0, 1.0);

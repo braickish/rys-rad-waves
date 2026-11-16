@@ -233,6 +233,7 @@ export function createRider() {
 
 export function resetRider(r) {
   Object.assign(r, createRider());
+  if (TUNE.startXs != null) r.xs = TUNE.startXs; // where this wave drops you in
   syncPose(r, frameAt(r.xs, r.t));
 }
 

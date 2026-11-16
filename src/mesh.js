@@ -65,12 +65,13 @@ export function slicePhases(out = new Float32Array(WATER_XS.length * 2)) {
   return out;
 }
 
-// Lip table for particle emitters: per xs, two vec4s:
-//   [tipY, tipZ, dirY, dirZ], [tubeCenterY, tubeCenterZ, phase, 0]
+// Lip table for particle emitters: per xs, three vec4s:
+//   [tipY, tipZ, dirY, dirZ], [tubeCenterY, tubeCenterZ, phase, white],
+//   [crestY, crestZ, plume, 0] (plume: spray blowing back off the crest)
 export const LIP = { x0: -45, step: 0.25, count: 241 };
 export function buildLipTable() {
-  const data = new Float32Array(LIP.count * 8);
-  const a = [0, 0, 0], b = [0, 0, 0], c = [0, 0, 0];
+  const data = new Float32Array(LIP.count * 12);
+  const a = [0, 0, 0], b = [0, 0, 0], c = [0, 0, 0], d = [0, 0, 0];
   for (let i = 0; i < LIP.count; i++) {
     const xs = LIP.x0 + i * LIP.step;
     const tipT = WAVE.lipT;
@@ -82,7 +83,11 @@ export function buildLipTable() {
     // How active the whitewater is here (drives crest spray and mist).
     const s = phaseAt(xs);
     const white = WAVE.white(s);
-    data.set([a[1], a[2], dy / l, dz / l, (a[1] + c[1]) * 0.5, (a[2] + c[2]) * 0.5, s, white], i * 8);
+    // The crest: the highest point of the cross-section's top.
+    let best = -1e9;
+    for (let t = 3.0; t <= 6.5; t += 0.25) { surface(xs, t, b); if (b[1] > best) { best = b[1]; d[1] = b[1]; d[2] = b[2]; } }
+    const plume = WAVE.plume ? WAVE.plume(s) : 0;
+    data.set([a[1], a[2], dy / l, dz / l, (a[1] + c[1]) * 0.5, (a[2] + c[2]) * 0.5, s, white, d[1], d[2], plume, 0], i * 12);
   }
   return data;
 }

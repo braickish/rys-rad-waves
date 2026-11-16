@@ -245,7 +245,14 @@ function updateCamera(dt) {
   let shot = 'surf';
   const p = rider.pos;
   let want, look;
-  if (rider.tube && !rider.tube.pullIn && camMode !== 2) {
+  if (camMode === 3) {
+    // Channel photo (testing): fixed out in the channel, looking at the curl
+    // and the barrel side-on, like a photo from the channel.
+    const sc = WAVE.scale / 1.75;
+    want = [8 * sc, 2.0 * sc, 34 * sc];
+    look = [0, 3.0 * sc, 3];
+    shot = 'photo';
+  } else if (rider.tube && !rider.tube.pullIn && camMode !== 2) {
     // In the tube: low, just ahead of the opening, looking back in at you.
     // If water is in the way (say a section ahead has thrown over), come in
     // closer until the surfer is in view.
