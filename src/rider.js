@@ -108,11 +108,12 @@ const RIDER_TUNE = {
   // the turn tightens. Scores once you're heading back toward the whitewater.
   roundhouseZone: 5, // out on the shoulder: at least this far ahead of the curl (m) ...
   roundhousePocket: 0.55, // ... where the pocket has faded below this
-  roundhouseDepth: [0.5, 2.2], // turned this far (rad) = starting to lean .. fully deep and crouched
-  roundhouseStart: 0.35, // it starts as a slow, wide turn: this fraction of the normal turn rate ...
+  roundhouseDepth: [0.35, 1.6], // turned this far (rad) = starting to lean .. fully deep and crouched
+  roundhouseStart: 0.4, // it starts as a slow, wide turn: this fraction of the normal turn rate ...
   roundhouseHold: 0.2, // ... for the first this long you hold it (s) ...
-  roundhouseRamp: 0.4, // ... then it eases up to the full rate over this long (s) ...
-  roundhouseMaxRate: 4.2, // ... but never faster than this: a sweeping arc, even high on the face where turns are snappy (rad/s)
+  roundhouseRamp: 0.3, // ... then it eases up to the full rate over this long (s) ...
+  roundhouseDeep: 1.25, // deep into it (full depth) the arc tightens this much ...
+  roundhouseMaxRate: 5.0, // ... but never faster than this: a sweeping arc, even high on the face where turns are snappy (rad/s)
   roundhouseScore: 1.8, // turned at least this far (rad, ~100 deg) and heading back toward the whitewater
   standH: 1.75,
   crouchH: 1.1,
@@ -438,6 +439,7 @@ function stepSurf(r, input, dt) {
       // A slow, wide start: hold it and it eases into the full turn.
       rh.time += dt;
       d *= T.roundhouseStart + (1 - T.roundhouseStart) * sstep(T.roundhouseHold, T.roundhouseHold + T.roundhouseRamp, rh.time);
+      d *= 1 + (T.roundhouseDeep - 1) * rh.depth; // deeper in, it comes round faster
       d = clampTurn(d, T.roundhouseMaxRate * dt);
       rh.turned += Math.abs(d);
       rh.depth = sstep(T.roundhouseDepth[0], T.roundhouseDepth[1], rh.turned);

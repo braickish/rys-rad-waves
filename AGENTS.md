@@ -102,8 +102,9 @@ button).
     turn while riding along or down the line (not a bottom turn) and keep it going back toward the
     whitewater; the surfer crouches right down and gets further up on the rail than any other turn
     (surfer.js, past the usual roll limit). It starts slow and wide (`roundhouseStart` of the turn rate for `roundhouseHold`),
-    eases up to the full rate over `roundhouseRamp`, never faster than `roundhouseMaxRate` (a
-    sweeping arc), and you lean deeper and crouch lower as it comes round. Going round Left (up and
+    eases up to the full rate over `roundhouseRamp`, tightens as you get deep into it
+    (`roundhouseDeep`), never faster than `roundhouseMaxRate` (a sweeping arc), and you lean deeper
+    and crouch lower as it comes round (fully deep by `roundhouseDepth[1]` of turn). Going round Left (up and
     back) needs to start mid-face or lower, or the arc reaches the lip (a 180 off the top). The
     slower arc means a cutback from the shoulder needs starting earlier (the pocket bot in
     pocket.mjs, which cuts back late, now meets the whitewater too low) (`r.crouchDepth`, surfer.js), scoring once you've turned `roundhouseScore` and are heading
