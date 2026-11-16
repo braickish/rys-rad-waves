@@ -101,15 +101,18 @@ button).
     drags less (`climbFoamDrag`) and doesn't count toward catching you while you climb it.
   - **Slash:** on the way up out of a bottom turn, start the Right turn early, still down in the
     flats or at the very bottom (`slashLow`, heading up at least `slashClimb`, within `slashWindow`
-    of starting it; also in the barrel). The fins release: your line keeps carving (so you carry on
+    of starting it; also in the barrel). The fins hold for `slashHold` (an ordinary carve; let go
+    before then and it's just a turn), then release, and that's when the move scores: your line keeps carving (so you carry on
     up the face) while the board swings round ahead of it (`r.slide`, at `slashSpin` up to
     `slashSlideMax`, drawn via the heading in `syncPose`). Let go, or once the board points
     `slashEnd` down, the fins grip and your line swings round to the board (`slashGrip`). Start the
     Right turn any higher and it's an ordinary turn (a snap / off the lip at the top). While it
     slides your line partly follows the board (`slashFollow`), and sliding sideways scrubs speed
     (`slashDrag`, plus `moveScrub.slash` up front; nothing builds speed meanwhile), so you don't
-    carry far up the face and you settle back toward the pocket (~30 -> 17 mph on the point). No
-    `moveCalm` after it. History (2026-11-16): a mid-face Right-turn
+    carry far up the face and you settle back toward the pocket (~31 -> 20 mph across the slide on
+    the point). In the barrel (`slashTube` overrides) it's a smaller, scrubbier slide: about half
+    the board swing, your own carve mostly gives way to it (`slashCarve`), and harder drag. No
+    `moveCalm` after it. `node test/slash.mjs` reports and checks all of this. History (2026-11-16): a mid-face Right-turn
     slash, then a looser version of it, both slashed too often; the user specified this rule.
   - Moves need at least `moveGap` (1s) between them. Inside the gap the lip is just a plain turn and
     the whitewater just slows you.
@@ -163,6 +166,7 @@ node test/tube.mjs     # barrel riding: balance and speed choices and their outc
 node test/moves.mjs    # audit every move: peak acceleration, speed before/after, bogged in foam
 node test/controls.mjs # human-style inputs on both waves: no glitches, Up/Down never flips you
 node test/pocket.mjs   # where different riding styles spend their time vs. the curl
+node test/slash.mjs    # the slash: when it fires (and doesn't), climb, speed scrub, slide, turn; point, reef, barrel
 node test/plot-slices.mjs out.svg [crumble|barrel]   # draw the wave cross-sections
 node test/drive.mjs test/out/<name> "<query>" <ms,...> ['<input json>']   # headless Chrome screenshots + console (test/out is git-ignored)
 MOBILE=1 node test/drive.mjs ...   # same, emulating a phone (390x844, touch)

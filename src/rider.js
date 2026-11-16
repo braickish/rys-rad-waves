@@ -38,7 +38,7 @@ const RIDER_TUNE = {
   hardRadius: 0.7, // ... and a tighter arc
   snapRate: 13,
   moveCalm: 0.95,
-  moveScrub: { slash: 0.08, snap: 0.08, offLip: 0.07, reentry: 0.08, topTurn: 0.04, lip180: 0.1, floater: 0.05, rebound: 0.1, rebound180: 0.1, revert: 0.05, land: 0.05 }, // speed each move costs // no speeding up for this long after a move (s); 0 = off (?moveaccel)
+  moveScrub: { slash: 0.18, snap: 0.08, offLip: 0.07, reentry: 0.08, topTurn: 0.04, lip180: 0.1, floater: 0.05, rebound: 0.1, rebound180: 0.1, revert: 0.05, land: 0.05 }, // speed each move costs // no speeding up for this long after a move (s); 0 = off (?moveaccel)
   fakieTime: 0.7, // after landing backwards, ride it this long (s) ...
   fakieSpinRate: 18, // ... then the board spins back round this fast (rad/s)
   lip180Rate: 14, // the quick 180 off the top when you turn toward the whitewater (rad/s) // how fast the board pivots back down in a snap (rad/s): quick, not instant
@@ -78,13 +78,18 @@ const RIDER_TUNE = {
   slashWindow: 0.12, // ... the turn having started this recently (s)
   slashPocket: 0.15, // not out on the shoulder (pocket power)
   slashMinSpeed: 5, // m/s
+  slashHold: 0.18, // the fins hold this long into the turn (a normal carve) before they release (s); let go before and it's just a turn
   slashSpin: 7, // how fast the board swings round on the slide (rad/s) ...
   slashSlideMax: 1.4, // ... up to this far ahead of where you're going (rad, ~80 deg) ...
-  slashTime: 0.45, // ... for up to this long while you hold the turn (s)
+  slashTime: 0.45, // ... for up to this long after the release while you hold the turn (s)
   slashEnd: 1.05, // the board stops swinging once it points this far down the face (rad, ~60 deg)
   slashFollow: 0.4, // while it slides, your line swings round this fraction as fast as the board, so you don't carry on up as far
   slashGrip: 9, // then the fins grip and your line swings round to the board this fast (rad/s)
-  slashDrag: 1.3, // while the board is sideways it scrubs speed (1/s, at fully sideways), so you don't carry on up as far and stay nearer the pocket
+  slashCarve: 1, // how much your own carve keeps turning you while it slides (1 = all of it)
+  slashDrag: 2.4, // while the board is sideways it scrubs speed (1/s, at fully sideways), so you don't carry on up as far and stay nearer the pocket
+  // In the barrel a slash is a smaller, scrubbier slide: it turns about half as
+  // far and scrubs harder (these override the settings above in the tube).
+  slashTube: { slashSpin: 5, slashSlideMax: 0.45, slashFollow: 0.2, slashCarve: 0.2, slashDrag: 4.0 },
   standH: 1.75,
   crouchH: 1.1,
 };
@@ -330,17 +335,26 @@ function stepSurf(r, input, dt) {
     && r.speed > T.slashMinSpeed && height < T.slashLow
     && Math.sin(r.phi) > T.slashClimb && Math.cos(r.phi) > -0.5 // on the way up (not cutting back along the wave)
     && (inTube || (pk > T.slashPocket && foam < 0.3))) {
-    r.slash = { time: 0 };
-    r.moveCooldown = T.moveGap;
-    r.events.push({ type: 'move', move: 'slash', speed: r.speed, xs: r.xs, tube: !!inTube, combo: r.time - (r.lastBottomTurn ?? -9) < T.comboWindow });
+    // Armed: the fins hold for a moment (an ordinary carve), then release.
+    r.slash = { time: 0, released: false, tube: !!inTube };
   }
   let gripD = 0;
   if (r.slash) {
-    r.slash.time += dt;
-    if (steer >= 0 || r.slash.time > T.slashTime || r.assist || r.floater || r.phi - r.slide < -T.slashEnd) r.slash = null;
+    const sl = r.slash;
+    const S = (k) => (sl.tube && T.slashTube[k] !== undefined ? T.slashTube[k] : T[k]); // barrel settings in the tube
+    sl.time += dt;
+    if (!sl.released) {
+      if (steer >= 0 || r.assist || r.floater) r.slash = null; // let go before the fins released: just a turn
+      else if (sl.time >= T.slashHold) {
+        sl.released = true; sl.time = 0;
+        r.moveCooldown = T.moveGap;
+        r.events.push({ type: 'move', move: 'slash', speed: r.speed, xs: r.xs, tube: sl.tube, combo: r.time - (r.lastBottomTurn ?? -9) < T.comboWindow });
+      }
+    } else if (steer >= 0 || sl.time > T.slashTime || r.assist || r.floater || r.phi - r.slide < -T.slashEnd) r.slash = null;
     else {
-      r.slide = Math.min(T.slashSlideMax, r.slide + T.slashSpin * Math.abs(steer) * dt); // the board swings round ahead of your line ...
-      gripD = -T.slashFollow * T.slashSpin * Math.abs(steer) * dt; // ... and your line partly follows it
+      r.slide = Math.min(S('slashSlideMax'), r.slide + S('slashSpin') * Math.abs(steer) * dt); // the board swings round ahead of your line ...
+      gripD = -S('slashFollow') * S('slashSpin') * Math.abs(steer) * dt; // ... and your line partly follows it
+      d *= S('slashCarve'); // (in the barrel your own carve mostly gives way to the slide)
     }
   }
   if (r.assist) r.slide = 0; // an assisted pivot takes the board over
@@ -379,8 +393,8 @@ function stepSurf(r, input, dt) {
   // (turning so the nose swings up the face, toward the wave, not further down)
   r.carvingUp = d !== 0 && Math.sign(d) === (Math.cos(r.phi - d) >= 0 ? 1 : -1);
   const driving = r.bottomCarve ? r.carvingUp : Math.sin(r.phi) > sinBefore;
-  if (driveLow > 0 && driving && d === playerD && !r.slash && !r.slide) r.driveBank += T.bottomDrive * carveDrive * Math.abs(d) * driveLow * (0.4 + 0.6 * pk);
-  if (high > 0 && d === playerD && !r.slash && !r.slide) r.driveBank += T.topDrive * Math.abs(d) * high * pk;
+  if (driveLow > 0 && driving && d === playerD && !(r.slash && r.slash.released) && !r.slide) r.driveBank += T.bottomDrive * carveDrive * Math.abs(d) * driveLow * (0.4 + 0.6 * pk);
+  if (high > 0 && d === playerD && !(r.slash && r.slash.released) && !r.slide) r.driveBank += T.topDrive * Math.abs(d) * high * pk;
   const release = r.driveBank * (1 - Math.exp(-dt / T.driveSmooth));
   r.speed += release; r.driveBank -= release;
   if (playerD) { r.lastTurnTime = r.time; r.lastTurnDir = Math.sign(playerD); }
@@ -442,7 +456,7 @@ function stepSurf(r, input, dt) {
   r.calm = Math.max(0, (r.calm || 0) - dt);
   if (r.assist || r.floater || r.calm > 0) r.speed = Math.min(r.speed, speedAtStart);
   // Sliding sideways in a slash scrubs speed, and nothing builds it meanwhile.
-  if (r.slide > 0) r.speed = Math.min(r.speed, speedAtStart) * (1 - T.slashDrag * Math.sin(Math.min(r.slide, Math.PI / 2)) * dt);
+  if (r.slide > 0) r.speed = Math.min(r.speed, speedAtStart) * (1 - (r.tube ? T.slashTube.slashDrag : T.slashDrag) * Math.sin(Math.min(r.slide, Math.PI / 2)) * dt);
   r.speed = clamp(r.speed, T.minSpeed, T.maxSpeed);
 
   // --- move ---
