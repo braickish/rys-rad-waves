@@ -389,7 +389,10 @@ function stepSurf(r, input, dt) {
   // --- move ---
   const cosp = Math.cos(r.phi);
   r.xs += (r.speed * cosp - PEEL_SPEED) * dt;
-  r.t -= (r.speed * sinp * dt) / Math.max(0.3, Math.hypot(f.Pt[1], f.Pt[2]));
+  // On a heavy wave the water rushes up the face and carries you with it:
+  // trimming level drifts you up, so you hold your line pointing a little down.
+  const faceLift = (T.faceFlow || 0) * steep * pk;
+  r.t -= ((r.speed * sinp + faceLift) * dt) / Math.max(0.3, Math.hypot(f.Pt[1], f.Pt[2]));
   r.t = Math.min(r.t, T.tFlats); // ride out onto the flats in front if you don't turn back up
 
   // --- floater: riding along the top of the whitewater ---

@@ -40,6 +40,7 @@ export default {
     ...point.tune,
     curlZone: [-16, 2.5], // behind the curl is the tube, not whitewater
     airs: false,
+    faceFlow: 3.0, // water rushing up the face (m/s): point a little down to hold your line
     floaters: false, rebounds: false, // too heavy: hit the whitewater or the lip next to it and you go over the falls
     // Tube riding (see stepTube in rider.js).
     tubeEnter: 0.12, // the curl has passed you: you're in the tube

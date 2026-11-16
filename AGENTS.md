@@ -109,7 +109,9 @@ button).
     with rules on top (`checkHazards`). Normal surfing outruns the barrel, so you **pull in**: high on the
     face within `pullInZone` of the curl and turning, you stall (`pullInSpeed`, settling at `pullInLine`)
     until the curl passes you. In the tube: past `tubeCollapse` = pinched; driving straight into the
-    roof (steeper than `roofCrash`) = over the falls. In the tube, trimming flat or pointing down the
+    roof (steeper than `roofCrash`) = over the falls. On the reef the water rushes up the face
+    (`faceFlow`, scaled by steepness and pocket power): riding level drifts you up, you hold your line
+    pointing about 10 degrees down. In the tube, trimming flat or pointing down the
     line adds acceleration (`tubeDrive`) (brushing it deflects you down); way below the bottom
     (`tubeLow`) = the lip lands on you; back past `tubeExit` = out. Caught way up in the lip as it throws
     (`tubeTooHigh`), or riding in the top 3/8 of the barrel (`tubeFallHeight`) = over the falls. The barrel
