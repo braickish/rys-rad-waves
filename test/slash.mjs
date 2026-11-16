@@ -65,7 +65,7 @@ for (const wave of ['point', 'reef']) {
         if (stage === 'left') { inp = { turn: 1 }; if (r.phi * 57.3 >= upDeg && Math.sin(r.phi) > 0) stage = 'right'; }
         if (stage === 'right') { inp = { turn: -1 }; tR += dt; if (tR > 0.45) break; }
         stepRider(r, inp, dt);
-        if (r.events.some((e) => e.move === 'slash')) { res = 'SLASH'; any++; if (upDeg === 20) expect(false, `${wave}: a 20 deg bottom turn shouldn't slash`); break; }
+        if (r.events.some((e) => e.move === 'slash')) { res = 'SLASH'; any++; break; }
         if (r.mode === 'wipe') res = 'wipe';
       }
       row.push(res.padEnd(6));

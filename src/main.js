@@ -155,6 +155,7 @@ function handleEvents() {
         rebound: ['REBOUND!', 500, 0.4],
         rebound180: ['REBOUND 180!', 750, 0.45],
         slash: ['SLASH!', 400, 0.6],
+        roundhouse: ['ROUNDHOUSE!', 450, 0.5],
       };
       // Bottom and top turns aren't called out as moves: they just add points.
       const quiet = e.move === 'bottomTurn' || e.move === 'topTurn';
@@ -267,11 +268,13 @@ function updateCamera(dt) {
       shot = 'tubeClose';
     }
   } else if (camMode === 0) {
-    // From the channel in front of the wave: barrel on the left, shoulder right.
-    // Ahead in the channel, looking back up the line into the tube.
-    const near = aspectNow < 1 ? 0.7 : 1; // closer on a phone held upright
-    want = [p[0] + 6.0 * near, 2.2 + p[1] * 0.35, p[2] + 8.0 * near];
-    look = [p[0] - 1.8 * near, 1.0 + p[1] * 0.55, p[2] - 0.5];
+    // From the channel, out in front of the surfer: balanced, so you see the
+    // shoulder coming up ahead (right) and the part that's already broken
+    // behind you (left) about equally, the surfer a little left of center
+    // (more room ahead).
+    const near = aspectNow < 1 ? 0.75 : 1; // closer on a phone held upright
+    want = [p[0] + 4.0 * near, 3.8 + p[1] * 0.35, p[2] + 14 * near];
+    look = [p[0] + -0.3 * near, 1.0 + p[1] * 0.55, p[2] - 0.5];
   } else if (camMode === 2) {
     // Close-up (testing): beside the rider, toward the beach.
     want = [p[0] + 2.4, p[1] + 1.5, p[2] + 4.2];

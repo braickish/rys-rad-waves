@@ -113,9 +113,13 @@ export function surferObjects(pose, rider, info, dt) {
   if (info.pump) kneeT = vUp > 0.3 ? 0.75 : 0.05; // compress going up, extend driving down
   if (rider.crouch) kneeT = rider.tube ? 0.42 : 0.85; // in the tube: a compact, athletic crouch, not squatting
   if (rider.mode === 'air') kneeT = 0.7;
+  // Roundhouse: lower and lower as it comes round.
+  const rh = rider.mode === 'surf' ? rider.crouchDepth || 0 : 0;
+  if (rh > 0.01) kneeT = Math.max(kneeT, 0.4 + 0.55 * rh);
   pose.knee += (clamp(kneeT, 0, 1) - pose.knee) * (1 - Math.exp(-dt * 9));
   let leanT = clamp(info.turn * 0.2 * clamp(speed / 4, 0.8, 1.25) * (1 + 0.3 * committed), -0.85, 0.85); // + = toward L
   if (committed > 0.5 && Math.abs(info.turn) > 0.3) leanT = Math.sign(leanT) * Math.max(Math.abs(leanT), (rider.bottomCarve ? 0.65 : 0.5) * committed);
+  if (rh > 0.01 && Math.abs(info.turn) > 0.3) leanT = Math.sign(leanT) * Math.max(Math.abs(leanT), 0.5 + 0.3 * rh); // deeper into the roundhouse
   pose.lean += (leanT - pose.lean) * (1 - Math.exp(-dt * 8));
   const knee = pose.knee, lean = pose.lean;
   const reach = clamp((Math.abs(lean) - 0.25) / 0.35, 0, 1);

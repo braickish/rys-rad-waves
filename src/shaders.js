@@ -146,7 +146,11 @@ fn ripple(q: vec2f, t: f32) -> f32 {
   let thin = i.attr.z;
 
   let fres = 0.02 + 0.98 * pow(1.0 - max(dot(n, v), 0.0), 5.0);
-  let refl = sky(reflect(-v, n));
+  // On the flat water the sun's mirror image is damped (no ripples there to
+  // break it up, so it blew out into a big white smear in front of the wave).
+  let flatness = 1.0 - smoothstep(0.03, 0.2, 1.0 - abs(normalize(i.n).y));
+  var refl = sky(reflect(-v, n));
+  refl = mix(refl, min(refl, vec3f(1.05)), flatness);
   let deep = vec3f(0.01, 0.12, 0.19);
   let upper = vec3f(0.03, 0.34, 0.40);
   var body = mix(deep, upper, smoothstep(-0.5, 4.0, i.wpos.y));
@@ -158,7 +162,7 @@ fn ripple(q: vec2f, t: f32) -> f32 {
   var col = body + sss;
   col = mix(col, refl, fres * (1.0 - thin * 0.5));
   let hv = normalize(sun + v);
-  col += vec3f(1.0, 0.95, 0.85) * pow(max(dot(n, hv), 0.0), 500.0) * 4.0;
+  col += vec3f(1.0, 0.95, 0.85) * pow(max(dot(n, hv), 0.0), 500.0) * 4.0 * (1.0 - 0.85 * flatness);
 
   // Foam: broken up with noise, plus faint streaks on the face.
   let fq = vec2f(i.wpos.x + t * peel * 0.9, i.wpos.y * 1.3 + i.wpos.z * 0.6 - t * 0.8);

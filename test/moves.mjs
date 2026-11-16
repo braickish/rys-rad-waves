@@ -21,16 +21,20 @@ function audit(name, init, policy, secs = 1.5) {
   return { peak, inFoam, wiped: r.mode === 'wipe' };
 }
 // Hold an input until the first move happens, then let go.
-const once = (inp) => { let done = false; return (r) => { if (r.events.some((e) => e.type === 'move' && e.move !== 'bottomTurn')) done = true; return done || r.assist ? {} : inp; }; };
+const once = (inp) => { let done = false; return (r) => { if (r.events.some((e) => e.type === 'move' && e.move !== 'bottomTurn')) done = true; return done || r.assist || r.lipSnap || r.snapGrip ? {} : inp; }; };
 // Ride straight until the whitewater is right there, then turn as you hit it.
 const atFoam = (inp) => { const o = once(inp); return (r) => (r.foam > 0.05 || foamAt(r.xs - 0.6, r.t) > 0.2 ? o(r) : {}); };
 // Climb (turn nose-up only until it points up the face), then turn at the lip.
 const lipTurn = (r) => (r.t < TUNE.tTop + 1.2 ? { turn: -1 } : Math.sin(r.phi) < 0.95 && Math.cos(r.phi) > 0 ? { turn: 1 } : {});
+// ... and let go once the move has happened (the audit measures the move itself).
+const lipTurnOnce = () => { let done = false; return (r) => { if (r.events.some((e) => e.type === 'move' && e.move !== 'bottomTurn')) done = true; return done || r.assist || r.lipSnap || r.snapGrip ? {} : lipTurn(r); }; };
 const rows = [
-  ['snap at the curl', { xs: 0.5, t: 8, phi: 1.2, speed: 12 }, lipTurn],
-  ['off the lip (open face)', { xs: 5, t: 8, phi: 1.3, speed: 12 }, lipTurn],
-  ['re-entry (whitewater, steep)', { xs: -2.5, t: 8, phi: 1.35, speed: 12 }, lipTurn],
+  ['snap at the curl', { xs: 0.5, t: 8, phi: 1.2, speed: 12 }, lipTurnOnce()],
+  ['off the lip (open face)', { xs: 5, t: 8, phi: 1.3, speed: 12 }, lipTurnOnce()],
+  ['re-entry (whitewater, steep)', { xs: -2.5, t: 8, phi: 1.35, speed: 12 }, lipTurnOnce()],
   ['floater', { xs: -5, t: 8, phi: 0.5, speed: 13 }, () => ({})],
+  ['roundhouse (shoulder, Left back round)', { xs: 9, t: 10.5, phi: 0, speed: 10 }, once({ turn: 1 })],
+  ['roundhouse (shoulder, Right back round)', { xs: 9, t: 10.5, phi: 0, speed: 10 }, once({ turn: -1 })],
   ['floater climbing from the flats behind', { xs: -4, t: 13.8, phi: 0.9, speed: 11 }, () => ({})],
   ['floater from the flats, turning near top', { xs: -4, t: 13.8, phi: 0.9, speed: 11 }, (r) => (r.t < TUNE.tTop + 1.2 ? { turn: -1 } : {})],
   ['air within 2 ft of the whitewater', { xs: 0.2, t: 7.5, phi: 1.3, speed: 13 }, () => ({})],
@@ -63,7 +67,7 @@ for (const [label, dir, start] of [
   for (let i = 0; i < 0.8 * 120; i++) {
     stepRider(r, move ? {} : { turn: dir }, 1 / 120);
     for (const e of r.events) if (e.type === 'move' && e.move !== 'bottomTurn') move = e.move;
-    if (move && !r.assist && after === null) after = r.phi;
+    if (move && !r.assist && !r.lipSnap && !r.snapGrip && after === null) after = r.phi;
     if (move && dir < 0) minCos = Math.min(minCos, Math.cos(r.phi));
     if (r.mode !== 'surf') break;
   }

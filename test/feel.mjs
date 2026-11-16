@@ -49,19 +49,19 @@ for (const [label, o, inp] of [
   const r = start(o); const moves = [];
   let t0 = null, pivot = null, steps = 0;
   for (; steps < 2.5 / dt; steps++) {
-    const holding = !moves.length && !r.assist;
+    const holding = !moves.length && !r.assist && !r.lipSnap && !r.snapGrip;
     stepRider(r, holding ? inp : {}, dt);
     for (const e of r.events) if (e.type === 'move') moves.push(moveName(e));
-    if (r.assist && t0 === null) t0 = steps * dt;
-    if (t0 !== null && !r.assist && pivot === null) pivot = steps * dt - t0;
+    if ((r.assist || r.lipSnap || r.snapGrip) && t0 === null) t0 = steps * dt;
+    if (t0 !== null && !(r.assist || r.lipSnap || r.snapGrip) && pivot === null) pivot = steps * dt - t0;
     if (r.mode === 'wipe') break;
   }
   out.push(`into the whitewater ${label}: ${moves.join(' -> ') || '-'}${pivot !== null ? ` (pivot ${pivot.toFixed(2)}s)` : ''}, ${r.mode === 'wipe' ? 'WIPE: ' + r.wipeReason : 'riding, heading ' + (r.phi * 57.3).toFixed(0) + ' deg'}`);
 }
 // 6a. Snap: how long the release pivot takes before you're back in control.
-{ const r = start({ xs: 1, t: 7, phi: 1.2, speed: 13 }); let t0 = null, dur = null;
-  for (let i = 0; i < 1 / dt; i++) { stepRider(r, { turn: -1 }, dt); if (r.assist && t0 === null) t0 = i * dt; if (t0 !== null && !r.assist && dur === null) dur = i * dt - t0; }
-  out.push(`snap at the curl: release pivot ${dur === null ? '?' : dur.toFixed(2) + 's'}, then heading ${(r.phi * 57.3).toFixed(0)} deg`); }
+{ const r = start({ xs: 1, t: 7, phi: 1.2, speed: 13 }); let t0 = null, dur = null, heading = null;
+  for (let i = 0; i < 1 / dt; i++) { const busy = () => r.assist || r.lipSnap || r.snapGrip; stepRider(r, dur === null ? { turn: -1 } : {}, dt); if (busy() && t0 === null) t0 = i * dt; if (t0 !== null && !busy() && dur === null) { dur = i * dt - t0; heading = r.phi; } }
+  out.push(`snap at the curl: release pivot ${dur === null ? '?' : dur.toFixed(2) + 's'}, then heading ${heading === null ? '?' : (heading * 57.3).toFixed(0)} deg`); }
 // 6c. Holding a turn leans in harder: tighter arc.
 { const a = start({ xs: 2, t: 10, phi: 0, speed: 12 }), b = start({ xs: 2, t: 10, phi: 0, speed: 12 });
   for (let i = 0; i < 0.25 / dt; i++) stepRider(a, { turn: -1 }, dt);

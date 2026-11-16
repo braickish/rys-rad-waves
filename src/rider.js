@@ -38,7 +38,7 @@ const RIDER_TUNE = {
   hardRadius: 0.7, // ... and a tighter arc
   snapRate: 13,
   moveCalm: 0.95,
-  moveScrub: { slash: 0.25, snap: 0.08, offLip: 0.07, reentry: 0.08, topTurn: 0.04, lip180: 0.1, floater: 0.05, rebound: 0.1, rebound180: 0.1, revert: 0.05, land: 0.05 }, // speed each move costs // no speeding up for this long after a move (s); 0 = off (?moveaccel)
+  moveScrub: { roundhouse: 0.03, slash: 0.25, snap: 0.08, offLip: 0.07, reentry: 0.08, topTurn: 0.04, lip180: 0.1, floater: 0.05, rebound: 0.1, rebound180: 0.1, revert: 0.05, land: 0.05 }, // speed each move costs // no speeding up for this long after a move (s); 0 = off (?moveaccel)
   fakieTime: 0.7, // after landing backwards, ride it this long (s) ...
   fakieSpinRate: 18, // ... then the board spins back round this fast (rad/s)
   lip180Rate: 14, // the quick 180 off the top when you turn toward the whitewater (rad/s) // how fast the board pivots back down in a snap (rad/s): quick, not instant
@@ -73,15 +73,15 @@ const RIDER_TUNE = {
   // board swings round sideways while you carry on up the face (the tail
   // sliding), then the fins grip and you go where the board points. Start the
   // Right turn any higher and it's an ordinary turn (a snap up at the lip).
-  slashLow: 0.15, // start the Right turn below this height on the face (the flats count) ...
-  slashClimb: 0.45, // ... with the nose well up the face (sin of angle) ...
-  slashDropAngle: 0.7, // ... out of a real bottom turn: pointing at least this steeply down (sin, ~45 deg) ...
-  slashDropRecent: 0.9, // ... low on the face (below slashDropLow) within this long before (s)
+  slashLow: 0.2, // start the Right turn below this height on the face (the flats count) ...
+  slashClimb: 0.3, // ... with the nose up the face (sin of angle, ~17 deg) ...
+  slashDropAngle: 0.45, // ... out of a real bottom turn: pointing at least this steeply down (sin, ~27 deg) ...
+  slashDropRecent: 1.2, // ... low on the face (below slashDropLow) within this long before (s)
   slashDropLow: 0.3,
-  slashWindow: 0.12, // ... the turn having started this recently (s)
+  slashWindow: 0.15, // ... the turn having started this recently (s)
   slashPocket: 0.15, // not out on the shoulder (pocket power)
   slashMinSpeed: 5, // m/s
-  slashHold: 0.18, // the fins hold this long into the turn (a normal carve) before they release (s); let go before and it's just a turn
+  slashHold: 0.15, // the fins hold this long into the turn (a normal carve) before they release (s); let go before and it's just a turn
   slashSpin: 5, // how fast the board swings round on the slide (rad/s) ...
   slashSlideMax: 1.0, // ... up to this far ahead of where you're going (rad, ~57 deg) ...
   slashTime: 0.45, // ... for up to this long after the release while you hold the turn (s)
@@ -93,6 +93,20 @@ const RIDER_TUNE = {
   // In the barrel a slash is a smaller, scrubbier slide: it turns about half as
   // far and scrubs harder (these override the settings above in the tube).
   slashTube: { slashSpin: 4, slashSlideMax: 0.35, slashFollow: 0.15, slashCarve: 0.3, slashDrag: 5.0 },
+  // Snap / off the lip / re-entry (turning away from the whitewater at the
+  // lip): you stay on the lip, your line running along it, while the fins
+  // release and the board swings round in place, scrubbing speed; then the
+  // fins grip (slashGrip) and you ride back down.
+  lipSnapSwing: 11, // how fast the board swings round on the lip (rad/s)
+  lipSnapDrag: 1.4, // speed scrubbed while it swings and grips (1/s)
+  // Roundhouse: out on the shoulder, turn back toward the whitewater; the
+  // further round you come the deeper you lean and the lower you crouch, and
+  // the turn tightens. Scores once you're heading back toward the whitewater.
+  roundhouseZone: 5, // out on the shoulder: at least this far ahead of the curl (m) ...
+  roundhousePocket: 0.55, // ... where the pocket has faded below this
+  roundhouseDepth: [0.5, 2.2], // turned this far (rad) = starting to lean .. fully deep and crouched
+  roundhouseRate: 1.35, // at full depth the turn is this much tighter
+  roundhouseScore: 1.8, // turned at least this far (rad, ~100 deg) and heading back toward the whitewater
   standH: 1.75,
   crouchH: 1.1,
 };
@@ -187,7 +201,7 @@ export function createRider() {
     airSpin: 0, airTime: 0, spinArmed: false,
     moveCooldown: 0, lastBottomTurn: -9, bottomArmed: false,
     tube: null, fakie: null, driveBank: 0, lastTurnTime: -9, lastTurnDir: 0, overTheBack: false,
-    rideDir: 1, slash: null, slide: 0, rightHeld: 0, turnDir: 0, turnDirAge: 9, turnHeld: 0, hard: 0, assist: null, bottomCarve: false, floater: null,
+    rideDir: 1, lipSnap: null, snapGrip: false, roundhouse: null, crouchDepth: 0, slash: null, slide: 0, rightHeld: 0, turnDir: 0, turnDirAge: 9, turnHeld: 0, hard: 0, assist: null, bottomCarve: false, floater: null,
     wipeReason: '', wipeTimer: 0,
     events: [],
     time: 0,
@@ -232,7 +246,7 @@ export function stepRider(r, input, dt) {
     if ((e.type === 'move' && e.move !== 'bottomTurn') || e.type === 'land') {
       // (no calm after a slash: it's a sharper turn, not a pivot off the lip,
       // so carving through it keeps its flow; it still scrubs a little)
-      if (e.move !== 'slash') r.calm = TUNE.moveCalm;
+      if (e.move !== 'slash' && e.move !== 'roundhouse') r.calm = TUNE.moveCalm; // (a roundhouse flows into the rebound)
       // A move costs a little speed (the board scrubs as it pivots), and any
       // drive still banked from the bottom turn is spent.
       r.speed *= 1 - (TUNE.moveScrub[e.move || 'land'] || 0);
@@ -334,7 +348,7 @@ function stepSurf(r, input, dt) {
   // nothing is added to your speed.
   r.rightHeld = steer < 0 ? r.rightHeld + dt : 0;
   const inTube = r.tube && !r.tube.pullIn;
-  if (!r.slash && !r.slide && steer < 0 && r.rightHeld <= T.slashWindow && r.moveCooldown === 0 && !r.assist && !r.floater && !r.fakie
+  if (!r.slash && !r.slide && !r.lipSnap && steer < 0 && r.rightHeld <= T.slashWindow && r.moveCooldown === 0 && !r.assist && !r.floater && !r.fakie
     && r.speed > T.slashMinSpeed && height < T.slashLow
     && r.time - (r.steepDropTime ?? -9) < T.slashDropRecent // a real bottom turn, not a little turn in the pocket
     && Math.sin(r.phi) > T.slashClimb && Math.cos(r.phi) > -0.5 // on the way up (not cutting back along the wave)
@@ -343,6 +357,17 @@ function stepSurf(r, input, dt) {
     r.slash = { time: 0, released: false, tube: !!inTube };
   }
   let gripD = 0;
+  // Snap on the lip: the board swings round in place while your line runs
+  // along the lip (heading = phi - slide); then the fins grip, below.
+  if (r.lipSnap) {
+    const ls = r.lipSnap;
+    // (the move has the board while it swings)
+    ls.time += dt;
+    d = 0;
+    const head = Math.max(ls.target, r.phi - r.slide - T.lipSnapSwing * dt);
+    r.slide = r.phi - head;
+    if (head <= ls.target + 1e-4 || ls.time > 0.5) { r.lipSnap = null; r.snapGrip = true; }
+  }
   if (r.slash) {
     const sl = r.slash;
     const S = (k) => (sl.tube && T.slashTube[k] !== undefined ? T.slashTube[k] : T[k]); // barrel settings in the tube
@@ -361,12 +386,39 @@ function stepSurf(r, input, dt) {
       d *= S('slashCarve'); // (in the barrel your own carve mostly gives way to the slide)
     }
   }
-  if (r.assist) r.slide = 0; // an assisted pivot takes the board over
-  else if (!r.slash && r.slide > 0) {
+  // --- roundhouse: out on the shoulder, turning back toward the whitewater ---
+  // (it starts from a turn begun while riding along or down the line; not a
+  // bottom turn: turning the nose back up from pointing down)
+  const bottomTurning = Math.sin(r.phi) < -0.3 && Math.sign(d) === (r.rideDir >= 0 ? 1 : -1);
+  if (!r.roundhouse && d && r.turnHeld <= 0.1 && !bottomTurning && !r.assist && !r.lipSnap && !r.snapGrip && !r.slash && !r.floater && !r.tube
+    && r.xs > T.roundhouseZone && pk < T.roundhousePocket && Math.cos(r.phi) > 0.2) {
+    r.roundhouse = { dir: Math.sign(d), turned: 0, depth: 0, scored: false };
+  }
+  if (r.roundhouse) {
+    const rh = r.roundhouse;
+    if (!d || Math.sign(d) !== rh.dir || r.assist || r.lipSnap || r.slash || r.floater) r.roundhouse = null;
+    else {
+      d *= 1 + (T.roundhouseRate - 1) * rh.depth; // the deeper you are into it, the tighter it comes round
+      rh.turned += Math.abs(d);
+      rh.depth = sstep(T.roundhouseDepth[0], T.roundhouseDepth[1], rh.turned);
+      if (!rh.scored && rh.turned > T.roundhouseScore && Math.cos(r.phi + d) < -0.3) {
+        rh.scored = true;
+        r.events.push({ type: 'move', move: 'roundhouse', speed: r.speed, xs: r.xs, combo: r.time - (r.lastBottomTurn ?? -9) < T.comboWindow });
+      }
+    }
+  }
+  // (for the surfer's pose: crouch lower and lean deeper as the roundhouse comes round)
+  r.crouchDepth += ((r.roundhouse ? r.roundhouse.depth : 0) - r.crouchDepth) * (1 - Math.exp(-dt * (r.roundhouse ? 10 : 4)));
+  if (r.roundhouse) r.hard = Math.max(r.hard, r.roundhouse.depth);
+  if (r.assist) { r.slide = 0; r.snapGrip = false; } // an assisted pivot takes the board over
+  else if (!r.slash && !r.lipSnap && r.slide > 0) {
     // The fins grip: your line swings round to where the board points.
+    // (After a snap the move has the board until they've gripped, like the
+    // old pivot: holding the turn through it doesn't spin you round.)
+    if (r.snapGrip) d = 0;
     const c = Math.min(r.slide, T.slashGrip * dt);
     gripD = -c; r.slide -= c; // (applied below: it isn't you steering)
-    if (r.slide < 1e-3) r.slide = 0;
+    if (r.slide < 1e-3) { r.slide = 0; r.snapGrip = false; }
   }
   // A quick assisted turn (snap release, rebound) takes over the board for a
   // moment and then hands control straight back.
@@ -459,9 +511,11 @@ function stepSurf(r, input, dt) {
   // During a move, and for a moment after it, you don't speed up at all:
   // the move is a turn of the board, not a boost. (Bottom turns excluded.)
   r.calm = Math.max(0, (r.calm || 0) - dt);
-  if (r.assist || r.floater || r.calm > 0) r.speed = Math.min(r.speed, speedAtStart);
+  if (r.assist || r.floater || r.calm > 0 || r.lipSnap) r.speed = Math.min(r.speed, speedAtStart);
+  // The snap scrubs speed on the lip while the board swings and grips.
+  if (r.lipSnap || r.snapGrip) r.speed = Math.min(r.speed, speedAtStart) * (1 - T.lipSnapDrag * dt);
   // Sliding sideways in a slash scrubs speed, and nothing builds it meanwhile.
-  if (r.slide > 0) r.speed = Math.min(r.speed, speedAtStart) * (1 - (r.tube ? T.slashTube.slashDrag : T.slashDrag) * Math.sin(Math.min(r.slide, Math.PI / 2)) * dt);
+  else if (r.slide > 0) r.speed = Math.min(r.speed, speedAtStart) * (1 - (r.tube ? T.slashTube.slashDrag : T.slashDrag) * Math.sin(Math.min(r.slide, Math.PI / 2)) * dt);
   r.speed = clamp(r.speed, T.minSpeed, T.maxSpeed);
 
   // --- move ---
@@ -472,6 +526,7 @@ function stepSurf(r, input, dt) {
   const faceLift = (T.faceFlow || 0) * steep * pk;
   r.t -= ((r.speed * sinp + faceLift) * dt) / Math.max(0.3, Math.hypot(f.Pt[1], f.Pt[2]));
   r.t = Math.min(r.t, T.tFlats); // ride out onto the flats in front if you don't turn back up
+  if (r.lipSnap) r.t = r.lipSnap.t; // the snap stays right on the lip
 
   // --- floater: riding along the top of the whitewater ---
   // Pivots out of a move point you straight down from the lip (a little
@@ -495,7 +550,7 @@ function stepSurf(r, input, dt) {
 
   const ready = r.moveCooldown === 0; // moves need a gap between them
   // Pulling into the barrel: up near the lip close to the curl and turning.
-  if (WAVE.tube && !r.tube && !r.assist && !r.floater && !r.slash && r.xs < T.pullInZone && r.xs > -2
+  if (WAVE.tube && !r.tube && !r.assist && !r.lipSnap && !r.floater && !r.slash && r.xs < T.pullInZone && r.xs > -2
     && height > T.pullInHeight && r.time - (r.lastTurnTime ?? -9) < 0.15) {
     enterTube(r, true);
     syncPose(r, frameAt(r.xs, r.t));
@@ -506,7 +561,7 @@ function stepSurf(r, input, dt) {
   // Climbing up the whitewater from below: once you're high on it you pop
   // up onto it and float, without needing to reach the very top.
   const turningNow = r.time - (r.lastTurnTime ?? -9) < T.turnWindow;
-  const highOnFoam = !r.floater && !r.assist && r.t > top && sinp > 0.2 && cosp > -0.15
+  const highOnFoam = !r.floater && !r.assist && !r.lipSnap && r.t > top && sinp > 0.2 && cosp > -0.15
     && (r.xs < T.curlZone[0] || foamAt(r.xs, r.t) > 0.3) && waveHeightFrac(r.pos[1]) > T.floaterHeight
     && !(turningNow && sinp > 0.55);
   if (highOnFoam && !T.floaters) return wipe(r, 'Over the falls! (too heavy to float)');
@@ -517,14 +572,14 @@ function stepSurf(r, input, dt) {
       r.moveCooldown = T.moveGap;
     }
   }
-  if (r.tube && r.t <= top && sinp > 0 && !r.assist) {
+  if (r.tube && r.t <= top && sinp > 0 && !r.assist && !r.lipSnap) {
     // In the tube the top of the face is the roof: brush it and you're
     // deflected back down; drive hard straight into it and you go over.
     if (sinp > TUNE.roofCrash) return wipe(r, 'Over the falls! (up into the lip)');
     r.t = top;
     r.assist = { dir: -1, target: -0.5, rate: TUNE.snapRate };
   }
-  if (!r.floater && !r.assist && r.t <= top && sinp > 0) {
+  if (!r.floater && !r.assist && !r.lipSnap && r.t <= top && sinp > 0) {
     r.t = top;
     const ph = phaseAt(r.xs);
     const inWhitewater = r.xs < T.curlZone[0] || foamAt(r.xs, r.t + 0.6) > 0.3;
@@ -550,9 +605,16 @@ function stepSurf(r, input, dt) {
       const towardWhitewater = (r.lastTurnDir || -1) > 0;
       if (towardWhitewater) {
         r.assist = { dir: 1, target: -Math.PI / 2, rate: T.lip180Rate };
+      } else if (r.rideDir >= 0) {
+        // Stay on the lip: your line runs along it and the board swings round
+        // in place (it keeps pointing where it was, heading = phi - slide).
+        r.lipSnap = { t: r.t, target: -(inWhitewater ? T.foamExit : T.lipExit), time: 0 };
+        r.slide = -r.phi; r.phi = 0;
+        r.roundhouse = null; r.slash = null;
+        if (inWhitewater) r.boost = 1.0; // a re-entry carries you out of the foam
       } else {
         r.assist = { dir: -1, target: -(inWhitewater ? T.foamExit : T.lipExit), rate: T.snapRate };
-        if (inWhitewater) r.boost = 1.0; // a re-entry carries you out of the foam
+        if (inWhitewater) r.boost = 1.0;
       }
       if (ready) {
         const inCurl = !inWhitewater && r.xs <= T.curlZone[1];
@@ -596,7 +658,7 @@ function stepSurf(r, input, dt) {
   // (top half of the wave), turning Right spins you 180 around through the
   // top (top third). Lower than that, or not turning, and it buries you.
   // Inside the gap after another move the whitewater just slows you down.
-  if (ready && !r.assist && !r.floater && cosp < -0.15 && foamAt(r.xs, r.t) > T.foamContact) {
+  if (ready && !r.assist && !r.lipSnap && !r.floater && cosp < -0.15 && foamAt(r.xs, r.t) > T.foamContact) {
     const hNow = waveHeightFrac(r.pos[1]);
     if (!T.rebounds) return wipe(r, 'Buried by the whitewater! (too heavy to rebound off)');
     if (!r.turnDir) return wipe(r, 'Hit the whitewater straight on! (turn as you hit it)');

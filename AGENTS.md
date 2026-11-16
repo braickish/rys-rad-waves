@@ -85,8 +85,19 @@ button).
     "BIG AIR").
   - Moves are decided by where you hit the top and how steep: in the whitewater (behind `curlZone`)
     → **re-entry**, at the curl → **snap**, on the open face → **off the lip** (shallow hits are a
-    **top turn**). Within `comboWindow` of a bottom turn it's a combo. Snaps are a short fin release:
-    a quick assisted pivot back down the face (`snapRate`, ~0.17s), then control is yours again.
+    **top turn**). Within `comboWindow` of a bottom turn it's a combo. Snap / off the lip / re-entry
+    (turning away from the whitewater) **stay on the lip** (`r.lipSnap`): your line runs along the
+    lip, held there, while the fins release and the board swings round in place (`lipSnapSwing`,
+    via `r.slide`) scrubbing speed (`lipSnapDrag`, ~28 -> 17 mph), then the fins grip (`slashGrip`,
+    `r.snapGrip`) and you ride back down at `lipExit`. Your steering is ignored until they've
+    gripped (holding the turn through it doesn't spin you round). The old version pivoted with
+    `snapRate` while still travelling up, so it went over the lip and back. Riding back the other
+    way (`rideDir < 0`) still uses the quick pivot.
+  - **Roundhouse:** out on the shoulder (`roundhouseZone`, pocket below `roundhousePocket`), start a
+    turn while riding along or down the line (not a bottom turn) and keep it going back toward the
+    whitewater: it tightens (`roundhouseRate`) and you lean deeper and crouch lower as it comes
+    round (`r.crouchDepth`, surfer.js), scoring once you've turned `roundhouseScore` and are heading
+    back. No `moveGap`/`moveCalm` from it, so it flows into a rebound off the whitewater.
   - Turning back into the whitewater (a cutback): you must meet its front edge (`foamContact`) in the
     top two thirds of the wave (`reboundMinHeight`) and be turning as you hit: Left → **rebound**
     (nose swings down and back down the line), Right → **rebound 180** (spins around through the
@@ -152,6 +163,9 @@ button).
 - **Water rendering:** the GPU builds the surface every frame from a cross-section table (512 phases,
   built per wave in `buildWaterTable`) and each slice's current phase (`slicePhases`), so the wave can
   change over time. The spray emitter table is refreshed every frame too.
+- **Riding camera** (main.js, `camMode` 0): out in the channel a little ahead of the surfer, so the
+  shoulder ahead and the broken part behind are both in frame. The flat water's sun reflection is
+  damped (shaders.js `flatness`), since facing the sun more it blew out into a white smear.
 - **Scoring:** only moves, airs and barrels score; riding by itself doesn't. Bottom turns and top
   turns aren't called out as moves: they add their points quietly (main.js `handleEvents`).
 - `src/mesh.js`: builds the water's cross-section table and grid, a lip lookup table for particle emitters, and the box/sphere primitives for the surfer.
