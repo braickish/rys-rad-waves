@@ -43,7 +43,7 @@ export function buildWaterMesh(perSeg = 10) {
       if (WAVE_TYPE === 'crumble') {
         // Foam spills from the crest down the face behind the curl, reaching
         // further down as the section crumbles, until the whole face is white.
-        const reach = 6 + 7 * sstep(0.0, 1.1, s); // how far down the face (in t) the foam has spilled
+        const reach = 6 + 7 * sstep(0.0, 0.7, s); // how far down the face (in t) the foam has spilled
         foam = sstep(-0.15, 0.35, s) * sstep(3.6, 4.6, t) * (1 - sstep(reach - 1.2, reach + 0.6, t));
         foam = Math.max(foam, sstep(0.8, 1.4, s) * sstep(3.5, 5.0, t) * (1 - sstep(10, 40, -xs) * 0.5));
         // Feathering along the crest just ahead of the curl.

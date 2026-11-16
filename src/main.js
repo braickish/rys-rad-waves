@@ -1,5 +1,5 @@
 import { createRenderer } from './renderer.js';
-import { createRider, resetRider, stepRider, groundSpeed, frameAt, v3 } from './rider.js';
+import { createRider, resetRider, stepRider, groundSpeed, frameAt, v3, TUNE } from './rider.js';
 import { PEEL_SPEED, slice, verticalHits, setWaveType } from './wave.js';
 import { perspective, lookAt, mul, invert } from './math.js';
 import { createPose, surferObjects } from './surfer.js';
@@ -26,17 +26,15 @@ addEventListener('keydown', (e) => {
 addEventListener('keyup', (e) => keys.delete(e.code));
 addEventListener('blur', () => keys.clear());
 
-// Autopilot: works the pocket with S-turns and pumps, cuts back when it gets
-// ahead of the curl. Drives the title-screen demo and the ?auto test mode.
+// Autopilot: works the pocket with S-turns and pumps, snaps off the top,
+// cuts back into the curl when it gets ahead. Drives the title-screen demo
+// and the ?auto test mode.
 let autoUp = false;
 function autopilot() {
-  const y = rider.pos[1] + rider.vel[1] * 0.3;
-  if (autoUp && y > 2.6) autoUp = false;
-  if (!autoUp && y < 1.0) autoUp = true;
-  const crouch = rider.inBarrel;
-  if (rider.xs > 6) return { aim: [-0.6, autoUp ? 0.8 : -0.5], crouch };
-  if (rider.xs < -1) return { aim: [1, autoUp ? 0.5 : -0.6], pump: !autoUp, crouch };
-  return { tilt: autoUp ? 0.9 : -0.8, pump: !autoUp, crouch };
+  if (autoUp && rider.t < TUNE.tTop + 1) autoUp = false;
+  if (!autoUp && rider.t > 12.8) autoUp = true;
+  if (rider.xs > 7 || (rider.xs > 4 && rider.speed < 9)) return { turn: -1 };
+  return { tilt: autoUp ? 1 : -1, pump: !autoUp, crouch: rider.inBarrel };
 }
 
 // Keyboard: Left/Right carve the board around (counterclockwise/clockwise as
@@ -90,7 +88,7 @@ let score = 0, best = 0;
 try { best = Number(localStorage.getItem('rys-rad-waves-best')) || 0; } catch {}
 let burst = 0, msgTimer = 0, rideTime = 0;
 let prevHeading = rider.heading.slice();
-let turnSigned = 0, snapSpray = 0;
+let turnSigned = 0, snapSpray = 0, lastReentry = -9;
 const pose = createPose();
 let lastInput = {};
 
@@ -127,15 +125,20 @@ function handleEvents() {
       score += pts;
       flash(name, `+${pts}`);
     }
-    if (e.type === 'snap' && e.speed > 3) {
-      const pts = Math.round(300 + e.speed * 60);
+    if (e.type === 'snap') {
+      const pts = Math.round((e.whitewater ? 300 : 150) + e.speed * (e.whitewater ? 30 : 15));
       score += pts;
-      snapSpray = 0.3;
-      flash('SNAP!', `+${pts}`);
+      snapSpray = e.whitewater ? 0.35 : 0.2;
+      flash(e.whitewater ? 'SNAP!' : 'Off the top', `+${pts}`);
     }
-    if (e.type === 'topTurn' && e.speed > 3.5) {
-      score += 250;
-      flash('Off the lip!', '+250');
+    if (e.type === 'reentry') {
+      // Rebounding off the whitewater; spamming it pays less.
+      const fresh = rider.time - lastReentry > 1.5;
+      lastReentry = rider.time;
+      const pts = fresh ? 500 : 150;
+      score += pts;
+      snapSpray = 0.4;
+      flash(fresh ? 'RE-ENTRY!' : 'Rebound', `+${pts}`);
     }
     if (e.type === 'wipe') {
       burst = 0.3;

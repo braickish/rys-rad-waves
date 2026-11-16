@@ -1,9 +1,9 @@
 // Regression test for "controls flip backward at the lip": play the way a
 // person does and check nothing glitches. With Up/Down only, the board must
 // never end up facing the curl; with any input, the rider must never be
-// flung backward unreasonably fast.
-import { createRider, resetRider, stepRider } from '../src/rider.js';
-import { setWaveType } from '../src/wave.js';
+// moved faster than the board can go.
+import { createRider, resetRider, stepRider, TUNE } from '../src/rider.js';
+import { setWaveType, PEEL_SPEED } from '../src/wave.js';
 const dt = 1 / 120;
 let failed = 0;
 function play(name, script, { secs = 8, tiltOnly = false } = {}) {
@@ -17,9 +17,10 @@ function play(name, script, { secs = 8, tiltOnly = false } = {}) {
     minHx = Math.min(minHx, r.heading[0]);
     minVx = Math.min(minVx, r.vel[0]);
   }
-  // Up/Down never point you back at the curl, so you can't move back much
-  // faster than the peel; free turning (cutbacks) can ride back at speed.
-  const ok = !nan && minVx > (tiltOnly ? -9 : -14) && (!tiltOnly || minHx > -0.2);
+  // Never faster than the board's top speed through the water (in the peel
+  // frame the water itself moves back at the peel speed). Up/Down alone never
+  // point you back at the curl.
+  const ok = !nan && minVx > -(TUNE.maxSpeed + PEEL_SPEED + 0.5) && (!tiltOnly || minHx > -0.2);
   if (!ok) failed++;
   console.log(`${ok ? 'ok  ' : 'FAIL'} ${name.padEnd(40)} ${(i * dt).toFixed(1).padStart(4)}s minHeadingX=${minHx.toFixed(2)} minVx=${minVx.toFixed(1)} airs=${airs} ${r.mode === 'wipe' ? '(' + r.wipeReason + ')' : ''}`);
 }

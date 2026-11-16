@@ -28,21 +28,20 @@ Touch: drag on the left half to point the board, buttons for pump and crouch.
   through 16 control points, keyframed by phase (swell → steep → pitching → barrel → closing →
   whitewater) and smoothed with centripetal Catmull-Rom. Because it's one curve and not a heightfield,
   it can wrap around into a tube. Surface coords are `(xs, t)`, with `t` in `[0, 15]` along the curve.
-- `src/rider.js`: surf physics, pure JS. Rider pinned to the surface in `(xs, t)`; gravity, fin/keel
-  grip, rail carving (turns redirect forward momentum only), landing via segment/curve intersection,
-  and barrel clearance (crouch to fit). All knobs are in `TUNE`.
-  **Speed model: the pocket.** `pocketPower(xs)` is full at the curl and fades fast out on the
-  shoulder (`pocketWidth`) and behind it into the foam. All the wave's drive scales with it: the climb
-  subsidy (`lift`, capped below gravity by `liftCap`), the curl's push when trimming high on the face
-  (`curlPush`), and the `glide` floor (only while turning back up the face, only on the face). Out on
-  the shoulder and on flat water the board bogs down (`shoulderDrag`); in crumbling foam harder
-  (`foamDrag`). So you can trim high in the pocket, but anywhere else you have to work: drop and pump
-  (pump only works on the way down), turn back up, snap off the crumble. Sharp turns scrub speed.
-  **Arcade rules (deliberately not physics):** the lip, the barrel's roof, and the trough are soft
-  walls with automatic top and bottom turns (a "snap" when it's the crumbling crest). You only launch
-  an air off the open face ahead of the curl above `airSpeed`; airs go up (not out to sea), spins need
-  a fresh Left/Right press in the air, and landings line the board up for re-entry. On the barrel
-  wave, being on the thrown lip itself = "Over the falls!" and the lip only hurts once it's landing.
+- `src/rider.js`: **arcade surf control, designed for feel, not physics** (the physics-driven
+  versions were tried and weren't fun). State on the face: `xs` (distance ahead of the curl), `t`
+  (surface coordinate; smaller = higher), board speed `speed`, direction `phi` (0 = down the line,
+  +π/2 = straight up the face, π = back toward the curl). Knobs are in `TUNE`.
+  - Speed: the pocket feeds you toward a fast cruising speed (`vPocket`, faster higher on the face);
+    the shoulder, flat water and foam bleed you down (`vLow`, `vFoam`). Dropping pays a lot (`drop`),
+    climbing costs little (`climb`), so getting high is easy and every drop is a burst. Pumping
+    (`pump`) helps on the face, most on the drop.
+  - Moves: reach the top going up → **snap** back down (a bigger kick off the crumbling whitewater);
+    cut back into the curl and hit the whitewater → **re-entry**, rebounding down the line and firing
+    out at `reboundSpeed` (the foam can't hold you for a moment). The bottom is an automatic bottom turn.
+    Sit in heavy foam longer than `foamLimit` and it takes you. Airs: straight up the open face above
+    `airSpeed`.
+  - Barrel wave: same model, the rideable face tops out under the roof, crouch to fit the tube.
 - `src/surfer.js`: the articulated surfer. Two-bone IK legs (feet planted on the board) and arms.
   Knees bend with turns, crouch, and pumping (compress on the way up, extend driving down); the body
   leans into turns and the inside hand drags toward the water in a big one.
@@ -57,8 +56,9 @@ Touch: drag on the left half to point the board, buttons for pump and crouch.
 ## Tests
 
 ```sh
+node test/feel.mjs     # the feel numbers: climb time, drop speed, cutback re-entries, pocket riding
 node test/controls.mjs # human-style inputs on both waves: no glitches, Up/Down never flips you
-node test/pocket.mjs   # where riders spend their time vs. the curl; who survives and why
+node test/pocket.mjs   # where different riding styles spend their time vs. the curl
 node test/plot-slices.mjs out.svg [crumble|barrel]   # draw the wave cross-sections
 node test/drive.mjs <outPrefix> "<query>" <ms,...> ['<input json>']   # headless Chrome screenshots + console
 MOBILE=1 node test/drive.mjs ...   # same, emulating a phone (390x844, touch)
