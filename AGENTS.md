@@ -54,7 +54,9 @@ button).
     without turning and you ride out onto the flats (`tFlats`) and bog down.
   - Speed never builds faster than `maxAccel` (~22 mph/s when slow, tapering to `maxAccelFast` of
     that as you get fast), whatever is feeding it, so nothing surges.
-  - During a move and for `moveCalm` (0.8s) after it, speed can't rise at all (bottom turns excluded);
+  - Each move costs some speed (`moveScrub`), spends any banked turn drive, and the drop off it gets no
+    high-drop boost until you're back below mid-face (`postMove`).
+  - During a move and for `moveCalm` (0.95s) after it, speed can't rise at all (bottom turns excluded);
     `?moveaccel` turns that off for comparison.
   - Moves never add speed by themselves: they're quick board pivots, then gravity and the wave take
     over. Turn drive (bottom turns, high carves) goes through `driveBank` and releases over
@@ -102,7 +104,7 @@ button).
   twin keel fins; shape in `boardMesh` in mesh.js).
   Stance toward the tail (`STANCE`), chest opened toward the nose. Bottom turns wind the shoulders round toward the
   lip with the front shoulder and arm dropped across the body (`windup`, only while the nose is coming
-  up: `carvingUp`); turns off the lip spring it open and throw both arms back over (`unload`). In hard turns the board banks onto
+  up: `carvingUp`); turns off the lip spring it open, both arms swinging across the body at chest height (`unload`). In hard turns the board banks onto
   its inside rail (`MAX_ROLL`), more with speed and when leaning hard. Two-bone IK legs and arms.
   Knees bend with turns, crouch, and pumping (compress on the way up, extend driving down); the body
   leans into turns and the inside hand drags toward the water in a big one.

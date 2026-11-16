@@ -185,11 +185,12 @@ export function surferObjects(pose, rider, info, dt) {
     handFront = lerp3(handFront, add(B, v3.mul(f, mid + 0.3), v3.mul(L, 0.42), v3.mul(u, 0.32 + 0.3 * (1 - knee))), windup);
     handBack = lerp3(handBack, add(B, v3.mul(f, mid - 0.45), v3.mul(L, 0.25), v3.mul(u, 0.35)), windup * 0.8);
   }
-  // Snap: like a spring unloading, both arms thrown back over, up and toward
-  // the tail and the open side.
+  // Snap: like a spring unloading, both arms swing across the body (at about
+  // chest height) toward the tail and the open side, turning the shoulders,
+  // and with them the board.
   if (unload > 0.01) {
-    handFront = lerp3(handFront, add(shFront, v3.mul(bodyUp, 0.32), v3.mul(f, -0.3), v3.mul(L, -0.22)), unload);
-    handBack = lerp3(handBack, add(shBack, v3.mul(bodyUp, 0.28), v3.mul(f, -0.5), v3.mul(L, -0.3)), unload);
+    handFront = lerp3(handFront, add(neck, v3.mul(across, -0.12), v3.mul(chest, 0.32), v3.mul(bodyUp, -0.12)), unload);
+    handBack = lerp3(handBack, add(shBack, v3.mul(across, -0.38), v3.mul(chest, -0.12), v3.mul(bodyUp, -0.1)), unload);
   }
   // Arms swing a little with the pump.
   if (info.pump) {

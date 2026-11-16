@@ -39,7 +39,8 @@ export const TUNE = {
   hardRate: 1.25, // ... a faster top turn rate ...
   hardRadius: 0.7, // ... and a tighter arc
   snapRate: 13,
-  moveCalm: 0.8, // no speeding up for this long after a move (s); 0 = off (?moveaccel)
+  moveCalm: 0.95,
+  moveScrub: { snap: 0.08, offLip: 0.07, reentry: 0.08, topTurn: 0.04, lip180: 0.1, floater: 0.05, rebound: 0.1, rebound180: 0.1, revert: 0.05, land: 0.05 }, // speed each move costs // no speeding up for this long after a move (s); 0 = off (?moveaccel)
   fakieTime: 1.4, // after landing backwards, ride it this long (s) ...
   fakieSpinRate: 9, // ... then the board spins back round this fast (rad/s)
   lip180Rate: 14, // the quick 180 off the top when you turn toward the whitewater (rad/s) // how fast the board pivots back down in a snap (rad/s): quick, not instant
@@ -212,7 +213,16 @@ export function stepRider(r, input, dt) {
   if (r.mode === 'wipe') { r.wipeTimer -= dt; return; }
   if (r.mode === 'surf') stepSurf(r, input, dt);
   else stepAir(r, input, dt);
-  if (r.events.some((e) => (e.type === 'move' && e.move !== 'bottomTurn') || e.type === 'land')) r.calm = TUNE.moveCalm;
+  for (const e of r.events) {
+    if ((e.type === 'move' && e.move !== 'bottomTurn') || e.type === 'land') {
+      r.calm = TUNE.moveCalm;
+      // A move costs a little speed (the board scrubs as it pivots), and any
+      // drive still banked from the bottom turn is spent.
+      r.speed *= 1 - (TUNE.moveScrub[e.move || 'land'] || 0);
+      r.postMove = true;
+      r.driveBank = 0;
+    }
+  }
   // A turn off the lip springs the body open (for the surfer's pose).
   r.unload = Math.max(0, (r.unload || 0) - dt);
   if (r.events.some((e) => e.type === 'move' && ['snap', 'offLip', 'reentry', 'topTurn', 'lip180'].includes(e.move))) r.unload = 0.45;
@@ -342,9 +352,13 @@ function stepSurf(r, input, dt) {
   // Pointing down pays, and pays most from the top third of the wave: that's
   // where the drop has the most height to turn into speed.
   const topThird = sstep(0.45, 0.75, height) * pk; // top half of the pocket (most in the top third); not out on the shoulder
-  const highDropNow = topThird * Math.max(0, -Math.sin(r.phi)); // pointing down, high in the pocket
+  // (The drop off a move doesn't count: no high-drop boost until you've come
+  // back down below mid-face.)
+  if (height < 0.45) r.postMove = false;
+  const highDropNow = r.postMove ? 0 : topThird * Math.max(0, -Math.sin(r.phi)); // pointing down, high in the pocket
   const dropSteep = Math.max(steep, 0.9 * topThird); // the rounded crest still counts as a steep drop
-  if (sinp < 0) r.speed += -sinp * T.drop * (1 + (T.topDropBoost - 1) * topThird) * dropSteep * dt;
+  const dropBoost = r.postMove ? 1 : 1 + (T.topDropBoost - 1) * topThird;
+  if (sinp < 0) r.speed += -sinp * T.drop * dropBoost * dropSteep * dt;
   else r.speed += -sinp * T.climb * steep * dt;
   if (input.pump && steep > 0.2) {
     r.speed += T.pump * (sinp < -0.1 ? 1 : 0.35) * (0.3 + 0.7 * pk) * (0.7 + 0.6 * height) * dt;
