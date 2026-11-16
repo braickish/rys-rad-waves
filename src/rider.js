@@ -41,8 +41,8 @@ export const TUNE = {
   snapRate: 13,
   moveCalm: 0.95,
   moveScrub: { snap: 0.08, offLip: 0.07, reentry: 0.08, topTurn: 0.04, lip180: 0.1, floater: 0.05, rebound: 0.1, rebound180: 0.1, revert: 0.05, land: 0.05 }, // speed each move costs // no speeding up for this long after a move (s); 0 = off (?moveaccel)
-  fakieTime: 1.4, // after landing backwards, ride it this long (s) ...
-  fakieSpinRate: 9, // ... then the board spins back round this fast (rad/s)
+  fakieTime: 0.7, // after landing backwards, ride it this long (s) ...
+  fakieSpinRate: 18, // ... then the board spins back round this fast (rad/s)
   lip180Rate: 14, // the quick 180 off the top when you turn toward the whitewater (rad/s) // how fast the board pivots back down in a snap (rad/s): quick, not instant
   reboundRate: 11, // rebound off the whitewater, nose swinging down (rad/s)
   rebound180Rate: 12, // rebound 180 around through the top (rad/s)

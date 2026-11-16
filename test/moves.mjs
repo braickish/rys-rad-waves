@@ -80,7 +80,7 @@ for (const [label, dir, start] of [
     for (const e of r.events) { if (e.type === 'land') { landed = i; backwards = !!e.backwards; } if (e.move === 'revert') revertAt = (i - landed) / 120; }
     if (r.mode === 'wipe') break;
   }
-  const ok = backwards && revertAt > 1 && revertAt < 2.5 && r.heading[0] > 0 && r.mode === 'surf';
+  const ok = backwards && revertAt > 0.6 && revertAt < 1.3 && r.heading[0] > 0 && r.mode === 'surf';
   console.log(`${ok ? 'ok  ' : 'FAIL'} air reverse: landed ${backwards ? 'backwards' : 'forwards'}, spun back round ${revertAt === null ? 'never' : revertAt.toFixed(2) + 's'} after landing, ${r.mode}`);
 }
 console.log(`worst peak acceleration: +${worst.toFixed(0)} mph/s; moves leaving you in the foam: ${foamBad}`);
