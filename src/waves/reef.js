@@ -30,7 +30,7 @@ export default {
   white: (s) => sstep(1.1, 1.4, s) * (1 - sstep(2.0, 2.8, s)),
   pocket: (xs) => (xs >= 0 ? Math.exp(-((xs / 6) ** 2)) : sstep(-13, -9, xs)),
   // Once the lip has thrown, the face you can ride tops out under the roof.
-  faceTop: (s) => (s > 0.1 ? 11.9 : 5.3),
+  faceTop: (s) => 5.3 + (11.9 - 5.3) * sstep(-0.3, 0.2, s), // lowers smoothly as the lip throws
   tube: true,
 
   sea: { set: [0.95, 1.0, 1.15], sections: false },
@@ -38,19 +38,18 @@ export default {
 
   tune: {
     ...point.tune,
+    curlZone: [-16, 2.5], // behind the curl is the tube, not whitewater
     airs: false,
     floaters: false, rebounds: false, // too heavy: hit the whitewater or the lip next to it and you go over the falls
     // Tube riding (see stepTube in rider.js).
-    tubeEnter: 0.2, // phase where the lip has thrown far enough to be in the tube
-    pullInZone: 3.0, // within this far ahead of the curl (m) ...
-    pullInHeight: 0.5, // ... and this high on the face, turning pulls you into the barrel
-    pullInSpeed: 4.5, // while pulling in, the curl catches you up this fast (m/s)
-    tubeExit: 0.12, // ... and where you're back out on the open face
-    tubeCollapse: 1.0, // too deep past this phase (~13 m behind the curl) and the barrel pinches you
-    tubeLine: 13.4, tubeLineRange: 0.3, // the line through the tube (surface position), and how far Left/Right move it
-    lineRate: 1.6, lineDrift: 0.25, // how fast Left/Right move you up/down; how much the wave nudges you on its own
-    tubeFunnel: 0.55, // room above/below shrinks by this much (of 1) from the exit to the pinch
-    tubeCruise: -1.5, // with no input you drift deeper (m/s relative to the peel)
-    wiggleDrive: 2.5, wiggleDecay: 0.8, // up-and-down wiggles drive you forward; the drive fades over this long (s)
+    tubeEnter: 0.2, // the curl has passed you: you're in the tube
+    tubeExit: 0.12, // forward of this you're back out on the open face
+    tubeCollapse: 1.0, // past this you're pinched (~13 m behind the curl)
+    tubeLow: 0.6,
+    pullInZone: 3.0, pullInHeight: 0.5, // up this high on the face, within this far ahead of the curl, and turning: you pull in
+    pullInSpeed: 4.5, // ... and stall (the curl catches you up this fast, m/s)
+    pullInLine: 13.0, // ... settling here on the face while the barrel comes over you
+    tubeTooHigh: 2.5, // further than this above the roof line as the lip throws = over the falls
+    roofCrash: 0.9, // driving into the roof steeper than this (sin of angle) = over the falls // this far below the bottom of the face and the lip lands on you
   },
 };

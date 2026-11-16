@@ -27,10 +27,10 @@
   #balance .track { position: relative; height: 64px; border-radius: 9px; background: rgba(11,26,36,.55); border: 2px solid rgba(255,255,255,.85); overflow: hidden; }
   #balance .zone { position: absolute; z-index: 1; top: 0; bottom: 0; width: 15%; background: rgba(255,61,139,.55); }
   #balance .zone.r { right: 0; width: 12%; top: 0; bottom: 0; }
-  #balance .zone.deep { left: 50%; width: 38%; top: 0; bottom: 0; background: rgba(0,194,199,.3); clip-path: polygon(0 18%, 100% 28%, 100% 72%, 0 82%); }
-  /* the safe funnel: full height at the exit, narrowing toward the pinch (tubeFunnel 0.55) */
+  #balance .zone.deep { left: 50%; width: 38%; top: 0; bottom: 0; background: rgba(0,194,199,.3); }
+  /* the safe band (you only fall at the very top or bottom) */
   #balance .track { background: rgba(255,61,139,.6); }
-  #balance .safe { position: absolute; inset: 0; background: rgba(11,26,36,.85); clip-path: polygon(0 6%, 100% 30%, 100% 70%, 0 94%); }
+  #balance .safe { position: absolute; inset: 0; background: rgba(11,26,36,.85); clip-path: polygon(0 6%, 100% 6%, 100% 94%, 0 94%); }
   #balance .ends { display: flex; justify-content: space-between; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 4px; text-shadow: 0 1px 0 rgba(0,0,0,.5); }
   #balance-needle { z-index: 2; position: absolute; top: 50%; width: 14px; height: 14px; margin: -7px 0 0 -7px; left: 50%; border-radius: 50%; background: var(--yellow); box-shadow: 0 0 0 2px var(--ink); }
   #balance.danger .track { border-color: var(--pink); }
@@ -81,7 +81,7 @@
   </div>
 </div>
 <div id="msg"></div>
-<div id="balance" hidden><div class="ends"><span>out</span><span>deeper ⟶ more points</span><span>pinch</span></div><div class="track"><div class="zone deep"></div><div class="zone r"></div><div class="safe"></div><div id="balance-needle"></div></div><small><span class="desk">← higher · → lower · wiggle to drive forward</span><span class="mob">swipe ← higher · → lower · wiggle to drive forward</span></small></div>
+<div id="balance" hidden><div class="ends"><span>out</span><span>deeper ⟶ more points</span><span>pinch</span></div><div class="track"><div class="zone deep"></div><div class="zone r"></div><div class="safe"></div><div id="balance-needle"></div></div><small>drop from high to drive forward · stay off the roof · don't get pinched</small></div>
 <div id="hint"><span class="desk">←/↑ toward the wave · →/↓ away (hold to lean harder) · C camera</span><span class="mob">Swipe left/up to turn left · right/down to turn right</span></div>
 
 <div id="err" hidden></div>
@@ -94,7 +94,7 @@
     <div class="keys desk">
       <b>← / ↑</b><span>Turn toward the wave (up the face)</span>
       <b>→ / ↓</b><span>Turn away from the wave (down the face; keep going round for a cutback)</span>
-      <b>In the barrel</b><span>← higher · → lower · little wiggles drive you forward · don't get pinched</span>
+      <b>In the barrel</b><span>Surf it like the face: drop from high to drive forward · don't get pinched, stay off the roof</span>
       <b>Hold a turn</b><span>Lean into it harder: tighter, more drive out of a bottom turn</span>
       <b>Turn in the air</b><span>Spin (finish it to land)</span>
       <b>C</b><span>Switch camera</span>

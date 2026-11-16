@@ -193,7 +193,7 @@ function wipe(r, reason) {
 export function stepRider(r, input, dt) {
   r.events.length = 0;
   r.time += dt;
-  r.crouch = !!input.crouch;
+  r.crouch = !!input.crouch || !!r.tube;
   r.pumping = false;
   if (r.mode === 'wipe') { r.wipeTimer -= dt; return; }
   if (r.mode === 'surf') stepSurf(r, input, dt);
@@ -215,7 +215,18 @@ export function stepRider(r, input, dt) {
 
 function stepSurf(r, input, dt) {
   const T = TUNE;
-  if (r.tube) return stepTube(r, input, dt);
+  // Pulling in: stall low-ish on the face while the barrel comes over you.
+  if (r.tube && r.tube.pullIn) {
+    r.speed += (PEEL_SPEED - T.pullInSpeed - r.speed) * Math.min(1, dt * 6);
+    r.phi += clampTurn(wrap(0 - r.phi), 4 * dt);
+    r.t += (T.pullInLine - r.t) * (1 - Math.exp(-dt * 4));
+    r.xs += (r.speed * Math.cos(r.phi) - PEEL_SPEED) * dt;
+    if (phaseAt(r.xs) > T.tubeEnter + 0.05) r.tube.pullIn = false;
+    syncPose(r, frameAt(r.xs, r.t));
+    r.height = 0.3;
+    checkHazards(r, dt);
+    return;
+  }
   r.moveCooldown = Math.max(0, r.moveCooldown - dt);
   const speedAtStart = r.speed;
   // Riding backwards: after a moment the board spins back round to forwards.
@@ -387,14 +398,12 @@ function stepSurf(r, input, dt) {
     }
   }
 
-  // --- pulling into the barrel (tube waves) ---
-  // Up near the lip close to the curl and turning: you pull in. Tube mode
-  // starts right away; the curl catches you up and throws over you.
   const ready = r.moveCooldown === 0; // moves need a gap between them
-  if (WAVE.tube && !r.assist && !r.floater && r.xs < T.pullInZone && r.xs > -2
+  // Pulling into the barrel: up near the lip close to the curl and turning.
+  if (WAVE.tube && !r.tube && !r.assist && !r.floater && r.xs < T.pullInZone && r.xs > -2
     && height > T.pullInHeight && r.time - (r.lastTurnTime ?? -9) < 0.15) {
     enterTube(r, true);
-    f = frameAt(r.xs, r.t); syncPose(r, f);
+    syncPose(r, frameAt(r.xs, r.t));
     return;
   }
 
@@ -412,6 +421,13 @@ function stepSurf(r, input, dt) {
       r.events.push({ type: 'move', move: 'floater', speed: r.speed, combo: r.time - (r.lastBottomTurn ?? -9) < T.comboWindow, xs: r.xs });
       r.moveCooldown = T.moveGap;
     }
+  }
+  if (r.tube && r.t <= top && sinp > 0 && !r.assist) {
+    // In the tube the top of the face is the roof: brush it and you're
+    // deflected back down; drive hard straight into it and you go over.
+    if (sinp > TUNE.roofCrash) return wipe(r, 'Over the falls! (up into the lip)');
+    r.t = top;
+    r.assist = { dir: -1, target: -0.5, rate: TUNE.snapRate };
   }
   if (!r.floater && !r.assist && r.t <= top && sinp > 0) {
     r.t = top;
@@ -574,87 +590,49 @@ function checkHazards(r, dt) {
   if (r.xs < -25) return wipe(r, 'Caught by the whitewater!');
 
   if (!WAVE.tube) { r.inBarrel = false; return; }
-  // Water overhead, past where the lip has thrown: you're in the tube.
-  const c = roofClearance(r.xs, r.t, r.pos);
-  r.clearance = c;
-  if (c < 6 && ph > TUNE.tubeEnter && !r.assist && !r.floater) enterTube(r, false);
-}
-
-function enterTube(r, pullIn) {
-  r.tube = { time: 0, line: 0, depth: 0, depthSum: 0, seed: Math.random() * 6.28, pullIn };
-  r.inBarrel = true;
-  r.barrelTime = 0;
-  r.floater = null; r.assist = null;
-  r.events.push({ type: 'barrelEnter', pullIn });
-}
-
-// --- Tube riding ---
-// In the barrel it's all about depth. Up/Down = forward/back: speed up
-// toward the exit, or stall deeper. Left/Right = higher/lower in the tube: a
-// higher line runs faster, a lower one slower and with more headroom. With no
-// input you slowly drift deeper, and your line wanders. Stay in the zone:
-// too deep = pinched, too high or too low = the lip gets you, too far out =
-// you're out of the barrel. The deeper you ride the more it scores.
-export function tubePinch(r) {
+  // The barrel: once the curl has passed you, you're in the tube, surfing
+  // the face inside it as normal. Too deep = pinched; up into the lip = over
+  // the falls; way down past the bottom = the lip lands on you; forward out
+  // of it = out.
   const T = TUNE;
-  return T.tubeCollapse;
-}
-// How much room above and below the middle line you have (the funnel).
-export function tubeRoom(r) {
-  return 1 - TUNE.tubeFunnel * tubeDepth(r);
-}
-// Where you are in the tube: 0 at the exit, 1 at the pinch.
-export function tubeDepth(r) {
-  const T = TUNE;
-  return clamp((phaseAt(r.xs) - T.tubeExit) / (tubePinch(r) - T.tubeExit), 0, 1);
-}
-function stepTube(r, input, dt) {
-  const T = TUNE;
+  if (!r.tube) {
+    if (ph > T.tubeEnter && r.xs > -8) {
+      // Way up in the lip as it throws: over you go. A bit high: it sucks you in.
+      if (r.t < topOfFace(r.xs) - T.tubeTooHigh) return wipe(r, 'Over the falls! (caught up in the lip)');
+      r.t = Math.max(r.t, topOfFace(r.xs));
+      enterTube(r);
+    }
+    return;
+  }
   const tb = r.tube;
   tb.time += dt;
   r.barrelTime = tb.time;
-  r.crouch = true;
-  // Left (toward the wave) = higher, Right = lower. Small up-and-down
-  // wiggles on the steep wall drive you forward (the same way carving builds
-  // speed on the open face); without them you drift deeper. The safe band
-  // is a funnel: the deeper you are, the less room above and below.
-  const lift = clamp(input.turn || 0, -1, 1);
-  const prevLine = tb.line ?? 0;
-  const k = tb.time * 0.9 + tb.seed;
-  const wander = (Math.sin(k) * 0.7 + Math.sin(k * 2.3 + 1.3) * 0.3) * T.lineDrift;
-  tb.line = prevLine + (lift * T.lineRate + wander) * dt; // -1 low .. +1 high
-  const lineVel = dt > 0 ? Math.abs(tb.line - prevLine) / dt : 0;
-  tb.drive = (tb.drive || 0) * Math.exp(-dt / T.wiggleDecay) + T.wiggleDrive * lineVel * dt;
-  const targetT = T.tubeLine - clamp(tb.line, -1, 1) * T.tubeLineRange;
-  r.t += (targetT - r.t) * (1 - Math.exp(-dt * 4));
-  // In the tube you always ride toward the exit (the way the wave peels),
-  // whatever way you were turning as you pulled in.
-  r.phi += clampTurn(wrap(0 - r.phi), 4 * dt);
-  if (tb.pullIn) {
-    // Pulling in: stall so the curl catches you up and throws over you.
-    r.speed += (PEEL_SPEED - T.pullInSpeed - r.speed) * Math.min(1, dt * 6);
-    if (phaseAt(r.xs) > T.tubeEnter + 0.05) tb.pullIn = false;
-  } else {
-    const cruise = PEEL_SPEED + T.tubeCruise + tb.drive;
-    r.speed += (cruise - r.speed) * Math.min(1, dt * 3);
-  }
-  r.xs += (r.speed * Math.cos(r.phi) - PEEL_SPEED) * dt;
-  const ph = phaseAt(r.xs);
-  tb.depth = Math.max(tb.depth, tubeDepth(r));
-  tb.depthSum = (tb.depthSum || 0) + tubeDepth(r) * dt;
-  const f = frameAt(r.xs, r.t);
-  syncPose(r, f);
-  r.pocket = WAVE.pocket(r.xs); r.foam = 0; r.height = 0.2; r.inBarrel = true;
-  // Outcomes.
-  if (!tb.pullIn && ph > tubePinch(r)) { r.tube = null; return wipe(r, 'Pinched! (too deep: wiggle up and down to drive forward)'); }
-  const room = tubeRoom(r);
-  if (!tb.pullIn && tb.line > room) { r.tube = null; return wipe(r, 'Over the falls! (too high)'); }
-  if (!tb.pullIn && tb.line < -room) { r.tube = null; return wipe(r, 'The lip landed on you! (too low)'); }
-  if (ph < T.tubeExit && !tb.pullIn) {
+  const depth = tubeDepth(r);
+  tb.depth = Math.max(tb.depth, depth);
+  tb.depthSum += depth * dt;
+  if (tb.pullIn) return;
+  if (ph > T.tubeCollapse) { r.tube = null; r.inBarrel = false; return wipe(r, 'Pinched! (too deep: drop down and drive forward)'); }
+  if (r.t > T.tBottom + T.tubeLow) { r.tube = null; r.inBarrel = false; return wipe(r, 'The lip landed on you! (too low)'); }
+  if (ph < T.tubeExit) {
     r.events.push({ type: 'barrelExit', time: tb.time, depth: tb.depth, avgDepth: tb.depthSum / Math.max(tb.time, 1e-3) });
     r.tube = null; r.inBarrel = false; r.barrelTime = 0;
-    r.moveCooldown = TUNE.moveGap;
   }
+}
+
+function enterTube(r, pullIn = false) {
+  r.tube = { time: 0, depth: 0, depthSum: 0, pullIn };
+  r.inBarrel = true;
+  r.barrelTime = 0;
+  r.floater = null;
+  r.events.push({ type: 'barrelEnter' });
+}
+
+
+// --- Tube riding ---
+// Where you are in the tube: 0 at the exit, 1 at the pinch.
+export function tubeDepth(r) {
+  const T = TUNE;
+  return clamp((phaseAt(r.xs) - T.tubeExit) / (T.tubeCollapse - T.tubeExit), 0, 1);
 }
 
 // Speed for the HUD: board speed while surfing, ground speed in the air.

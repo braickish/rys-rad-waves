@@ -129,7 +129,7 @@ fn ripple(q: vec2f, t: f32) -> f32 {
 
   // Water texture flows backward along x (the peel runs away from it) and
   // up the face (the wave moves through it).
-  let q = vec2f(i.wpos.x + t * peel, i.wpos.z * 0.9 + i.wpos.y * 0.9 - t * 1.5);
+  let q = vec2f(i.wpos.x + t * peel, i.wpos.z * 0.9 + i.wpos.y * 0.9 - t * 1.5) * 1.8;
   let e = 0.06;
   let h0 = ripple(q, t);
   let gx = (ripple(q + vec2f(e, 0.0), t) - h0) / e;
@@ -137,7 +137,7 @@ fn ripple(q: vec2f, t: f32) -> f32 {
   let t1 = normalize(vec3f(1.0, 0.0, 0.0) - n * n.x);
   let t2 = cross(n, t1);
   let dist = length(F.camPos.xyz - i.wpos);
-  let detail = 0.22 * exp(-dist * 0.025);
+  let detail = 0.09 * exp(-dist * 0.04); // fine, subtle ripples (strong ones read as bumps on big waves)
   n = normalize(n - (t1 * gx + t2 * gy) * detail);
 
   let phase = i.attr.x;

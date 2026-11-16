@@ -103,23 +103,15 @@ button).
     back along the line) and you ride it backwards (`fakie`) for `fakieTime`, then the board spins
     back round ("Revert"). Airs: straight up the open face above
     `airSpeed`.
-  - **Tube riding** (`tube: true` waves; `stepTube` in rider.js): you get in when there's water overhead
-    past `tubeEnter`, or you **pull in** (high on the face within `pullInZone` of the curl and turning:
-    you stall at `pullInSpeed` and the lip throws over you). In the tube: Left/Right = higher/lower (`lineRate`; the wave nudges you a little,
-    `lineDrift`). Little up-and-down wiggles drive you forward (`wiggleDrive`, fading over
-    `wiggleDecay`); without them you drift deeper (`tubeCruise`). The safe band is a funnel that narrows
-    toward the pinch (`tubeFunnel`, `tubeRoom()`). Too deep = pinched; above the band = "Over the falls";
-    below = the lip lands on you; forward past `tubeExit` = out. In the tube you always ride toward the exit. Scored by time x average depth. HUD shows the funnel (depth across,
-    line up/down). Camera: inside the tube behind the surfer, looking out. Reef shape is `KF_PIPE` in
-    waves/shapes.js (a hollow, thick-lipped reef barrel).
-- `src/surfer.js`: the articulated surfer on a 1.6 m fish (wide, rounded yellow nose, swallowtail,
-  twin keel fins; shape in `boardMesh` in mesh.js).
-  Stance toward the tail (`STANCE`), chest opened toward the nose. Bottom turns wind the shoulders round toward the
-  lip with the front shoulder and arm dropped across the body (`windup`, only while the nose is coming
-  up: `carvingUp`); turns off the lip spring it open, both arms swinging across the body at chest height (`unload`). In hard turns the board banks onto
-  its inside rail (`MAX_ROLL`), more with speed and when leaning hard. Two-bone IK legs and arms.
-  Knees bend with turns and crouch; the body
-  leans into turns and the inside hand drags toward the water in a big one.
+  - **Tube riding** (`tube: true` waves): the barrel is normal surfing (same turning, rail, drop speed)
+    with rules on top (`checkHazards`). Normal surfing outruns the barrel, so you **pull in**: high on the
+    face within `pullInZone` of the curl and turning, you stall (`pullInSpeed`, settling at `pullInLine`)
+    until the curl passes you. In the tube: past `tubeCollapse` = pinched; driving straight into the
+    roof (steeper than `roofCrash`) = over the falls (brushing it deflects you down); way below the bottom
+    (`tubeLow`) = the lip lands on you; back past `tubeExit` = out. Caught way up in the lip as it throws
+    (`tubeTooHigh`) = over the falls. Scored by time x average depth. HUD: depth across, height up/down.
+    Camera: inside the tube behind the surfer (only once you're actually in). Reef shape is `KF_PIPE`
+    (waves/shapes.js); `faceTop` lowers smoothly as the lip throws.
 - Heavy waves (`floaters: false, rebounds: false` in the wave's tune, e.g. the reef): hitting the
   whitewater or the lip next to it is a crash ("Over the falls"), not a floater or rebound.
 - `src/sea.js`: **sets and sections**, from the wave's `sea` settings. Each ride is the next wave of the

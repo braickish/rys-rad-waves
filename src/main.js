@@ -34,12 +34,13 @@ addEventListener('blur', () => keys.clear());
 // and the ?auto test mode.
 let autoUp = false;
 function autopilot() {
-  if (rider.tube) { // wiggle around the middle line; harder when getting deep
-    const d = tubeDepth(rider), line = rider.tube.line || 0;
-    const wig = Math.floor(rider.tube.time / 0.22) % 2 ? 1 : -1;
-    if (Math.abs(line) > 0.25) return { turn: line > 0 ? -1 : 1 };
-    return { turn: d > 0.35 || rider.tube.time > 5 ? wig : 0 }; // after a while, drive out
+  if (rider.tube) { // S-turns, staying off the roof
+    if (autoUp && rider.height > 0.6) autoUp = false;
+    if (!autoUp && rider.height < 0.1) autoUp = true;
+    const a = autoUp ? 0.7 : -0.7;
+    return { aim: [Math.cos(a), Math.sin(a)] };
   }
+
 
   if (autoUp && rider.height > 0.88) autoUp = false;
   if (!autoUp && rider.height < 0.15) autoUp = true;
@@ -113,7 +114,7 @@ function startOrRestart() {
   score = 0; rideTime = 0;
   $('title').hidden = true;
   $('over').hidden = true;
-  flash('Drop in!', SEA.setSize > 1 ? `wave ${SEA.waveInSet} of ${SEA.setSize} · ${Math.round(waveHeightFt())} ft face` : '');
+  flash('Drop in!', SEA.enabled && SEA.waveInSet > 0 ? `wave ${SEA.waveInSet} of ${SEA.setSize} · ${Math.round(waveHeightFt())} ft face` : '');
 }
 
 function flash(text, sub = '') {
@@ -126,7 +127,7 @@ function flash(text, sub = '') {
 
 function handleEvents() {
   for (const e of rider.events) {
-    if (e.type === 'barrelEnter') flash('In the barrel!', '↑ ↓ forward / back  ·  ← → higher / lower');
+    if (e.type === 'barrelEnter') flash('In the barrel!', 'drop from high to drive forward · stay off the roof');
     if (e.type === 'barrelExit' && e.time > 0.4) {
       // Time in the tube, more the deeper you got.
       const avg = e.avgDepth || 0; // 0 at the exit .. 1 at the pinch
@@ -186,7 +187,7 @@ function updateCamera(dt) {
   let shot = 'surf';
   const p = rider.pos;
   let want, look;
-  if (rider.tube && camMode !== 2) {
+  if (rider.tube && !rider.tube.pullIn && camMode !== 2) {
     // In the tube: low, just ahead of the opening, looking back in at you.
     // If water is in the way (say a section ahead has thrown over), come in
     // closer until the surfer is in view.
@@ -365,13 +366,13 @@ async function main() {
     tube.parentElement.classList.toggle('on', rider.inBarrel);
     // Barrel depth meter: exit on the left, the pinch on the right.
     const bm = $('balance');
-    bm.hidden = !rider.tube;
+    bm.hidden = !rider.tube || rider.tube.pullIn;
     if (rider.tube) {
       const d = tubeDepth(rider);
-      const line = Math.max(-1, Math.min(1, rider.tube.line || 0));
+      const h = Math.max(-0.1, Math.min(1.05, rider.height)); // 0 bottom of the face .. 1 the roof
       $('balance-needle').style.left = `${d * 100}%`;
-      $('balance-needle').style.top = `${50 - line * 44}%`; // up = higher on the face
-      bm.classList.toggle('danger', d > 0.85 || Math.abs(line) > 0.8);
+      $('balance-needle').style.top = `${94 - h * 88}%`; // up = higher on the face
+      bm.classList.toggle('danger', d > 0.85 || h > 0.85);
     }
     requestAnimationFrame(tick);
   }
