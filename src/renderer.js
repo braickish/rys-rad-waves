@@ -250,7 +250,7 @@ export async function createRenderer(canvas) {
     pass.setBindGroup(0, frameBG);
     for (let i = 0; i < n && opts.outlines !== false; i++) {
       if ((objects[i].outline ?? 0.018) <= 0) continue;
-      pass.setPipeline(mirrored(objects[i].model) !== !!opts.mirror ? outlinePipeMirrored : outlinePipe);
+      pass.setPipeline(mirrored(objects[i].model) ? outlinePipeMirrored : outlinePipe);
       pass.setBindGroup(1, objBG, [i * OBJ_STRIDE]);
       const m = solids[objects[i].mesh] || solids.box;
       pass.setVertexBuffer(0, m.vb);

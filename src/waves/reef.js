@@ -8,10 +8,10 @@ export default {
   name: 'Reef Barrel',
   kind: 'barrel',
   keyframes: KF_BARREL,
-  scale: 1.25,
+  scale: 1.35, // a bit bigger than the point, so the tube has room
   peelSpeed: 6.0,
   waveSpeed: 5.0,
-  phase: { ahead: 10, behind: 8.5 },
+  phase: { ahead: 8, behind: 13 }, // pitches sooner ahead of the curl; the tube runs further behind it
 
   foam: (s, t) => (s > 1.5 && t > 9.5 ? 1 : 0),
   foamVisual: (s, t, xs) => {
@@ -33,19 +33,17 @@ export default {
   faceTop: (s) => (s > 0.1 ? 11.9 : 5.3),
   tube: true,
 
-  sea: {
-    set: [0.95, 1.0, 1.2],
-    firstSection: [6, 10], sectionEvery: [8, 13],
-    ahead: [24, 32], width: [7, 10], grow: [2.0, 3.0],
-    closeoutChance: 0.35, closeoutPhase: 1.5, // sometimes it closes out ...
-    throwPhase: 0.75, // ... more often it throws an early barrel ahead of you
-  },
+  sea: { set: [0.95, 1.0, 1.15], sections: false },
+
 
   tune: {
     ...point.tune,
     airs: false,
     // Tube riding (see stepTube in rider.js).
     tubeEnter: 0.2, // phase where the lip has thrown far enough to be in the tube
+    pullInZone: 3.0, // within this far ahead of the curl (m) ...
+    pullInHeight: 0.5, // ... and this high on the face, turning pulls you into the barrel
+    pullInSpeed: 4.5, // while pulling in, the curl catches you up this fast (m/s)
     tubeExit: 0.12, // ... and where you're back out on the open face
     tubeCollapse: 1.15, // the tube closes on you past this phase (~10 m behind the curl)
     tubeLine: 13.4, // surface position of the sweet spot low in the tube

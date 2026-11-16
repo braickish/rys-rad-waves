@@ -32,7 +32,7 @@ export function nextWave() {
   SEA.setSize = cfg.set.length;
   SEA.size = cfg.set[setIndex];
   setWaveSize(SEA.size);
-  timer = between(cfg.firstSection);
+  if (cfg.sections) timer = between(cfg.firstSection);
 }
 
 // Face height of the wave being ridden, in feet (for the HUD).
@@ -44,7 +44,7 @@ export function stepSea(dt) {
   SEA.events.length = 0;
   stepSections(dt);
   const cfg = WAVE.sea;
-  if (!SEA.enabled || !cfg) return;
+  if (!SEA.enabled || !cfg || !cfg.sections) return;
   timer -= dt;
   if (timer <= 0) {
     timer = between(cfg.sectionEvery);

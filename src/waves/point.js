@@ -43,9 +43,7 @@ export default {
   // Sets and sections (src/sea.js).
   sea: {
     set: [0.9, 1.0, 1.15], // sizes of the waves in a set, relative to normal
-    firstSection: [5, 9], sectionEvery: [7, 12], // seconds
-    ahead: [22, 30], width: [3, 5], grow: [2.2, 3.2], // where it starts (m ahead of the curl), how wide, how fast it breaks
-    closeoutChance: 1, closeoutPhase: 1.5, // the section crumbles into whitewater
+    sections: false, // (closeout sections were tried; off for now)
   },
 
   // Settings that belong to this wave (merged over the rider's settings).

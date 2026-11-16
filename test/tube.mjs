@@ -20,3 +20,17 @@ for (const [label, pol] of Object.entries(pols)) {
   }
   console.log(label.padEnd(40), ev.join(' -> '), '|', r.mode === 'wipe' ? 'WIPE: ' + r.wipeReason : '');
 }
+
+// Pulling in: climb near the curl and turn up near the lip.
+console.log('-- pulling in');
+for (const [label, xs] of [['near the curl', 1.0], ['3 m ahead', 2.6], ['far out on the face', 8]]) {
+  const r = createRider(); Object.assign(r, { xs, t: 11, phi: 1.0, speed: 12 }); r.events = []; stepRider(r, {}, 0);
+  const ev = [];
+  for (let i = 0; i < 8 * 120; i++) {
+    const inp = r.tube ? { turn: balance(r), tilt: r.tube.time < 1.5 ? -1 : 1 } : r.height > 0.55 ? { turn: -1 } : {};
+    stepRider(r, inp, 1 / 120);
+    for (const e of r.events) ev.push(e.type === 'barrelExit' ? `out after ${e.time.toFixed(1)}s` : e.type === 'barrelEnter' ? 'PULL IN' : e.move || e.type);
+    if (r.mode === 'wipe' || ev.some((x) => x.startsWith('out'))) break;
+  }
+  console.log(label.padEnd(24), ev.join(' -> '), '|', r.mode === 'wipe' ? 'WIPE: ' + r.wipeReason : '');
+}

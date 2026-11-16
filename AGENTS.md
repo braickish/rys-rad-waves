@@ -33,10 +33,8 @@ button).
   translucency, spray emitter, pocket power, `faceTop`, whether it has a `tube`, and `tune`: the
   wave-specific settings (pocket speeds, zones, airs, face limits) merged over the rider's settings by
   `useWave()` in rider.js. Rider/board feel settings stay in `RIDER_TUNE`. `?wave=<id>` picks a wave;
-  `renderer.rebuildWave()` rebuilds the meshes after `useWave()`. **Left-hand waves** (`<id>-left`,
-  made by `leftOf` in waves/index.js) are the same wave with the picture flipped left to right (a clip-space
-  flip in main.js); physics is identical, the surfer rides goofy. ←/↑ always turn toward the wave and
-  →/↓ away, on lefts and rights. The title screen has a wave picker (remembered in localStorage).
+  `renderer.rebuildWave()` rebuilds the meshes after `useWave()`. Every wave is its own design (mirrored lefts were tried and removed:
+  goofy/regular should be a surfer stance, and a left should be its own wave). The title screen has a wave picker (remembered in localStorage).
 - `src/wave.js`: the wave model. Two wave types share one 16-point layout: **crumble** (default, the
   crest spills foam down the face, no overhang) and **barrel** (the lip throws over into a tube). The game runs in the **peel frame** (moves with the breaking point),
   where the wave shape is static. Each distance `xs` from the peel point has a 2D cross-section curve
@@ -106,7 +104,8 @@ button).
     back round ("Revert"). Airs: straight up the open face above
     `airSpeed`.
   - **Tube riding** (waves with `tube: true`, e.g. Reef Barrel; `stepTube`): once there's water
-    overhead past `tubeEnter`, you're in tube mode. The board holds a line low in the tube
+    overhead past `tubeEnter`, or you **pull in** (high on the face within `pullInZone` of the curl
+    and turning: you stall at `pullInSpeed` and the lip throws over you), you're in tube mode. The board holds a line low in the tube
     (`tubeLine`) and the surfer crouches; a balance needle (HUD) falls away from the middle and wobbles
     more the deeper you are (`balFall`, `balWobble`); Left/Right push it back (`balInput`); Up/Down
     speed up toward the exit / stall deeper (`tubeAccel`; with no input you drift slowly deeper,
@@ -127,10 +126,10 @@ button).
   leans into turns and the inside hand drags toward the water in a big one.
 - `src/sea.js`: **sets and sections**, from the wave's `sea` settings. Each ride is the next wave of the
   set (`setWaveSize`: bigger waves peel a bit faster). Sections (`SECTIONS` in wave.js) are stretches
-  ahead that break early for a while: they're fixed to the reef, so in the peel frame they move back
-  toward the curl; `phaseAt` raises the phase there (a flat-topped closeout into whitewater on the
-  point, a bell-shaped early barrel on the reef). Physics follows automatically (everything works from
-  the phase). Seeded (`seedSea`, `?seed=`); `?nosea` turns it off. Tests run without the sea.
+  ahead that break early for a while (fixed to the reef, so in the peel frame they move back toward
+  the curl; `phaseAt` raises the phase there). **Sections are currently off on both waves**
+  (`sea.sections: false`); they didn't play well yet. Seeded (`seedSea`, `?seed=`); `?nosea` turns the
+  sea off. Tests run without the sea.
 - **Water rendering:** the GPU builds the surface every frame from a cross-section table (512 phases,
   built per wave in `buildWaterTable`) and each slice's current phase (`slicePhases`), so the wave can
   change over time. The spray emitter table is refreshed every frame too.

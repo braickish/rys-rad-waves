@@ -391,8 +391,18 @@ function stepSurf(r, input, dt) {
     }
   }
 
-  // --- the top: what happens depends on where you hit it, and whether you're turning ---
+  // --- pulling into the barrel (tube waves) ---
+  // Up near the lip close to the curl and turning: you pull in. Tube mode
+  // starts right away; the curl catches you up and throws over you.
   const ready = r.moveCooldown === 0; // moves need a gap between them
+  if (WAVE.tube && !r.assist && !r.floater && r.xs < T.pullInZone && r.xs > -2
+    && height > T.pullInHeight && r.time - (r.lastTurnTime ?? -9) < 0.15) {
+    enterTube(r, true);
+    f = frameAt(r.xs, r.t); syncPose(r, f);
+    return;
+  }
+
+  // --- the top: what happens depends on where you hit it, and whether you're turning ---
   // Climbing up the whitewater from below: once you're high on it you pop
   // up onto it and float, without needing to reach the very top.
   const turningNow = r.time - (r.lastTurnTime ?? -9) < T.turnWindow;
@@ -568,12 +578,15 @@ function checkHazards(r, dt) {
   // Water overhead, past where the lip has thrown: you're in the tube.
   const c = roofClearance(r.xs, r.t, r.pos);
   r.clearance = c;
-  if (c < 6 && ph > TUNE.tubeEnter && !r.assist && !r.floater) {
-    r.tube = { time: 0, bal: 0, balVel: 0, depth: ph, seed: Math.random() * 100 };
-    r.inBarrel = true;
-    r.barrelTime = 0;
-    r.events.push({ type: 'barrelEnter' });
-  }
+  if (c < 6 && ph > TUNE.tubeEnter && !r.assist && !r.floater) enterTube(r, false);
+}
+
+function enterTube(r, pullIn) {
+  r.tube = { time: 0, bal: 0, balVel: 0, depth: phaseAt(r.xs), seed: Math.random() * 100, pullIn };
+  r.inBarrel = true;
+  r.barrelTime = 0;
+  r.floater = null; r.assist = null;
+  r.events.push({ type: 'barrelEnter', pullIn });
 }
 
 // --- Tube riding ---
@@ -595,8 +608,12 @@ function stepTube(r, input, dt) {
   r.phi += clampTurn(wrap(dir - r.phi), 3 * dt);
   // Speed: Up speeds you toward the exit, Down stalls you deeper.
   const fwd = clamp(input.tilt || 0, -1, 1);
-  r.speed += (fwd * T.tubeAccel + (PEEL_SPEED + T.tubeCruise - r.speed) * 2.0) * dt;
-  r.speed = clamp(r.speed, T.tubeMinSpeed, T.tubeMaxSpeed);
+  if (tb.pullIn) {
+    // Pulling in: stall so the curl catches you up and throws over you.
+    r.speed += (PEEL_SPEED - T.pullInSpeed - r.speed) * Math.min(1, dt * 6);
+    if (phaseAt(r.xs) > T.tubeEnter + 0.05) tb.pullIn = false;
+  } else r.speed += (fwd * T.tubeAccel + (PEEL_SPEED + T.tubeCruise - r.speed) * 2.0) * dt;
+  if (!tb.pullIn) r.speed = clamp(r.speed, T.tubeMinSpeed, T.tubeMaxSpeed);
   r.xs += (r.speed * Math.cos(r.phi) - PEEL_SPEED) * dt;
   // Balance: unstable (it falls away from the middle), with a wobble that
   // grows the deeper you are. Left/Right push it back.
@@ -615,7 +632,7 @@ function stepTube(r, input, dt) {
   // Outcomes.
   if (Math.abs(tb.bal) >= 1) { r.tube = null; return wipe(r, 'Lost your balance in the barrel!'); }
   if (ph > T.tubeCollapse) { r.tube = null; return wipe(r, 'The barrel closed on you! (speed up)'); }
-  if (ph < T.tubeExit) {
+  if (ph < T.tubeExit && !tb.pullIn) {
     r.events.push({ type: 'barrelExit', time: tb.time, depth: tb.depth });
     r.tube = null; r.inBarrel = false; r.barrelTime = 0;
     r.moveCooldown = TUNE.moveGap;
