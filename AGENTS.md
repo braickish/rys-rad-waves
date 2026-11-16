@@ -77,7 +77,10 @@ button).
     move; let go before the lip and it's an air (airs aren't blocked by `moveGap`). The pivot follows
     the way you're turning, never the way you were riding: turning away from the whitewater (surfer's
     right when riding right) = snap / off the lip / re-entry, ending down and forward; turning toward
-    it = only a quick 180 (`lip180Rate`) ending straight back down the wave. Not turning, you go
+    it = a quick 180 (`lip180Rate`) ending straight back down the wave, but only coming up out of a
+    bottom turn (`comboWindow`) right by the curl (`curlZone[1]`), or straight out of a roundhouse
+    (then it scores as a **rebound**). Anywhere else turning toward the whitewater at the top is
+    just your own turn carrying you round over the top (a cutback off the top). Not turning, you go
     up and over the back (wipeout), or launch an air if fast enough (`airSpeed`, ~26 mph) and out of
     the whitewater. Within `airCurlZone` of the whitewater it's always an air (above `airMinSpeed`),
     never over the back. Airs pop up at `airPop`, and the wave carries you along in the air

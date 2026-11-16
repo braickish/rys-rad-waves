@@ -445,6 +445,7 @@ function stepSurf(r, input, dt) {
       rh.depth = sstep(T.roundhouseDepth[0], T.roundhouseDepth[1], rh.turned);
       if (!rh.scored && rh.turned > T.roundhouseScore && Math.cos(r.phi + d) < -0.3) {
         rh.scored = true;
+        r.lastRoundhouse = r.time; // (a 180 off the top straight after counts as a rebound)
         r.events.push({ type: 'move', move: 'roundhouse', speed: r.speed, xs: r.xs, combo: r.time - (r.lastBottomTurn ?? -9) < T.comboWindow });
       }
     }
@@ -661,7 +662,16 @@ function stepSurf(r, input, dt) {
       //  - Turning toward the whitewater: only a quick 180, carrying on round
       //    to point straight back down the wave.
       const towardWhitewater = (r.lastTurnDir || -1) > 0;
-      if (towardWhitewater) {
+      // The 180 off the top only comes up out of a bottom turn, right by the
+      // curl, or straight out of a roundhouse (then it's a rebound). Anywhere
+      // else turning toward the whitewater at the top is just your own turn
+      // carrying you round over the top (a cutback off the top).
+      const fromRoundhouse = r.time - (r.lastRoundhouse ?? -9) < T.comboWindow;
+      const can180 = r.xs <= T.curlZone[1] && (fromRoundhouse || (combo && !inWhitewater));
+      if (towardWhitewater && !can180) {
+        // (stay on the top; your turn keeps going until the nose comes round
+        // and you head back down)
+      } else if (towardWhitewater) {
         r.assist = { dir: 1, target: -Math.PI / 2, rate: T.lip180Rate };
         lockInput(r);
       } else if (r.rideDir >= 0) {
@@ -674,10 +684,10 @@ function stepSurf(r, input, dt) {
         lockInput(r);
         if (inWhitewater) r.boost = 1.0;
       }
-      if (ready) {
+      if (ready && !(towardWhitewater && !can180)) {
         const inCurl = !inWhitewater && r.xs <= T.curlZone[1];
         let move;
-        if (towardWhitewater) move = 'lip180';
+        if (towardWhitewater) move = fromRoundhouse ? 'rebound' : 'lip180';
         else if (inWhitewater) move = 'reentry';
         else move = sinp > (inCurl ? 0.45 : 0.7) ? 'snap' : 'topTurn'; // (no separate off the lip: it's a snap)
         r.events.push({ type: 'move', move, speed: r.speed, combo, xs: r.xs });

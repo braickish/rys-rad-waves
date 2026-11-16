@@ -58,20 +58,21 @@ for (const [name, init, pol] of rows) {
 console.log('-- lip direction');
 for (const [label, dir, start] of [
   ['riding right, turn away (Right)', -1, { xs: 1, t: 6.4, phi: 1.2, speed: 12 }],
-  ['riding right, turn toward (Left)', 1, { xs: 1, t: 6.4, phi: 1.2, speed: 12 }],
+  ['riding right, turn toward (Left), out of a bottom turn at the curl', 1, { xs: 1, t: 6.4, phi: 1.2, speed: 12, lastBottomTurn: 0 }],
+  ['riding right, turn toward (Left), no bottom turn (no 180)', 0, { xs: 1, t: 6.4, phi: 1.2, speed: 12 }],
   ['nose just past vertical, turn away', -1, { xs: 1, t: 6.4, phi: 1.75, speed: 12, rideDir: -1 }],
   ['after riding back (rideDir left), turn away', -1, { xs: 1, t: 6.4, phi: 1.4, speed: 12, rideDir: -1 }],
 ]) {
   const r = createRider(); Object.assign(r, start); r.events = []; stepRider(r, {}, 0);
   let move = null, minCos = 1, after = null;
   for (let i = 0; i < 0.8 * 120; i++) {
-    stepRider(r, move ? {} : { turn: dir }, 1 / 120);
+    stepRider(r, move ? {} : { turn: dir || 1 }, 1 / 120);
     for (const e of r.events) if (e.type === 'move' && e.move !== 'bottomTurn') move = e.move;
     if (move && !r.assist && !r.lipSnap && !r.snapGrip && after === null) after = r.phi;
     if (move && dir < 0) minCos = Math.min(minCos, Math.cos(r.phi));
     if (r.mode !== 'surf') break;
   }
-  const ok = dir < 0 ? minCos > -0.05 : after !== null && Math.abs(after + Math.PI / 2) < 0.1;
+  const ok = dir < 0 ? minCos > -0.05 : dir === 0 ? move !== 'lip180' : after !== null && Math.abs(after + Math.PI / 2) < 0.1;
   console.log(`${ok ? 'ok  ' : 'FAIL'} ${label}: ${move}, ends heading ${after === null ? '?' : (after * 57.3).toFixed(0)} deg${dir < 0 ? `, never back toward the whitewater (min cos ${minCos.toFixed(2)})` : ' (straight down = -90)'}`);
 }
 // Air reverse: land a 180 backwards, ride it backwards, then it spins back round.
