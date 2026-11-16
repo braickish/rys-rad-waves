@@ -30,7 +30,7 @@ const lipTurn = (r) => (r.t < TUNE.tTop + 1.2 ? { turn: -1 } : Math.sin(r.phi) <
 const lipTurnOnce = () => { let done = false; return (r) => { if (r.events.some((e) => e.type === 'move' && e.move !== 'bottomTurn')) done = true; return done || r.assist || r.lipSnap || r.snapGrip ? {} : lipTurn(r); }; };
 const rows = [
   ['snap at the curl', { xs: 0.5, t: 8, phi: 1.2, speed: 12 }, lipTurnOnce()],
-  ['off the lip (open face)', { xs: 5, t: 8, phi: 1.3, speed: 12 }, lipTurnOnce()],
+  ['snap (open face)', { xs: 5, t: 8, phi: 1.3, speed: 12 }, lipTurnOnce()],
   ['re-entry (whitewater, steep)', { xs: -2.5, t: 8, phi: 1.35, speed: 12 }, lipTurnOnce()],
   ['floater', { xs: -5, t: 8, phi: 0.5, speed: 13 }, () => ({})],
   ['roundhouse (shoulder, Left back round)', { xs: 9, t: 12.5, phi: 0, speed: 10 }, (r, t) => (t < 1.5 ? { turn: 1 } : {})], // (keeps turning to finish the arc)

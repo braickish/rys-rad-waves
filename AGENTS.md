@@ -84,13 +84,14 @@ button).
     (`airDrift`) so you don't drift back into the whitewater; within `airBoostZone` (~2 ft) of the whitewater it launches higher (`airBoostUp`,
     "BIG AIR").
   - Moves are decided by where you hit the top and how steep: in the whitewater (behind `curlZone`)
-    → **re-entry**, at the curl → **snap**, on the open face → **off the lip** (shallow hits are a
-    **top turn**). Within `comboWindow` of a bottom turn it's a combo. Snap / off the lip / re-entry
+    → **re-entry**, otherwise → **snap** (shallow hits are a **top turn**). There's no separate
+    "off the lip" any more (the user removed it): it's all the snap. Within `comboWindow` of a bottom turn it's a combo. Snap / off the lip / re-entry
     (turning away from the whitewater) **stay on the lip** (`r.lipSnap`). Climbing with the nose
     well up (`snapUp`), start the Right turn within `snapZone` below the top and the snap starts right
-    there, on the face, so the board stands up with its deck showing (reaching the very top while
-    turning still snaps too). It holds you at least `snapLine` below the top, on the steeper face
-    (the point's crest is nearly level: 8 deg at the top, ~26 deg at `snapLine`). Your line runs
+    there, on the face (reaching the very top while turning still snaps too). It holds you at least
+    `snapLine` below the top, where the face is steep (point ~45 deg, reef ~65 deg; the point's crest
+    is nearly level, 8 deg at the top). The board first comes round to point straight up the face
+    (`snapStandRate`), deck showing, then spins down to the right. Your line runs
     along the wave, held there, while the fins release and the board swings round in place (`lipSnapSwing`,
     via `r.slide`) scrubbing speed (`lipSnapDrag`, ~28 -> 17 mph), then the fins grip (`slashGrip`,
     `r.snapGrip`) and you ride back down at `lipExit`. Your steering is ignored until they've
@@ -99,7 +100,8 @@ button).
     way (`rideDir < 0`) still uses the quick pivot.
   - **Roundhouse:** out on the shoulder (`roundhouseZone`, pocket below `roundhousePocket`), start a
     turn while riding along or down the line (not a bottom turn) and keep it going back toward the
-    whitewater. It starts slow and wide (`roundhouseStart` of the turn rate for `roundhouseHold`),
+    whitewater; the surfer crouches right down and gets further up on the rail than any other turn
+    (surfer.js, past the usual roll limit). It starts slow and wide (`roundhouseStart` of the turn rate for `roundhouseHold`),
     eases up to the full rate over `roundhouseRamp`, never faster than `roundhouseMaxRate` (a
     sweeping arc), and you lean deeper and crouch lower as it comes round. Going round Left (up and
     back) needs to start mid-face or lower, or the arc reaches the lip (a 180 off the top). The
@@ -136,6 +138,10 @@ button).
     `node test/slash.mjs` reports and checks all of this, including player-style timing. History
     (2026-11-16): a mid-face Right-turn slash, then a looser one, both slashed too often; the user
     specified the low-start rule, then asked for more scrub, less turn and a real bottom turn.
+  - **Steering lock** (`r.lock`, `lockInput`): while a move has the board (snap, rebound, 180,
+    floater exit, roof deflection) your steering is ignored, and afterwards the input you were
+    holding stays ignored until you let go or change it (another key, or the touch stick), so holding
+    the turn through a move doesn't overshoot. A slash that ends while you still hold Right locks too.
   - Moves need at least `moveGap` (1s) between them. Inside the gap the lip is just a plain turn and
     the whitewater just slows you.
     Sit in heavy foam longer than `foamLimit` and it takes you. Land an air backwards (nose pointing

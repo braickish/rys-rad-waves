@@ -93,12 +93,15 @@ export function surferObjects(pose, rider, info, dt) {
   // Banks hard even at low speed; a committed turn (held, or a bottom turn
   // started pointing down) always gets well up on the rail.
   const committed = Math.max(rider.hard || 0, rider.bottomCarve ? 1 : 0);
+  const rh = rider.mode === 'surf' ? rider.crouchDepth || 0 : 0; // roundhouse depth
   let rollT = rider.mode === 'surf'
     ? clamp(info.turn * 0.17 * clamp(speed0 / 5, 0.85, 1.4) * (1 + 0.35 * committed), -MAX_ROLL, MAX_ROLL)
     : 0;
   if (rider.mode === 'surf' && committed > 0.5 && Math.abs(info.turn) > 0.3) {
     rollT = Math.sign(rollT) * Math.max(Math.abs(rollT), (rider.bottomCarve ? 0.85 : 0.7) * committed);
   }
+  // Roundhouse: up on the rail more and more as it comes round (past the usual limit).
+  if (rh > 0.01 && Math.abs(info.turn) > 0.2) rollT = Math.sign(rollT || info.turn) * Math.max(Math.abs(rollT), 0.7 + 0.5 * rh);
   pose.roll = (pose.roll || 0) + (rollT - (pose.roll || 0)) * (1 - Math.exp(-dt * (rider.bottomCarve ? 16 : 10)));
   // Tilt the board's up vector toward the inside of the turn (+ roll = left
   // rail down), so the inside rail digs in.
@@ -113,13 +116,12 @@ export function surferObjects(pose, rider, info, dt) {
   if (info.pump) kneeT = vUp > 0.3 ? 0.75 : 0.05; // compress going up, extend driving down
   if (rider.crouch) kneeT = rider.tube ? 0.42 : 0.85; // in the tube: a compact, athletic crouch, not squatting
   if (rider.mode === 'air') kneeT = 0.7;
-  // Roundhouse: lower and lower as it comes round.
-  const rh = rider.mode === 'surf' ? rider.crouchDepth || 0 : 0;
-  if (rh > 0.01) kneeT = Math.max(kneeT, 0.4 + 0.55 * rh);
+  // Roundhouse: lower and lower as it comes round, right down at full depth.
+  if (rh > 0.01) kneeT = Math.max(kneeT, 0.45 + 0.65 * rh);
   pose.knee += (clamp(kneeT, 0, 1) - pose.knee) * (1 - Math.exp(-dt * 9));
   let leanT = clamp(info.turn * 0.2 * clamp(speed / 4, 0.8, 1.25) * (1 + 0.3 * committed), -0.85, 0.85); // + = toward L
   if (committed > 0.5 && Math.abs(info.turn) > 0.3) leanT = Math.sign(leanT) * Math.max(Math.abs(leanT), (rider.bottomCarve ? 0.65 : 0.5) * committed);
-  if (rh > 0.01 && Math.abs(info.turn) > 0.3) leanT = Math.sign(leanT) * Math.max(Math.abs(leanT), 0.5 + 0.3 * rh); // deeper into the roundhouse
+  if (rh > 0.01 && Math.abs(info.turn) > 0.3) leanT = Math.sign(leanT) * Math.max(Math.abs(leanT), 0.5 + 0.35 * rh); // deeper into the roundhouse
   pose.lean += (leanT - pose.lean) * (1 - Math.exp(-dt * 8));
   const knee = pose.knee, lean = pose.lean;
   const reach = clamp((Math.abs(lean) - 0.25) / 0.35, 0, 1);

@@ -38,7 +38,7 @@ const RIDER_TUNE = {
   hardRadius: 0.7, // ... and a tighter arc
   snapRate: 13,
   moveCalm: 0.95,
-  moveScrub: { roundhouse: 0.03, slash: 0.25, snap: 0.08, offLip: 0.07, reentry: 0.08, topTurn: 0.04, lip180: 0.1, floater: 0.05, rebound: 0.1, rebound180: 0.1, revert: 0.05, land: 0.05 }, // speed each move costs // no speeding up for this long after a move (s); 0 = off (?moveaccel)
+  moveScrub: { roundhouse: 0.03, slash: 0.25, snap: 0.08, reentry: 0.08, topTurn: 0.04, lip180: 0.1, floater: 0.05, rebound: 0.1, rebound180: 0.1, revert: 0.05, land: 0.05 }, // speed each move costs // no speeding up for this long after a move (s); 0 = off (?moveaccel)
   fakieTime: 0.7, // after landing backwards, ride it this long (s) ...
   fakieSpinRate: 18, // ... then the board spins back round this fast (rad/s)
   lip180Rate: 14, // the quick 180 off the top when you turn toward the whitewater (rad/s) // how fast the board pivots back down in a snap (rad/s): quick, not instant
@@ -98,9 +98,10 @@ const RIDER_TUNE = {
   // release and the board swings round in place, scrubbing speed; then the
   // fins grip (slashGrip) and you ride back down.
   lipSnapSwing: 11, // how fast the board swings round on the lip (rad/s)
-  snapZone: 1.8, // climbing with the nose well up (snapUp), start the Right turn this close below the top (t) and the snap starts right there
+  snapZone: 3.0, // climbing with the nose well up (snapUp), start the Right turn this close below the top (t) and the snap starts right there
   snapUp: 0.7, // (sin of angle, ~45 deg)
-  snapLine: 1.2, // the snap holds you at least this far below the top (t), on the steeper face, so the board stands up on the face with its deck showing
+  snapLine: 2.6, // the snap holds you at least this far below the top (t), where the face is steep (~45 deg on the point), so the board stands up with its deck showing
+  snapStandRate: 20, // first the board comes round to point straight up the face (rad/s), then it spins down to the right
   lipSnapDrag: 1.4, // speed scrubbed while it swings and grips (1/s)
   // Roundhouse: out on the shoulder, turn back toward the whitewater; the
   // further round you come the deeper you lean and the lower you crouch, and
@@ -108,10 +109,10 @@ const RIDER_TUNE = {
   roundhouseZone: 5, // out on the shoulder: at least this far ahead of the curl (m) ...
   roundhousePocket: 0.55, // ... where the pocket has faded below this
   roundhouseDepth: [0.5, 2.2], // turned this far (rad) = starting to lean .. fully deep and crouched
-  roundhouseStart: 0.3, // it starts as a slow, wide turn: this fraction of the normal turn rate ...
-  roundhouseHold: 0.3, // ... for the first this long you hold it (s) ...
-  roundhouseRamp: 0.6, // ... then it eases up to the full rate over this long (s) ...
-  roundhouseMaxRate: 3.5, // ... but never faster than this: a sweeping arc, even high on the face where turns are snappy (rad/s)
+  roundhouseStart: 0.35, // it starts as a slow, wide turn: this fraction of the normal turn rate ...
+  roundhouseHold: 0.2, // ... for the first this long you hold it (s) ...
+  roundhouseRamp: 0.4, // ... then it eases up to the full rate over this long (s) ...
+  roundhouseMaxRate: 4.2, // ... but never faster than this: a sweeping arc, even high on the face where turns are snappy (rad/s)
   roundhouseScore: 1.8, // turned at least this far (rad, ~100 deg) and heading back toward the whitewater
   standH: 1.75,
   crouchH: 1.1,
@@ -207,7 +208,7 @@ export function createRider() {
     airSpin: 0, airTime: 0, spinArmed: false,
     moveCooldown: 0, lastBottomTurn: -9, bottomArmed: false,
     tube: null, fakie: null, driveBank: 0, lastTurnTime: -9, lastTurnDir: 0, overTheBack: false,
-    rideDir: 1, lipSnap: null, snapGrip: false, roundhouse: null, crouchDepth: 0, slash: null, slide: 0, rightHeld: 0, turnDir: 0, turnDirAge: 9, turnHeld: 0, hard: 0, assist: null, bottomCarve: false, floater: null,
+    rideDir: 1, lock: null, inDir: 0, lipSnap: null, snapGrip: false, roundhouse: null, crouchDepth: 0, slash: null, slide: 0, rightHeld: 0, turnDir: 0, turnDirAge: 9, turnHeld: 0, hard: 0, assist: null, bottomCarve: false, floater: null,
     wipeReason: '', wipeTimer: 0,
     events: [],
     time: 0,
@@ -262,17 +263,23 @@ export function stepRider(r, input, dt) {
   }
   // A turn off the lip springs the body open (for the surfer's pose).
   r.unload = Math.max(0, (r.unload || 0) - dt);
-  if (r.events.some((e) => e.type === 'move' && ['snap', 'offLip', 'reentry', 'topTurn', 'lip180', 'slash'].includes(e.move))) r.unload = 0.45;
+  if (r.events.some((e) => e.type === 'move' && ['snap', 'reentry', 'topTurn', 'lip180', 'slash'].includes(e.move))) r.unload = 0.45;
 }
 
 // Snap / off the lip / re-entry: the board swings round on the face just
 // under the lip. Your line runs along the wave (phi 0) while the board keeps
 // pointing where it was (heading = phi - slide) and then spins to the right.
 function startLipSnap(r, top, target) {
-  r.lipSnap = { t: Math.max(r.t, top + TUNE.snapLine), target, time: 0 };
+  r.lipSnap = { t: Math.max(r.t, top + TUNE.snapLine), target, time: 0, standing: true };
+  lockInput(r);
   r.slide = -r.phi; r.phi = 0;
   r.roundhouse = null; r.slash = null;
 }
+
+// While a move has the board, and afterwards until you let go of (or
+// reverse) the key you were holding, your steering is ignored: holding the
+// turn through a move doesn't carry on turning you once it's done.
+function lockInput(r) { r.lock = { dir: r.inDir }; }
 
 function stepSurf(r, input, dt) {
   const T = TUNE;
@@ -321,6 +328,13 @@ function stepSurf(r, input, dt) {
   // progressively lean into it harder: a tighter arc that drives more.
   // Start a turn while pointing down the face (a bottom turn) and you're
   // committed at once: full lean, a slightly wider arc, more drive.
+  {
+    const raw = clamp((input.turn || 0) + (input.tilt || 0), -1, 1);
+    r.inDir = raw ? Math.sign(raw) : (input.aim && (input.aim[0] || input.aim[1]) ? 2 : 0);
+    const busy = r.assist || r.lipSnap || r.snapGrip;
+    if (r.lock && !busy && r.inDir !== r.lock.dir) r.lock = null; // let go, or changed to a different input
+    if (r.lock) input = { crouch: input.crouch };
+  }
   const wantsTurn = !!(input.turn || input.tilt || (input.aim && (input.aim[0] || input.aim[1])));
   if (!wantsTurn || Math.sin(r.phi) > 0.5) r.bottomCarve = false;
   else if (r.turnHeld === 0 && !r.turnDir && Math.sin(r.phi) < -0.3 && height < 0.6) r.bottomCarve = true;
@@ -379,7 +393,12 @@ function stepSurf(r, input, dt) {
     // (the move has the board while it swings)
     ls.time += dt;
     d = 0;
-    const head = Math.max(ls.target, r.phi - r.slide - T.lipSnapSwing * dt);
+    let head = r.phi - r.slide;
+    if (ls.standing) {
+      // the board comes round to point straight up the face ...
+      head = Math.min(Math.PI / 2, head + T.snapStandRate * dt);
+      if (head >= Math.PI / 2 - 1e-4) ls.standing = false;
+    } else head = Math.max(ls.target, head - T.lipSnapSwing * dt); // ... then spins down to the right
     r.slide = r.phi - head;
     if (head <= ls.target + 1e-4 || ls.time > 0.5) { r.lipSnap = null; r.snapGrip = true; }
   }
@@ -394,7 +413,10 @@ function stepSurf(r, input, dt) {
         r.moveCooldown = T.moveGap;
         r.events.push({ type: 'move', move: 'slash', speed: r.speed, xs: r.xs, tube: sl.tube, combo: r.time - (r.lastBottomTurn ?? -9) < T.comboWindow });
       }
-    } else if (steer >= 0 || sl.time > T.slashTime || r.assist || r.floater || r.phi - r.slide < -T.slashEnd) r.slash = null;
+    } else if (steer >= 0 || sl.time > T.slashTime || r.assist || r.floater || r.phi - r.slide < -T.slashEnd) {
+      if (steer < 0) lockInput(r); // ended while you're still holding Right: don't carry on turning
+      r.slash = null;
+    }
     else {
       r.slide = Math.min(S('slashSlideMax'), r.slide + S('slashSpin') * Math.abs(steer) * dt); // the board swings round ahead of your line ...
       gripD = -S('slashFollow') * S('slashSpin') * Math.abs(steer) * dt; // ... and your line partly follows it
@@ -531,7 +553,8 @@ function stepSurf(r, input, dt) {
   r.calm = Math.max(0, (r.calm || 0) - dt);
   if (r.assist || r.floater || r.calm > 0 || r.lipSnap) r.speed = Math.min(r.speed, speedAtStart);
   // The snap scrubs speed on the lip while the board swings and grips.
-  if (r.lipSnap || r.snapGrip) r.speed = Math.min(r.speed, speedAtStart) * (1 - T.lipSnapDrag * dt);
+  // (not while the board first stands up: just while it spins round and grips)
+  if ((r.lipSnap && !r.lipSnap.standing) || r.snapGrip) r.speed = Math.min(r.speed, speedAtStart) * (1 - T.lipSnapDrag * dt);
   // Sliding sideways in a slash scrubs speed, and nothing builds it meanwhile.
   else if (r.slide > 0) r.speed = Math.min(r.speed, speedAtStart) * (1 - (r.tube ? T.slashTube.slashDrag : T.slashDrag) * Math.sin(Math.min(r.slide, Math.PI / 2)) * dt);
   r.speed = clamp(r.speed, T.minSpeed, T.maxSpeed);
@@ -562,6 +585,7 @@ function stepSurf(r, input, dt) {
     if (cleared || r.floater.time > T.floaterMax) {
       r.floater = null;
       r.assist = downFromLip(T.snapRate * 0.7, T.foamExit); // drop back down off the foam
+      lockInput(r);
       r.boost = 1.0; // and the foam can't slow you until you're clear of it
     }
   }
@@ -596,6 +620,7 @@ function stepSurf(r, input, dt) {
     if (sinp > TUNE.roofCrash) return wipe(r, 'Over the falls! (up into the lip)');
     r.t = top;
     r.assist = { dir: -1, target: -0.5, rate: TUNE.snapRate };
+    lockInput(r);
   }
   // Snap from just under the lip: climbing with the nose well up the face,
   // turn Right near the top and the snap starts right there, on the face
@@ -607,7 +632,7 @@ function stepSurf(r, input, dt) {
     && r.xs >= T.curlZone[0] && foamAt(r.xs, r.t + 0.6) <= 0.3) {
     startLipSnap(r, top, -T.lipExit);
     const combo = r.time - (r.lastBottomTurn ?? -9) < T.comboWindow;
-    r.events.push({ type: 'move', move: r.xs <= T.curlZone[1] ? 'snap' : 'offLip', speed: r.speed, combo, xs: r.xs });
+    r.events.push({ type: 'move', move: 'snap', speed: r.speed, combo, xs: r.xs });
     r.moveCooldown = T.moveGap;
   }
   if (!r.floater && !r.assist && !r.lipSnap && r.t <= top && sinp > 0) {
@@ -636,6 +661,7 @@ function stepSurf(r, input, dt) {
       const towardWhitewater = (r.lastTurnDir || -1) > 0;
       if (towardWhitewater) {
         r.assist = { dir: 1, target: -Math.PI / 2, rate: T.lip180Rate };
+        lockInput(r);
       } else if (r.rideDir >= 0) {
         // Stay on the lip: your line runs along it and the board swings round
         // in place (it keeps pointing where it was, heading = phi - slide).
@@ -643,6 +669,7 @@ function stepSurf(r, input, dt) {
         if (inWhitewater) r.boost = 1.0; // a re-entry carries you out of the foam
       } else {
         r.assist = { dir: -1, target: -(inWhitewater ? T.foamExit : T.lipExit), rate: T.snapRate };
+        lockInput(r);
         if (inWhitewater) r.boost = 1.0;
       }
       if (ready) {
@@ -650,8 +677,7 @@ function stepSurf(r, input, dt) {
         let move;
         if (towardWhitewater) move = 'lip180';
         else if (inWhitewater) move = 'reentry';
-        else if (inCurl) move = sinp > 0.45 ? 'snap' : 'topTurn';
-        else move = sinp > 0.7 ? 'offLip' : 'topTurn';
+        else move = sinp > (inCurl ? 0.45 : 0.7) ? 'snap' : 'topTurn'; // (no separate off the lip: it's a snap)
         r.events.push({ type: 'move', move, speed: r.speed, combo, xs: r.xs });
         r.moveCooldown = T.moveGap;
       }
@@ -696,6 +722,7 @@ function stepSurf(r, input, dt) {
     // it's a plain rebound.
     const left = r.turnDir > 0 || hNow < T.rebound180MinHeight;
     r.assist = { dir: left ? 1 : -1, target: -0.6, rate: left ? T.reboundRate : T.rebound180Rate };
+    lockInput(r);
     r.boost = 1.0; // the foam can't slow you until you've cleared it (up to 1s); no speed kick
     r.foamTime = 0;
     const combo = r.time - (r.lastBottomTurn ?? -9) < T.comboWindow;

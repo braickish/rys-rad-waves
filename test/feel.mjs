@@ -104,7 +104,7 @@ for (const [label, speed] of [['slow', 10], ['fast', 16]]) {
 // 8. A decent rider working the pocket: bottom turns into the top, cutback when ahead.
 { const r = start(); let up = true, speedSum = 0, n = 0, inPk = 0, maxV = 0; const counts = {};
   const T = run(r, (r) => {
-    if (up && r.t < TUNE.tTop + 1) up = false;
+    if (up && (r.t < TUNE.tTop + 1 || r.lipSnap)) up = false; // (after a snap, ride back down)
     if (!up && r.t > 12.6) up = true;
     speedSum += r.speed; n++; if (r.xs > -2 && r.xs < 6) inPk++; maxV = Math.max(maxV, r.speed);
     // Cutback: carve back toward the curl, then climb to meet the whitewater

@@ -146,7 +146,6 @@ function handleEvents() {
       const MOVES = {
         bottomTurn: ['Bottom turn', 100, 0],
         topTurn: ['Top turn', 150, 0.15],
-        offLip: ['Off the lip!', 350, 0.25],
         snap: ['SNAP!', 500, 0.35],
         reentry: ['RE-ENTRY!', 700, 0.4],
         floater: ['FLOATER!', 600, 0.3],
@@ -409,7 +408,7 @@ async function main() {
     const surfing = rider.mode === 'surf';
     const speed = v3.len(rider.vel);
     snapSpray = Math.max(0, snapSpray - dt);
-    const sprayAmt = surfing ? Math.min(1, Math.abs(turnSigned) * 0.3 * Math.min(1, speed / 6) + (rider.pumping ? 0.15 : 0) + (snapSpray > 0 ? 0.9 : 0)) : 0;
+    const sprayAmt = surfing ? Math.min(1, Math.abs(turnSigned) * 0.3 * Math.min(1, speed / 6) + (rider.pumping ? 0.15 : 0) + (snapSpray > 0 ? 0.5 : 0)) : 0;
     const side = v3.norm(v3.cross(n, rider.heading));
     const sprayDir = v3.norm(v3.add(v3.mul(side, turnSigned > 0 ? -1 : 1), v3.mul(rider.heading, -0.4)));
     burst = Math.max(0, burst - dt);
