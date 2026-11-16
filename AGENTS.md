@@ -53,6 +53,8 @@ button).
     without turning and you ride out onto the flats (`tFlats`) and bog down.
   - Speed never builds faster than `maxAccel` (~22 mph/s when slow, tapering to `maxAccelFast` of
     that as you get fast), whatever is feeding it, so nothing surges.
+  - During a move and for `moveCalm` (0.8s) after it, speed can't rise at all (bottom turns excluded);
+    `?moveaccel` turns that off for comparison.
   - Moves never add speed by themselves: they're quick board pivots, then gravity and the wave take
     over. Turn drive (bottom turns, high carves) goes through `driveBank` and releases over
     `driveSmooth`; bottom turns drive you out on the flats too. Pivots off the lip point you straight down

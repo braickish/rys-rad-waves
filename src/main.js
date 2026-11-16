@@ -217,6 +217,7 @@ async function main() {
   renderer.device.addEventListener('uncapturederror', (ev) => showError(ev.error.message));
   renderer.device.lost.then((info) => showError(`GPU device lost: ${info.message}`));
   $('best').textContent = best;
+  if (params.has('moveaccel')) TUNE.moveCalm = 0; // compare: the old behavior
   if (params.has('play')) startOrRestart();
   if (params.has('cam')) camMode = Number(params.get('cam')) || 0;
   let last = performance.now(), acc = 0, frame = 0, time = 0;

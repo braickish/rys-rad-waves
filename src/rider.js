@@ -39,6 +39,7 @@ export const TUNE = {
   hardRate: 1.25, // ... a faster top turn rate ...
   hardRadius: 0.7, // ... and a tighter arc
   snapRate: 13,
+  moveCalm: 0.8, // no speeding up for this long after a move (s); 0 = off (?moveaccel)
   fakieTime: 1.4, // after landing backwards, ride it this long (s) ...
   fakieSpinRate: 9, // ... then the board spins back round this fast (rad/s)
   lip180Rate: 14, // the quick 180 off the top when you turn toward the whitewater (rad/s) // how fast the board pivots back down in a snap (rad/s): quick, not instant
@@ -209,6 +210,7 @@ export function stepRider(r, input, dt) {
   if (r.mode === 'wipe') { r.wipeTimer -= dt; return; }
   if (r.mode === 'surf') stepSurf(r, input, dt);
   else stepAir(r, input, dt);
+  if (r.events.some((e) => (e.type === 'move' && e.move !== 'bottomTurn') || e.type === 'land')) r.calm = TUNE.moveCalm;
 }
 
 function stepSurf(r, input, dt) {
@@ -346,6 +348,10 @@ function stepSurf(r, input, dt) {
   // drive, pump), it never surges: speed builds at most maxAccel.
   const accelCap = T.maxAccel * (1 - (1 - T.maxAccelFast) * sstep(T.accelTaper[0], T.accelTaper[1], speedAtStart));
   r.speed = Math.min(r.speed, speedAtStart + accelCap * dt);
+  // During a move, and for a moment after it, you don't speed up at all:
+  // the move is a turn of the board, not a boost. (Bottom turns excluded.)
+  r.calm = Math.max(0, (r.calm || 0) - dt);
+  if (r.assist || r.floater || r.calm > 0) r.speed = Math.min(r.speed, speedAtStart);
   r.speed = clamp(r.speed, T.minSpeed, T.maxSpeed);
 
   // --- move ---
