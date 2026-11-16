@@ -38,4 +38,18 @@ for (const [label, pol] of [['stay out on the flats', () => ({ aim: [1, -0.3] })
     if (r.mode === 'wipe') break;
   }
   console.log(label.padEnd(32), firstIn || 'never in the barrel', r.mode === 'wipe' ? '| WIPE: ' + r.wipeReason : '');
+  if (r.tube || firstIn) { /* entered */ }
+}
+
+// Long bottom turn still pointing down near the curl: no barrel until the
+// nose comes round.
+{
+  const r = createRider(); Object.assign(r, { xs: -1, t: 13.6, phi: -1.2, speed: 11 }); r.events = []; stepRider(r, {}, 0);
+  let enteredPointingDown = false, entered = null;
+  for (let i = 0; i < 2 * 120; i++) {
+    stepRider(r, { turn: 0.35 }, 1 / 120); // a slow, long bottom turn
+    if (r.tube && entered === null) { entered = Math.sin(r.phi); if (entered < -0.1) enteredPointingDown = true; }
+    if (r.mode === 'wipe') break;
+  }
+  console.log(`${enteredPointingDown ? 'FAIL' : 'ok  '} long bottom turn: barrel ${entered === null ? 'never started' : 'started with the nose at ' + (Math.asin(Math.max(-1, Math.min(1, entered))) * 57.3).toFixed(0) + ' deg (0 = along the wave)'}`);
 }

@@ -182,6 +182,12 @@ function clearView(a, b) {
   }
   return true;
 }
+// Inside-the-tube camera options (?tubecam=0/1/2 to compare).
+const TUBE_CAMS = [
+  { back: [-4.4, 1.4, 2.9], look: [3.5, 0.7, -0.2] }, // current: three-quarter, behind and to the open side
+  { back: [-7.5, 0.9, 1.6], look: [6, 1.0, 0.6] }, // deeper in the tube, low, looking out through it
+  { back: [-10, 1.6, 1.0], look: [8, 1.2, 0.8] }, // deep in the back of the tube, centred, the whole barrel framing you
+];
 let lastShot = '';
 function updateCamera(dt) {
   let shot = 'surf';
@@ -195,8 +201,9 @@ function updateCamera(dt) {
     // out past you toward the opening.
     // (three-quarter from behind, from the open side, so you see the surfer
     // the way you do from outside, not edge-on)
-    want = [p[0] - 4.4, p[1] + 1.4, p[2] + 2.9];
-    look = [p[0] + 3.5, p[1] + 0.7, p[2] - 0.2];
+    const tc = TUBE_CAMS[Number(params.get('tubecam') || 0)] || TUBE_CAMS[0];
+    want = [p[0] + tc.back[0], p[1] + tc.back[1], p[2] + tc.back[2]];
+    look = [p[0] + tc.look[0], p[1] + tc.look[1], p[2] + tc.look[2]];
     shot = 'tubeInside';
   } else if (camMode === 0) {
     // From the channel in front of the wave: barrel on the left, shoulder right.
