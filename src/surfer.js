@@ -21,7 +21,9 @@ const COL = {
 const THIGH = 0.46, SHIN = 0.46, UPPER = 0.3, FORE = 0.3;
 const MAX_ROLL = 0.95; // furthest the board banks onto a rail (rad, ~55 deg)
 const STANCE = [-0.52, -0.02]; // back and front foot along the board (m from its middle; tail is -1, nose +1)
-const CHEST_OPEN = 0.45; // how far the chest turns from the wave toward the nose (rad)
+const CHEST_OPEN = 0.45;
+const TWIST_WIND = 0.7; // bottom turn: shoulders wind round toward the lip (rad)
+const TWIST_UNLOAD = 0.9; // snap: they spring open the other way (rad) // how far the chest turns from the wave toward the nose (rad)
 
 const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
 const add = (...vs) => vs.reduce((a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]]);
@@ -127,7 +129,18 @@ export function surferObjects(pose, rider, info, dt) {
   const bodyUp = v3.norm(rotateAbout(up0, f, -lean));
   // Facing: toward the wave (toe side), opened up toward the nose a bit, so
   // the surfer looks where they're going.
-  const chest = v3.norm(v3.rej(v3.add(v3.mul(L, Math.cos(CHEST_OPEN)), v3.mul(f, Math.sin(CHEST_OPEN))), bodyUp));
+  // Wind-up and release. A bottom turn winds the shoulders round toward the
+  // lip with the front shoulder and arm dropped across the body; a snap
+  // springs it all open the other way and throws both arms back over.
+  const lowOnFace = rider.mode === 'surf' && rider.t > 10.5;
+  const windT = rider.mode === 'surf' && !(rider.unload > 0) && rider.carvingUp && (rider.bottomCarve || lowOnFace) ? 1 : 0;
+  pose.windup = (pose.windup || 0) + (windT - (pose.windup || 0)) * (1 - Math.exp(-dt * 9));
+  const unloadT = rider.unload > 0 ? 1 : 0;
+  pose.unload = (pose.unload || 0) + (unloadT - (pose.unload || 0)) * (1 - Math.exp(-dt * (unloadT ? 22 : 6)));
+  const windup = pose.windup, unload = pose.unload;
+  const twist = TWIST_WIND * windup - TWIST_UNLOAD * unload; // + = front shoulder round toward the wave
+  const chest0 = v3.norm(v3.rej(v3.add(v3.mul(L, Math.cos(CHEST_OPEN)), v3.mul(f, Math.sin(CHEST_OPEN))), bodyUp));
+  const chest = v3.norm(rotateAbout(chest0, bodyUp, twist));
   const across = v3.norm(v3.cross(chest, bodyUp)); // shoulder line, roughly toward the nose
 
   // Stance toward the tail: back foot just ahead of the fin, front foot about
@@ -147,8 +160,9 @@ export function surferObjects(pose, rider, info, dt) {
   const torsoDir = v3.norm(add(bodyUp, v3.mul(chest, 0.1 + 0.6 * knee)));
   const neck = add(hip, v3.mul(torsoDir, 0.58));
   const head = add(neck, v3.mul(torsoDir, 0.2), v3.mul(chest, 0.03), v3.mul(across, 0.03));
-  const shBack = add(neck, v3.mul(across, -0.19), v3.mul(torsoDir, -0.04));
-  const shFront = add(neck, v3.mul(across, 0.19), v3.mul(torsoDir, -0.04));
+  // Front shoulder drops into a bottom turn; both lift as you spring open.
+  const shBack = add(neck, v3.mul(across, -0.19), v3.mul(torsoDir, -0.04 + 0.05 * windup + 0.03 * unload));
+  const shFront = add(neck, v3.mul(across, 0.19), v3.mul(torsoDir, -0.04 - 0.1 * windup + 0.03 * unload));
 
   // Hands: out for balance by default; in a big turn the inside hand drags
   // toward the water and the other rises.
@@ -164,6 +178,18 @@ export function surferObjects(pose, rider, info, dt) {
     // Turning toward the heel side: front hand reaches down behind.
     handFront = lerp3(handFront, add(B, v3.mul(f, mid + 0.2), v3.mul(L, -0.6), v3.mul(u, 0.08)), reach);
     handBack = lerp3(handBack, add(shBack, v3.mul(f, -0.35), v3.mul(bodyUp, 0.25), v3.mul(chest, 0.1)), reach);
+  }
+  // Bottom turn: front arm low and across the body toward the inside of the
+  // turn (the wave side), leading the turn; back arm low behind.
+  if (windup > 0.01) {
+    handFront = lerp3(handFront, add(B, v3.mul(f, mid + 0.3), v3.mul(L, 0.42), v3.mul(u, 0.32 + 0.3 * (1 - knee))), windup);
+    handBack = lerp3(handBack, add(B, v3.mul(f, mid - 0.45), v3.mul(L, 0.25), v3.mul(u, 0.35)), windup * 0.8);
+  }
+  // Snap: like a spring unloading, both arms thrown back over, up and toward
+  // the tail and the open side.
+  if (unload > 0.01) {
+    handFront = lerp3(handFront, add(shFront, v3.mul(bodyUp, 0.32), v3.mul(f, -0.3), v3.mul(L, -0.22)), unload);
+    handBack = lerp3(handBack, add(shBack, v3.mul(bodyUp, 0.28), v3.mul(f, -0.5), v3.mul(L, -0.3)), unload);
   }
   // Arms swing a little with the pump.
   if (info.pump) {

@@ -100,7 +100,9 @@ button).
   off-white board. `?nooutline` turns outlines off for testing.
 - `src/surfer.js`: the articulated surfer on a 1.6 m fish (wide, rounded yellow nose, swallowtail,
   twin keel fins; shape in `boardMesh` in mesh.js).
-  Stance toward the tail (`STANCE`), chest opened toward the nose. In hard turns the board banks onto
+  Stance toward the tail (`STANCE`), chest opened toward the nose. Bottom turns wind the shoulders round toward the
+  lip with the front shoulder and arm dropped across the body (`windup`, only while the nose is coming
+  up: `carvingUp`); turns off the lip spring it open and throw both arms back over (`unload`). In hard turns the board banks onto
   its inside rail (`MAX_ROLL`), more with speed and when leaning hard. Two-bone IK legs and arms.
   Knees bend with turns, crouch, and pumping (compress on the way up, extend driving down); the body
   leans into turns and the inside hand drags toward the water in a big one.

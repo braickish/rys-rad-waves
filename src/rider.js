@@ -213,6 +213,9 @@ export function stepRider(r, input, dt) {
   if (r.mode === 'surf') stepSurf(r, input, dt);
   else stepAir(r, input, dt);
   if (r.events.some((e) => (e.type === 'move' && e.move !== 'bottomTurn') || e.type === 'land')) r.calm = TUNE.moveCalm;
+  // A turn off the lip springs the body open (for the surfer's pose).
+  r.unload = Math.max(0, (r.unload || 0) - dt);
+  if (r.events.some((e) => e.type === 'move' && ['snap', 'offLip', 'reentry', 'topTurn', 'lip180'].includes(e.move))) r.unload = 0.45;
 }
 
 function stepSurf(r, input, dt) {
@@ -309,7 +312,9 @@ function stepSurf(r, input, dt) {
   // through the turn instead of jumping.
   // A committed bottom turn drives from its very first moment (the nose
   // starting to come round), not only once it's coming up the face.
-  const driving = r.bottomCarve ? true : Math.sin(r.phi) > sinBefore;
+  // (turning so the nose swings up the face, toward the wave, not further down)
+  r.carvingUp = d !== 0 && Math.sign(d) === (Math.cos(r.phi - d) >= 0 ? 1 : -1);
+  const driving = r.bottomCarve ? r.carvingUp : Math.sin(r.phi) > sinBefore;
   if (driveLow > 0 && driving && d === playerD) r.driveBank += T.bottomDrive * carveDrive * Math.abs(d) * driveLow * (0.4 + 0.6 * pk);
   if (high > 0 && d === playerD) r.driveBank += T.topDrive * Math.abs(d) * high * pk;
   const release = r.driveBank * (1 - Math.exp(-dt / T.driveSmooth));
