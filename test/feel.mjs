@@ -12,7 +12,7 @@ const moveName = (e) => (e.type === 'launch' ? 'AIR' : e.move) + (e.combo ? '+co
 
 // 1. Climb: bottom of the pocket to the top, holding Up.
 { const r = start({ xs: 2, t: 13.5, phi: 0, speed: 9 }); let top = null;
-  run(r, () => ({ tilt: 1 }), 3, (e, t) => { if (((e.type === 'move' && e.move !== 'bottomTurn') || e.type === 'launch') && top === null) top = t; });
+  run(r, (r) => (r.t < TUNE.tTop + 1.2 ? { turn: -1 } : { tilt: 1 }), 3, (e, t) => { if (((e.type === 'move' && e.move !== 'bottomTurn') || e.type === 'launch') && top === null) top = t; });
   out.push(`climb bottom->top holding Up: ${top === null ? 'never' : top.toFixed(2) + 's'}`); }
 // 2. Dropping: from the top third vs from mid-face, pointing down for 0.4s.
 for (const [label, t0] of [['top third', 6.0], ['mid-face', 10.0]]) {
@@ -34,7 +34,7 @@ for (const [label, t0] of [['up top', 6.2], ['at the bottom', 13.6]]) {
 // 5. Moves by zone: bottom turn then straight up into the top at different spots.
 for (const [label, xs] of [['into the whitewater', -6], ['at the curl', -3], ['on the open face', 2]]) {
   const r = start({ xs, t: 13.0, phi: -0.9, speed: 13 }); const moves = [];
-  run(r, (r, t) => ({ tilt: 1 }), 1.5, (e) => { if (e.type === 'move' || e.type === 'launch') moves.push(moveName(e)); });
+  run(r, (r, t) => (r.t < TUNE.tTop + 1.2 ? { turn: -1 } : { tilt: 1 }), 1.5, (e) => { if (e.type === 'move' || e.type === 'launch') moves.push(moveName(e)); });
   out.push(`bottom turn then hit the top ${label}: ${moves.join(' -> ')}`);
 }
 // 6. Turning back into the whitewater: must be high, and turning as you hit.
@@ -60,7 +60,7 @@ for (const [label, o, inp] of [
 }
 // 6a. Snap: how long the release pivot takes before you're back in control.
 { const r = start({ xs: 1, t: 7, phi: 1.2, speed: 13 }); let t0 = null, dur = null;
-  for (let i = 0; i < 1 / dt; i++) { stepRider(r, {}, dt); if (r.assist && t0 === null) t0 = i * dt; if (t0 !== null && !r.assist && dur === null) dur = i * dt - t0; }
+  for (let i = 0; i < 1 / dt; i++) { stepRider(r, { turn: -1 }, dt); if (r.assist && t0 === null) t0 = i * dt; if (t0 !== null && !r.assist && dur === null) dur = i * dt - t0; }
   out.push(`snap at the curl: release pivot ${dur === null ? '?' : dur.toFixed(2) + 's'}, then heading ${(r.phi * 57.3).toFixed(0)} deg`); }
 // 6c. Holding a turn leans in harder: tighter arc.
 { const a = start({ xs: 2, t: 10, phi: 0, speed: 12 }), b = start({ xs: 2, t: 10, phi: 0, speed: 12 });
@@ -83,6 +83,12 @@ for (const [label, phi] of [['started pointing down', -1.0], ['started level', 0
 { const r = start({ xs: -1.5, t: 6.2, phi: 1.3, speed: 13 }); const moves = []; let foamHits = 0;
   const T = run(r, (r, t) => { if (Math.cos(r.phi) < -0.15 && r.foam > 0.25) foamHits++; return { turn: t > 0.15 ? 1 : 0 }; }, 1.5, (e, t) => { if (e.type === 'move' && e.move !== 'bottomTurn') moves.push(`${e.move}@${t.toFixed(2)}s`); });
   out.push(`snap, then carve straight back into the foam: moves ${moves.join(', ')}; ${(foamHits * dt).toFixed(2)}s heading back in foam; ${r.mode === 'wipe' ? 'WIPE at ' + T.toFixed(2) + 's: ' + r.wipeReason : 'riding'}`); }
+// 6g. Up into the lip without turning: over the back (slow) or an air (fast).
+for (const [label, speed] of [['slow', 10], ['fast', 16]]) {
+  const r = start({ xs: 4, t: 7.5, phi: 1.3, speed }); const evs = [];
+  run(r, () => ({}), 2, (e) => evs.push(e.type === 'move' ? e.move : e.type));
+  out.push(`straight up into the lip, no turn, ${label}: ${evs.join(' -> ')}${r.mode === 'wipe' ? ' (' + r.wipeReason + ')' : ''}`);
+}
 // 6b. Top turn, then let go: you should keep heading down (no automatic turn).
 { const r = start({ xs: 2, t: 6.5, phi: 0.9, speed: 12 }); let phiAfter = null;
   run(r, (r, t) => { if (t > 0.6 && phiAfter === null) phiAfter = r.phi; return {}; }, 2.5);
@@ -99,10 +105,8 @@ for (const [label, phi] of [['started pointing down', -1.0], ['started level', 0
     speedSum += r.speed; n++; if (r.xs > -2 && r.xs < 6) inPk++; maxV = Math.max(maxV, r.speed);
     // Cutback: carve back toward the curl, then climb to meet the whitewater
     // high, turning Left as you hit it.
-    // Cutback: ride back along the wave toward the curl, then swing back around.
-    if (Math.cos(r.phi) < 0) return r.xs > 2.5 ? { aim: [-1, 0.25] } : { aim: [1, -0.3] };
-    if (r.xs < -1) return { aim: [1, 0.1], pump: true }; // behind the curl: get out along the line
-    if (r.t < 9 && (r.xs > 7 || (r.xs > 4 && r.speed < 9))) return { turn: -1 }; // cut back from high up
+    if (Math.cos(r.phi) < 0) return { aim: [1, -0.3] }; // facing back: turn back down the line
+    if (r.xs < -1) return { aim: [1, 0.6], pump: true }; // behind the curl: climb out along the line
     return { tilt: up ? 1 : -1, pump: !up };
   }, 30, (e) => { if (e.type === 'move') counts[moveName(e)] = (counts[moveName(e)] || 0) + 1; });
   out.push(`pocket rider: ${T.toFixed(0)}s, avg ${mph(speedSum / n)} mph, max ${mph(maxV)} mph, ${Math.round(100 * inPk / n)}% in pocket, ${r.mode === 'wipe' ? r.wipeReason : 'still riding'}\n   moves: ${JSON.stringify(counts)}`); }

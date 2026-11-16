@@ -26,18 +26,14 @@ addEventListener('keydown', (e) => {
 addEventListener('keyup', (e) => keys.delete(e.code));
 addEventListener('blur', () => keys.clear());
 
-// Autopilot: works the pocket with S-turns and pumps, snaps off the top,
-// cuts back into the curl when it gets ahead. Drives the title-screen demo
+// Autopilot: works the pocket with S-turns and pumps, turning off the top. Drives the title-screen demo
 // and the ?auto test mode.
 let autoUp = false;
 function autopilot() {
   if (autoUp && rider.t < TUNE.tTop + 1) autoUp = false;
   if (!autoUp && rider.t > 12.6) autoUp = true;
-  // Cutback from high up, climb back to meet the whitewater high, turn as you hit it.
-  // Cutback: ride back along the wave toward the curl, then swing back around.
-  if (Math.cos(rider.phi) < 0) return rider.xs > 2.5 ? { aim: [-1, 0.25] } : { aim: [1, -0.3] };
-  if (rider.xs < -1) return { aim: [1, 0.1], pump: true }; // behind the curl: get out along the line
-  if (rider.t < 9 && (rider.xs > 7 || (rider.xs > 4 && rider.speed < 9))) return { turn: -1 };
+  if (Math.cos(rider.phi) < 0) return { aim: [1, -0.3] }; // facing back: turn back down the line
+  if (rider.xs < -1) return { aim: [1, 0.6], pump: true }; // behind the curl: climb out along the line
   return { tilt: autoUp ? 1 : -1, pump: !autoUp, crouch: rider.inBarrel };
 }
 

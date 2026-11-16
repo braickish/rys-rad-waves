@@ -50,6 +50,13 @@ carve toward where you point (harder the further you push), a button to pump.
     (`bottomCarve`) commits at once: full lean, a slightly wider arc (`bottomCarveRadius`), more drive
     (`bottomCarveDrive`). There's no automatic bottom turn: head down
     without turning and you ride out onto the flats (`tFlats`) and bog down.
+  - Moves never add speed by themselves: they're quick board pivots, then gravity and the wave take
+    over. Turn drive (bottom turns, high carves) goes through `driveBank` and releases over
+    `driveSmooth`, only on the face (not the flats). Pivots off the lip point you straight down
+    (`lipExit`), the way you're riding.
+  - The lip: you must be turning at/near it (within `turnWindow`) to get a move. Not turning, you go
+    up and over the back (wipeout), or launch an air if fast enough (`airSpeed`) and out of the
+    whitewater.
   - Moves are decided by where you hit the top and how steep: in the whitewater (behind `curlZone`)
     → **re-entry**, at the curl → **snap**, on the open face → **off the lip** (shallow hits are a
     **top turn**). Within `comboWindow` of a bottom turn it's a combo. Snaps are a short fin release:
@@ -60,8 +67,9 @@ carve toward where you point (harder the further you push), a button to pump.
     top). Rebound needs the top half (`reboundMinHeight`), the 180 the top third
     (`rebound180MinHeight`; Right in between is a plain rebound). Low, or not turning, and the
     whitewater buries you. Assisted pivots don't add speed.
-  - **Floater:** come up into the whitewater at a shallow angle heading down the line and you ride
-    along the top of it until you clear it (`floaterMax`), then drop back down.
+  - **Floater:** any hit on the top in the whitewater while heading down the line (except a steep,
+    turning hit, which is a re-entry): you ride along the top of it until you clear it (`floaterMax`),
+    then drop back down.
   - Moves need at least `moveGap` (1s) between them. Inside the gap the lip is just a plain turn and
     the whitewater just slows you.
     Sit in heavy foam longer than `foamLimit` and it takes you. Airs: straight up the open face above
