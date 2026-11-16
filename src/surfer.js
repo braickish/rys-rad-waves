@@ -15,6 +15,7 @@ const COL = {
   top: [0.0, 0.72, 0.78], skin: [0.86, 0.63, 0.46], hair: [0.98, 0.85, 0.35],
 };
 const THIGH = 0.46, SHIN = 0.46, UPPER = 0.3, FORE = 0.3;
+const MAX_ROLL = 0.95; // furthest the board banks onto a rail (rad, ~55 deg)
 const STANCE = [-0.68, -0.06]; // back and front foot along the board (m from its middle; tail is -1, nose +1)
 const CHEST_OPEN = 0.45; // how far the chest turns from the wave toward the nose (rad)
 
@@ -55,7 +56,7 @@ function ball(p, r, color, x = [1, 0, 0], y = [0, 1, 0], z = [0, 0, 1], sy = 1) 
 }
 
 export function createPose() {
-  return { knee: 0.3, lean: 0, boardUp: [0, 1, 0] };
+  return { knee: 0.3, lean: 0, roll: 0, boardUp: [0, 1, 0] };
 }
 
 // info: { n (surface normal or up), e2 (up the face), turn (signed turn rate,
@@ -70,6 +71,18 @@ export function surferObjects(pose, rider, info, dt) {
   for (let i = 0; i < 3; i++) pose.boardUp[i] += (info.n[i] - pose.boardUp[i]) * k;
   const u = v3.norm(v3.rej(pose.boardUp, f));
   const L = v3.norm(v3.cross(u, f)); // rider's left (toward the wave when going right)
+
+  // Rail roll: in a hard turn the board banks onto its inside rail. Harder
+  // and faster turns roll it further; leaning harder (Shift) more still.
+  const speed0 = v3.len(rider.vel);
+  const rollT = rider.mode === 'surf'
+    ? clamp(info.turn * 0.17 * clamp(speed0 / 7, 0.3, 1.4) * (rider.crouch ? 1.25 : 1), -MAX_ROLL, MAX_ROLL)
+    : 0;
+  pose.roll = (pose.roll || 0) + (rollT - (pose.roll || 0)) * (1 - Math.exp(-dt * 10));
+  // Tilt the board's up vector toward the inside of the turn (+ roll = left
+  // rail down), so the inside rail digs in.
+  const ub = v3.norm(rotateAbout(u, f, -pose.roll));
+  const Lb = v3.norm(v3.cross(ub, f));
 
   // --- pose drivers ---
   const speed = v3.len(rider.vel);
@@ -86,7 +99,9 @@ export function surferObjects(pose, rider, info, dt) {
   const reach = clamp((Math.abs(lean) - 0.25) / 0.35, 0, 1);
 
   // --- skeleton ---
-  const B = add(p, v3.mul(u, 0.06)); // top of the board
+  // Up on a rail the board sits a little higher, so it cuts in rather than sinks.
+  const railLift = 0.12 * Math.abs(Math.sin(pose.roll));
+  const B = add(p, v3.mul(u, 0.06 + railLift)); // top of the board
   // Body axis: between board-normal and world-up, leaned into the turn.
   const up0 = v3.norm(add(v3.mul(u, 0.5), [0, 0.5, 0]));
   const bodyUp = v3.norm(rotateAbout(up0, f, -lean));
@@ -141,15 +156,16 @@ export function surferObjects(pose, rider, info, dt) {
   // --- meshes ---
   const objs = [];
   // Board: body, contrasting nose, stringer down the middle, fin under the tail.
-  const bc = add(p, v3.mul(u, 0.04));
-  objs.push({ mesh: 'board', model: basis(f, u, L, 1, 1, 1, bc), color: COL.board });
-  objs.push({ mesh: 'boardNose', model: basis(f, u, L, 1, 1, 1, bc), color: COL.nose });
-  objs.push({ mesh: 'box', model: basis(f, u, L, 1.55, 0.072, 0.025, add(bc, v3.mul(f, -0.15))), color: COL.stringer });
-  objs.push({ mesh: 'box', model: basis(f, u, L, 0.14, 0.13, 0.012, add(bc, v3.mul(f, -0.82), v3.mul(u, -0.08))), color: COL.fin });
+  // Board (banked onto its rail): body, contrasting nose, stringer, fin.
+  const bc = add(p, v3.mul(u, 0.04 + railLift));
+  objs.push({ mesh: 'board', model: basis(f, ub, Lb, 1, 1, 1, bc), color: COL.board });
+  objs.push({ mesh: 'boardNose', model: basis(f, ub, Lb, 1, 1, 1, bc), color: COL.nose });
+  objs.push({ mesh: 'box', model: basis(f, ub, Lb, 1.55, 0.072, 0.025, add(bc, v3.mul(f, -0.15))), color: COL.stringer });
+  objs.push({ mesh: 'box', model: basis(f, ub, Lb, 0.14, 0.13, 0.012, add(bc, v3.mul(f, -0.82), v3.mul(ub, -0.08))), color: COL.fin });
   for (const [hp, leg, foot] of [[hipBack, legB, backFoot], [hipFront, legF, frontFoot]]) {
     objs.push(limb(hp, leg.joint, 0.16, 0.17, f, COL.suit));
     objs.push(limb(leg.joint, foot, 0.13, 0.14, f, COL.suit));
-    objs.push({ mesh: 'box', model: basis(f, u, L, 0.12, 0.06, 0.26, add(foot, v3.mul(u, 0.03), v3.mul(chest, 0.04))), color: COL.skin });
+    objs.push({ mesh: 'box', model: basis(f, ub, Lb, 0.12, 0.06, 0.26, add(foot, v3.mul(ub, 0.03), v3.mul(chest, 0.04))), color: COL.skin });
   }
   objs.push(limb(hip, neck, 0.36, 0.22, across, COL.top));
   objs.push(limb(add(hip, v3.mul(torsoDir, -0.04)), add(hip, v3.mul(torsoDir, 0.12)), 0.38, 0.24, across, COL.suit));

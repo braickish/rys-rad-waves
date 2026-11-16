@@ -38,17 +38,18 @@ export const TUNE = {
   minTurn: 1.6, // slowest turn rate, so you can always turn (rad/s)
   rTop: 1.3, // turn radius up near the top of the face: snappy (m)
   rBottom: 4.8, // turn radius at the bottom: a long rail-to-rail arc (m)
-  bottomDrive: 4.0, // speed gained per radian of bottom turn, nose coming up (m/s)
+  bottomDrive: 6.5, // speed gained per radian of bottom turn, nose coming up (m/s)
+  topDrive: 1.6, // speed gained per radian of carving up near the top of the pocket (m/s)
   curlZone: [-0.5, 2.5], // xs range of the curl; behind it is whitewater, ahead the open face
   comboWindow: 1.6, // seconds after a bottom turn that a move counts as a combo
   reentryKick: 2.0, // speed kick rebounding off the whitewater in a cutback (m/s)
   reboundSpeed: 12.5, // a rebound fires you out at least this fast (m/s)
   foamLimit: 1.8, // seconds you can sit in heavy foam before it takes you
-  airSpeed: 12, // board speed needed to launch off the top going straight up (m/s)
+  airSpeed: 14.8, // board speed needed to launch off the top going straight up (m/s)
   tTop: 5.3, // surface coordinate of the top of the rideable face
   tBottom: 13.9, // ... and the bottom of the face
   tFlats: 14.3, // how far out onto the flat water in front you can go (you bog down there)
-  minSpeed: 2, maxSpeed: 18,
+  minSpeed: 2, maxSpeed: 19,
   standH: 1.75,
   crouchH: 1.1,
 };
@@ -204,7 +205,12 @@ function stepSurf(r, input, dt) {
   r.turnRate = dt > 0 ? Math.abs(d) / dt : 0;
   // A bottom turn drives you: swinging the nose from down the face back up it,
   // low on the wave, turns the drop into speed up the face.
-  if (low > 0 && Math.sin(r.phi) > sinBefore) r.speed += T.bottomDrive * (hard ? 1.35 : 1) * Math.abs(d) * low * (0.4 + 0.6 * pk);
+  // Carving near the top of the wave drives you too (a high line is the fast
+  // line), just less than a bottom turn.
+  const driveLow = 1 - sstep(0.25, 0.75, height);
+  const high = sstep(0.55, 0.95, height);
+  if (driveLow > 0 && Math.sin(r.phi) > sinBefore) r.speed += T.bottomDrive * (hard ? 1.35 : 1) * Math.abs(d) * driveLow * (0.4 + 0.6 * pk);
+  if (high > 0) r.speed += T.topDrive * Math.abs(d) * high * pk;
 
   // Track bottom turns (for moves and combos): down low heading down, then up.
   if (sinBefore < -0.3 && height < 0.45) r.bottomArmed = true;
@@ -215,7 +221,8 @@ function stepSurf(r, input, dt) {
   if (height > 0.75) r.bottomArmed = false;
 
   // --- speed ---
-  let target = T.vLow + (T.vPocket - T.vLow) * pk * steep * (0.55 + 0.45 * height);
+  // Cruising speed climbs with height: up near the top of the pocket is fastest.
+  let target = T.vLow + (T.vPocket - T.vLow) * pk * steep * (0.45 + 0.75 * height);
   r.boost = Math.max(0, (r.boost || 0) - dt);
   if (r.boost > 0) target = Math.max(target, T.reboundSpeed); // firing out of a rebound: the foam can't hold you
   else target += (T.vFoam - target) * foam;
@@ -223,7 +230,7 @@ function stepSurf(r, input, dt) {
   const sinp = Math.sin(r.phi);
   r.speed += (sinp < 0 ? -sinp * T.drop : -sinp * T.climb) * steep * dt;
   if (input.pump && steep > 0.2) {
-    r.speed += T.pump * (sinp < -0.1 ? 1 : 0.35) * (0.3 + 0.7 * pk) * dt;
+    r.speed += T.pump * (sinp < -0.1 ? 1 : 0.35) * (0.3 + 0.7 * pk) * (0.7 + 0.6 * height) * dt;
     r.pumping = true;
   }
   if (r.boost > 0) r.speed = Math.max(r.speed, T.reboundSpeed - 1);

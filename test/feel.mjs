@@ -8,11 +8,11 @@ function run(r, policy, secs, onEvent = () => {}) {
   return i * dt;
 }
 const out = [];
-const moveName = (e) => e.move + (e.combo ? '+combo' : '') + (process.env.V ? `@xs${e.xs?.toFixed(1)}/${mph(e.speed)}mph` : '');
+const moveName = (e) => (e.type === 'launch' ? 'AIR' : e.move) + (e.combo ? '+combo' : '') + (process.env.V ? `@xs${e.xs?.toFixed(1)}/${mph(e.speed)}mph` : '');
 
 // 1. Climb: bottom of the pocket to the top, holding Up.
 { const r = start({ xs: 2, t: 13.5, phi: 0, speed: 9 }); let top = null;
-  run(r, () => ({ tilt: 1 }), 3, (e, t) => { if (e.type === 'move' && e.move !== 'bottomTurn' && top === null) top = t; });
+  run(r, () => ({ tilt: 1 }), 3, (e, t) => { if (((e.type === 'move' && e.move !== 'bottomTurn') || e.type === 'launch') && top === null) top = t; });
   out.push(`climb bottom->top holding Up: ${top === null ? 'never' : top.toFixed(2) + 's'}`); }
 // 2. Drop from the top.
 { const r = start({ xs: 2, t: 6, phi: 0, speed: 9 }); const v0 = r.speed; run(r, () => ({ tilt: -1 }), 0.6);
@@ -32,7 +32,7 @@ for (const [label, t0] of [['up top', 6.2], ['at the bottom', 13.6]]) {
 // 5. Moves by zone: bottom turn then straight up into the top at different spots.
 for (const [label, xs] of [['into the whitewater', -6], ['at the curl', -3], ['on the open face', 2]]) {
   const r = start({ xs, t: 13.0, phi: -0.9, speed: 13 }); const moves = [];
-  run(r, (r, t) => ({ tilt: 1 }), 1.5, (e) => { if (e.type === 'move') moves.push(moveName(e)); });
+  run(r, (r, t) => ({ tilt: 1 }), 1.5, (e) => { if (e.type === 'move' || e.type === 'launch') moves.push(moveName(e)); });
   out.push(`bottom turn then hit the top ${label}: ${moves.join(' -> ')}`);
 }
 // 6. Cutback: swing the nose down and around back toward the curl (hold Right).

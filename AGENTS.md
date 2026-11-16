@@ -40,7 +40,8 @@ the left half to carve toward where you point (harder the further you push), but
     (`pump`) helps on the face, most on the drop.
   - Turns: the turn radius depends on height on the face (`rTop` snappy up top, `rBottom` a long
     rail-to-rail arc at the bottom), so turn rate = speed / radius. A bottom turn (nose coming up,
-    low on the face) generates speed (`bottomDrive`). There's no automatic bottom turn: head down
+    low on the face) generates a lot of speed (`bottomDrive`); carving up near the top adds some too
+    (`topDrive`), and cruising speed and pumping both climb with height, so the high line is fast. There's no automatic bottom turn: head down
     without turning and you ride out onto the flats (`tFlats`) and bog down.
   - Moves are decided by where you hit the top and how steep: in the whitewater (behind `curlZone`)
     → **re-entry**, at the curl → **snap**, on the open face → **off the lip** (shallow hits are a
@@ -50,7 +51,8 @@ the left half to carve toward where you point (harder the further you push), but
     `airSpeed`.
   - Barrel wave: same model, the rideable face tops out under the roof, crouch to fit the tube.
 - `src/surfer.js`: the articulated surfer on a surfboard (pointed yellow nose, squared tail, fin).
-  Stance toward the tail (`STANCE`), chest opened toward the nose. Two-bone IK legs and arms.
+  Stance toward the tail (`STANCE`), chest opened toward the nose. In hard turns the board banks onto
+  its inside rail (`MAX_ROLL`), more with speed and when leaning hard. Two-bone IK legs and arms.
   Knees bend with turns, crouch, and pumping (compress on the way up, extend driving down); the body
   leans into turns and the inside hand drags toward the water in a big one.
 - `src/mesh.js`: builds the static water mesh (plus far flat ocean), per-vertex foam/translucency
