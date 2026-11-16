@@ -29,6 +29,7 @@ export const G = 9.8;
 // merged in by useWave().
 const RIDER_TUNE = {
   feed: 2.0, // how fast the pocket brings you up to speed (1/s)
+  levelHoldTime: 1.5, // after coming out of the barrel, keep the board's downward angle this long (keepLevelAngle waves)
   shoulderReach: 0, // the pocket's speed (and the water flowing up the face) carries this much further out toward the shoulder before it fades (m); per wave
   bleed: 0.9, // how fast extra speed fades / you bog down (1/s)
   climb: 6, // speed lost per second pointing straight up it (m/s^2)
@@ -182,6 +183,18 @@ export function frameAt(xs, t) {
   return { P, Pt, Px, n, e1, e2 };
 }
 
+// How far the frame's "along the wave" direction (e1) tilts above level,
+// measured on the face (rad, + = tilted up toward the shoulder). It changes
+// wherever the wave changes shape along the beach (e.g. around the barrel).
+function frameTilt(f) {
+  const hl = Math.hypot(f.n[2], f.n[0]);
+  if (hl < 0.2) return null; // flat water: no level direction to speak of
+  let h = [f.n[2] / hl, 0, -f.n[0] / hl];
+  if (h[0] < 0) h = v3.mul(h, -1);
+  const up = v3.cross(f.n, h); // straight up the face
+  return Math.atan2(v3.dot(f.e1, up), v3.dot(f.e1, h));
+}
+
 // How high you are as a fraction of the full open wave (trough to crest at
 // the curl), measured in real height, not position along the surface.
 function waveHeightFrac(y) {
@@ -250,7 +263,7 @@ export function stepRider(r, input, dt) {
   r.pumping = false;
   if (r.mode === 'wipe') { r.wipeTimer -= dt; return; }
   if (r.mode === 'surf') stepSurf(r, input, dt);
-  else stepAir(r, input, dt);
+  else { r.prevXs = null; stepAir(r, input, dt); }
   for (const e of r.events) {
     if ((e.type === 'move' && e.move !== 'bottomTurn') || e.type === 'land') {
       // (no calm after a slash: it's a sharper turn, not a pivot off the lip,
@@ -308,6 +321,22 @@ function stepSurf(r, input, dt) {
     }
   }
   let f = frameAt(r.xs, r.t);
+  // Coming out of the barrel (keepLevelAngle, for `levelHoldTime` after the
+  // exit): "along the wave" tilts up there, so the same board angle would
+  // flatten out. As you ride out along the wave the board turns down by the
+  // same amount instead, keeping the downward angle you were holding. Only
+  // the tilt change from moving out along the wave counts, only turning you down, and
+  // only on the face (fading out below ~17 degrees). (Doing
+  // this everywhere was tried: right by the curl the tilt swings wildly and
+  // it turned you up into the lip.)
+  if (T.keepLevelAngle && r.time < (r.levelHoldUntil ?? -9)) {
+    if (r.prevXs != null && r.xs > r.prevXs && !r.assist && !r.lipSnap && !r.floater) {
+      const now = frameTilt(f), before = frameTilt(frameAt(r.prevXs, r.prevT));
+      const steepFace = sstep(0.3, 0.6, Math.hypot(f.n[2], f.n[0]));
+      if (now !== null && before !== null && now > before) r.phi = wrap(r.phi - (now - before) * steepFace);
+    }
+    r.prevXs = r.xs; r.prevT = r.t;
+  } else r.prevXs = null;
 
   const pk = pocketPower(r.xs);
   const foam = foamAt(r.xs, r.t);
@@ -854,6 +883,7 @@ function checkHazards(r, dt) {
   if (r.t > T.tBottom + T.tubeLow) { r.tube = null; r.inBarrel = false; return wipe(r, 'The lip landed on you! (too low)'); }
   if (ph < T.tubeExit) {
     r.events.push({ type: 'barrelExit', time: tb.time, depth: tb.depth, avgDepth: tb.depthSum / Math.max(tb.time, 1e-3) });
+    r.levelHoldUntil = r.time + T.levelHoldTime; // keep the downward angle as you ride out
     r.tube = null; r.inBarrel = false; r.barrelTime = 0;
   }
 }

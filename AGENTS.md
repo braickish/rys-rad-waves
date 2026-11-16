@@ -169,7 +169,14 @@ button).
     line adds acceleration (`tubeDrive`) (brushing it deflects you down); way below the bottom
     (`tubeLow`) = the lip lands on you; back past `tubeExit` = out. Caught way up in the lip as it throws
     (`tubeTooHigh`), or riding in the top 3/8 of the barrel (`tubeFallHeight`) = over the falls. The barrel
-    picks you up once you're on the face or just below its base (`tubeEnterLow`). Scored by time x average depth. HUD: depth across, height up/down.
+    picks you up once you're on the face or just below its base (`tubeEnterLow`).
+    Coming out of the barrel (`keepLevelAngle`, reef only, for `levelHoldTime` after the exit) the
+    board keeps the downward angle you were holding: the frame's "along the wave" (`e1`, the beach
+    direction laid onto the surface) tilts up ~8-11 deg outside the barrel, so the same `phi` used
+    to flatten out (even nose-up). As you ride out, the board turns down by the tilt change
+    (`frameTilt`), only ever down, fading out on flat water. Doing this everywhere, or changing
+    the frame itself to a level one, was tried: right by the curl the tilt swings wildly and it
+    turned riders up into the lip, and a level frame changed how the barrel rides. Scored by time x average depth. HUD: depth across, height up/down.
     Camera (main.js `tubeCamera`): placed from the barrel's actual cross-section, at the most open
     spot inside the tube behind the surfer (at least `TUBE_CAM_MIN_ROOM` from any water, as level
     with the surfer as it can be), looking out through the opening. If there's no room there (near
