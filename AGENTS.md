@@ -61,8 +61,9 @@ carve toward where you point (harder the further you push), a button to pump.
     the way you're turning, never the way you were riding: turning away from the whitewater (surfer's
     right when riding right) = snap / off the lip / re-entry, ending down and forward; turning toward
     it = only a quick 180 (`lip180Rate`) ending straight back down the wave. Not turning, you go
-    up and over the back (wipeout), or launch an air if fast enough (`airSpeed`) and out of the
-    whitewater.
+    up and over the back (wipeout), or launch an air if fast enough (`airSpeed`, ~26 mph) and out of
+    the whitewater; within `airBoostZone` (~2 ft) of the whitewater it launches higher (`airBoostUp`,
+    "BIG AIR").
   - Moves are decided by where you hit the top and how steep: in the whitewater (behind `curlZone`)
     → **re-entry**, at the curl → **snap**, on the open face → **off the lip** (shallow hits are a
     **top turn**). Within `comboWindow` of a bottom turn it's a combo. Snaps are a short fin release:
@@ -76,7 +77,9 @@ carve toward where you point (harder the further you push), a button to pump.
     whitewater buries you. Assisted pivots don't add speed.
   - **Floater:** any hit on the top in the whitewater while heading down the line (except a steep,
     turning hit, which is a re-entry): you ride along the top of it until you clear it (`floaterMax`),
-    then drop back down.
+    then drop back down. Climbing up the whitewater from the flats behind it, you pop onto it and
+    float once you're above `floaterHeight` of the wave (no need to reach the very top), and the foam
+    drags less (`climbFoamDrag`) and doesn't count toward catching you while you climb it.
   - Moves need at least `moveGap` (1s) between them. Inside the gap the lip is just a plain turn and
     the whitewater just slows you.
     Sit in heavy foam longer than `foamLimit` and it takes you. Airs: straight up the open face above

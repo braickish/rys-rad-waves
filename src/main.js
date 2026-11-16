@@ -121,9 +121,10 @@ function handleEvents() {
     }
     if (e.type === 'land') {
       const table = { 0: ['Air!', 300], 180: ['Air reverse!', 600], 360: ['Air 360!', 1200], 540: ['Air 540!!', 2000], 720: ['Air 720!!!', 3200] };
-      const [name, pts] = table[Math.min(720, e.spins)] || table[0];
+      const [name, base] = table[Math.min(720, e.spins)] || table[0];
+      const pts = Math.round(base * (e.big ? 1.5 : 1)); // launched right off the whitewater: bigger air
       score += pts;
-      flash(name, `+${pts}`);
+      flash(e.big ? `BIG ${name.toUpperCase()}` : name, `+${pts}`);
     }
     if (e.type === 'move') {
       const MOVES = {
