@@ -99,17 +99,16 @@ button).
     then drop back down. Climbing up the whitewater from the flats behind it, you pop onto it and
     float once you're above `floaterHeight` of the wave (no need to reach the very top), and the foam
     drags less (`climbFoamDrag`) and doesn't count toward catching you while you climb it.
-  - **Slash:** start a turn to the surfer's right mid-face (`slashBand`, from low-mid up to below
-    the lip) in the pocket (`slashPocket`) or coming out of a bottom turn (within `comboWindow`,
-    which carries you a bit out of the pocket), or anywhere in the barrel, while riding along or up
-    the wave (up-and-back after a big bottom turn counts, if there's `slashFoamClear` of clear water
-    before the whitewater) and not already pointing down. A Right turn already held counts for
-    `slashWindow` after you start it: the fins release, the tail slides out (`slide`, drawn via the board heading in
+  - **Slash:** start a turn to the surfer's right mid-face (`slashBand`) in the pocket
+    (`slashPocket`), or anywhere in the barrel, while riding along the wave and not already
+    pointing down: the fins release, the tail slides out (`slide`, drawn via the board heading in
     `syncPose`) and the board turns much sharper (`slashRate`) while you hold it, for up to
     `slashTime` or until the nose points `slashEnd` down the face. It scrubs a little speed but has
     no `moveCalm` (it's a sharper turn, not a lip pivot), and it never fires on a cutback back
     toward the whitewater (that stays a rebound). Because Right is now sharper than Left, blind
     symmetric Left/Right wiggling drifts back into the whitewater (feel/controls/pocket tests show it).
+    Looser triggers (lower band, any recent bottom turn, up-and-back headings, a 0.25s window) were
+    tried 2026-11-16 and fired too often: the user rolled back to these.
   - Moves need at least `moveGap` (1s) between them. Inside the gap the lip is just a plain turn and
     the whitewater just slows you.
     Sit in heavy foam longer than `foamLimit` and it takes you. Land an air backwards (nose pointing

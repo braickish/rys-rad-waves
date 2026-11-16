@@ -70,12 +70,11 @@ const RIDER_TUNE = {
   // round much sharper for a moment, then grips again. No speed added.
   slashRate: 8.5, // turn rate while the fins are released (rad/s) ...
   slashTime: 0.28, // ... for up to this long (s), while you hold the turn
-  slashWindow: 0.25, // the turn has to have started this recently (s) (so starting it a touch low still counts)
-  slashBand: [0.15, 0.8], // mid-face: this band of height on the open face (below the lip, where it's a snap)
-  slashPocket: 0.3, // ... in the pocket (this much pocket power), or coming out of a bottom turn (within comboWindow)
+  slashWindow: 0.12, // the turn has to have started this recently (s)
+  slashBand: [0.25, 0.8], // mid-face: this band of height on the open face
+  slashPocket: 0.3, // ... in the pocket (this much pocket power)
   slashMinSpeed: 5, // m/s
   slashSlide: 0.55, // how far the tail slides out (rad, for looks)
-  slashFoamClear: 3, // heading back up the face, the slash needs this much clear water before the whitewater (m); closer, it's a rebound
   slashEnd: 1.05, // the fins grip again once the nose points this far down the face (rad, ~60 deg)
   standH: 1.75,
   crouchH: 1.1,
@@ -315,13 +314,10 @@ function stepSurf(r, input, dt) {
   const inTube = r.tube && !r.tube.pullIn;
   if (!r.slash && steer < 0 && r.rightHeld <= T.slashWindow && r.moveCooldown === 0 && !r.assist && !r.floater && !r.fakie
     && r.speed > T.slashMinSpeed
-    // (riding along or up the wave, even up and a little back after a big
-    // bottom turn; not already pointing down, and not cutting back along the
-    // wave toward the whitewater: that stays a cutback / rebound)
-    && (Math.cos(r.phi) > -0.2 || (Math.sin(r.phi) > 0.45 && r.xs - T.slashFoamClear > T.curlZone[0]
-      && foamAt(r.xs - T.slashFoamClear, r.t) < 0.3)) && Math.sin(r.phi) > -0.35
-    && (inTube || (height > T.slashBand[0] && height < T.slashBand[1] && foam < 0.3
-      && (pk > T.slashPocket || r.time - (r.lastBottomTurn ?? -9) < T.comboWindow)))) {
+    // (riding along the wave, not already pointing down: a cutback back
+    // toward the whitewater stays a cutback / rebound)
+    && Math.cos(r.phi) > -0.2 && Math.sin(r.phi) > -0.35
+    && (inTube || (height > T.slashBand[0] && height < T.slashBand[1] && pk > T.slashPocket && foam < 0.3))) {
     r.slash = { time: 0 };
     r.moveCooldown = T.moveGap;
     r.events.push({ type: 'move', move: 'slash', speed: r.speed, xs: r.xs, tube: !!inTube, combo: r.time - (r.lastBottomTurn ?? -9) < T.comboWindow });
