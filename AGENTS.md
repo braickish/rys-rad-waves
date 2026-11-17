@@ -242,14 +242,6 @@ button).
   improved; keep the lip/crest points fixed and always look at test/plot-slices.mjs output. Remaining: the
   upper face (~5.5 m) still pushes ~0.5 m forward at the opening as the lip forms, and steepness at 4-6 m
   creeps up a few degrees there.
-- **No trench in front of the wave** (`flatGuide`, reef only; wave.js `crPoint`): the last segment of the
-  cross-section, from the trough out to the open ocean, is very long, and the curve sagged below the trough
-  before rising: a hidden trench 6-7 m out in front of the wave, 0.9 m deeper than the trough in the tube
-  region and shallowing toward the shoulder. It showed as a dip and bump in the trough under the curl (and a
-  light band in front of the wave from the channel), and its slope along the wave tipped the board's
-  direction near the trough. A hidden guide point on the flats (12% of the way out, 45% of the way back up
-  to sea level, taking the first 0.3 of t past the trough) keeps the curve settling smoothly. The point has a
-  smaller sag (0.2 m) and keeps the old curve, since its feel is tuned on it.
 - **Texture on the flats:** the ripples carry on out across the flats in front of the wave (`flatsReach` in
   shaders.js), fading over ~50 m, instead of stopping at the bottom.
 - 2026-11-17: the project was rolled back to the surfboard commit (a3cc07a) after later reef work broke the
