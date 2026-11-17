@@ -195,7 +195,9 @@ button).
     `farFrom` 1.3, eased in so there's no crease; the tube itself keeps `behind` 13, since
     stretching it changed how the barrel rides). Looks: the thrown lip white and frothy across
     its whole outside (its glassy glow fades once it has thrown), feathering along the crest of the wall, light glowing through the
-    wall's upper part (`thin`), and an offshore spray plume blowing back off the crest (the wave's
+    lip as it pitches and a narrower turquoise band just under the crest of the wall ahead (`thin`; the user
+    wants the wall's glow less tall than the lip's, fading out to the normal color quickly, down the face and
+    toward the shoulder: it used to reach half way down the wall), and an offshore spray plume blowing back off the crest (the wave's
     `plume(s)`, particle kind 4, from the crest position in the lip table), and whitewater bursting up
     where the curtain lands (`lipImpact(s)`, blowing out toward shore, away from the tube). The reef drops you in
     at `startXs` (5 m) since the wall stands up further ahead. `test/plot-slices.mjs` draws the
