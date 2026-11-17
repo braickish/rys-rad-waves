@@ -10,7 +10,7 @@ export default {
   keyframes: KF_PIPE,
   easeUntil: 0.15, // the wall keyframes up to the curl blend evenly (wave.js controlPoints): keeps the face free of notches from the tube out to the shoulder
   board: 'shortboard', // a 6'6" thruster with plenty of rocker for the steep, hollow face (mesh.js BOARDS)
-  bend: 0.3, // the shoulder curves in toward the beach ahead of the curl (wave.js bendZ): from the tube you see it sweep out ahead
+  bend: 0.15, // the shoulder curves in toward the beach ahead of the curl (wave.js bendZ): from the tube you see it sweep out ahead
   scale: 1.75, // much bigger than the point: a heavy, tall wave
   peelSpeed: 10.5, // peels fast: you have to race it (pointing up costs you more here)
   waveSpeed: 5.0,

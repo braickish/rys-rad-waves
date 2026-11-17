@@ -171,12 +171,16 @@ const _o = [0, 0];
 // Ahead of the curl the wave can curve in toward the beach (`bend`, m): the
 // shoulder wraps round, its face turning back toward the tube, so from inside
 // you see more of it sweeping out ahead instead of the wall running straight or
-// curving away. Zero at and behind the curl, easing in (C1) ahead of it, about
-// `bend` m forward per m along the wave far out. Applied everywhere the wave is
-// built in 3D (surface, slice; the water shader's surfacePoint mirrors it).
+// curving away. A hyperbola: straight far behind, curving most gently around
+// the curl (spread over about ±BEND_SPAN m) and running out at `bend` m forward
+// per m along the wave ahead. Smooth everywhere: the first version switched its
+// curvature on abruptly at the curl, and that showed as a crease and a bump in
+// the face at the tube's opening. Applied everywhere the wave is built in 3D
+// (surface, slice; the water shader's bendZ mirrors it).
+const BEND_SPAN = 14;
 export function bendZ(xs) {
   const B = WAVE.bend || 0;
-  return xs > 0 && B ? (B * xs * xs) / (xs + 15) : 0;
+  return B ? (B * (Math.sqrt(xs * xs + BEND_SPAN * BEND_SPAN) + xs)) / 2 : 0;
 }
 
 // Surface point at (xs, t), t in [0, NP-1] along the cross-section.

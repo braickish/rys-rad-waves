@@ -91,8 +91,7 @@ fn arcAt(s: f32, j: u32) -> f32 {
 }
 // The shoulder curving in toward the beach ahead of the curl (wave.js bendZ).
 fn bendZ(xs: f32) -> f32 {
-  if (xs <= 0.0) { return 0.0; }
-  return W.bend * xs * xs / (xs + 15.0);
+  return W.bend * (sqrt(xs * xs + 196.0) + xs) * 0.5; // (BEND_SPAN 14)
 }
 // Surface point for slice i, column j.
 fn surfacePoint(i: u32, j: u32) -> vec3f {

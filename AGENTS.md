@@ -198,9 +198,16 @@ button).
       usual blend stays: evenly blended there the lip paused at each keyframe and the opening lost its round top.
     - A mid-throw tube keyframe (s 0.45) keeps the lip tip on the arc of the tube.
     - The shoulder curves in toward the beach ahead of the curl (`bend` in the wave, `bendZ(xs)` in wave.js,
-      mirrored in the water shader's `surfacePoint`; the reef uses 0.3, the point 0): from the tube you see
-      the face sweep round ahead of you instead of a straight wall, which took the last bump out of the
-      opening. It's applied in `surface`/`slice`, so riding follows the curved wave.
+      mirrored in the water shader's `bendZ`; the reef uses 0.15, the point 0): from the tube you see the
+      face sweep round ahead of you instead of a straight wall. It's applied in `surface`/`slice`, so riding
+      follows the curved wave. It must be smooth everywhere: a hyperbola, straight far behind, curving most
+      gently around the curl over about ±14 m (`BEND_SPAN`), running out to a steady angle ahead. The first
+      version switched its curvature on abruptly at the curl, and the user saw that as unevenness and a bump
+      at the tube's opening.
+    - Tried and reverted (2026-11-17): a tall billowing whitewater mound behind the tube (extra keyframes
+      after the closing tube, foam billows displacing the surface in the shader, bigger spray). The user said
+      it broke the barrel. If the broken part is revisited, leave the tube's keyframes alone and check the
+      tube from inside and from the channel before showing it.
     - Tried and rejected: an extra keyframe as the lip starts to pitch (a hump and a sharp turn in the lip, the
       opening stopped being round). Keep the opening a round/oval arch.
     `node test/steepness.mjs` measures the face angle at fixed heights from the tube out to the shoulder; the lip throws far out into a round tube about
