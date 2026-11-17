@@ -254,7 +254,7 @@ export function createRider() {
     airSpin: 0, airTime: 0, spinArmed: false,
     moveCooldown: 0, lastBottomTurn: -9, bottomArmed: false,
     tube: null, fakie: null, driveBank: 0, lastTurnTime: -9, lastTurnDir: 0, overTheBack: false,
-    rideDir: 1, lock: null, inDir: 0, lipSnap: null, snapGrip: false, roundhouse: null, crouchDepth: 0, barrelCrouch: 0, frontLean: 0, slash: null, slide: 0, rightHeld: 0, turnDir: 0, turnDirAge: 9, turnHeld: 0, hard: 0, assist: null, bottomCarve: false, floater: null,
+    rideDir: 1, lock: null, inDir: 0, lipSnap: null, snapGrip: false, roundhouse: null, crouchDepth: 0, barrelCrouch: 0, frontLean: 0, tubeDamp: 0, slash: null, slide: 0, rightHeld: 0, turnDir: 0, turnDirAge: 9, turnHeld: 0, hard: 0, assist: null, bottomCarve: false, floater: null,
     wipeReason: '', wipeTimer: 0, wipeAge: 0, washing: false, falls: null, fallsBoard: null,
     events: [],
     time: 0,
@@ -448,7 +448,7 @@ function stepSurf(r, input, dt) {
   else if (r.turnHeld === 0 && !r.turnDir && Math.sin(r.phi) < -0.3 && height < 0.6) r.bottomCarve = true;
   const hard = r.bottomCarve ? 1 : r.hard;
   const radius = (T.rTop + (T.rBottom - T.rTop) * low) * (r.bottomCarve ? T.bottomCarveRadius : 1 - (1 - T.hardRadius) * hard);
-  const rate = clamp(r.speed / radius, T.minTurn, T.turn * (1 + (T.hardRate - 1) * hard));
+  const rate = (1 - (T.tubeTurnDamp || 0) * r.tubeDamp) * clamp(r.speed / radius, T.minTurn, T.turn * (1 + (T.hardRate - 1) * hard)); // (damped in the barrel: subtler turns the deeper you are)
   // Which way you're riding along the wave, with hysteresis: it only flips
   // once you're clearly heading the other way, so Up/Down can't swap
   // direction while the nose is near vertical (e.g. coming off a snap).
@@ -568,6 +568,11 @@ function stepSurf(r, input, dt) {
   r.barrelCrouch += (crouchT - r.barrelCrouch) * (1 - Math.exp(-dt * (crouchT > r.barrelCrouch ? 2.5 : 4)));
   const leanFT = r.tube ? sstep(0.4, 0.85, tdep) : 0;
   r.frontLean += (leanFT - r.frontLean) * (1 - Math.exp(-dt * (leanFT > r.frontLean ? 1.5 : 4)));
+  // Turning is damped in the barrel, more the deeper you are (`tubeTurnDamp` at
+  // full damping, reached by about 70% depth): subtle adjustments rather than
+  // the full carves of the open face. Eases in and back out.
+  const dampT = r.tube ? sstep(0, 0.7, tdep) : 0;
+  r.tubeDamp += (dampT - r.tubeDamp) * (1 - Math.exp(-dt * 3));
   if (r.assist) { r.slide = 0; r.snapGrip = false; } // an assisted pivot takes the board over
   else if (!r.slash && !r.lipSnap && r.slide > 0) {
     // The fins grip: your line swings round to where the board points.

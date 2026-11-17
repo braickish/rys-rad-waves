@@ -181,6 +181,10 @@ button).
     85%) `r.frontLean` builds slowly: hips and chest shift toward the nose, and it adds a slight push
     (`tubeLeanDrive`) and lets you trim slightly faster (`tubeLeanOver`, 0.6 m/s), so deep in you creep
     forward a little (~0.6 m/s over the peel at 70% depth, vs 0.25).
+    **Turn damping in the barrel** (2026-11-17, the user's request): turn rate is scaled by
+    `1 - tubeTurnDamp * r.tubeDamp`; `r.tubeDamp` eases toward depth (full by ~70%) and back out, so
+    turns get gradually subtler the deeper you are (`tubeTurnDamp` 0.45 on the reef: a 0.25 s held turn
+    is 55 -> 30 deg at half depth). The open face is unaffected.
     In the tube: past `tubeCollapse` = pinched; driving straight into the
     roof (steeper than `roofCrash`) = over the falls. On the reef the water rushes up the face
     (`faceFlow`, scaled by steepness and pocket power): riding level drifts you up, you hold your line
