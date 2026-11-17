@@ -7,8 +7,10 @@
 //   - lean: into the turn, harder the faster you turn; in a big turn the
 //     inside hand drags toward the water
 
-import { v3 } from './rider.js';
+import { v3, frameAt } from './rider.js';
 import { basis } from './math.js';
+import { WAVE } from './wave.js';
+import { BOARDS } from './mesh.js';
 
 // Illustrated look based on a reference photo: shirtless and tanned, short
 // dark-brown hair, blue-grey boardshorts with a black waistband and a small
@@ -20,13 +22,13 @@ const COL = {
 };
 const THIGH = 0.46, SHIN = 0.46, UPPER = 0.3, FORE = 0.3;
 const MAX_ROLL = 0.95; // furthest the board banks onto a rail (rad, ~55 deg)
-const STANCE = [-0.52, -0.02]; // back and front foot along the board (m from its middle; tail is -1, nose +1)
 const CHEST_OPEN = 0.45;
 const TWIST_WIND = 0.7; // bottom turn: shoulders wind round toward the lip (rad)
 const TWIST_UNLOAD = 0.9; // snap: they spring open the other way (rad) // how far the chest turns from the wave toward the nose (rad)
 
 const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
 const add = (...vs) => vs.reduce((a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]]);
+const boardShape = () => BOARDS[WAVE.board] || BOARDS.fish;
 const lerp3 = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
 
 export function rotateAbout(a, k, ang) {
@@ -68,6 +70,28 @@ function cyl(a, b, rx, rz, ref, color) {
 }
 function ball(p, r, color, x = [1, 0, 0], y = [0, 1, 0], z = [0, 0, 1], sy = 1) {
   return { mesh: 'sphere', model: basis(x, y, z, r * 2, r * 2 * sy, r * 2, p), color };
+}
+
+// The board: body, contrasting nose, stringer down the middle, fins under the
+// tail. f = toward the nose, ub = deck up, Lb = across, bc = its center.
+export function boardObjects(f, ub, Lb, bc) {
+  const B = boardShape(), name = WAVE.board && BOARDS[WAVE.board] ? WAVE.board : 'fish';
+  const objs = [];
+  objs.push({ mesh: `board-${name}`, model: basis(f, ub, Lb, 1, 1, 1, bc), color: COL.board });
+  objs.push({ mesh: `boardNose-${name}`, model: basis(f, ub, Lb, 1, 1, 1, bc), color: COL.nose });
+  // (stringer in short pieces so it follows the rocker)
+  const rk = (x) => B.rocker(x / B.half);
+  const n = 8, sl = B.stringer[0] / n;
+  for (let i = 0; i < n; i++) {
+    const x = B.stringer[1] - B.stringer[0] / 2 + sl * (i + 0.5);
+    const th = B.thick(x / B.half);
+    objs.push({ mesh: 'box', model: basis(f, ub, Lb, sl * 1.02, th * 1.6, 0.012, add(bc, v3.mul(f, x), v3.mul(ub, rk(x)))), color: COL.stringer, outline: 0 });
+  }
+  for (const [along, acr, h, len] of B.fins) {
+    const bottom = rk(along) - B.thick(along / B.half) * 0.8;
+    objs.push({ mesh: 'box', model: basis(f, ub, Lb, len, h, 0.012, add(bc, v3.mul(f, along), v3.mul(Lb, acr), v3.mul(ub, bottom - h * 0.5))), color: COL.fin, outline: 0.008 });
+  }
+  return objs;
 }
 
 export function createPose() {
@@ -118,6 +142,9 @@ export function surferObjects(pose, rider, info, dt) {
   if (info.pump) kneeT = vUp > 0.3 ? 0.75 : 0.05; // compress going up, extend driving down
   if (rider.crouch) kneeT = rider.tube ? 0.42 : 0.85; // in the tube: a compact, athletic crouch, not squatting
   if (rider.mode === 'air') kneeT = 0.7;
+  // Going over the falls (off the board): curled up in a ball, knees to chest.
+  const tuck = rider.falls ? clamp(rider.falls.time / 0.3, 0, 1) : 0;
+  if (tuck > 0) kneeT = 1;
   // Roundhouse: lower and lower as it comes round, right down at full depth.
   if (rh > 0.01) kneeT = Math.max(kneeT, 0.45 + 0.65 * rh);
   pose.knee += (clamp(kneeT, 0, 1) - pose.knee) * (1 - Math.exp(-dt * 9));
@@ -153,19 +180,28 @@ export function surferObjects(pose, rider, info, dt) {
 
   // Stance toward the tail: back foot just ahead of the fin, front foot about
   // the middle of the board.
-  const backFoot = add(B, v3.mul(f, STANCE[0]));
-  const frontFoot = add(B, v3.mul(f, STANCE[1]));
+  const STANCE = boardShape().stance; // back and front foot along the board (m from its middle)
+  const bs = boardShape(); // (feet sit on the deck, which rises with the rocker)
+  let backFoot = add(B, v3.mul(f, STANCE[0]), v3.mul(u, bs.rocker(STANCE[0] / bs.half)));
+  let frontFoot = add(B, v3.mul(f, STANCE[1]), v3.mul(u, bs.rocker(STANCE[1] / bs.half)));
   const mid = (STANCE[0] + STANCE[1]) / 2;
   // Hips drop and slide back over the heels as the knees bend.
-  const hipH = 0.92 - 0.44 * knee;
+  const hipH = (0.92 - 0.44 * knee) * (1 - 0.4 * tuck);
   const hip = add(B, v3.mul(f, mid), v3.mul(bodyUp, hipH), v3.mul(chest, -0.12 * knee));
   const hipBack = add(hip, v3.mul(f, -0.12)), hipFront = add(hip, v3.mul(f, 0.12));
   const kneePole = (s) => add(chest, v3.mul(f, 0.15 * s), v3.mul(bodyUp, 0.2));
+  if (tuck > 0) {
+    // feet pulled in under the hips, in front, heels to the backside
+    const tf = (sgn) => add(hip, v3.mul(bodyUp, -0.18), v3.mul(chest, 0.22), v3.mul(f, 0.1 * sgn));
+    backFoot = lerp3(backFoot, tf(-1), tuck);
+    frontFoot = lerp3(frontFoot, tf(1), tuck);
+  }
   const legB = ik(hipBack, backFoot, THIGH, SHIN, kneePole(-1));
   const legF = ik(hipFront, frontFoot, THIGH, SHIN, kneePole(1));
 
   // Torso leans forward (toward the chest side) as you crouch.
-  const torsoDir = v3.norm(add(bodyUp, v3.mul(chest, 0.1 + 0.6 * knee + (rider.tube ? 0.35 : 0)))); // leaning into the tube
+  const torsoDir0 = v3.norm(add(bodyUp, v3.mul(chest, 0.1 + 0.6 * knee + (rider.tube ? 0.35 : 0)))); // leaning into the tube
+  const torsoDir = v3.norm(lerp3(torsoDir0, v3.norm(add(v3.mul(bodyUp, 0.45), chest)), tuck)); // (folded over the knees in a tuck)
   const neck = add(hip, v3.mul(torsoDir, 0.58));
   const head = add(neck, v3.mul(torsoDir, 0.2), v3.mul(chest, 0.03), v3.mul(across, 0.03));
   // Front shoulder drops into a bottom turn; both lift as you spring open.
@@ -206,22 +242,20 @@ export function surferObjects(pose, rider, info, dt) {
     handBack = add(handBack, v3.mul(bodyUp, swing));
     handFront = add(handFront, v3.mul(bodyUp, swing));
   }
+  if (tuck > 0) {
+    // arms wrapped round the shins
+    handBack = lerp3(handBack, add(lerp3(legB.joint, backFoot, 0.4), v3.mul(chest, 0.08)), tuck);
+    handFront = lerp3(handFront, add(lerp3(legF.joint, frontFoot, 0.4), v3.mul(chest, 0.08)), tuck);
+  }
   const elbowPole = add(v3.mul(bodyUp, -0.6), v3.mul(chest, -0.2), v3.mul(across, 0.2));
   const armB = ik(shBack, handBack, UPPER, FORE, elbowPole);
   const armF = ik(shFront, handFront, UPPER, FORE, elbowPole);
 
   // --- meshes ---
   const objs = [];
-  // Board: body, contrasting nose, stringer down the middle, fin under the tail.
-  // Board (banked onto its rail): body, contrasting nose, stringer, fin.
-  const bc = add(p, v3.mul(u, 0.04 + railLift));
-  objs.push({ mesh: 'board', model: basis(f, ub, Lb, 1, 1, 1, bc), color: COL.board });
-  objs.push({ mesh: 'boardNose', model: basis(f, ub, Lb, 1, 1, 1, bc), color: COL.nose });
-  objs.push({ mesh: 'box', model: basis(f, ub, Lb, 1.2, 0.07, 0.012, add(bc, v3.mul(f, -0.12))), color: COL.stringer, outline: 0 });
-  // Twin keel fins near the rails at the tail.
-  for (const side of [-1, 1]) {
-    objs.push({ mesh: 'box', model: basis(f, ub, Lb, 0.2, 0.1, 0.012, add(bc, v3.mul(f, -0.58), v3.mul(Lb, 0.17 * side), v3.mul(ub, -0.065))), color: COL.fin, outline: 0.008 });
-  }
+  // Board (banked onto its rail). Going over the falls you've come off it:
+  // it's drawn on its own where the wave has taken it (rider.fallsBoard).
+  if (!rider.falls) objs.push(...boardObjects(f, ub, Lb, add(p, v3.mul(u, 0.04 + railLift))));
   // Legs: boardshorts to just above the knee, then bare legs and feet.
   for (const [hp, leg, foot, logo] of [[hipBack, legB, backFoot, false], [hipFront, legF, frontFoot, true]]) {
     const shortsEnd = lerp3(hp, leg.joint, 0.78);
@@ -259,18 +293,28 @@ export function surferObjects(pose, rider, info, dt) {
   }
 
   if (rider.mode === 'wipe') {
-    // Tumble the whole figure around the rider.
+    // Tumble the whole figure (curled up going over the falls: round its middle).
     const spin = rider.falls ? rider.falls.time * 6 : rider.wipeAge * 12; // slower going over the falls
     const axis = v3.norm(L);
+    const c = rider.falls ? add(hip, v3.mul(torsoDir, 0.12), v3.mul(chest, 0.1)) : p;
     for (const o of objs) {
       const m = o.model;
       for (let col = 0; col < 3; col++) {
         const v = rotateAbout([m[col * 4], m[col * 4 + 1], m[col * 4 + 2]], axis, spin);
         m[col * 4] = v[0]; m[col * 4 + 1] = v[1]; m[col * 4 + 2] = v[2];
       }
-      const t = rotateAbout([m[12] - p[0], m[13] - p[1], m[14] - p[2]], axis, spin);
-      m[12] = p[0] + t[0]; m[13] = p[1] + t[1]; m[14] = p[2] + t[2];
+      const t = rotateAbout([m[12] - c[0], m[13] - c[1], m[14] - c[2]], axis, spin);
+      m[12] = c[0] + t[0]; m[13] = c[1] + t[1]; m[14] = c[2] + t[2];
     }
+  }
+  // The board you came off, on its own in the water.
+  const fb = rider.fallsBoard;
+  if (rider.falls && fb) {
+    const fr = frameAt(fb.xs, fb.t);
+    const bf0 = v3.norm(add(v3.mul(fr.e1, Math.cos(fb.yaw)), v3.mul(fr.e2, Math.sin(fb.yaw))));
+    const bL0 = v3.norm(v3.cross(fr.n, bf0));
+    const bf = rotateAbout(bf0, bL0, fb.flip), bu = rotateAbout(fr.n, bL0, fb.flip);
+    objs.push(...boardObjects(bf, bu, bL0, add(fr.P, v3.mul(fr.n, 0.25))));
   }
   return objs;
 }

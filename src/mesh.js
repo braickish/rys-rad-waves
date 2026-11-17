@@ -125,22 +125,51 @@ export function sphereMesh(lat = 10, lon = 16) {
   return new Float32Array(v);
 }
 
-// Fish surfboard, in board space: x along the board (+x = nose), y up, z
-// across. Short and wide, a fuller rounded nose, a wide swallowtail with a
-// notch, flat rocker, rounded rails. Built in two pieces over [u0, u1] of the
-// length (u = -1 tail .. +1 nose) so the nose can be a different color.
-export const BOARD_HALF_LENGTH = 0.8; // a 1.6 m fish
+// Surfboards, in board space: x along the board (+x = nose), y up, z across.
+// Each is built in two pieces over [u0, u1] of the length (u = -1 tail .. +1
+// nose) so the nose can be a different color. Each wave picks its board
+// (`board` in the wave definition; the fish by default).
+//   fish: short and wide, a fuller rounded nose, a wide swallowtail with a
+//     notch, flat rocker, twin keel fins (1.6 m).
+//   shortboard: a 6'6" (1.98 m) thruster for heavy barrels: narrower, a
+//     pointed nose, a rounded pin tail, and much more rocker (a strong nose
+//     kick and some tail lift) so it fits the curve of a steep face.
 const clampU = (x) => Math.min(1, Math.max(0, x));
-export function boardMesh(u0 = -1, u1 = 1, segs = 28, ring = 14) {
-  const L = BOARD_HALF_LENGTH, W = 0.29; // half-length, half-width
-  const width = (u) => {
-    const uu = Math.max(u, -0.97); // wide tail: cut off well before it narrows
-    return (W * Math.pow(1 - uu, 0.45) * Math.pow(1 + uu, 0.15)) / 1.082;
-  };
-  const NOTCH = 0.13; // swallowtail: how far the middle of the tail is cut in (m)
+const planform = (W, a, b, uCut) => {
+  let max = 0;
+  for (let u = -1; u <= 1; u += 0.01) max = Math.max(max, Math.pow(1 - u, a) * Math.pow(1 + Math.max(u, uCut), b));
+  return (u) => { const uu = Math.max(u, uCut); return (W * Math.pow(1 - uu, a) * Math.pow(1 + uu, b)) / max; };
+};
+export const BOARDS = {
+  fish: {
+    half: 0.8,
+    width: planform(0.29, 0.45, 0.15, -0.97), // wide tail: cut off well before it narrows
+    notch: 0.13, // swallowtail: how far the middle of the tail is cut in (m)
+    rocker: (u) => 0.08 * Math.max(0, u - 0.35) ** 2 / 0.42 + 0.02 * Math.max(0, -u - 0.6) ** 2 / 0.16,
+    thick: (u) => 0.034 * (1 - 0.55 * u * u),
+    noseFrom: 0.6, // where the colored nose starts (u)
+    stance: [-0.52, -0.02], // back and front foot (m from the middle)
+    // fins: [along (m from the middle), across (m, + = rider's left), height, length]
+    fins: [[-0.58, 0.17, 0.1, 0.2], [-0.58, -0.17, 0.1, 0.2]],
+    stringer: [1.2, -0.12], // length, center
+  },
+  shortboard: {
+    half: 0.99,
+    width: planform(0.245, 0.62, 0.32, -0.985), // 19.5" wide, widest just behind the middle; pointed nose, narrow pin tail
+    notch: 0,
+    rocker: (u) => 0.045 * u * u + 0.13 * Math.max(0, u - 0.45) ** 2 / 0.3025 + 0.035 * Math.max(0, -u - 0.4) ** 2 / 0.36,
+    thick: (u) => 0.031 * (1 - 0.6 * u * u),
+    noseFrom: 0.72,
+    stance: [-0.64, -0.08], // back foot over the fins
+    fins: [[-0.72, 0.15, 0.11, 0.13], [-0.72, -0.15, 0.11, 0.13], [-0.88, 0, 0.11, 0.13]], // thruster
+    stringer: [1.7, -0.05],
+  },
+};
+export const BOARD_HALF_LENGTH = BOARDS.fish.half;
+export function boardMesh(shape = BOARDS.fish, u0 = -1, u1 = 1, segs = 28, ring = 14) {
+  const L = shape.half, width = shape.width, rocker = shape.rocker, thick = shape.thick;
+  const NOTCH = shape.notch;
   const notchAt = (u, c) => NOTCH * clampU((-u - 0.82) / 0.18) * (1 - Math.abs(c));
-  const rocker = (u) => 0.08 * Math.max(0, u - 0.35) ** 2 / 0.42 + 0.02 * Math.max(0, -u - 0.6) ** 2 / 0.16;
-  const thick = (u) => 0.034 * (1 - 0.55 * u * u);
   const pts = [];
   for (let i = 0; i <= segs; i++) {
     const u = u0 + (u1 - u0) * (i / segs);

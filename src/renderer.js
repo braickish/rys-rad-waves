@@ -2,7 +2,7 @@
 // particles (simulated in a compute shader, drawn as soft billboards).
 
 import { skyWGSL, waterWGSL, solidWGSL, particleComputeWGSL, particleRenderWGSL } from './shaders.js';
-import { buildWaterTable, buildWaterIndices, slicePhases, WATER_XS, COLS, TABLE, buildLipTable, LIP, boxMesh, sphereMesh, boardMesh, cylinderMesh } from './mesh.js';
+import { buildWaterTable, buildWaterIndices, slicePhases, WATER_XS, COLS, TABLE, buildLipTable, LIP, boxMesh, sphereMesh, boardMesh, cylinderMesh, BOARDS } from './mesh.js';
 import { SCALE } from './wave.js';
 
 export const PARTICLES = 40960;
@@ -68,7 +68,9 @@ export async function createRenderer(canvas) {
   // Solid meshes for the surfer and board, by name.
   const solids = {};
   for (const [name, data] of Object.entries({
-    box: boxMesh(), sphere: sphereMesh(12, 18), cyl: cylinderMesh(), board: boardMesh(-1, 0.6), boardNose: boardMesh(0.6, 1, 8),
+    box: boxMesh(), sphere: sphereMesh(12, 18), cyl: cylinderMesh(),
+    // every board: 'board-<name>' and its colored nose 'boardNose-<name>'
+    ...Object.fromEntries(Object.entries(BOARDS).flatMap(([k, b]) => [[`board-${k}`, boardMesh(b, -1, b.noseFrom)], [`boardNose-${k}`, boardMesh(b, b.noseFrom, 1, 8)]])),
   })) solids[name] = { vb: upload(orientTriangles(data), GPUBufferUsage.VERTEX), count: data.length / 6 };
   const lipBuf = upload(buildLipTable(), GPUBufferUsage.STORAGE);
 

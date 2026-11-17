@@ -225,7 +225,7 @@ export function createRider() {
     moveCooldown: 0, lastBottomTurn: -9, bottomArmed: false,
     tube: null, fakie: null, driveBank: 0, lastTurnTime: -9, lastTurnDir: 0, overTheBack: false,
     rideDir: 1, lock: null, inDir: 0, lipSnap: null, snapGrip: false, roundhouse: null, crouchDepth: 0, slash: null, slide: 0, rightHeld: 0, turnDir: 0, turnDirAge: 9, turnHeld: 0, hard: 0, assist: null, bottomCarve: false, floater: null,
-    wipeReason: '', wipeTimer: 0, wipeAge: 0, washing: false, falls: null,
+    wipeReason: '', wipeTimer: 0, wipeAge: 0, washing: false, falls: null, fallsBoard: null,
     events: [],
     time: 0,
   };
@@ -258,6 +258,7 @@ function wipe(r, reason) {
   r.wipeTimer = r.washing ? 3.2 : 2.2;
   r.wipeAge = 0;
   r.inBarrel = false;
+  r.fallsBoard = null;
   r.events.push({ type: 'wipe', reason });
   // Caught up top in the barrel: the lip takes you with it, up and over the
   // falls, before the washing machine.
@@ -281,11 +282,30 @@ function startFalls(r) {
   const over = Math.min(FALLS_OVER_MAX, Math.max(0.15, (r.xs - xsLand) / 9));
   r.falls = { time: 0, xs0: r.xs, t0: r.t, xsLand, over };
   r.wipeTimer += FALLS_UP + over;
+  // You come off your board: the lip takes you, not it. The board stalls on
+  // the face where you left it, then the water drags it back under the
+  // curtain and down toward the trough, flipping over as it goes.
+  const fr = frameAt(r.xs, r.t);
+  r.fallsBoard = {
+    xs: r.xs, t: r.t, vxs: 0, vt: 0,
+    yaw: Math.atan2(v3.dot(r.heading, fr.e2), v3.dot(r.heading, fr.e1)), // its heading on the face
+    flip: 0, // end over end
+  };
+}
+function stepFallsBoard(r, dt) {
+  const b = r.fallsBoard;
+  b.vt += 3.0 * dt; // sliding down the face
+  b.t = Math.min(NP - 2.2, b.t + b.vt * dt);
+  b.vxs += (-0.8 * PEEL_SPEED - b.vxs) * Math.min(1, dt * 1.2); // the water holds it while the curl runs on
+  b.xs += b.vxs * dt;
+  b.yaw += dt * 1.6;
+  b.flip += dt * 6.5;
 }
 const FALLS_OFF = 0.35; // held this far out from the water (air side)
 function stepFalls(r, dt) {
   const f = r.falls;
   f.time += dt;
+  if (r.fallsBoard) stepFallsBoard(r, dt);
   let xs, t;
   if (f.time < FALLS_UP) {
     const u = f.time / FALLS_UP, e = u * u * (3 - 2 * u);

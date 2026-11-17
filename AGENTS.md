@@ -184,7 +184,7 @@ button).
     braickish/reference-images, pipe-example.jpg): a tall wall stands up well ahead of the curl
     (`phase.ahead` 14), near vertical and slightly hollow before it pitches (no overhang until the
     lip throws, so the rideable face is unchanged); the lip throws far out into a round tube about
-    as wide as it is tall, the lip a thin sheet (roof and curtain), landing well out in front. The
+    as wide as it is tall, the lip a thin sheet (roof and curtain), landing well out in front. The roof sits right up under the outside of the lip (raised 2026-11-16: the user found the top, where it breaks, too thick), and the pitching lip throws out nearly level before it falls, so from the channel the tube opening reaches up close to the crest. The
     broken wave behind the closing tube lasts longer (`phase.behindFar` 22 m per phase past
     `farFrom` 1.3, eased in so there's no crease; the tube itself keeps `behind` 13, since
     stretching it changed how the barrel rides). Looks: the thrown lip white and frothy across
@@ -211,7 +211,10 @@ button).
     under the roof and out to the lip tip (`FALLS_UP`, 0.5s), then carried with the tip as it throws
     out and down until it lands near the trough (following the tip back along `xs` is following that
     water in time), tumbling slowly. The camera cuts to the channel view to watch; the washing
-    machine starts when the lip lands (`fallsLand`, with a splash). It tips down toward you so you sit a little above the middle of the frame.
+    machine starts when the lip lands (`fallsLand`, with a splash). You come off your board (the user: you aren't
+    attached to it): the surfer goes over alone, curled up in a ball (the `tuck` in surfer.js), while the board
+    (`r.fallsBoard`, `stepFallsBoard`) stalls on the face, then is dragged back under the curtain and down
+    toward the trough, flipping end over end. It tips down toward you so you sit a little above the middle of the frame.
     Coming out it eases back down to right behind you (`tubeBlend`). It never snaps or jumps
     between distances (earlier versions did, and hopped around out on the flats). Mist particles
     fade near the camera-to-surfer sightline (shaders.js) so spray never covers the surfer. Reef shape is `KF_PIPE`
@@ -233,8 +236,14 @@ button).
 - **Scoring:** only moves, airs and barrels score; riding by itself doesn't. Bottom turns and top
   turns aren't called out as moves: they add their points quietly (main.js `handleEvents`).
 - `src/mesh.js`: builds the water's cross-section table and grid, a lip lookup table for particle emitters, and the box/sphere primitives for the surfer.
+  **Boards** (`BOARDS`): each wave picks one with `board` in its definition (default the fish). The point rides a
+  1.6 m twin-fin fish; the reef a 6'6" thruster shortboard (19.3" wide, pointed nose, pin tail, ~7" nose rocker
+  and ~3" tail lift; the user asked for more rocker). Shape, stance, fins and stringer live together in the
+  board's entry; the stringer, fins and feet follow the rocker.
 - `src/shaders.js`: WGSL. Water (fresnel sky reflection, backlit translucency in the lip, flowing
-  ripple normals, foam), sky, solid shading, and particles (compute-shader sim of 65k particles: lip
+  ripple normals, foam; fine ripples up close plus a coarse, slanted, streaky layer (`coarseTex`) that fades
+  in with distance, so the wall seen from the channel or the riding camera has the same texture as inside the
+  tube; it used to look smooth and plastic from outside), sky, solid shading, and particles (compute-shader sim of 65k particles: lip
   feathering, whitewater mist, rail spray, barrel spit; drawn as soft billboards).
 - `src/renderer.js`: WebGPU setup and draw order. `src/main.js`: loop, input (keyboard + touch),
   cameras, surfer model, scoring, HUD.
