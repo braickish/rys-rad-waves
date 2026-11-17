@@ -192,8 +192,11 @@ button).
     flats): the sim shape has a long low base in front of the face, and `t <= tBottom + tubeEnterLow` reached
     3-5 m out in front of the lip tip. Waves with `tubeReal` also need you `enterIn` (0.5 m, the user's
     pick, so the barrel is over you) in under the lip (`lipTipZ`), and near the opening (phase below
-    `outBefore` 0.45) you're out as soon as you're out from under the lip, right at its tip (it used to wait
-    for phase `tubeExit`, ~0.6-3.6 m further on). Deeper in, a low turn out in front of the curtain doesn't
+    `outBefore` 0.45) you're out once you're out from under the lip for `outSettle` 0.25 s or by more than
+    `outBy` 0.75 m (~0.5 m past the tip riding out the opening; it used to wait for phase `tubeExit`, ~0.6-3.6
+    m further on), so a quick dip out and back stays one barrel. The barrel view (main.js `updateTubeView`) now
+    switches exactly with the barrel, on and off, and holds `VIEW_HOLD` 0.6 s after any switch (it used to
+    stay on until `TUBE_VIEW_OUT` 5 m out on the shoulder; the user asked for it to end where the barrel does). Deeper in, a low turn out in front of the curtain doesn't
     end the barrel (making that the lip landing on you was tried and was too harsh on S-turns). The position itself
     never jumped at entry (checked: the entry step is a normal step); it was where the view switched.
     **Slashes in the barrel are easier to start** (2026-11-17, the user): `slashTube` carries gentler gates
@@ -232,7 +235,7 @@ button).
     cross-sections (render the SVG to PNG with headless Chrome `--screenshot`).
     Barrel view (main.js `updateTubeView`, the `tube` shot): on once you're in the tube (the user
     tried switching it on earlier and went back to this), and it stays on after you come out until
-    you're out on the shoulder (`TUBE_VIEW_OUT`, 5 m ahead of the curl) or wipe out. In the tube the
+    you're out on the shoulder or wipe out (changed 2026-11-17: now it ends with the barrel, see below). In the tube the
     camera is pinned inside, `TUBE_CAM_BACK` (5.5 m) behind you and about `TUBE_CAM_UP` (1.5 m) above
     you (the most open spot near that height, `tubeCenter`; up near the roof was tried and the user
     found it too high; 7 m back was the previous distance). If there's no tube that far back (deep in

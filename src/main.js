@@ -230,17 +230,23 @@ function tubeCenter(xs, nearY) {
 }
 
 let lastShot = '';
-// Barrel view: on once you're in the tube (as it always was), and it stays on
-// after you come out until you're out on the shoulder (TUBE_VIEW_OUT ahead of
-// the curl). tubeBlend eases the camera up into the tube and back down.
-const TUBE_VIEW_OUT = 5;
+// Barrel view: on when you're in the barrel and off when you come out of it, at
+// the same point (2026-11-17, the user; it used to stay on until you were
+// TUBE_VIEW_OUT out on the shoulder). The barrel itself only ends once you're
+// properly out from under the lip (rider.js), and after any switch the view
+// holds for VIEW_HOLD before it can switch again, so it can't flick back and
+// forth right at the lip.
+// tubeBlend eases the camera up into the tube and back down.
+const VIEW_HOLD = 0.6; // (s)
+let viewHold = 0;
 const TUBE_CAM_BACK = 5.5, TUBE_CAM_UP = 1.5; // barrel view: this far behind and above the surfer (m)
 let tubeView = false, tubeBlend = 0, camBack = TUBE_CAM_BACK, camBackWant = TUBE_CAM_BACK, lastTubeSpot = null;
 function insideWaterAt(q) { return verticalHits(slice(q[0], 6), q[2]).filter((hit) => hit.y > q[1]).length % 2 === 1; }
 function updateTubeView(dt) {
-  if (!WAVE.tube || rider.mode !== 'surf' || state === 'title') { tubeView = false; tubeBlend = 0; return; }
-  if (rider.tube) tubeView = true;
-  else if (tubeView && rider.xs > TUBE_VIEW_OUT * (WAVE.tube ? WAVE.phase.ahead / 14 : 1)) tubeView = false; // (further out on a bigger wave: ?size)
+  if (!WAVE.tube || rider.mode !== 'surf' || state === 'title') { tubeView = false; tubeBlend = 0; viewHold = 0; return; }
+  viewHold = Math.max(0, viewHold - dt);
+  if (!tubeView && rider.tube && viewHold === 0) { tubeView = true; viewHold = VIEW_HOLD; }
+  else if (tubeView && !rider.tube && viewHold === 0) { tubeView = false; viewHold = VIEW_HOLD; }
   const inTube = rider.tube ? 1 : 0;
   tubeBlend += (inTube - tubeBlend) * (1 - Math.exp(-dt * 3));
 }
@@ -453,7 +459,7 @@ async function main() {
     }, dt), { particles: !params.has('noparticles'), outlines: !params.has('nooutline') });
 
     frameMs = frameMs * 0.95 + (dt * 1000) * 0.05; // smoothed frame time
-    window.__dbg = { cam: camPos.map((x) => +x.toFixed(2)), pos: rider.pos.map((x) => +x.toFixed(2)), rt: +rider.t.toFixed(2), tube: !!rider.tube, wave: WAVE.id, wind: +(pose.windup || 0).toFixed(2), unl: +(pose.unload || 0).toFixed(2), ms: +frameMs.toFixed(1), phi: +(rider.phi * 57.3).toFixed(0), turn: touch.turn, tilt: touch.tilt, depth: rider.tube ? +tubeDepth(rider).toFixed(2) : null, state, mode: rider.mode, xs: +rider.xs.toFixed(1), y: +rider.pos[1].toFixed(1), score: Math.round(score), reason: rider.wipeReason, slash: !!rider.slash, slide: +(rider.slide * 57.3).toFixed(0) };
+    window.__dbg = { view: tubeView, cam: camPos.map((x) => +x.toFixed(2)), pos: rider.pos.map((x) => +x.toFixed(2)), rt: +rider.t.toFixed(2), tube: !!rider.tube, wave: WAVE.id, wind: +(pose.windup || 0).toFixed(2), unl: +(pose.unload || 0).toFixed(2), ms: +frameMs.toFixed(1), phi: +(rider.phi * 57.3).toFixed(0), turn: touch.turn, tilt: touch.tilt, depth: rider.tube ? +tubeDepth(rider).toFixed(2) : null, state, mode: rider.mode, xs: +rider.xs.toFixed(1), y: +rider.pos[1].toFixed(1), score: Math.round(score), reason: rider.wipeReason, slash: !!rider.slash, slide: +(rider.slide * 57.3).toFixed(0) };
     // HUD.
     msgTimer -= dt;
     if (msgTimer <= 0) $('msg').classList.remove('pop');
