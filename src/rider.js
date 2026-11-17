@@ -964,7 +964,7 @@ function checkHazards(r, dt) {
     // place along the curve isn't enough there: the lip must actually be over you, not still out
     // ahead of you on the flats, or the barrel came on 3-5 m out in front of the lip.)
     if (ph > T.tubeEnter && ph < T.tubeCollapse - 0.15 && r.t <= T.tBottom + T.tubeEnterLow && Math.sin(r.phi) > -0.1
-      && (!WAVE.tubeReal || r.pos[2] <= lipTipZ(r.xs) + 0.3)) {
+      && (!WAVE.tubeReal || r.pos[2] <= lipTipZ(r.xs) - WAVE.tubeReal.enterIn)) {
       // Way up in the lip as it throws: over you go. A bit high: it sucks you in.
       if (r.t < topOfFace(r.xs) - T.tubeTooHigh) return wipe(r, 'Over the falls! (caught up in the lip)');
       r.t = Math.max(r.t, topOfFace(r.xs));
@@ -983,7 +983,10 @@ function checkHazards(r, dt) {
   const tooHigh = WAVE.tubeReal ? r.t < tubeLineT(ph, WAVE.tubeReal.fall) : r.height > T.tubeFallHeight;
   if (tooHigh) { wipe(r, 'Over the falls! (too high in the barrel)'); r.tube = null; return; }
   if (r.t > T.tBottom + T.tubeLow) { wipe(r, 'The lip landed on you! (too low)'); r.tube = null; return; }
-  if (ph < T.tubeExit) {
+  // (`tubeReal` waves: near the opening, you're out as soon as you're out from under the lip.
+  // Deeper in, a low turn out in front of the curtain doesn't end the barrel.)
+  const outFromUnder = WAVE.tubeReal && ph < WAVE.tubeReal.outBefore && r.pos[2] > lipTipZ(r.xs);
+  if (ph < T.tubeExit || outFromUnder) {
     r.events.push({ type: 'barrelExit', time: tb.time, depth: tb.depth, avgDepth: tb.depthSum / Math.max(tb.time, 1e-3) });
     r.tube = null; r.inBarrel = false; r.barrelTime = 0;
   }

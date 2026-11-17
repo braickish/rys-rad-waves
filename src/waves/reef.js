@@ -57,7 +57,9 @@ const reef = {
   // barrel's lines are set by real height in the tube instead (rider.js tubeLineT): the roof line at
   // 92% of the way from the trough to the roof (where 11.9 sits on the normal reef), and over the falls
   // above 80% (looser than the normal reef; t-based, its 0.62 caught you at ~20% of the height here).
-  tubeReal: USE_SIM ? { top: 0.92, fall: 0.8 } : null,
+  // In the barrel once you're `enterIn` m in under the lip (so it's over you); near the opening
+  // (phase below `outBefore`) out as soon as you're out from under it.
+  tubeReal: USE_SIM ? { top: 0.92, fall: 0.8, enterIn: 0.5, outBefore: 0.45 } : null,
   tube: true,
   // Spray blowing back off the crest: along the tall wall ahead and over the barrel.
   plume: (s) => sstep(-1.3, -0.5, s) * (1 - sstep(1.1, 1.7, s)),
