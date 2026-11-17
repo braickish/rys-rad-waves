@@ -190,7 +190,7 @@ button).
     hump and a sharp turn in the lip and the tube opening stopped being round; the user rejected it. Keep the
     opening a round/oval arch and the sweep from the tube out to the shoulder smooth.)
     `node test/steepness.mjs` measures it; the lip throws far out into a round tube about
-    as wide as it is tall, the lip a thin sheet (roof and curtain), landing well out in front. The roof sits right up under the outside of the lip (raised 2026-11-16: the user found the top, where it breaks, too thick), and the pitching lip throws out nearly level before it falls, so from the channel the tube opening reaches up close to the crest. A second pass (same day) raised it again and moved the pitching keyframe from phase 0.25 to 0.15 so the lip is thin sooner at the curl (lip ~1.1 m at the curl, ~0.15-0.3 m in the tube; don't push the roof higher at point 12 without checking the gap, since the spline there bulges up and touched the outside). The
+    as wide as it is tall, the lip a thin sheet (roof and curtain), landing well out in front. The roof sits right up under the outside of the lip (raised 2026-11-16: the user found the top, where it breaks, too thick), and the pitching lip curls over and down in one round arc (it used to throw out nearly level, which from inside the tube made the top of the opening flare out into a point instead of arching over). A second pass (same day) raised it again and moved the pitching keyframe from phase 0.25 to 0.15 so the lip is thin sooner at the curl (lip ~1.1 m at the curl, ~0.15-0.3 m in the tube; don't push the roof higher at point 12 without checking the gap, since the spline there bulges up and touched the outside). The
     broken wave behind the closing tube lasts longer (`phase.behindFar` 22 m per phase past
     `farFrom` 1.3, eased in so there's no crease; the tube itself keeps `behind` 13, since
     stretching it changed how the barrel rides). Looks: the thrown lip white and frothy across
@@ -249,7 +249,11 @@ button).
 - `src/shaders.js`: WGSL. Water (fresnel sky reflection, backlit translucency in the lip, flowing
   ripple normals, foam; fine ripples up close, a mid-size chop, plus a coarse, slanted, streaky layer (`coarseTex`) that fades
   in with distance, carrying on out across the flats in front of the wave (`flatsReach`, the user asked for it not to stop at the bottom), so the wall seen from the channel or the riding camera has the same texture as inside the
-  tube; it used to look smooth and plastic from outside), sky, solid shading, and particles (compute-shader sim of 65k particles: lip
+  tube; it used to look smooth and plastic from outside). Each layer is anti-aliased (`pixelSpan`, screen-space
+  derivatives): it fades out once its detail is finer than a pixel or two, and on the steep wall the ripples
+  soften where it's seen edge-on (`graze`). Without that, from inside the tube the wall around the opening broke
+  up into a fan of bright streaks (the user saw it as a weird flow at the opening). The broad ribs only fade at
+  extreme squeeze, so the flats seen from the channel keep their texture., sky, solid shading, and particles (compute-shader sim of 65k particles: lip
   feathering, whitewater mist, rail spray, barrel spit; drawn as soft billboards).
 - `src/renderer.js`: WebGPU setup and draw order. `src/main.js`: loop, input (keyboard + touch),
   cameras, surfer model, scoring, HUD.
