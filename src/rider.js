@@ -250,18 +250,18 @@ function syncPose(r, f) {
 }
 
 function wipe(r, reason) {
-  // Wiping out in the barrel (or pulling in) throws you in the "washing
-  // machine": a longer hold-down (the foam ball screen in main.js).
+  // Wiping out in the barrel (or caught in the lip pulling in): `washing`
+  // marks a heavy barrel wipeout, which can take you over the falls.
   r.washing = !!r.tube || reason.includes('caught up in the lip');
   r.mode = 'wipe';
   r.wipeReason = reason;
-  r.wipeTimer = r.washing ? 3.2 : 2.2;
+  r.wipeTimer = 2.2;
   r.wipeAge = 0;
   r.inBarrel = false;
   r.fallsBoard = null;
   r.events.push({ type: 'wipe', reason });
   // Caught up top in the barrel: the lip takes you with it, up and over the
-  // falls, before the washing machine.
+  // falls.
   if (r.washing && reason.startsWith('Over the falls')) startFalls(r);
 }
 
@@ -269,7 +269,7 @@ function wipe(r, reason) {
 // lip's tip (at your spot along the wave), then carried with the tip as it
 // throws out and down (the lip further back along the wave is the same water
 // later on, so following the tip backward along xs is following it in time)
-// until it lands in the flats. The washing machine starts there.
+// until it lands in the flats.
 const FALLS_UP = 0.5, FALLS_OVER_MAX = 0.85; // seconds: up to the tip, then down with it
 function startFalls(r) {
   const tip = WAVE.lipT;

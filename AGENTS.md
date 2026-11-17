@@ -203,15 +203,15 @@ button).
     the back of the barrel it's pinched shut) or the view to you is blocked, it searches closer along
     the inside of the tube, and with nowhere at all it holds its last spot (`lastTubeSpot`): it used
     to pop out the back of the wave there.
-    **Washing machine:** wipe out in the barrel (pinched, too high, too low, caught in the lip) and
-    `r.washing` is set: a longer hold-down (3.2s) and the screen goes to a churning white foam ball
-    (`src/washer.js`, a 2D canvas `#foam` over the game), fading out as the score card comes up.
+    **Barrel wipeouts** (pinched, too high, too low, caught in the lip) set `r.washing`. (A white foam-ball
+    "washing machine" screen used to follow, `src/washer.js`; removed 2026-11-16 once the falls were in: the user
+    preferred just the falls.)
     Caught up top (too high in the barrel, into the roof, or caught in the lip pulling in) you first
     go **over the falls** (`r.falls`, `startFalls`/`stepFalls` in rider.js): sucked up the face, round
     under the roof and out to the lip tip (`FALLS_UP`, 0.5s), then carried with the tip as it throws
     out and down until it lands near the trough (following the tip back along `xs` is following that
-    water in time), tumbling slowly. The camera cuts to the channel view to watch; the washing
-    machine starts when the lip lands (`fallsLand`, with a splash). You come off your board (the user: you aren't
+    water in time), tumbling slowly. The camera cuts to the channel view to watch; the lip lands
+    (`fallsLand`, with a splash) and the score card follows. You come off your board (the user: you aren't
     attached to it): the surfer goes over alone, curled up in a ball (the `tuck` in surfer.js), while the board
     (`r.fallsBoard`, `stepFallsBoard`) stalls on the face, then is dragged back under the curtain and down
     toward the trough, flipping end over end. It tips down toward you so you sit a little above the middle of the frame.

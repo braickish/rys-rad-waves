@@ -143,7 +143,7 @@ export function surferObjects(pose, rider, info, dt) {
   if (rider.crouch) kneeT = rider.tube ? 0.42 : 0.85; // in the tube: a compact, athletic crouch, not squatting
   if (rider.mode === 'air') kneeT = 0.7;
   // Going over the falls (off the board): curled up in a ball, knees to chest.
-  const tuck = rider.falls ? clamp(rider.falls.time / 0.18, 0, 1) : 0;
+  const tuck = rider.falls ? clamp(rider.falls.time / 0.3, 0, 1) : 0;
   if (tuck > 0) kneeT = 1;
   // Roundhouse: lower and lower as it comes round, right down at full depth.
   if (rh > 0.01) kneeT = Math.max(kneeT, 0.45 + 0.65 * rh);
@@ -186,13 +186,13 @@ export function surferObjects(pose, rider, info, dt) {
   let frontFoot = add(B, v3.mul(f, STANCE[1]), v3.mul(u, bs.rocker(STANCE[1] / bs.half)));
   const mid = (STANCE[0] + STANCE[1]) / 2;
   // Hips drop and slide back over the heels as the knees bend.
-  const hipH = (0.92 - 0.44 * knee) * (1 - 0.5 * tuck);
+  const hipH = (0.92 - 0.44 * knee) * (1 - 0.4 * tuck);
   const hip = add(B, v3.mul(f, mid), v3.mul(bodyUp, hipH), v3.mul(chest, -0.12 * knee));
   const hipBack = add(hip, v3.mul(f, -0.12)), hipFront = add(hip, v3.mul(f, 0.12));
   const kneePole = (s) => add(chest, v3.mul(f, 0.15 * s), v3.mul(bodyUp, 0.2));
   if (tuck > 0) {
     // feet pulled in under the hips, in front, heels to the backside
-    const tf = (sgn) => add(hip, v3.mul(bodyUp, -0.08), v3.mul(chest, 0.16), v3.mul(f, 0.08 * sgn));
+    const tf = (sgn) => add(hip, v3.mul(bodyUp, -0.18), v3.mul(chest, 0.22), v3.mul(f, 0.1 * sgn));
     backFoot = lerp3(backFoot, tf(-1), tuck);
     frontFoot = lerp3(frontFoot, tf(1), tuck);
   }
@@ -201,9 +201,9 @@ export function surferObjects(pose, rider, info, dt) {
 
   // Torso leans forward (toward the chest side) as you crouch.
   const torsoDir0 = v3.norm(add(bodyUp, v3.mul(chest, 0.1 + 0.6 * knee + (rider.tube ? 0.35 : 0)))); // leaning into the tube
-  const torsoDir = v3.norm(lerp3(torsoDir0, v3.norm(add(v3.mul(bodyUp, 0.2), chest)), tuck)); // (folded over the knees in a tuck)
+  const torsoDir = v3.norm(lerp3(torsoDir0, v3.norm(add(v3.mul(bodyUp, 0.45), chest)), tuck)); // (folded over the knees in a tuck)
   const neck = add(hip, v3.mul(torsoDir, 0.58));
-  const head = add(neck, v3.mul(torsoDir, 0.2 - 0.06 * tuck), v3.mul(chest, 0.03), v3.mul(across, 0.03), v3.mul(bodyUp, -0.1 * tuck)); // (chin down in a tuck)
+  const head = add(neck, v3.mul(torsoDir, 0.2), v3.mul(chest, 0.03), v3.mul(across, 0.03));
   // Front shoulder drops into a bottom turn; both lift as you spring open.
   const shBack = add(neck, v3.mul(across, -0.19), v3.mul(torsoDir, -0.04 + 0.05 * windup + 0.03 * unload));
   const shFront = add(neck, v3.mul(across, 0.19), v3.mul(torsoDir, -0.04 - 0.1 * windup + 0.03 * unload));
@@ -244,8 +244,8 @@ export function surferObjects(pose, rider, info, dt) {
   }
   if (tuck > 0) {
     // arms wrapped round the shins
-    handBack = lerp3(handBack, add(lerp3(legB.joint, backFoot, 0.5), v3.mul(chest, 0.06), v3.mul(f, 0.04)), tuck);
-    handFront = lerp3(handFront, add(lerp3(legF.joint, frontFoot, 0.5), v3.mul(chest, 0.06), v3.mul(f, -0.04)), tuck);
+    handBack = lerp3(handBack, add(lerp3(legB.joint, backFoot, 0.4), v3.mul(chest, 0.08)), tuck);
+    handFront = lerp3(handFront, add(lerp3(legF.joint, frontFoot, 0.4), v3.mul(chest, 0.08)), tuck);
   }
   const elbowPole = add(v3.mul(bodyUp, -0.6), v3.mul(chest, -0.2), v3.mul(across, 0.2));
   const armB = ik(shBack, handBack, UPPER, FORE, elbowPole);
