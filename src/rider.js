@@ -225,7 +225,7 @@ export function createRider() {
     moveCooldown: 0, lastBottomTurn: -9, bottomArmed: false,
     tube: null, fakie: null, driveBank: 0, lastTurnTime: -9, lastTurnDir: 0, overTheBack: false,
     rideDir: 1, lock: null, inDir: 0, lipSnap: null, snapGrip: false, roundhouse: null, crouchDepth: 0, slash: null, slide: 0, rightHeld: 0, turnDir: 0, turnDirAge: 9, turnHeld: 0, hard: 0, assist: null, bottomCarve: false, floater: null,
-    wipeReason: '', wipeTimer: 0, washing: false,
+    wipeReason: '', wipeTimer: 0, wipeAge: 0, washing: false, falls: null,
     events: [],
     time: 0,
   };
@@ -256,8 +256,53 @@ function wipe(r, reason) {
   r.mode = 'wipe';
   r.wipeReason = reason;
   r.wipeTimer = r.washing ? 3.2 : 2.2;
+  r.wipeAge = 0;
   r.inBarrel = false;
   r.events.push({ type: 'wipe', reason });
+  // Caught up top in the barrel: the lip takes you with it, up and over the
+  // falls, before the washing machine.
+  if (r.washing && reason.startsWith('Over the falls')) startFalls(r);
+}
+
+// Over the falls: sucked up the face, round under the roof and out to the
+// lip's tip (at your spot along the wave), then carried with the tip as it
+// throws out and down (the lip further back along the wave is the same water
+// later on, so following the tip backward along xs is following it in time)
+// until it lands in the flats. The washing machine starts there.
+const FALLS_UP = 0.5, FALLS_OVER_MAX = 0.85; // seconds: up to the tip, then down with it
+function startFalls(r) {
+  const tip = WAVE.lipT;
+  let xsLand = r.xs;
+  // Where the tip lands: low down near the trough, behind you.
+  for (let x = r.xs; x > r.xs - 16; x -= 0.25) {
+    xsLand = x;
+    if (surface(x, tip)[1] < surface(x, NP - 2)[1] + 0.6) break;
+  }
+  const over = Math.min(FALLS_OVER_MAX, Math.max(0.15, (r.xs - xsLand) / 9));
+  r.falls = { time: 0, xs0: r.xs, t0: r.t, xsLand, over };
+  r.wipeTimer += FALLS_UP + over;
+}
+const FALLS_OFF = 0.35; // held this far out from the water (air side)
+function stepFalls(r, dt) {
+  const f = r.falls;
+  f.time += dt;
+  let xs, t;
+  if (f.time < FALLS_UP) {
+    const u = f.time / FALLS_UP, e = u * u * (3 - 2 * u);
+    xs = f.xs0; t = f.t0 + (WAVE.lipT - f.t0) * e;
+  } else {
+    const v = Math.min(1, (f.time - FALLS_UP) / f.over);
+    xs = f.xs0 + (f.xsLand - f.xs0) * Math.pow(v, 1.4); t = WAVE.lipT; // speeding up as it falls
+  }
+  const fr = frameAt(xs, t), prev = r.pos;
+  r.xs = xs;
+  r.pos = v3.add(fr.P, v3.mul(fr.n, FALLS_OFF));
+  r.vel = v3.mul(v3.sub(r.pos, prev), 1 / Math.max(dt, 1e-3));
+  if (f.time >= FALLS_UP + f.over) {
+    r.falls = null;
+    r.wipeAge = 0; // (the tumble in the foam starts now)
+    r.events.push({ type: 'fallsLand' });
+  }
 }
 
 // input: { turn: -1..1 (Left = +1), tilt: -1..1 (Up = +1), aim: [x, y] | null, pump, crouch }
@@ -266,7 +311,11 @@ export function stepRider(r, input, dt) {
   r.time += dt;
   r.crouch = !!input.crouch || !!r.tube;
   r.pumping = false;
-  if (r.mode === 'wipe') { r.wipeTimer -= dt; return; }
+  if (r.mode === 'wipe') {
+    r.wipeTimer -= dt; r.wipeAge += dt;
+    if (r.falls) stepFalls(r, dt);
+    return;
+  }
   if (r.mode === 'surf') stepSurf(r, input, dt);
   else stepAir(r, input, dt);
   for (const e of r.events) {

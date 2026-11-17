@@ -77,7 +77,9 @@ export function createPose() {
 // info: { n (surface normal or up), e2 (up the face), turn (signed turn rate,
 // + = counterclockwise/left), pumping, crouch, input pump }
 export function surferObjects(pose, rider, info, dt) {
-  if (rider.mode === 'wipe' && rider.wipeTimer < 1.9) return [];
+  // Gone under once the tumble's started (riding the lip over the falls you
+  // stay in view the whole way down).
+  if (rider.mode === 'wipe' && !rider.falls && rider.wipeAge > 0.3) return [];
   const p = rider.pos;
   const f = rider.heading;
   const k = 1 - Math.exp(-dt * 12);
@@ -258,7 +260,7 @@ export function surferObjects(pose, rider, info, dt) {
 
   if (rider.mode === 'wipe') {
     // Tumble the whole figure around the rider.
-    const spin = (2.2 - rider.wipeTimer) * 12;
+    const spin = rider.falls ? rider.falls.time * 6 : rider.wipeAge * 12; // slower going over the falls
     const axis = v3.norm(L);
     for (const o of objs) {
       const m = o.model;

@@ -170,6 +170,7 @@ function handleEvents() {
       snapSpray = Math.max(snapSpray, spray);
       if (!quiet) flash(e.combo ? `${name}` : name, `${e.combo ? 'bottom turn combo  ' : ''}+${pts}`);
     }
+    if (e.type === 'fallsLand') burst = 0.3; // the lip lands with you in it
     if (e.type === 'wipe') {
       burst = 0.3;
       flash('WIPEOUT!', e.reason);
@@ -323,7 +324,7 @@ function updateCamera(dt) {
     camPos = want.slice(); camTarget = look.slice();
   }
   lastShot = shot;
-  const k = 1 - Math.exp(-dt * (rider.mode === 'wipe' ? 1.5 : shot === 'tube' ? 9 : 5)); // close behind in the barrel view
+  const k = 1 - Math.exp(-dt * (rider.falls ? 4 : rider.mode === 'wipe' ? 1.5 : shot === 'tube' ? 9 : 5)); // close behind in the barrel view
   for (let i = 0; i < 3; i++) { camPos[i] += (want[i] - camPos[i]) * k; camTarget[i] += (look[i] - camTarget[i]) * k; }
   // Smoothing must never carry the camera into the water.
   if (shot === 'tube' && insideWaterAt(camPos)) camPos = want.slice();
@@ -431,7 +432,7 @@ async function main() {
     updateCamera(dt);
     // Wiped out in the barrel: the washing machine, until you surface (it
     // fades out once the ride's over or you start again).
-    updateWasher(dt, rider.mode === 'wipe' && rider.washing && state !== 'over');
+    updateWasher(dt, rider.mode === 'wipe' && rider.washing && !rider.falls && state !== 'over');
     const proj = perspective(aspect < 1 ? 1.15 : 0.95, aspect, 0.1, 4000);
     const view = lookAt(camPos, camTarget, [0, 1, 0]);
     const vp = mul(proj, view);

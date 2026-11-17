@@ -205,7 +205,13 @@ button).
     to pop out the back of the wave there.
     **Washing machine:** wipe out in the barrel (pinched, too high, too low, caught in the lip) and
     `r.washing` is set: a longer hold-down (3.2s) and the screen goes to a churning white foam ball
-    (`src/washer.js`, a 2D canvas `#foam` over the game), fading out as the score card comes up. It tips down toward you so you sit a little above the middle of the frame.
+    (`src/washer.js`, a 2D canvas `#foam` over the game), fading out as the score card comes up.
+    Caught up top (too high in the barrel, into the roof, or caught in the lip pulling in) you first
+    go **over the falls** (`r.falls`, `startFalls`/`stepFalls` in rider.js): sucked up the face, round
+    under the roof and out to the lip tip (`FALLS_UP`, 0.5s), then carried with the tip as it throws
+    out and down until it lands near the trough (following the tip back along `xs` is following that
+    water in time), tumbling slowly. The camera cuts to the channel view to watch; the washing
+    machine starts when the lip lands (`fallsLand`, with a splash). It tips down toward you so you sit a little above the middle of the frame.
     Coming out it eases back down to right behind you (`tubeBlend`). It never snaps or jumps
     between distances (earlier versions did, and hopped around out on the flats). Mist particles
     fade near the camera-to-surfer sightline (shaders.js) so spray never covers the surfer. Reef shape is `KF_PIPE`
