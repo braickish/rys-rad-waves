@@ -254,6 +254,15 @@ button).
 - **Cylinder wave (tried and dropped, 2026-11-17):** shapes generated from one growing cylinder along the whole
   wave (behind `?cyl`). Smooth from inside the tube, but the user found it wasn't good overall; removed. Next:
   wave shapes from real 2D breaking-wave simulations (see research/wave-sim).
+- **Simulated reef (`?sim`, SIM=1 in node; 2026-11-17, experimental):** the reef's building, standing,
+  pitching and full-barrel keyframes come from a 2D BEM simulation of a 4 m solitary wave over the Pipeline
+  reef profile (~/workspace/research/wave-sim, run pipe_a4, frames 24.6/25.7/26.5/27.0 s), converted by
+  `sim_to_keyframes.py` there into `src/waves/sim-pipe.js` (regenerate, don't hand-edit). Points sit on
+  landmarks (crest, lip tip) with the inside spaced evenly from the tip to the knee of the face (pinning the
+  roof made a corner; uneven spacing made a notch). The lip is extrapolated ~0.12 s on to touchdown at sea
+  level; the closing tube is the full tube at 78%. Scores better than the current reef on steepness,
+  concave and corners, but the tube is a lower wedge under a long sloping lip, and tube riding (tuned for
+  the round tube) pinches the S-turn riders in test/tube.mjs; not retuned yet.
 - **Texture on the flats:** the ripples carry on out across the flats in front of the wave (`flatsReach` in
   shaders.js), fading over ~50 m, instead of stopping at the bottom.
 - 2026-11-17: the project was rolled back to the surfboard commit (a3cc07a) after later reef work broke the
