@@ -575,7 +575,7 @@ function stepSurf(r, input, dt) {
   // Turning is damped in the barrel, more the deeper you are (`tubeTurnDamp` at
   // full damping, reached by about 70% depth): subtle adjustments rather than
   // the full carves of the open face. Eases in and back out.
-  const dampT = r.tube ? sstep(0, 0.7, tdep) : 0;
+  const dampT = r.tube ? sstep(0, 0.5, tdep) : 0;
   r.tubeDamp += (dampT - r.tubeDamp) * (1 - Math.exp(-dt * 3));
   if (r.assist) { r.slide = 0; r.snapGrip = false; } // an assisted pivot takes the board over
   else if (!r.slash && !r.lipSnap && r.slide > 0) {
@@ -706,7 +706,11 @@ function stepSurf(r, input, dt) {
   // trimming level drifts you up, so you hold your line pointing a little down.
   let faceLift = (T.faceFlow || 0) * steep * pkSpeed; // (carries as far out as the pocket's speed)
   if (r.tube && (r.slide > 0 || (r.slash && r.slash.released))) faceLift *= T.slashTube.lift; // a barrel slash digs in against the water rushing up
-  r.t -= ((r.speed * sinp + faceLift) * dt) / Math.max(0.3, Math.hypot(f.Pt[1], f.Pt[2]));
+  let rise = r.speed * sinp + faceLift;
+  // In the barrel, heading up the face is slowed (`tubeClimbDamp`, more the deeper you are) so a turn
+  // up the wall doesn't suck you up into the roof; dropping down isn't.
+  if (r.tube && rise > 0) rise *= 1 - (T.tubeClimbDamp || 0) * (0.65 + 0.35 * r.tubeDamp);
+  r.t -= (rise * dt) / Math.max(0.3, Math.hypot(f.Pt[1], f.Pt[2]));
   r.t = Math.min(r.t, T.tFlats); // ride out onto the flats in front if you don't turn back up
   if (r.lipSnap) r.t += (r.lipSnap.t - r.t) * (1 - Math.exp(-dt * 12)); // the snap holds you just under the lip
 

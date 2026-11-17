@@ -205,10 +205,13 @@ button).
     counts), within `slashDropRecent` 1.6 s, from up to `slashLow` 0.45, with `slashWindow` 0.2 s and only
     `slashClimb` 0.15 nose-up. A drop / bottom turn / Right in the tube from mid-face now slashes 14/16 of
     the timings tried (9/16 before); little S-turns still never slash.
-    **Turn damping in the barrel** (2026-11-17, the user's request): turn rate is scaled by
-    `1 - tubeTurnDamp * r.tubeDamp`; `r.tubeDamp` eases toward depth (full by ~70%) and back out, so
-    turns get gradually subtler the deeper you are (`tubeTurnDamp` 0.45 on the reef: a 0.25 s held turn
-    is 55 -> 30 deg at half depth). The open face is unaffected.
+    **Turn damping in the barrel** (2026-11-17, the user's request, then more): turn rate is scaled by
+    `1 - tubeTurnDamp * r.tubeDamp`; `r.tubeDamp` eases toward depth (full by ~50%) and back out, so
+    turns get gradually subtler the deeper you are (`tubeTurnDamp` 0.6 on the reef; was 0.45, full by 70%).
+    **Climbing in the barrel is slowed** (`tubeClimbDamp` 0.45): while your line rises (board speed up the
+    face plus `faceFlow`), the rise is cut by 30% going in, up to 45% deep, so turning up the wall doesn't
+    suck you into the roof (holding a turn up deep in: +0.2 m in 1 s instead of +3.2 m). The open face is
+    unaffected.
     In the tube: past `tubeCollapse` = pinched; driving straight into the
     roof (steeper than `roofCrash`) = over the falls. On the reef the water rushes up the face
     (`faceFlow`, scaled by steepness and pocket power): riding level drifts you up, you hold your line
