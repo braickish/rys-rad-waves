@@ -84,7 +84,7 @@ const reef = {
     tubeCollapse: 1.3, // past this you are pinched: where the lip lands on the trough and the tube closes
     tubeLow: 0.6,
     tubeDrive: 4.5, // in the barrel, trimming flat or down the line adds this much acceleration (m/s^2) ...
-    tubeLeanOver: 0.3, tubeLeanDrive: 0.75, // really deep, leaning onto the front foot: up to this much faster (m/s, ~0.7 mph) and more push (halved 2026-11-17, the user)
+    tubeLeanOver: 0.45, tubeLeanDrive: 1.1, // really deep, leaning onto the front foot: up to this much faster (m/s, ~1 mph) and more push (the user: halved from 0.6/1.5, then up a bit to here, 2026-11-17)
     tubeTurnDamp: 0.6, // in the barrel turning is damped, up to this much (60% slower turns) by about half depth (rider.js r.tubeDamp; was 0.45 by 70%)
     tubeClimbDamp: 0.45, // ... and heading up the face is slowed by up to this much (30% going in, 45% deep), so a turn up doesn't suck you into the roof
     tubeTrimOver: 0.25, // ... up to this much faster than the wave peels (m/s): 24 mph here ...
