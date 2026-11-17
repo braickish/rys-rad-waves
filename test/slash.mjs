@@ -54,7 +54,7 @@ for (const wave of ['point', 'reef']) {
   useWave(wave);
   let any = 0;
   console.log(`${wave}: Right when the nose is up 20 / 35 / 50 / 70 deg`);
-  for (const leftAt of [0.2, 0.4, 0.6, 0.8]) {
+  for (const leftAt of wave === 'reef' ? [0.4, 0.8, 1.2, 1.6] : [0.2, 0.4, 0.6, 0.8]) { // (the reef's drop is longer: it's a bigger wave)
     const row = [];
     for (const upDeg of [20, 35, 50, 70]) {
       const r = createRider(); resetRider(r);

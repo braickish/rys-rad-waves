@@ -188,6 +188,12 @@ button).
     85%) `r.frontLean` builds slowly: hips and chest shift toward the nose, and it adds a slight push
     (`tubeLeanDrive` 0.75) and lets you trim slightly faster (`tubeLeanOver`, 0.3 m/s; both halved from 1.5/0.6 at the user's request), so deep in you creep
     forward a little (~0.35 m/s over the peel at 70% depth, vs 0.25 without the lean).
+    **Slashes in the barrel are easier to start** (2026-11-17, the user): `slashTube` carries gentler gates
+    used only in the tube: a smaller, shallower drop counts (`slashDropAngle` 0.35, below `slashDropLow` 0.45,
+    tracked as `r.tubeDropTime`, which is recorded outside the tube too so a drop just before you go in
+    counts), within `slashDropRecent` 1.6 s, from up to `slashLow` 0.45, with `slashWindow` 0.2 s and only
+    `slashClimb` 0.15 nose-up. A drop / bottom turn / Right in the tube from mid-face now slashes 14/16 of
+    the timings tried (9/16 before); little S-turns still never slash.
     **Turn damping in the barrel** (2026-11-17, the user's request): turn rate is scaled by
     `1 - tubeTurnDamp * r.tubeDamp`; `r.tubeDamp` eases toward depth (full by ~70%) and back out, so
     turns get gradually subtler the deeper you are (`tubeTurnDamp` 0.45 on the reef: a 0.25 s held turn
@@ -275,7 +281,10 @@ button).
 - **Cylinder wave (tried and dropped, 2026-11-17):** shapes generated from one growing cylinder along the whole
   wave (behind `?cyl`). Smooth from inside the tube, but the user found it wasn't good overall; removed. Next:
   wave shapes from real 2D breaking-wave simulations (see research/wave-sim).
-- **Simulated reef (`?sim`, SIM=1 in node; 2026-11-17, experimental):** the reef's building, standing,
+- **The reef is the simulated one at 1.2x by default (2026-11-17, the user's pick).** `?classic` (CLASSIC=1 in
+  node) brings back the hand-built `KF_PIPE` shapes at their old size; `?sim` is now ignored, and `SIZE`/`?size`
+  is absolute (1.2 = the default). Tests run on the new default. History of the sim shapes:
+- **Simulated reef (originally behind `?sim`; 2026-11-17):** the reef's building, standing,
   pitching and full-barrel keyframes come from a 2D BEM simulation of a 4 m solitary wave over the Pipeline
   reef profile (~/workspace/research/wave-sim, run pipe_a4, frames 24.6/25.7/26.5/27.0 s), converted by
   `sim_to_keyframes.py` there into `src/waves/sim-pipe.js` (regenerate, don't hand-edit). Points sit on

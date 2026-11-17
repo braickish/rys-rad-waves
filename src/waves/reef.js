@@ -2,17 +2,20 @@
 // balance) in the barrel; the whitewater behind it is a closing tube.
 import { KF_PIPE, sstep } from './shapes.js';
 import { KF_SIM } from './sim-pipe.js';
-// `?sim` (or SIM=1 in node): shapes from the 2D breaking-wave simulation (sim-pipe.js), for comparison.
-export const USE_SIM = typeof location !== 'undefined' ? /[?&]sim(&|=|$)/.test(location.search) : !!(globalThis.process && process.env.SIM);
+// The reef's shapes come from the 2D breaking-wave simulation (sim-pipe.js), at 1.2x size (the
+// user's pick, 2026-11-17). `?classic` (or CLASSIC=1 in node) brings back the earlier hand-built
+// shapes (KF_PIPE) at their old size, for comparison. (`?sim` used to switch the sim shapes on; it's
+// the default now and is ignored.)
+export const USE_SIM = typeof location !== 'undefined' ? !/[?&]classic(&|=|$)/.test(location.search) : !(globalThis.process && process.env.CLASSIC);
 import point from './point.js';
-// `?size=1.75` (or SIZE=1.75 in node): the whole reef wave this many times bigger, for trying
+// `?size=1.75` (or SIZE=1.75 in node): the whole reef wave this many times bigger than its base, for trying
 // out sizes: its cross-section, its length along the wave (phase lengths, pocket, curl zone,
 // whitewater, where you drop in) and its peel speed by sqrt(size), like a bigger set wave.
 // Everything about getting caught in the barrel goes by place along the curve, phase and
 // real height in the tube, so it scales with it.
 const SIZE_K = (() => {
   const v = typeof location !== 'undefined' ? new URLSearchParams(location.search).get('size') : globalThis.process && process.env.SIZE;
-  const k = Number(v); return k > 0.2 && k < 5 ? k : 1;
+  const k = Number(v); return k > 0.2 && k < 5 ? k : USE_SIM ? 1.2 : 1; // (default: 1.2x for the sim shapes)
 })();
 
 const reef = {

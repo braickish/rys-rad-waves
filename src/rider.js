@@ -93,7 +93,10 @@ const RIDER_TUNE = {
   slashDrag: 3.2, // while the board is sideways it scrubs speed (1/s, at fully sideways), so you don't carry on up as far and stay nearer the pocket
   // In the barrel a slash is a smaller, scrubbier slide: it turns about half as
   // far and scrubs harder (these override the settings above in the tube).
-  slashTube: { slashSpin: 4, slashSlideMax: 0.35, slashFollow: 0.4, slashCarve: 0.3, slashDrag: 7.0, scrub: 0.35, lift: 0.35 }, // (scrub: up-front speed cost in the barrel; lift: the water lifts you only this much while the board is sideways, it digs in)
+  slashTube: { slashSpin: 4, slashSlideMax: 0.35, slashFollow: 0.4, slashCarve: 0.3, slashDrag: 7.0, scrub: 0.35, lift: 0.35,
+    // easier to start in the barrel (2026-11-17, the user): a smaller, shallower drop counts, from
+    // higher up, with longer to start the Right turn and less nose-up needed (turning's damped in there)
+    slashClimb: 0.15, slashLow: 0.45, slashDropLow: 0.45, slashDropAngle: 0.35, slashDropRecent: 1.6, slashWindow: 0.2 }, // (scrub: up-front speed cost in the barrel; lift: the water lifts you only this much while the board is sideways, it digs in)
   // Snap / off the lip / re-entry (turning away from the whitewater at the
   // lip): you stay on the lip, your line running along it, while the fins
   // release and the board swings round in place, scrubbing speed; then the
@@ -485,10 +488,11 @@ function stepSurf(r, input, dt) {
   // nothing is added to your speed.
   r.rightHeld = steer < 0 ? r.rightHeld + dt : 0;
   const inTube = !!r.tube;
-  if (!r.slash && !r.slide && !r.lipSnap && steer < 0 && r.rightHeld <= T.slashWindow && r.moveCooldown === 0 && !r.assist && !r.floater && !r.fakie
-    && r.speed > T.slashMinSpeed && height < T.slashLow
-    && r.time - (r.steepDropTime ?? -9) < T.slashDropRecent // a real bottom turn, not a little turn in the pocket
-    && Math.sin(r.phi) > T.slashClimb && Math.cos(r.phi) > -0.5 // on the way up (not cutting back along the wave)
+  const SG = (key) => (inTube && T.slashTube[key] !== undefined ? T.slashTube[key] : T[key]); // (gentler gates in the barrel)
+  if (!r.slash && !r.slide && !r.lipSnap && steer < 0 && r.rightHeld <= SG('slashWindow') && r.moveCooldown === 0 && !r.assist && !r.floater && !r.fakie
+    && r.speed > T.slashMinSpeed && height < SG('slashLow')
+    && r.time - ((inTube ? r.tubeDropTime : r.steepDropTime) ?? -9) < SG('slashDropRecent') // a real bottom turn, not a little turn in the pocket
+    && Math.sin(r.phi) > SG('slashClimb') && Math.cos(r.phi) > -0.5 // on the way up (not cutting back along the wave)
     && (inTube || (pk > T.slashPocket && foam < 0.3))) {
     // Armed: the fins hold for a moment (an ordinary carve), then release.
     r.slash = { time: 0, released: false, tube: !!inTube };
@@ -621,6 +625,7 @@ function stepSurf(r, input, dt) {
   // Track bottom turns (for moves and combos): down low heading down, then up.
   if (sinBefore < -0.3 && height < 0.45) r.bottomArmed = true;
   if (sinBefore < -T.slashDropAngle && height < T.slashDropLow) r.steepDropTime = r.time; // (for the slash: came off the bottom pointing steeply down)
+  if (sinBefore < -T.slashTube.slashDropAngle && height < T.slashTube.slashDropLow) r.tubeDropTime = r.time; // (the barrel's gentler version, used for slashes in the tube: the drop can come just before you're in)
   if (r.bottomArmed && Math.sin(r.phi) > 0.3) {
     r.bottomArmed = false;
     if (height < 0.6) { r.lastBottomTurn = r.time; r.events.push({ type: 'move', move: 'bottomTurn', speed: r.speed, xs: r.xs }); }
