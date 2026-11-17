@@ -182,8 +182,13 @@ button).
     picks you up once you're on the face or just below its base (`tubeEnterLow`). Scored by time x average depth. HUD: depth across, height up/down.
     Reef shape (`KF_PIPE`, reshaped 2026-11-16 after a reference photo of a heavy reef barrel in
     braickish/reference-images, pipe-example.jpg): a tall wall stands up well ahead of the curl
-    (`phase.ahead` 14), near vertical and slightly hollow before it pitches (no overhang until the
-    lip throws, so the rideable face is unchanged); the lip throws far out into a round tube about
+    (`phase.ahead` 14), steep but not hollow (no overhang until the lip throws). The face is steepest at the back of
+    the tube and gets gradually less steep all the way out to the shoulder (the user's spec, 2026-11-16: the near
+    vertical, slightly hollow wall that used to stand ahead of the curl made a ridge where the tube met the face).
+    In the wall keyframes points 8-12 sit close together on the upper face, where the lip will form, and an
+    in-between keyframe (s -0.07) has the lip just starting to pitch: the same points stay in the same roles
+    from keyframe to keyframe, so the face doesn't buckle into a ledge as the wall turns into the lip.
+    `node test/steepness.mjs` measures it; the lip throws far out into a round tube about
     as wide as it is tall, the lip a thin sheet (roof and curtain), landing well out in front. The roof sits right up under the outside of the lip (raised 2026-11-16: the user found the top, where it breaks, too thick), and the pitching lip throws out nearly level before it falls, so from the channel the tube opening reaches up close to the crest. A second pass (same day) raised it again and moved the pitching keyframe from phase 0.25 to 0.15 so the lip is thin sooner at the curl (lip ~1.1 m at the curl, ~0.15-0.3 m in the tube; don't push the roof higher at point 12 without checking the gap, since the spline there bulges up and touched the outside). The
     broken wave behind the closing tube lasts longer (`phase.behindFar` 22 m per phase past
     `farFrom` 1.3, eased in so there's no crease; the tube itself keeps `behind` 13, since
@@ -258,6 +263,7 @@ node test/controls.mjs # human-style inputs on both waves: no glitches, Up/Down 
 node test/pocket.mjs   # where different riding styles spend their time vs. the curl
 node test/slash.mjs    # the slash: when it fires (and doesn't), climb, speed scrub, slide, turn; point, reef, barrel
 node test/plot-slices.mjs out.svg [crumble|barrel]   # draw the wave cross-sections
+node test/steepness.mjs [reef|point]  # face angle along the wave at 25/50/70% height; flags spots that get steeper going out
 node test/drive.mjs test/out/<name> "<query>" <ms,...> ['<input json>']   # headless Chrome screenshots + console (test/out is git-ignored)
 MOBILE=1 node test/drive.mjs ...   # same, emulating a phone (390x844, touch)
 ```

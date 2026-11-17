@@ -41,10 +41,16 @@ export const KF_PIPE = [
   KF_BARREL[0],
   KF_BARREL[1],
   // Building: already a tall, steep wall ahead of the curl.
-  { s: -1.2, p: [[-40, 0], [-30, 0], [-9, 0.5], [-3.5, 2.2], [0, 3.3], [0.8, 3.32], [1.45, 3.18], [1.95, 2.9], [2.3, 2.5], [2.55, 2.05], [2.75, 1.6], [2.95, 1.15], [3.3, 0.65], [4.1, 0.1], [6.2, -0.3], [22, 0]] },
-  // The wall stands up: tall, near vertical and slightly hollow, the crest
-  // rounding over the top (no overhang yet, so the rideable face is unchanged).
-  { s: -0.25, p: [[-40, 0], [-30, 0], [-8, 0.45], [-3.0, 2.4], [0, 3.95], [0.9, 4.1], [1.6, 4.0], [2.1, 3.7], [2.4, 3.25], [2.5, 2.75], [2.45, 2.2], [2.35, 1.65], [2.35, 1.1], [2.6, 0.45], [3.6, -0.35], [22, 0]] },
+  { s: -1.2, p: [[-40, 0], [-30, 0], [-9, 0.5], [-3.5, 2.2], [0, 3.3], [0.8, 3.32], [1.45, 3.18], [1.95, 2.92], [2.24, 2.62], [2.4, 2.37], [2.52, 2.15], [2.62, 1.95], [2.76, 1.68], [3.7, 0.5], [6.2, -0.3], [22, 0]] },
+  // The wall stands up: tall and steep, the crest rounding over the top, no
+  // overhang yet. Points 8-12 sit close together on the upper face where the
+  // lip will form, so the face below is one smooth sweep and nothing has to
+  // fold over as it turns into the pitching lip (that left a ledge on the face).
+  { s: -0.25, p: [[-40, 0], [-30, 0], [-8, 0.45], [-3.0, 2.4], [0, 3.95], [0.9, 4.1], [1.6, 4.0], [2.0, 3.76], [2.22, 3.44], [2.31, 3.17], [2.36, 2.96], [2.39, 2.76], [2.46, 2.42], [2.85, 1.1], [4.4, -0.28], [22, 0]] },
+  // The lip just starting to pitch: a small overhang at the top, the face
+  // below it a smooth sweep (this keeps the face from buckling into a ledge
+  // as the wall turns into the pitching lip).
+  { s: -0.07, p: [[-40, 0], [-30, 0], [-8, 0.42], [-2.7, 2.5], [0, 4.05], [1.15, 4.28], [2.2, 4.15], [2.95, 3.72], [3.3, 3.12], [3.08, 2.98], [2.62, 3.12], [2.25, 3.1], [2.0, 2.72], [2.06, 1.25], [3.15, -0.5], [22, 0]] },
   // The lip pitches far out in front of the face.
   { s: 0.15, p: [[-40, 0], [-30, 0], [-8, 0.4], [-2.5, 2.6], [0, 4.1], [1.4, 4.42], [2.9, 4.38], [4.2, 4.05], [5.0, 3.45], [4.75, 3.4], [4.0, 3.87], [2.8, 4.12], [1.6, 3.85], [1.45, 1.4], [3.0, -0.6], [22, 0]] },
   // Full barrel: a round tube (about as wide as it is tall), the thin curtain
