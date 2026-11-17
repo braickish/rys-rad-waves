@@ -184,7 +184,7 @@ button).
     braickish/reference-images, pipe-example.jpg): a tall wall stands up well ahead of the curl
     (`phase.ahead` 14), near vertical and slightly hollow before it pitches (no overhang until the
     lip throws, so the rideable face is unchanged); the lip throws far out into a round tube about
-    as wide as it is tall, the lip a thin sheet (roof and curtain), landing well out in front. The roof sits right up under the outside of the lip (raised 2026-11-16: the user found the top, where it breaks, too thick), and the pitching lip throws out nearly level before it falls, so from the channel the tube opening reaches up close to the crest. The
+    as wide as it is tall, the lip a thin sheet (roof and curtain), landing well out in front. The roof sits right up under the outside of the lip (raised 2026-11-16: the user found the top, where it breaks, too thick), and the pitching lip throws out nearly level before it falls, so from the channel the tube opening reaches up close to the crest. A second pass (same day) raised it again and moved the pitching keyframe from phase 0.25 to 0.15 so the lip is thin sooner at the curl (lip ~1.1 m at the curl, ~0.15-0.3 m in the tube; don't push the roof higher at point 12 without checking the gap, since the spline there bulges up and touched the outside). The
     broken wave behind the closing tube lasts longer (`phase.behindFar` 22 m per phase past
     `farFrom` 1.3, eased in so there's no crease; the tube itself keeps `behind` 13, since
     stretching it changed how the barrel rides). Looks: the thrown lip white and frothy across
@@ -241,8 +241,8 @@ button).
   and ~3" tail lift; the user asked for more rocker). Shape, stance, fins and stringer live together in the
   board's entry; the stringer, fins and feet follow the rocker.
 - `src/shaders.js`: WGSL. Water (fresnel sky reflection, backlit translucency in the lip, flowing
-  ripple normals, foam; fine ripples up close plus a coarse, slanted, streaky layer (`coarseTex`) that fades
-  in with distance, so the wall seen from the channel or the riding camera has the same texture as inside the
+  ripple normals, foam; fine ripples up close, a mid-size chop, plus a coarse, slanted, streaky layer (`coarseTex`) that fades
+  in with distance, carrying on out across the flats in front of the wave (`flatsReach`, the user asked for it not to stop at the bottom), so the wall seen from the channel or the riding camera has the same texture as inside the
   tube; it used to look smooth and plastic from outside), sky, solid shading, and particles (compute-shader sim of 65k particles: lip
   feathering, whitewater mist, rail spray, barrel spit; drawn as soft billboards).
 - `src/renderer.js`: WebGPU setup and draw order. `src/main.js`: loop, input (keyboard + touch),

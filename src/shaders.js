@@ -143,8 +143,10 @@ fn coarseTex(q: vec2f, t: f32) -> f32 {
   let t1 = normalize(vec3f(1.0, 0.0, 0.0) - n * n.x);
   let t2 = cross(n, t1);
   let dist = length(F.camPos.xyz - i.wpos);
-  // Fine, subtle ripples, only on the sloped part of the wave (none on the flats).
-  let slope = smoothstep(0.03, 0.2, 1.0 - n.y);
+  // Ripples on the sloped part of the wave, carrying on out across the flats
+  // in front of it (weaker, fading out over ~50 m), not stopping at the bottom.
+  let flatsReach = smoothstep(-3.0, 3.0, i.wpos.z) * (1.0 - smoothstep(14.0, 60.0, i.wpos.z));
+  let slope = max(smoothstep(0.03, 0.2, 1.0 - n.y), 0.65 * flatsReach);
   let detail = 0.09 * exp(-dist * 0.03) * slope;
   // Coarser texture that still reads from out in the channel: ribs of water
   // drawn up the face (stretched along the flow), plus broad lumps. Up close
@@ -157,8 +159,15 @@ fn coarseTex(q: vec2f, t: f32) -> f32 {
   let ec = 0.05;
   let cgx = (coarseTex(qc + vec2f(ec, 0.0), t) - rib) / ec;
   let cgy = (coarseTex(qc + vec2f(0.0, ec), t) - rib) / ec;
-  let coarse = 0.26 * smoothstep(4.0, 14.0, dist) * exp(-dist * 0.008) * slope;
-  n = normalize(n - (t1 * (gx * detail + cgx * coarse * 1.3) + t2 * (gy * detail + cgy * coarse * 0.6)));
+  let coarse = 0.32 * smoothstep(4.0, 14.0, dist) * exp(-dist * 0.008) * slope;
+  // A mid-size chop between the two, so the wall from outside catches small
+  // glints like the inside does (fades in past the fine ripples, out far off).
+  let qm = vec2f(fx * 3.2 + fy * 0.8, fy * 2.2);
+  let m0 = ripple(qm, t);
+  let mgx = (ripple(qm + vec2f(e, 0.0), t) - m0) / e;
+  let mgy = (ripple(qm + vec2f(0.0, e), t) - m0) / e;
+  let mid = 0.05 * smoothstep(5.0, 12.0, dist) * exp(-dist * 0.02) * slope;
+  n = normalize(n - (t1 * (gx * detail + cgx * coarse * 1.3 + mgx * mid) + t2 * (gy * detail + cgy * coarse * 0.6 + mgy * mid)));
 
   let phase = i.attr.x;
   let foamAmt = i.attr.y;
@@ -176,7 +185,7 @@ fn coarseTex(q: vec2f, t: f32) -> f32 {
   let diff = max(dot(n, sun), 0.0);
   body *= 0.6 + 0.4 * diff;
   // The ribs also show as lighter and darker streaks of water up the face.
-  body *= 1.0 + (rib - 0.5) * 0.9 * slope * smoothstep(3.0, 12.0, dist);
+  body *= 1.0 + (rib - 0.5) * 1.1 * slope * smoothstep(3.0, 12.0, dist);
   // Light shining through thin water (the lip) glows green.
   let toward = max(dot(-v, sun), 0.0);
   let sss = vec3f(0.10, 0.66, 0.72) * thin * (0.35 + 1.6 * pow(toward, 2.5));
