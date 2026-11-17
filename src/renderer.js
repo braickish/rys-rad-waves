@@ -3,7 +3,7 @@
 
 import { skyWGSL, waterWGSL, solidWGSL, particleComputeWGSL, particleRenderWGSL } from './shaders.js';
 import { buildWaterTable, buildWaterIndices, slicePhases, WATER_XS, COLS, TABLE, buildLipTable, LIP, boxMesh, sphereMesh, boardMesh, cylinderMesh, BOARDS } from './mesh.js';
-import { SCALE } from './wave.js';
+import { SCALE, WAVE } from './wave.js';
 
 export const PARTICLES = 40960;
 // Cap the render resolution: a Retina laptop at full 2x is ~5M pixels (x4 MSAA);
@@ -61,7 +61,7 @@ export async function createRenderer(canvas) {
   const writeWaterInfo = () => {
     const b = new ArrayBuffer(32), u = new Uint32Array(b), f = new Float32Array(b);
     u[0] = COLS; u[1] = WATER_XS.length; u[2] = TABLE.rows;
-    f[4] = TABLE.sMin; f[5] = TABLE.sMax; f[6] = SCALE;
+    f[4] = TABLE.sMin; f[5] = TABLE.sMax; f[6] = SCALE; f[7] = WAVE.bend || 0;
     device.queue.writeBuffer(waterInfoBuf, 0, b);
   };
   writeWaterInfo();

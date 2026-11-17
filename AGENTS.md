@@ -189,7 +189,8 @@ button).
     `farFrom` 1.3, eased in so there's no crease; the tube itself keeps `behind` 13, since
     stretching it changed how the barrel rides). Looks: the thrown lip white and frothy across
     its whole outside (its glassy glow fades once it has thrown), feathering along the crest of the wall, light glowing through the
-    wall's upper part (`thin`), and an offshore spray plume blowing back off the crest (the wave's
+    lip as it pitches and a narrow turquoise band just under the crest of the wall ahead (`thin`; the user
+    wants the wall's glow less tall than the lip's, fading out quickly), and an offshore spray plume blowing back off the crest (the wave's
     `plume(s)`, particle kind 4, from the crest position in the lip table), and whitewater bursting up
     where the curtain lands (`lipImpact(s)`, blowing out toward shore, away from the tube). The reef drops you in
     at `startXs` (5 m) since the wall stands up further ahead. `test/plot-slices.mjs` draws the
@@ -221,6 +222,16 @@ button).
     (waves/shapes.js); `faceTop` lowers smoothly as the lip throws.
 - Heavy waves (`floaters: false, rebounds: false` in the wave's tune, e.g. the reef): hitting the
   whitewater or the lip next to it is a crash ("Over the falls"), not a floater or rebound.
+- **Shoulder bend** (`bend` in the wave, `bendZ(xs)` in wave.js, mirrored in the water shader; reef 0.15,
+  point 0): ahead of the curl the wave curves in toward the beach so from the tube you see the face sweep
+  round ahead. A hyperbola, smooth everywhere (a first version switched curvature on abruptly at the curl and
+  made a bump at the opening). Applied in `surface`/`slice`, so riding follows it. The water texture and the
+  flats band are measured without the bend.
+- **Texture on the flats:** the ripples carry on out across the flats in front of the wave (`flatsReach` in
+  shaders.js), fading over ~50 m, instead of stopping at the bottom.
+- 2026-11-17: the project was rolled back to the surfboard commit (a3cc07a) after later reef work broke the
+  waves; the glow band, the smooth bend and the flats texture were then re-applied one at a time. The water
+  still flows the original way (up the face, drifting with the peel).
 - `src/sea.js`: **sets and sections**, from the wave's `sea` settings. Each ride is the next wave of the
   set (`setWaveSize`: bigger waves peel a bit faster). Sections (`SECTIONS` in wave.js) are stretches
   ahead that break early for a while (fixed to the reef, so in the peel frame they move back toward

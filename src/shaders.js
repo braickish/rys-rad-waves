@@ -70,7 +70,7 @@ struct VO {
   @location(2) attr: vec3f,
 };
 // The water surface, built from the cross-section table (see mesh.js).
-struct WaterInfo { cols: u32, nx: u32, rows: u32, pad: u32, sMin: f32, sMax: f32, scale: f32, pad2: f32 };
+struct WaterInfo { cols: u32, nx: u32, rows: u32, pad: u32, sMin: f32, sMax: f32, scale: f32, bend: f32 };
 @group(0) @binding(1) var<uniform> W: WaterInfo;
 @group(0) @binding(2) var<storage, read> table: array<vec4f>;   // [z, y, foam, thin] per (row, col)
 @group(0) @binding(3) var<storage, read> slices: array<vec2f>;  // [xs, phase] per slice
@@ -81,12 +81,16 @@ fn tableAt(s: f32, j: u32) -> vec4f {
   let r1 = min(r0 + 1u, W.rows - 1u);
   return mix(table[r0 * W.cols + j], table[r1 * W.cols + j], f - floor(f));
 }
+// The shoulder curving in toward the beach (wave.js bendZ, BEND_SPAN 14).
+fn bendZ(xs: f32) -> f32 {
+  return W.bend * (sqrt(xs * xs + 196.0) + xs) * 0.5;
+}
 // Surface point for slice i, column j.
 fn surfacePoint(i: u32, j: u32) -> vec3f {
   let sl = slices[i];
   let e = tableAt(sl.y, j);
-  if (j == 0u || j == W.cols - 1u) { return vec3f(sl.x, 0.0, e.x); }
-  return vec3f(sl.x, e.y * W.scale, e.x * W.scale);
+  if (j == 0u || j == W.cols - 1u) { return vec3f(sl.x, 0.0, e.x + bendZ(sl.x)); }
+  return vec3f(sl.x, e.y * W.scale, e.x * W.scale + bendZ(sl.x));
 }
 
 @vertex fn vs(@builtin(vertex_index) vi: u32) -> VO {
@@ -143,8 +147,11 @@ fn coarseTex(q: vec2f, t: f32) -> f32 {
   let t1 = normalize(vec3f(1.0, 0.0, 0.0) - n * n.x);
   let t2 = cross(n, t1);
   let dist = length(F.camPos.xyz - i.wpos);
-  // Fine, subtle ripples, only on the sloped part of the wave (none on the flats).
-  let slope = smoothstep(0.03, 0.2, 1.0 - n.y);
+  // Ripples on the sloped part of the wave, carrying on out across the flats
+  // in front of it (weaker, fading out over ~50 m), not stopping at the bottom.
+  let zb = i.wpos.z - bendZ(i.wpos.x); // (measured without the shoulder's bend)
+  let flatsReach = smoothstep(-3.0, 3.0, zb) * (1.0 - smoothstep(14.0, 60.0, zb));
+  let slope = max(smoothstep(0.03, 0.2, 1.0 - n.y), 0.65 * flatsReach);
   let detail = 0.09 * exp(-dist * 0.03) * slope;
   // Coarser texture that still reads from out in the channel: ribs of water
   // drawn up the face (stretched along the flow), plus broad lumps. Up close
