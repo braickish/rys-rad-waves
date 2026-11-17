@@ -208,6 +208,9 @@ button).
     **Turn damping in the barrel** (2026-11-17, the user's request, then more): turn rate is scaled by
     `1 - tubeTurnDamp * r.tubeDamp`; `r.tubeDamp` eases toward depth (full by ~50%) and back out, so
     turns get gradually subtler the deeper you are (`tubeTurnDamp` 0.6 on the reef; was 0.45, full by 70%).
+    On the sim reef (`tubeReal`) it starts 1 m before the barrel's entry point (both in under the lip and
+    along the wave as the curl comes to you), reaching a quarter of full damping as you go in, then builds
+    with depth (the user asked for it to begin a little outside the tube).
     **Climbing in the barrel is slowed** (`tubeClimbDamp` 0.45): while your line rises (board speed up the
     face plus `faceFlow`), the rise is cut by 30% going in, up to 45% deep, so turning up the wall doesn't
     suck you into the roof (holding a turn up deep in: +0.2 m in 1 s instead of +3.2 m). The open face is

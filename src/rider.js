@@ -573,9 +573,23 @@ function stepSurf(r, input, dt) {
   const leanFT = r.tube ? sstep(0.4, 0.85, tdep) : 0;
   r.frontLean += (leanFT - r.frontLean) * (1 - Math.exp(-dt * (leanFT > r.frontLean ? 1.5 : 4)));
   // Turning is damped in the barrel, more the deeper you are (`tubeTurnDamp` at
-  // full damping, reached by about 70% depth): subtle adjustments rather than
-  // the full carves of the open face. Eases in and back out.
-  const dampT = r.tube ? sstep(0, 0.5, tdep) : 0;
+  // full damping, reached by about half depth): subtle adjustments rather than
+  // the full carves of the open face. Eases in and back out. On `tubeReal`
+  // waves it starts building 1 m before the barrel's entry point (where the
+  // lip has thrown), reaching a quarter of full damping as you go in.
+  let dampT = r.tube ? sstep(0, 0.5, tdep) : 0;
+  if (WAVE.tubeReal) {
+    if (r.tube) dampT = 0.25 + 0.75 * dampT;
+    else {
+      // within 1 m of the entry point both ways: in under the lip, and along the wave as the curl
+      // comes to you (phase.behind is metres per unit of phase behind the curl)
+      const ph = phaseAt(r.xs), along = 1 / WAVE.phase.behind;
+      if (ph > T.tubeEnter - along && ph < T.tubeCollapse) {
+        const inUnder = lipTipZ(r.xs) - r.pos[2]; // how far in under the lip (m; negative = out in front of it)
+        dampT = 0.25 * sstep(WAVE.tubeReal.enterIn - 1, WAVE.tubeReal.enterIn, inUnder) * sstep(T.tubeEnter - along, T.tubeEnter, ph);
+      }
+    }
+  }
   r.tubeDamp += (dampT - r.tubeDamp) * (1 - Math.exp(-dt * 3));
   if (r.assist) { r.slide = 0; r.snapGrip = false; } // an assisted pivot takes the board over
   else if (!r.slash && !r.lipSnap && r.slide > 0) {
