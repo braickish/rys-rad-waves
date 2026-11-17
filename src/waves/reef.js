@@ -1,13 +1,16 @@
 // Reef Barrel: a hollow right that throws a lip over into a tube. Crouch (or
 // balance) in the barrel; the whitewater behind it is a closing tube.
 import { KF_PIPE, sstep } from './shapes.js';
+import { KF_SIM } from './sim-pipe.js';
+// `?sim` (or SIM=1 in node): shapes from the 2D breaking-wave simulation (sim-pipe.js), for comparison.
+export const USE_SIM = typeof location !== 'undefined' ? /[?&]sim(&|=|$)/.test(location.search) : !!(globalThis.process && process.env.SIM);
 import point from './point.js';
 
 export default {
   id: 'reef',
   name: 'Reef Barrel',
   kind: 'barrel',
-  keyframes: KF_PIPE,
+  keyframes: USE_SIM ? KF_SIM : KF_PIPE,
   board: 'shortboard', // a 6'6" thruster with plenty of rocker for the steep, hollow face (mesh.js BOARDS)
   scale: 1.75, // much bigger than the point: a heavy, tall wave
   peelSpeed: 10.5, // peels fast: you have to race it (pointing up costs you more here)
