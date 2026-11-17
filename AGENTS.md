@@ -227,6 +227,12 @@ button).
   round ahead. A hyperbola, smooth everywhere (a first version switched curvature on abruptly at the curl and
   made a bump at the opening). Applied in `surface`/`slice`, so riding follows it. The water texture and the
   flats band are measured without the bend.
+- **No ridge at the tube's opening** (2026-11-17, the user's idea: push the curl/upper tube higher): in the
+  two wall keyframes (s -1.2 and -0.25) the points that become the lip (8-12) sit high on the upper face,
+  and the wall below them leans slightly out instead of being hollow. With them spread down the wall, they
+  dragged a fold across the rideable face as they peeled into the lip: the face just outside the opening
+  overhung (112 deg at 4.5 m up, vs 78 in the tube). Now it peaks at 83 and eases out to the shoulder.
+  `node test/steepness.mjs` measures it.
 - **Texture on the flats:** the ripples carry on out across the flats in front of the wave (`flatsReach` in
   shaders.js), fading over ~50 m, instead of stopping at the bottom.
 - 2026-11-17: the project was rolled back to the surfboard commit (a3cc07a) after later reef work broke the
@@ -269,6 +275,7 @@ node test/controls.mjs # human-style inputs on both waves: no glitches, Up/Down 
 node test/pocket.mjs   # where different riding styles spend their time vs. the curl
 node test/slash.mjs    # the slash: when it fires (and doesn't), climb, speed scrub, slide, turn; point, reef, barrel
 node test/plot-slices.mjs out.svg [crumble|barrel]   # draw the wave cross-sections
+node test/steepness.mjs  # reef face angle at fixed heights from the tube out to the shoulder
 node test/drive.mjs test/out/<name> "<query>" <ms,...> ['<input json>']   # headless Chrome screenshots + console (test/out is git-ignored)
 MOBILE=1 node test/drive.mjs ...   # same, emulating a phone (390x844, touch)
 ```
