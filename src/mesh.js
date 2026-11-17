@@ -59,6 +59,36 @@ export function buildWaterIndices() {
   return idx;
 }
 
+// Distance along the cross-section (scale 1) per (row, column), measured from
+// the front of the wave toward its back: the water texture flows along it
+// (from the flats into the wave, up the face and over into the lip).
+export function buildArcTable() {
+  const { rows, sMin, sMax } = TABLE;
+  const data = new Float32Array(rows * COLS);
+  const cp = new Float64Array(NP * 2), o = [0, 0];
+  const z = new Float64Array(COLS), y = new Float64Array(COLS);
+  for (let r = 0; r < rows; r++) {
+    const s = sMin + ((sMax - sMin) * r) / (rows - 1);
+    controlPoints(s, cp, 1);
+    for (let j = 1; j < COLS - 1; j++) { crPoint(cp, (j - 1) / PER_SEG, o); z[j] = o[0]; y[j] = o[1]; }
+    const k = r * COLS;
+    data[k + COLS - 2] = 0;
+    for (let j = COLS - 3; j >= 1; j--) data[k + j] = data[k + j + 1] + Math.hypot(z[j + 1] - z[j], y[j + 1] - y[j]);
+    // Where the lip has thrown, the water on its outside (and the back of the
+    // wave behind it) flows forward over the crest and out to the tip too, so
+    // the flow folds at the tip: both the roof and the outside run into it.
+    const w = !WAVE.tube ? 0 : Math.min(1, Math.max(0, (s + 0.3) / 0.5));
+    if (w > 0) {
+      const jt = 1 + Math.round(WAVE.lipT * PER_SEG), aTip = data[k + jt];
+      for (let j = 1; j < jt; j++) data[k + j] += w * 2 * (aTip - data[k + j]);
+    }
+    // the far ocean at each end (the shader draws those at FAR m, unscaled)
+    data[k + COLS - 1] = -(FAR / WAVE.scale - z[COLS - 2]);
+    data[k] = data[k + 1] + (1 - 2 * w) * (z[1] + FAR / WAVE.scale);
+  }
+  return data;
+}
+
 // Each slice's position and its phase right now: [xs, phase] pairs.
 export function slicePhases(out = new Float32Array(WATER_XS.length * 2)) {
   for (let i = 0; i < WATER_XS.length; i++) { out[i * 2] = WATER_XS[i]; out[i * 2 + 1] = phaseAt(WATER_XS[i]); }

@@ -197,6 +197,10 @@ button).
       the pitching lip from the wall: a notch/fold on the face part way out to the shoulder. Past the curl the
       usual blend stays: evenly blended there the lip paused at each keyframe and the opening lost its round top.
     - A mid-throw tube keyframe (s 0.45) keeps the lip tip on the arc of the tube.
+    - The shoulder curves in toward the beach ahead of the curl (`bend` in the wave, `bendZ(xs)` in wave.js,
+      mirrored in the water shader's `surfacePoint`; the reef uses 0.3, the point 0): from the tube you see
+      the face sweep round ahead of you instead of a straight wall, which took the last bump out of the
+      opening. It's applied in `surface`/`slice`, so riding follows the curved wave.
     - Tried and rejected: an extra keyframe as the lip starts to pitch (a hump and a sharp turn in the lip, the
       opening stopped being round). Keep the opening a round/oval arch.
     `node test/steepness.mjs` measures the face angle at fixed heights from the tube out to the shoulder; the lip throws far out into a round tube about
@@ -245,6 +249,11 @@ button).
   the curl; `phaseAt` raises the phase there). **Sections are currently off on both waves**
   (`sea.sections: false`); they didn't play well yet. Seeded (`seedSea`, `?seed=`); `?nosea` turns the
   sea off. Tests run without the sea.
+- **Water texture flow:** the ripples move along the cross-section, never along the wave: in from the flats,
+  up the face, over the top (`buildArcTable` in mesh.js, distance along the curve, binding 4; the shader's
+  `i.arc`). Where the lip has thrown, the flow folds at the tip, so the roof and the outside of the lip
+  (and the back of the wave) both run out into the lip. (It used to drift back along the wave with the peel,
+  which the user saw as water sliding back into the tube: waves don't do that.)
 - **Water rendering:** the GPU builds the surface every frame from a cross-section table (512 phases,
   built per wave in `buildWaterTable`) and each slice's current phase (`slicePhases`), so the wave can
   change over time. The spray emitter table is refreshed every frame too.

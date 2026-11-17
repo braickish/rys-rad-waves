@@ -2,8 +2,8 @@
 // particles (simulated in a compute shader, drawn as soft billboards).
 
 import { skyWGSL, waterWGSL, solidWGSL, particleComputeWGSL, particleRenderWGSL } from './shaders.js';
-import { buildWaterTable, buildWaterIndices, slicePhases, WATER_XS, COLS, TABLE, buildLipTable, LIP, boxMesh, sphereMesh, boardMesh, cylinderMesh, BOARDS } from './mesh.js';
-import { SCALE } from './wave.js';
+import { buildWaterTable, buildWaterIndices, slicePhases, WATER_XS, COLS, TABLE, buildLipTable, LIP, boxMesh, sphereMesh, boardMesh, cylinderMesh, BOARDS, buildArcTable } from './mesh.js';
+import { SCALE, WAVE } from './wave.js';
 
 export const PARTICLES = 40960;
 // Cap the render resolution: a Retina laptop at full 2x is ~5M pixels (x4 MSAA);
@@ -55,13 +55,14 @@ export async function createRenderer(canvas) {
   const waterIdx = buildWaterIndices();
   const waterIB = upload(waterIdx, GPUBufferUsage.INDEX);
   let waterTable = upload(buildWaterTable(), GPUBufferUsage.STORAGE);
+  let arcTable = upload(buildArcTable(), GPUBufferUsage.STORAGE);
   const slicePhaseData = slicePhases();
   const sliceBuf = upload(slicePhaseData, GPUBufferUsage.STORAGE);
   const waterInfoBuf = device.createBuffer({ size: 32, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
   const writeWaterInfo = () => {
     const b = new ArrayBuffer(32), u = new Uint32Array(b), f = new Float32Array(b);
     u[0] = COLS; u[1] = WATER_XS.length; u[2] = TABLE.rows;
-    f[4] = TABLE.sMin; f[5] = TABLE.sMax; f[6] = SCALE;
+    f[4] = TABLE.sMin; f[5] = TABLE.sMax; f[6] = SCALE; f[7] = WAVE.bend || 0;
     device.queue.writeBuffer(waterInfoBuf, 0, b);
   };
   writeWaterInfo();
@@ -170,6 +171,7 @@ export async function createRenderer(canvas) {
     { binding: 1, resource: { buffer: waterInfoBuf } },
     { binding: 2, resource: { buffer: waterTable } },
     { binding: 3, resource: { buffer: sliceBuf } },
+    { binding: 4, resource: { buffer: arcTable } },
   ]);
   let waterBG = makeWaterBG();
   const frameBG = device.createBindGroup({ layout: frameLayout, entries: [{ binding: 0, resource: { buffer: frameBuf } }] });
@@ -281,6 +283,8 @@ export async function createRenderer(canvas) {
   function rebuildWave() {
     waterTable.destroy();
     waterTable = upload(buildWaterTable(), GPUBufferUsage.STORAGE);
+    arcTable.destroy();
+    arcTable = upload(buildArcTable(), GPUBufferUsage.STORAGE);
     waterBG = makeWaterBG();
   }
 
