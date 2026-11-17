@@ -266,6 +266,10 @@ button).
   level; the closing tube is the full tube at 78%. Scores better than the current reef on steepness,
   concave and corners, but the tube is a lower wedge under a long sloping lip, and tube riding (tuned for
   the round tube) pinches the S-turn riders in test/tube.mjs; not retuned yet.
+  The barrel's lines on `?sim` (`tubeReal` in reef.js, `tubeLineT` in rider.js) are set by real height in the
+  tube, trough (`tBottom`) to roof, per phase: the roof line (`topOfFace`) at 92% and over the falls above 80%.
+  The t-based ones (`faceTop` 11.9, `tubeFallHeight` 0.62) assume the normal reef's point layout; on the sim
+  layout they put the roof half way down the back wall and caught you at ~20% of the tube's height.
 - **Texture on the flats:** the ripples carry on out across the flats in front of the wave (`flatsReach` in
   shaders.js), fading over ~50 m, instead of stopping at the bottom.
 - 2026-11-17: the project was rolled back to the surfboard commit (a3cc07a) after later reef work broke the

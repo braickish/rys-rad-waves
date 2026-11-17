@@ -41,6 +41,11 @@ export default {
   pocket: (xs) => (xs >= 0 ? Math.exp(-((xs / 6) ** 2)) : sstep(-13, -9, xs)),
   // Once the lip has thrown, the face you can ride tops out under the roof.
   faceTop: (s) => 5.3 + (11.9 - 5.3) * sstep(-0.3, 0.2, s), // lowers smoothly as the lip throws
+  // ?sim: the curve's points sit differently (t 11.9 is half way down the back wall there), so the
+  // barrel's lines are set by real height in the tube instead (rider.js tubeLineT): the roof line at
+  // 92% of the way from the trough to the roof (where 11.9 sits on the normal reef), and over the falls
+  // above 80% (looser than the normal reef; t-based, its 0.62 caught you at ~20% of the height here).
+  tubeReal: USE_SIM ? { top: 0.92, fall: 0.8 } : null,
   tube: true,
   // Spray blowing back off the crest: along the tall wall ahead and over the barrel.
   plume: (s) => sstep(-1.3, -0.5, s) * (1 - sstep(1.1, 1.7, s)),

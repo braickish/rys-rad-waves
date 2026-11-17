@@ -21,7 +21,7 @@
 //  - Turning back into the whitewater, high, turning as you hit: rebound.
 //    Sit in the foam too long and it takes you.
 
-import { surface, slice, phaseAt, verticalHits, segmentHit, PEEL_SPEED, WAVE_SPEED, NP, WAVE, setWave, SCALE } from './wave.js';
+import { surface, slice, phaseAt, verticalHits, segmentHit, PEEL_SPEED, WAVE_SPEED, NP, WAVE, setWave, SCALE, controlPoints, crPoint } from './wave.js';
 
 export const G = 9.8;
 // The rider's and board's settings. Wave-specific settings (pocket speeds,
@@ -210,7 +210,37 @@ function climbingFoam(r) {
 
 // Where the rideable face tops out at xs (the barrel's roof starts earlier).
 function topOfFace(xs) {
-  return WAVE.faceTop(phaseAt(xs));
+  const s = phaseAt(xs);
+  if (!WAVE.tubeReal) return WAVE.faceTop(s);
+  // Waves with `tubeReal` (the ?sim reef) put the roof line at a real height
+  // in the tube instead of a fixed place along the curve: the roof's place
+  // along the curve moves as the tube forms there.
+  return WAVE.faceTop(s) + (tubeLineT(s, WAVE.tubeReal.top) - WAVE.faceTop(s)) * sstep(-0.3, 0.2, s);
+}
+
+// The place along the curve (t) on the back wall of the tube at `frac` of the
+// tube's real height (trough at tBottom to the roof), for phase s. Tabled per
+// wave, at size 1 (the shape doesn't depend on the wave's size).
+let lineTable = null;
+function tubeLineT(s, frac) {
+  if (!lineTable || lineTable.wave !== WAVE) lineTable = { wave: WAVE, rows: new Map() };
+  let row = lineTable.rows.get(frac);
+  if (!row) {
+    row = [];
+    const cp = new Float64Array(NP * 2), o = [0, 0];
+    const yAt = (t) => crPoint(cp, t, o)[1];
+    for (let i = 0; i <= 160; i++) {
+      controlPoints(-0.4 + i * 0.02, cp, 1);
+      let tip = 7, zt = -1e9; for (let t = 6; t <= 10.5; t += 0.01) { const z = crPoint(cp, t, o)[0]; if (z > zt) { zt = z; tip = t; } }
+      let roofT = tip, roofY = -1e9; for (let t = tip; t <= TUNE.tBottom; t += 0.01) { const y = yAt(t); if (y > roofY) { roofY = y; roofT = t; } }
+      const want = yAt(TUNE.tBottom) + frac * (roofY - yAt(TUNE.tBottom));
+      let line = TUNE.tBottom; for (let t = roofT; t <= TUNE.tBottom; t += 0.01) if (yAt(t) <= want) { line = t; break; }
+      row.push(line);
+    }
+    lineTable.rows.set(frac, row);
+  }
+  const u = clamp((s + 0.4) / 0.02, 0, 160), i = Math.min(159, Math.floor(u));
+  return row[i] + (row[i + 1] - row[i]) * (u - i);
 }
 
 export function createRider() {
@@ -925,7 +955,8 @@ function checkHazards(r, dt) {
   tb.depthSum += depth * dt;
   if (ph > T.tubeCollapse) { wipe(r, 'Pinched! (too deep: drop down and drive forward)'); r.tube = null; return; }
   // Up in the top of the barrel the lip grabs you and throws you over.
-  if (r.height > T.tubeFallHeight) { wipe(r, 'Over the falls! (too high in the barrel)'); r.tube = null; return; }
+  const tooHigh = WAVE.tubeReal ? r.t < tubeLineT(ph, WAVE.tubeReal.fall) : r.height > T.tubeFallHeight;
+  if (tooHigh) { wipe(r, 'Over the falls! (too high in the barrel)'); r.tube = null; return; }
   if (r.t > T.tBottom + T.tubeLow) { wipe(r, 'The lip landed on you! (too low)'); r.tube = null; return; }
   if (ph < T.tubeExit) {
     r.events.push({ type: 'barrelExit', time: tb.time, depth: tb.depth, avgDepth: tb.depthSum / Math.max(tb.time, 1e-3) });
