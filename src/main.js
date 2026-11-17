@@ -263,10 +263,11 @@ function updateCamera(dt) {
     const eye = [p[0], p[1] + 0.9, p[2]];
     let w = [p[0] - 7, p[1] + 1.4, p[2] + 0.3];
     if (tubeBlend > 0.01) {
-      // Pinned deep inside the tube, up toward the top. If the view to the
-      // surfer is blocked it comes closer along the inside of the tube
-      // (camBack eases, so it never jumps), never out of it.
-      const c = tubeCenter(p[0] - camBack, Infinity);
+      // Pinned deep inside the tube, at the most open spot near the surfer's
+      // height (high up near the roof was tried and looked wrong). If the
+      // view to the surfer is blocked it comes closer along the inside of
+      // the tube (camBack eases, so it never jumps), never out of it.
+      const c = tubeCenter(p[0] - camBack, p[1] + 0.8);
       const spot = c && [p[0] - camBack, c.y, c.z];
       const ok = spot && clearView(spot, eye);
       camBackWant = ok ? Math.min(7, camBackWant + dt * 1.5) : Math.max(2.5, camBackWant - dt * 6);
