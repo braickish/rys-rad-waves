@@ -174,6 +174,13 @@ button).
     user's call: turning high near the curl swung the board level, pulled you down to a set line and
     stalled you until the curl passed, which read as the board being redirected as "in the barrel" came
     on. Without it, normal surfing tends to outrun the barrel: you get in by slowing down near the curl.)
+    **Barrel stance** (2026-11-17, the user's request, after barrel-stance.jpg in braickish/reference-images):
+    `r.barrelCrouch` builds with depth in the tube (a compact crouch going in, the full stance by about
+    half depth: back knee dropped toward the deck, hips low, chest folded over the front thigh, hands low by
+    the knees, head up looking down the line; surfer.js `bc`/`deep`). Really deep (past ~40% depth, full by
+    85%) `r.frontLean` builds slowly: hips and chest shift toward the nose, and it adds a slight push
+    (`tubeLeanDrive`) and lets you trim slightly faster (`tubeLeanOver`, 0.6 m/s), so deep in you creep
+    forward a little (~0.6 m/s over the peel at 70% depth, vs 0.25).
     In the tube: past `tubeCollapse` = pinched; driving straight into the
     roof (steeper than `roofCrash`) = over the falls. On the reef the water rushes up the face
     (`faceFlow`, scaled by steepness and pocket power): riding level drifts you up, you hold your line

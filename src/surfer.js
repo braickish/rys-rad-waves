@@ -100,6 +100,8 @@ export function createPose() {
 
 // info: { n (surface normal or up), e2 (up the face), turn (signed turn rate,
 // + = counterclockwise/left), pumping, crouch, input pump }
+const sstepS = (a, b, x) => { const u = Math.min(1, Math.max(0, (x - a) / (b - a))); return u * u * (3 - 2 * u); };
+
 export function surferObjects(pose, rider, info, dt) {
   // Gone under once the tumble's started (riding the lip over the falls you
   // stay in view the whole way down).
@@ -120,6 +122,14 @@ export function surferObjects(pose, rider, info, dt) {
   // started pointing down) always gets well up on the rail.
   const committed = Math.max(rider.hard || 0, rider.bottomCarve ? 1 : 0);
   const rh = rider.mode === 'surf' ? rider.crouchDepth || 0 : 0; // roundhouse depth
+  // In the barrel (rider.js): bc builds from a compact crouch going in to the
+  // full barrel stance deep in (`deep`, like the barrel-stance reference: back
+  // knee down toward the deck, chest over the front thigh, hands low by the
+  // knees, head up looking down the line); fl, really deep, a slight lean
+  // onto the front foot.
+  const bc = rider.mode === 'surf' ? rider.barrelCrouch || 0 : 0;
+  const inB = clamp(bc / 0.3, 0, 1), deep = sstepS(0.3, 1, bc);
+  const fl = rider.mode === 'surf' ? rider.frontLean || 0 : 0;
   let rollT = rider.mode === 'surf'
     ? clamp(info.turn * 0.17 * clamp(speed0 / 5, 0.85, 1.4) * (1 + 0.35 * committed), -MAX_ROLL, MAX_ROLL)
     : 0;
@@ -140,7 +150,9 @@ export function surferObjects(pose, rider, info, dt) {
   const vUp = v3.dot(rider.vel, info.e2);
   let kneeT = 0.25 + 0.45 * turnAmt + 0.15 * clamp(vUp / 3, 0, 1) + 0.2 * (rider.hard || 0);
   if (info.pump) kneeT = vUp > 0.3 ? 0.75 : 0.05; // compress going up, extend driving down
-  if (rider.crouch) kneeT = rider.tube ? 0.42 : 0.85; // in the tube: a compact, athletic crouch, not squatting
+  if (rider.crouch && !rider.tube) kneeT = 0.85;
+  // In the tube: a compact, athletic crouch going in, right down deep in the barrel.
+  if (bc > 0.01) kneeT = Math.max(kneeT, inB * (0.42 + 0.58 * deep));
   if (rider.mode === 'air') kneeT = 0.7;
   // Going over the falls (off the board): curled up in a ball, knees to chest.
   const tuck = rider.falls ? clamp(rider.falls.time / 0.3, 0, 1) : 0;
@@ -186,10 +198,12 @@ export function surferObjects(pose, rider, info, dt) {
   let frontFoot = add(B, v3.mul(f, STANCE[1]), v3.mul(u, bs.rocker(STANCE[1] / bs.half)));
   const mid = (STANCE[0] + STANCE[1]) / 2;
   // Hips drop and slide back over the heels as the knees bend.
-  const hipH = (0.92 - 0.44 * knee) * (1 - 0.4 * tuck);
-  const hip = add(B, v3.mul(f, mid), v3.mul(bodyUp, hipH), v3.mul(chest, -0.12 * knee));
+  // (deep in the barrel the hips sink further, and leaning onto the front foot moves them forward)
+  const hipH = (0.92 - 0.44 * knee - 0.1 * deep) * (1 - 0.4 * tuck);
+  const hip = add(B, v3.mul(f, mid + 0.1 * fl), v3.mul(bodyUp, hipH), v3.mul(chest, -0.12 * knee));
   const hipBack = add(hip, v3.mul(f, -0.12)), hipFront = add(hip, v3.mul(f, 0.12));
-  const kneePole = (s) => add(chest, v3.mul(f, 0.15 * s), v3.mul(bodyUp, 0.2));
+  // (deep in the barrel the back knee drops in toward the deck, pointing at the front foot)
+  const kneePole = (s) => add(chest, v3.mul(f, 0.15 * s + (s < 0 ? 0.55 * deep : 0)), v3.mul(bodyUp, 0.2 - (s < 0 ? 0.35 * deep : 0)));
   if (tuck > 0) {
     // feet pulled in under the hips, in front, heels to the backside
     const tf = (sgn) => add(hip, v3.mul(bodyUp, -0.18), v3.mul(chest, 0.22), v3.mul(f, 0.1 * sgn));
@@ -200,10 +214,11 @@ export function surferObjects(pose, rider, info, dt) {
   const legF = ik(hipFront, frontFoot, THIGH, SHIN, kneePole(1));
 
   // Torso leans forward (toward the chest side) as you crouch.
-  const torsoDir0 = v3.norm(add(bodyUp, v3.mul(chest, 0.1 + 0.6 * knee + (rider.tube ? 0.35 : 0)))); // leaning into the tube
+  const torsoDir0 = v3.norm(add(bodyUp, v3.mul(chest, 0.1 + 0.6 * knee + 0.35 * inB + 0.45 * deep), v3.mul(f, 0.1 * deep + 0.22 * fl))); // leaning into the tube (and onto the front foot)
   const torsoDir = v3.norm(lerp3(torsoDir0, v3.norm(add(v3.mul(bodyUp, 0.45), chest)), tuck)); // (folded over the knees in a tuck)
   const neck = add(hip, v3.mul(torsoDir, 0.58));
-  const head = add(neck, v3.mul(torsoDir, 0.2), v3.mul(chest, 0.03), v3.mul(across, 0.03));
+  const headDir = v3.norm(lerp3(torsoDir, bodyUp, 0.5 * deep)); // head up, looking down the line, in the barrel stance
+  const head = add(neck, v3.mul(headDir, 0.2), v3.mul(chest, 0.03), v3.mul(across, 0.03));
   // Front shoulder drops into a bottom turn; both lift as you spring open.
   const shBack = add(neck, v3.mul(across, -0.19), v3.mul(torsoDir, -0.04 + 0.05 * windup + 0.03 * unload));
   const shFront = add(neck, v3.mul(across, 0.19), v3.mul(torsoDir, -0.04 - 0.1 * windup + 0.03 * unload));
@@ -214,6 +229,11 @@ export function surferObjects(pose, rider, info, dt) {
   // chest height, back arm low and behind, reaching toward the water.
   let handBack = add(shBack, v3.mul(across, -0.36), v3.mul(bodyUp, -0.48), v3.mul(chest, 0.14));
   let handFront = add(shFront, v3.mul(across, 0.26), v3.mul(bodyUp, -0.08), v3.mul(chest, 0.34));
+  // Barrel stance: both hands low in front, by the knees.
+  if (deep > 0.01) {
+    handFront = lerp3(handFront, add(legF.joint, v3.mul(chest, 0.2), v3.mul(f, 0.1), v3.mul(bodyUp, -0.04)), 0.85 * deep);
+    handBack = lerp3(handBack, add(lerp3(legB.joint, legF.joint, 0.45), v3.mul(chest, 0.24), v3.mul(bodyUp, 0.04)), 0.85 * deep);
+  }
   if (lean > 0) {
     // Turning toward the chest side (frontside bottom turn): back hand trails on the face.
     handBack = lerp3(handBack, add(B, v3.mul(f, mid - 0.1), v3.mul(L, 0.6), v3.mul(u, 0.08)), reach);

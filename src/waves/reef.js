@@ -69,6 +69,7 @@ export default {
     tubeCollapse: 1.3, // past this you are pinched: where the lip lands on the trough and the tube closes
     tubeLow: 0.6,
     tubeDrive: 4.5, // in the barrel, trimming flat or down the line adds this much acceleration (m/s^2) ...
+    tubeLeanOver: 0.6, tubeLeanDrive: 1.5, // really deep, leaning onto the front foot: up to this much faster (m/s, ~1.3 mph) and more push
     tubeTrimOver: 0.25, // ... up to this much faster than the wave peels (m/s): 24 mph here ...
     tubeTrimOverHigh: 1.15, // ... or this much in the top half of the barrel: 26 mph
     tubeEnterLow: 0.3, // the barrel picks you up even this far below the base of the face (on a bottom turn)

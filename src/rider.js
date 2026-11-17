@@ -254,7 +254,7 @@ export function createRider() {
     airSpin: 0, airTime: 0, spinArmed: false,
     moveCooldown: 0, lastBottomTurn: -9, bottomArmed: false,
     tube: null, fakie: null, driveBank: 0, lastTurnTime: -9, lastTurnDir: 0, overTheBack: false,
-    rideDir: 1, lock: null, inDir: 0, lipSnap: null, snapGrip: false, roundhouse: null, crouchDepth: 0, slash: null, slide: 0, rightHeld: 0, turnDir: 0, turnDirAge: 9, turnHeld: 0, hard: 0, assist: null, bottomCarve: false, floater: null,
+    rideDir: 1, lock: null, inDir: 0, lipSnap: null, snapGrip: false, roundhouse: null, crouchDepth: 0, barrelCrouch: 0, frontLean: 0, slash: null, slide: 0, rightHeld: 0, turnDir: 0, turnDirAge: 9, turnHeld: 0, hard: 0, assist: null, bottomCarve: false, floater: null,
     wipeReason: '', wipeTimer: 0, wipeAge: 0, washing: false, falls: null, fallsBoard: null,
     events: [],
     time: 0,
@@ -559,6 +559,15 @@ function stepSurf(r, input, dt) {
   // (for the surfer's pose: crouch lower and lean deeper as the roundhouse comes round)
   r.crouchDepth += ((r.roundhouse ? r.roundhouse.depth : 0) - r.crouchDepth) * (1 - Math.exp(-dt * (r.roundhouse ? 10 : 4)));
   if (r.roundhouse) r.hard = Math.max(r.hard, r.roundhouse.depth);
+  // In the barrel: crouch lower the deeper you are (a compact crouch as you go
+  // in, right down to the full barrel stance deep in), and really deep, a
+  // slight lean onto the front foot (which drives you forward a little; see
+  // the trim drive below). Both build up gradually.
+  const tdep = r.tube ? tubeDepth(r) : 0;
+  const crouchT = r.tube ? 0.3 + 0.7 * sstep(0.05, 0.55, tdep) : 0;
+  r.barrelCrouch += (crouchT - r.barrelCrouch) * (1 - Math.exp(-dt * (crouchT > r.barrelCrouch ? 2.5 : 4)));
+  const leanFT = r.tube ? sstep(0.4, 0.85, tdep) : 0;
+  r.frontLean += (leanFT - r.frontLean) * (1 - Math.exp(-dt * (leanFT > r.frontLean ? 1.5 : 4)));
   if (r.assist) { r.slide = 0; r.snapGrip = false; } // an assisted pivot takes the board over
   else if (!r.slash && !r.lipSnap && r.slide > 0) {
     // The fins grip: your line swings round to where the board points.
@@ -643,9 +652,11 @@ function stepSurf(r, input, dt) {
   // line picks up extra speed (fading out as you point up the face)
   // (it only tops you up to just faster than the wave, not beyond)
   // (higher up in the barrel, the top half, it runs a bit faster)
-  const trimCap = PEEL_SPEED + T.tubeTrimOver + (T.tubeTrimOverHigh - T.tubeTrimOver) * sstep(0.42, 0.52, height);
+  // (deep in, leaning onto the front foot adds a little: `tubeLeanOver` faster, `tubeLeanDrive` more push)
+  const trimCap = PEEL_SPEED + T.tubeTrimOver + (T.tubeTrimOverHigh - T.tubeTrimOver) * sstep(0.42, 0.52, height)
+    + (T.tubeLeanOver || 0) * r.frontLean;
   if (r.tube && Math.cos(r.phi) > 0 && r.speed < trimCap) {
-    r.speed = Math.min(trimCap, r.speed + T.tubeDrive * (1 - sstep(0.0, 0.35, sinp)) * dt);
+    r.speed = Math.min(trimCap, r.speed + (T.tubeDrive + (T.tubeLeanDrive || 0) * r.frontLean) * (1 - sstep(0.0, 0.35, sinp)) * dt);
   }
   // ... and trimming in the barrel settles you at that speed (dropping down
   // the face can still take you past it).
