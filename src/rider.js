@@ -960,7 +960,11 @@ function checkHazards(r, dt) {
     // Only once you're up on the face (at or above its base), not out on the flats.
     // ... and only once you've come round to face along or up the face, not
     // while you're still pointing down mid bottom turn.
-    if (ph > T.tubeEnter && ph < T.tubeCollapse - 0.15 && r.t <= T.tBottom + T.tubeEnterLow && Math.sin(r.phi) > -0.1) {
+    // (Waves with `tubeReal`, the sim-shaped reef, have a long low base out in front of the face, so
+    // place along the curve isn't enough there: the lip must actually be over you, not still out
+    // ahead of you on the flats, or the barrel came on 3-5 m out in front of the lip.)
+    if (ph > T.tubeEnter && ph < T.tubeCollapse - 0.15 && r.t <= T.tBottom + T.tubeEnterLow && Math.sin(r.phi) > -0.1
+      && (!WAVE.tubeReal || r.pos[2] <= lipTipZ(r.xs) + 0.3)) {
       // Way up in the lip as it throws: over you go. A bit high: it sucks you in.
       if (r.t < topOfFace(r.xs) - T.tubeTooHigh) return wipe(r, 'Over the falls! (caught up in the lip)');
       r.t = Math.max(r.t, topOfFace(r.xs));
@@ -993,6 +997,15 @@ function enterTube(r) {
   r.events.push({ type: 'barrelEnter' });
 }
 
+
+// How far toward the beach the lip reaches at xs (world z of its tip).
+const _lipCp = new Float64Array(NP * 2), _lipO = [0, 0];
+function lipTipZ(xs) {
+  controlPoints(phaseAt(xs), _lipCp);
+  let z = -1e9;
+  for (let t = 6; t <= 10.5; t += 0.05) z = Math.max(z, crPoint(_lipCp, t, _lipO)[0]);
+  return z;
+}
 
 // --- Tube riding ---
 // Where you are in the tube: 0 at the exit, 1 at the pinch.

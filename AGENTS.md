@@ -188,6 +188,11 @@ button).
     85%) `r.frontLean` builds slowly: hips and chest shift toward the nose, and it adds a slight push
     (`tubeLeanDrive` 0.75) and lets you trim slightly faster (`tubeLeanOver`, 0.3 m/s; both halved from 1.5/0.6 at the user's request), so deep in you creep
     forward a little (~0.35 m/s over the peel at 70% depth, vs 0.25 without the lean).
+    **Barrel entry on the sim reef** (2026-11-17, the user saw the barrel view come on while out toward the
+    flats): the sim shape has a long low base in front of the face, and `t <= tBottom + tubeEnterLow` reached
+    3-5 m out in front of the lip tip. Waves with `tubeReal` also need the lip over you (`r.pos[2] <=
+    lipTipZ(xs) + 0.3`), so you're in once you're under the lip, ~1.5-1.8 m up the face. The position itself
+    never jumped at entry (checked: the entry step is a normal step); it was where the view switched.
     **Slashes in the barrel are easier to start** (2026-11-17, the user): `slashTube` carries gentler gates
     used only in the tube: a smaller, shallower drop counts (`slashDropAngle` 0.35, below `slashDropLow` 0.45,
     tracked as `r.tubeDropTime`, which is recorded outside the tube too so a drop just before you go in
