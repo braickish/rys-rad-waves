@@ -185,9 +185,10 @@ button).
     (`phase.ahead` 14), steep but not hollow (no overhang until the lip throws). The face is steepest at the back of
     the tube and gets gradually less steep all the way out to the shoulder (the user's spec, 2026-11-16: the near
     vertical, slightly hollow wall that used to stand ahead of the curl made a ridge where the tube met the face).
-    In the wall keyframes points 8-12 sit close together on the upper face, where the lip will form, and an
-    in-between keyframe (s -0.07) has the lip just starting to pitch: the same points stay in the same roles
-    from keyframe to keyframe, so the face doesn't buckle into a ledge as the wall turns into the lip.
+    In the wall keyframes points 8-12 sit close together on the upper face, where the lip will form, so the
+    face below is one smooth sweep. (An extra in-between keyframe as the lip starts to pitch was tried: it put a
+    hump and a sharp turn in the lip and the tube opening stopped being round; the user rejected it. Keep the
+    opening a round/oval arch and the sweep from the tube out to the shoulder smooth.)
     `node test/steepness.mjs` measures it; the lip throws far out into a round tube about
     as wide as it is tall, the lip a thin sheet (roof and curtain), landing well out in front. The roof sits right up under the outside of the lip (raised 2026-11-16: the user found the top, where it breaks, too thick), and the pitching lip throws out nearly level before it falls, so from the channel the tube opening reaches up close to the crest. A second pass (same day) raised it again and moved the pitching keyframe from phase 0.25 to 0.15 so the lip is thin sooner at the curl (lip ~1.1 m at the curl, ~0.15-0.3 m in the tube; don't push the roof higher at point 12 without checking the gap, since the spline there bulges up and touched the outside). The
     broken wave behind the closing tube lasts longer (`phase.behindFar` 22 m per phase past
