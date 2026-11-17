@@ -185,11 +185,21 @@ button).
     (`phase.ahead` 14), steep but not hollow (no overhang until the lip throws). The face is steepest at the back of
     the tube and gets gradually less steep all the way out to the shoulder (the user's spec, 2026-11-16: the near
     vertical, slightly hollow wall that used to stand ahead of the curl made a ridge where the tube met the face).
-    In the wall keyframes points 8-12 sit close together on the upper face, where the lip will form, so the
-    face below is one smooth sweep. (An extra in-between keyframe as the lip starts to pitch was tried: it put a
-    hump and a sharp turn in the lip and the tube opening stopped being round; the user rejected it. Keep the
-    opening a round/oval arch and the sweep from the tube out to the shoulder smooth.)
-    `node test/steepness.mjs` measures it; the lip throws far out into a round tube about
+    The user's reference for the inside view is barrel inside pov.jpeg (braickish/reference-images): the back
+    wall near vertical, the face sweeping out from it in one smooth curve, the lip arching over the top, an oval
+    opening, nothing bulging back toward you. What it took:
+    - Points 7-14 of the two wall keyframes (s -1.2, -0.25) are sampled from one smooth design curve each (the
+      outer one is the inner one scaled to its height and leaned out), with points 8-12 close together high on
+      the upper face where the lip will form, so the lip pitches from the very top. Placed by hand, the
+      close-together points made a notch; placed lower, the lip started forming mid-face and bulged the wall out.
+    - `easeUntil` (wave.js `controlPoints`, the reef sets 0.15): up to the curl the keyframes blend evenly.
+      The Catmull-Rom blend mixes in neighboring keyframes with negative weight, and that subtracted some of
+      the pitching lip from the wall: a notch/fold on the face part way out to the shoulder. Past the curl the
+      usual blend stays: evenly blended there the lip paused at each keyframe and the opening lost its round top.
+    - A mid-throw tube keyframe (s 0.45) keeps the lip tip on the arc of the tube.
+    - Tried and rejected: an extra keyframe as the lip starts to pitch (a hump and a sharp turn in the lip, the
+      opening stopped being round). Keep the opening a round/oval arch.
+    `node test/steepness.mjs` measures the face angle at fixed heights from the tube out to the shoulder; the lip throws far out into a round tube about
     as wide as it is tall, the lip a thin sheet (roof and curtain), landing well out in front. The roof sits right up under the outside of the lip (raised 2026-11-16: the user found the top, where it breaks, too thick), and the pitching lip curls over and down in one round arc (it used to throw out nearly level, which from inside the tube made the top of the opening flare out into a point instead of arching over). A second pass (same day) raised it again and moved the pitching keyframe from phase 0.25 to 0.15 so the lip is thin sooner at the curl (lip ~1.1 m at the curl, ~0.15-0.3 m in the tube; don't push the roof higher at point 12 without checking the gap, since the spline there bulges up and touched the outside). The
     broken wave behind the closing tube lasts longer (`phase.behindFar` 22 m per phase past
     `farFrom` 1.3, eased in so there's no crease; the tube itself keeps `behind` 13, since

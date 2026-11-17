@@ -42,7 +42,7 @@ let KF = WAVE.keyframes;
 // via useWave() in rider.js; the renderer rebuilds its meshes.
 export function setWave(w) {
   WAVE = typeof w === 'string' ? waveById(w) : w;
-  WAVE_TYPE = WAVE.kind; KF = WAVE.keyframes;
+  WAVE_TYPE = WAVE.kind; KF = WAVE.keyframes; EASE = WAVE.easeUntil ?? -Infinity;
   setWaveSize(1);
   SECTIONS.length = 0;
 }
@@ -95,6 +95,15 @@ export function phaseAt(xs) {
 const smooth = (f) => f * f * (3 - 2 * f);
 
 // Control points for a phase, as a Float64Array [z0, y0, z1, y1, ...], scaled.
+// A wave can blend its keyframes evenly up to a phase (`easeUntil`): there
+// every point eases from one keyframe to the next at the same rate (zero slope
+// at those keyframes), so the shape in between is a blend of just those two
+// smooth shapes. The Catmull-Rom blend mixes in a little of the keyframes on
+// either side with negative weight, and on the reef that subtracted some of
+// the pitching lip from the wall ahead of the curl: a notch on the face. Past
+// it (the tube) the usual blend keeps the lip moving on a smooth path (evenly
+// blended, it paused at every keyframe and the opening lost its round top).
+let EASE = -Infinity;
 export function controlPoints(s, out = new Float64Array(NP * 2), scale = SCALE) {
   // A smooth curve through the keyframes (cubic Hermite with Catmull-Rom
   // slopes), so the wave has no creases where one keyframe hands over to
@@ -113,8 +122,8 @@ export function controlPoints(s, out = new Float64Array(NP * 2), scale = SCALE) 
     for (let c = 0; c < 2; c++) {
       const y0 = a.p[i][c], y1 = b.p[i][c];
       // slopes per unit phase, scaled to this interval (zero at the ends)
-      const m0 = k > 0 ? ((b.p[i][c] - pa.p[i][c]) / (b.s - pa.s)) * h : 0;
-      const m1 = k + 2 < n ? ((pb.p[i][c] - a.p[i][c]) / (pb.s - a.s)) * h : 0;
+      const m0 = k > 0 && a.s > EASE ? ((b.p[i][c] - pa.p[i][c]) / (b.s - pa.s)) * h : 0;
+      const m1 = k + 2 < n && b.s > EASE ? ((pb.p[i][c] - a.p[i][c]) / (pb.s - a.s)) * h : 0;
       out[i * 2 + c] = (h00 * y0 + h10 * m0 + h01 * y1 + h11 * m1) * scale;
     }
   }
