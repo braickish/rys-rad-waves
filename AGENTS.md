@@ -169,9 +169,12 @@ button).
     back round ("Revert"). Airs: straight up the open face above
     `airSpeed`.
   - **Tube riding** (`tube: true` waves): the barrel is normal surfing (same turning, rail, drop speed)
-    with rules on top (`checkHazards`). Normal surfing outruns the barrel, so you **pull in**: high on the
-    face within `pullInZone` of the curl and turning, you stall (`pullInSpeed`, settling at `pullInLine`)
-    until the curl passes you. In the tube: past `tubeCollapse` = pinched; driving straight into the
+    with rules on top (`checkHazards`). You're in the barrel once the curl has passed you while you're on
+    the face (`tubeEnter`); there's no assisted entry. (A **pull-in** assist was removed 2026-11-17, the
+    user's call: turning high near the curl swung the board level, pulled you down to a set line and
+    stalled you until the curl passed, which read as the board being redirected as "in the barrel" came
+    on. Without it, normal surfing tends to outrun the barrel: you get in by slowing down near the curl.)
+    In the tube: past `tubeCollapse` = pinched; driving straight into the
     roof (steeper than `roofCrash`) = over the falls. On the reef the water rushes up the face
     (`faceFlow`, scaled by steepness and pocket power): riding level drifts you up, you hold your line
     pointing about 23 degrees down. The point has 2/3 of the reef's flow (3.8 vs 5.7 m/s): you hold

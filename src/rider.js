@@ -250,7 +250,7 @@ function syncPose(r, f) {
 }
 
 function wipe(r, reason) {
-  // Wiping out in the barrel (or pulling in) throws you in the "washing
+  // Wiping out in the barrel (or caught in the lip) throws you in the "washing
   // machine": a longer hold-down (the foam ball screen in main.js).
   r.washing = !!r.tube || reason.includes('caught up in the lip');
   r.mode = 'wipe';
@@ -373,18 +373,6 @@ function lockInput(r) { r.lock = { dir: r.inDir }; }
 
 function stepSurf(r, input, dt) {
   const T = TUNE;
-  // Pulling in: stall low-ish on the face while the barrel comes over you.
-  if (r.tube && r.tube.pullIn) {
-    r.speed += (PEEL_SPEED - T.pullInSpeed - r.speed) * Math.min(1, dt * 6);
-    r.phi += clampTurn(wrap(0 - r.phi), 4 * dt);
-    r.t += (T.pullInLine - r.t) * (1 - Math.exp(-dt * 4));
-    r.xs += (r.speed * Math.cos(r.phi) - PEEL_SPEED) * dt;
-    if (phaseAt(r.xs) > T.tubeEnter + 0.05) r.tube.pullIn = false;
-    syncPose(r, frameAt(r.xs, r.t));
-    r.height = 0.3;
-    checkHazards(r, dt);
-    return;
-  }
   r.moveCooldown = Math.max(0, r.moveCooldown - dt);
   const speedAtStart = r.speed;
   // Riding backwards: after a moment the board spins back round to forwards.
@@ -466,7 +454,7 @@ function stepSurf(r, input, dt) {
   // board. The total turn is sharper than a carve, but it's still a turn:
   // nothing is added to your speed.
   r.rightHeld = steer < 0 ? r.rightHeld + dt : 0;
-  const inTube = r.tube && !r.tube.pullIn;
+  const inTube = !!r.tube;
   if (!r.slash && !r.slide && !r.lipSnap && steer < 0 && r.rightHeld <= T.slashWindow && r.moveCooldown === 0 && !r.assist && !r.floater && !r.fakie
     && r.speed > T.slashMinSpeed && height < T.slashLow
     && r.time - (r.steepDropTime ?? -9) < T.slashDropRecent // a real bottom turn, not a little turn in the pocket
@@ -626,12 +614,12 @@ function stepSurf(r, input, dt) {
   // (it only tops you up to just faster than the wave, not beyond)
   // (higher up in the barrel, the top half, it runs a bit faster)
   const trimCap = PEEL_SPEED + T.tubeTrimOver + (T.tubeTrimOverHigh - T.tubeTrimOver) * sstep(0.42, 0.52, height);
-  if (r.tube && !r.tube.pullIn && Math.cos(r.phi) > 0 && r.speed < trimCap) {
+  if (r.tube && Math.cos(r.phi) > 0 && r.speed < trimCap) {
     r.speed = Math.min(trimCap, r.speed + T.tubeDrive * (1 - sstep(0.0, 0.35, sinp)) * dt);
   }
   // ... and trimming in the barrel settles you at that speed (dropping down
   // the face can still take you past it).
-  if (r.tube && !r.tube.pullIn && sinp > -0.2 && r.speed > trimCap) r.speed -= (r.speed - trimCap) * 3 * dt;
+  if (r.tube && sinp > -0.2 && r.speed > trimCap) r.speed -= (r.speed - trimCap) * 3 * dt;
   // Stacked moves can't run away with your speed: above softMax it bleeds off.
   const softMax = T.softMax + T.highDropSoftMax * highDropNow; // a drop from high up can run a bit faster
   if (r.speed > softMax) r.speed -= (r.speed - softMax) * T.overBleed * dt;
@@ -693,14 +681,6 @@ function stepSurf(r, input, dt) {
   }
 
   const ready = r.moveCooldown === 0; // moves need a gap between them
-  // Pulling into the barrel: up near the lip close to the curl and turning.
-  if (WAVE.tube && !r.tube && !r.assist && !r.lipSnap && !r.floater && !r.slash && r.xs < T.pullInZone && r.xs > -2
-    && height > T.pullInHeight && r.time - (r.lastTurnTime ?? -9) < 0.15) {
-    enterTube(r, true);
-    syncPose(r, frameAt(r.xs, r.t));
-    return;
-  }
-
   // --- the top: what happens depends on where you hit it, and whether you're turning ---
   // Climbing up the whitewater from below: once you're high on it you pop
   // up onto it and float, without needing to reach the very top.
@@ -943,7 +923,6 @@ function checkHazards(r, dt) {
   const depth = tubeDepth(r);
   tb.depth = Math.max(tb.depth, depth);
   tb.depthSum += depth * dt;
-  if (tb.pullIn) return;
   if (ph > T.tubeCollapse) { wipe(r, 'Pinched! (too deep: drop down and drive forward)'); r.tube = null; return; }
   // Up in the top of the barrel the lip grabs you and throws you over.
   if (r.height > T.tubeFallHeight) { wipe(r, 'Over the falls! (too high in the barrel)'); r.tube = null; return; }
@@ -954,8 +933,8 @@ function checkHazards(r, dt) {
   }
 }
 
-function enterTube(r, pullIn = false) {
-  r.tube = { time: 0, depth: 0, depthSum: 0, pullIn };
+function enterTube(r) {
+  r.tube = { time: 0, depth: 0, depthSum: 0 };
   r.inBarrel = true;
   r.barrelTime = 0;
   r.floater = null;

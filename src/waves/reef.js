@@ -68,9 +68,6 @@ export default {
     tubeTrimOverHigh: 1.15, // ... or this much in the top half of the barrel: 26 mph
     tubeEnterLow: 0.3, // the barrel picks you up even this far below the base of the face (on a bottom turn)
     tubeFallHeight: 0.62, // above this fraction of the face in the barrel (top 3/8), the lip grabs you
-    pullInZone: 4.0, pullInHeight: 0.4, // up this high on the face, within this far ahead of the curl, and turning: you pull in
-    pullInSpeed: 4.5, // ... and stall (the curl catches you up this fast, m/s)
-    pullInLine: 13.0, // ... settling here on the face while the barrel comes over you
     tubeTooHigh: 2.5, // further than this above the roof line as the lip throws = over the falls
     slashLow: 0.3, // the water rushing up the face lifts you fast: the slash window starts a little higher here
     roofCrash: 0.9, // driving into the roof steeper than this (sin of angle) = over the falls // this far below the bottom of the face and the lip lands on you

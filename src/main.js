@@ -239,9 +239,9 @@ let tubeView = false, tubeBlend = 0, camBack = TUBE_CAM_BACK, camBackWant = TUBE
 function insideWaterAt(q) { return verticalHits(slice(q[0], 6), q[2]).filter((hit) => hit.y > q[1]).length % 2 === 1; }
 function updateTubeView(dt) {
   if (!WAVE.tube || rider.mode !== 'surf' || state === 'title') { tubeView = false; tubeBlend = 0; return; }
-  if (rider.tube && !rider.tube.pullIn) tubeView = true;
+  if (rider.tube) tubeView = true;
   else if (tubeView && rider.xs > TUBE_VIEW_OUT) tubeView = false;
-  const inTube = rider.tube && !rider.tube.pullIn ? 1 : 0;
+  const inTube = rider.tube ? 1 : 0;
   tubeBlend += (inTube - tubeBlend) * (1 - Math.exp(-dt * 3));
 }
 function updateCamera(dt) {
@@ -464,7 +464,7 @@ async function main() {
     tube.parentElement.classList.toggle('on', rider.inBarrel);
     // Barrel depth meter: exit on the left, the pinch on the right.
     const bm = $('balance');
-    bm.hidden = !rider.tube || rider.tube.pullIn;
+    bm.hidden = !rider.tube;
     if (rider.tube) {
       const d = tubeDepth(rider);
       const h = Math.max(-0.1, Math.min(1.05, rider.height)); // 0 bottom of the face .. 1 the roof
