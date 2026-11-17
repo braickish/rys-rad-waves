@@ -159,26 +159,11 @@ export function crPoint(c, t, out) {
 const _cp = new Float64Array(NP * 2);
 const _o = [0, 0];
 
-// Ahead of the curl the wave can curve in toward the beach (`bend`): the
-// shoulder wraps round, its face turning back toward the tube, so from inside
-// you see more of it sweeping out ahead instead of the wall running straight.
-// A hyperbola: straight far behind, curving most gently around the curl
-// (spread over about ±BEND_SPAN m) and running out at `bend` m forward per m
-// along the wave ahead. Smooth everywhere (a first version switched its
-// curvature on abruptly at the curl, which showed as a crease and a bump at
-// the tube's opening). Applied everywhere the wave is built in 3D (surface,
-// slice; the water shader's bendZ mirrors it).
-const BEND_SPAN = 14;
-export function bendZ(xs) {
-  const B = WAVE.bend || 0;
-  return B ? (B * (Math.sqrt(xs * xs + BEND_SPAN * BEND_SPAN) + xs)) / 2 : 0;
-}
-
 // Surface point at (xs, t), t in [0, NP-1] along the cross-section.
 export function surface(xs, t, out = [0, 0, 0]) {
   controlPoints(phaseAt(xs), _cp);
   crPoint(_cp, t, _o);
-  out[0] = xs; out[1] = _o[1]; out[2] = _o[0] + bendZ(xs);
+  out[0] = xs; out[1] = _o[1]; out[2] = _o[0];
   return out;
 }
 
@@ -187,11 +172,11 @@ export function slice(xs, perSeg = 10) {
   const cp = controlPoints(phaseAt(xs));
   const count = (NP - 1) * perSeg + 1;
   const z = new Float64Array(count), y = new Float64Array(count), t = new Float64Array(count);
-  const o = [0, 0], bz = bendZ(xs);
+  const o = [0, 0];
   for (let i = 0; i < count; i++) {
     const tt = i / perSeg;
     crPoint(cp, tt, o);
-    z[i] = o[0] + bz; y[i] = o[1]; t[i] = tt;
+    z[i] = o[0]; y[i] = o[1]; t[i] = tt;
   }
   return { z, y, t, count };
 }

@@ -222,29 +222,26 @@ button).
     (waves/shapes.js); `faceTop` lowers smoothly as the lip throws.
 - Heavy waves (`floaters: false, rebounds: false` in the wave's tune, e.g. the reef): hitting the
   whitewater or the lip next to it is a crash ("Over the falls"), not a floater or rebound.
-- **Shoulder bend** (`bend` in the wave, `bendZ(xs)` in wave.js, mirrored in the water shader; reef 0.15,
-  point 0): ahead of the curl the wave curves in toward the beach so from the tube you see the face sweep
-  round ahead. A hyperbola, smooth everywhere (a first version switched curvature on abruptly at the curl and
-  made a bump at the opening). Applied in `surface`/`slice`, so riding follows it. The water texture and the
-  flats band are measured without the bend.
+- **No shoulder bend** (removed 2026-11-17): a `bend` that curved the shoulder in toward the beach was tried
+  (0.15, then 0.3). It shifted the surfer's direction on the flats: the board's 'along the wave' direction
+  there was the fixed beach direction while the water ran along the bend, up to ~17 deg apart, swinging at
+  the bottom of the face. The user had it removed; the wave is straight again.
 - **No ridge at the tube's opening** (2026-11-17, the user's idea: push the curl/upper tube higher): in the
   two wall keyframes (s -1.2 and -0.25) the points that become the lip (8-12) sit high on the upper face,
   and the wall below them leans slightly out instead of being hollow. With them spread down the wall, they
   dragged a fold across the rideable face as they peeled into the lip: the face just outside the opening
   overhung (112 deg at 4.5 m up, vs 78 in the tube). Now it peaks at 83 and eases out to the shoulder.
   `node test/steepness.mjs` measures it.
-- **Smooth from the tube out to the shoulder** (2026-11-17, the user's rules): (1) at any height the face
-  is steepest deep in the tube and only gets less steep going out (`test/steepness.mjs`); (2) along the wave
-  the wall only wraps in toward you, never bulges out (convex), seen from inside the tube (`test/concave.mjs`:
-  curvature of the face's position along the wave at fixed heights; negative = a bulge); (3) no corners: no
-  tight bends in any cross-section except right at the lip tip (`test/corners.mjs`, sharpest bend 1/m).
-  What it took: the tube's roof (points 10-13 of the full and closing tube) on an ellipse, so the top is a
-  true arc; the forming lip's points re-placed so it rolls over instead of creasing (radius 5 cm -> ~50 cm);
-  and the standing wall ahead of the curl (s -0.25) slid back ~1 m as a whole, because the face was jumping
-  forward right outside the opening and then slowing on the shoulder (the bulge). Points were tuned with a
-  small coordinate-descent script against these measurements, then checked visually from inside the tube,
-  the riding camera and the channel. Leftovers: a slight bulge 4-5 m up right at the opening and deep in the
-  tube near xs -11, and the crest rounding off high on the far shoulder.
+- **Smooth from the tube out to the shoulder** (2026-11-17, the user's rules): at any height the face is
+  steepest in the tube and eases going out (`test/steepness.mjs`); the face's position along the wave should
+  never surge forward and fall back (a bump seen from the tube; `test/concave.mjs`); no corners
+  (`test/corners.mjs`). The tube's roof (points 10-13 of the full and closing tube) lies on an ellipse, so the
+  top is a true arc. Only the lower face points (12-14) were tuned, by a small coordinate-descent script
+  against these measures. Lesson: letting the optimizer move the lip's or wall's upper points (6-11) put lumps
+  on the crest, a notch under the forming lip and a wavy roof, and thickened the lip, while the scores
+  improved; keep the lip/crest points fixed and always look at test/plot-slices.mjs output. Remaining: the
+  upper face (~5.5 m) still pushes ~0.5 m forward at the opening as the lip forms, and steepness at 4-6 m
+  creeps up a few degrees there.
 - **Texture on the flats:** the ripples carry on out across the flats in front of the wave (`flatsReach` in
   shaders.js), fading over ~50 m, instead of stopping at the bottom.
 - 2026-11-17: the project was rolled back to the surfboard commit (a3cc07a) after later reef work broke the

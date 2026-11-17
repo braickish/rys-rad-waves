@@ -1,6 +1,6 @@
 // Along the wave: where the face sits (world z, with the bend) at fixed heights above the trough, and its
 // curvature along xs. Seen from inside the tube the wall should only wrap in (z'' >= 0); z'' < 0 is a bulge.
-import { setWave, slice, bendZ } from '../src/wave.js';
+import { setWave, slice } from '../src/wave.js';
 setWave('reef');
 const H = [1, 2, 3, 4, 5];
 export function faceZ(x) {
