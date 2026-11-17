@@ -242,6 +242,15 @@ button).
   improved; keep the lip/crest points fixed and always look at test/plot-slices.mjs output. Remaining: the
   upper face (~5.5 m) still pushes ~0.5 m forward at the opening as the lip forms, and steepness at 4-6 m
   creeps up a few degrees there.
+- **Tube as a tapered cylinder** (the user's model, 2026-11-17): the closing tube (s 1.3) is the full tube
+  (s 0.8) scaled to 78% about the bottom of the back wall, lip, roof, crest and all, so the tube keeps one
+  round section and narrows steadily toward the back (~0.3 m narrower per m from just inside the mouth to
+  the pinch). Tried and dropped: a further 66% copy at s 1.8 (barely changed the taper and folded the tube
+  into a loop where it hands over to whitewater). A small fold at xs -24..-28 where the closing tube turns
+  to whitewater is old, under the foam. Also tried and reverted the same day: a hidden guide point on the
+  flats to remove a spline sag in front of the wave (the user said it made it not work).
+  Next idea (the user's): carry the cylinder out past the tube onto the shoulder, growing at a smooth rate,
+  with only part of its circumference being wave (the rest sky) further out, and it only breaks up to a point.
 - **Texture on the flats:** the ripples carry on out across the flats in front of the wave (`flatsReach` in
   shaders.js), fading over ~50 m, instead of stopping at the bottom.
 - 2026-11-17: the project was rolled back to the surfboard commit (a3cc07a) after later reef work broke the

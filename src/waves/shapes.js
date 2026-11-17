@@ -52,8 +52,10 @@ export const KF_PIPE = [
   // Full barrel: a round tube (about as wide as it is tall), the thin curtain
   // of the lip landing well out in front.
   { s: 0.8, p: [[-40, 0], [-30, 0], [-8, 0.4], [-2.5, 2.7], [0, 4.2], [1.5, 4.55], [3.2, 4.35], [5.15, 3.2], [5.3, -0.35], [5.05, -0.32], [5.03, 2.37], [3.62, 4.07], [1.69, 3.45], [1.04, 1.33], [2.25, -0.75], [22, 0]] },
-  // Closing: the tube narrows and the lip drives down into the trough.
-  { s: 1.3, p: [[-40, 0], [-30, 0], [-8, 0.4], [-2.5, 2.3], [0, 3.7], [1.4, 4], [2.9, 3.6], [4.4, 2.4], [4.4, -0.4], [4.15, -0.37], [4.15, 1.9], [3.01, 3.28], [1.47, 2.78], [1.31, 1.13], [2.27, -0.45], [22, 0]] },
+  // Closing: the full tube scaled to 78% about the bottom of the back wall, so
+  // the tube is a tapered cylinder: the same round section, narrowing toward
+  // the back (the user's model), lip and all.
+  { s: 1.3, p: [[-40, 0], [-30, 0], [-8, 0.4], [-2.5, 2.3], [0.22, 3.11], [1.39, 3.38], [2.72, 3.23], [4.24, 2.33], [4.35, -0.44], [4.16, -0.41], [4.14, 1.68], [3.04, 3.01], [1.54, 2.53], [1.03, 0.87], [1.98, -0.75], [22, 0]] },
   KF_BARREL[7],
   KF_BARREL[8],
   KF_BARREL[9],
