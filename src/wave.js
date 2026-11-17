@@ -74,6 +74,14 @@ export function phaseAt(xs) {
   // as a crease in the wave)
   const k = smooth(Math.min(1, Math.max(0, (xs + 4) / 8)));
   let s = -xs / (WAVE.phase.behind + (WAVE.phase.ahead - WAVE.phase.behind) * k);
+  // Optionally the broken wave behind lasts longer: past phase `farFrom` it
+  // changes `behindFar` m per phase instead of `behind`, eased in smoothly
+  // over ±0.3 so there's no crease.
+  const far = WAVE.phase.behindFar;
+  if (far && s > WAVE.phase.farFrom - 0.3) {
+    const e = s - WAVE.phase.farFrom, w = 0.3, g = e >= w ? e : ((e + w) * (e + w)) / (4 * w);
+    s -= (1 - WAVE.phase.behind / far) * g;
+  }
   for (const sec of SECTIONS) {
     const d = (xs - sec.x) / sec.width;
     const profile = sec.kind === 'throw' ? Math.exp(-d * d) : Math.exp(-(d * d) * d * d); // a peak that throws / a flat-topped closeout

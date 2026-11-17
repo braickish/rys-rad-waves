@@ -11,7 +11,7 @@ export default {
   scale: 1.75, // much bigger than the point: a heavy, tall wave
   peelSpeed: 10.5, // peels fast: you have to race it (pointing up costs you more here)
   waveSpeed: 5.0,
-  phase: { ahead: 14, behind: 13 }, // a long tall wall ahead of the curl (like the reference photo); the tube runs further behind it
+  phase: { ahead: 14, behind: 13, behindFar: 22, farFrom: 1.3 }, // (the broken wave behind the closing tube lasts longer: behindFar) // a long tall wall ahead of the curl (like the reference photo); the tube runs further behind it
 
   foam: (s, t) => (s > 1.5 && t > 9.5 ? 1 : 0),
   foamVisual: (s, t, xs) => {
@@ -20,14 +20,14 @@ export default {
       sstep(1.4, 2.0, s) * front * (1 - sstep(10, 40, -xs) * 0.5), // whitewater behind the barrel
       Math.exp(-(((t - 8.1) / 0.7) ** 2)) * sstep(0.45, 0.75, s) * (1 - sstep(1.7, 2.5, s)) * 0.95, // the lip crashing onto the water
       sstep(13.6, 14.3, t) * sstep(0.9, 1.3, s) * (1 - sstep(3, 6, s)) * 0.55, // where it lands
-      sstep(5.2, 6.2, t) * (1 - sstep(8.6, 9.3, t)) * sstep(0.05, 0.3, s) * (1 - sstep(1.4, 1.8, s)) * 0.5, // the thrown lip's frothy outside and curtain
+      sstep(4.0, 5.2, t) * (1 - sstep(8.6, 9.3, t)) * sstep(0.05, 0.3, s) * (1 - sstep(1.4, 1.8, s)) * 0.9, // the thrown lip: white and frothy across its outside and the curtain
       Math.exp(-(((t - 4.7) / 0.6) ** 2)) * sstep(-0.9, -0.4, s) * (1 - sstep(0.3, 0.6, s)) * 0.35, // feathering along the crest of the wall ahead
     );
   },
   thin: (s, t) => Math.min(1,
     // the tall wall ahead of the curl: light shining through its upper part
     Math.exp(-(((t - 7.5) / 2.0) ** 2)) * sstep(-1.3, -0.6, s) * (1 - sstep(-0.1, 0.3, s)) * 0.3 +
-    Math.exp(-(((t - 8) / 2.4) ** 2)) * sstep(-0.6, 0.1, s) * (1 - sstep(1.2, 1.8, s)) * 1.1
+    Math.exp(-(((t - 8) / 2.4) ** 2)) * sstep(-0.6, 0.1, s) * (1 - sstep(0.2, 0.6, s)) * 1.1 // (glows while it pitches; once thrown it's white water, not glass)
     + Math.exp(-(((t - 9.5) / 2.5) ** 2)) * sstep(-1.6, -0.3, s) * (1 - sstep(0.3, 0.8, s)) * 0.45),
   lipT: 8,
   // Whitewater spray and mist: where the tube closes and behind it, not inside it.

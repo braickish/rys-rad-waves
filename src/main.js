@@ -220,23 +220,24 @@ function tubeCenter(xs, nearY) {
     if (!airWithRoof(sl, z, y)) continue;
     const room = distToSlice(sl, z, y);
     if (room < TUBE_CAM_MIN_ROOM) continue;
-    const score = Math.min(room, 2.2) - 0.35 * Math.abs(y - nearY); // roomy enough, then as level with the surfer as it can be
+    const score = nearY === Infinity
+      ? Math.min(room, 1.4) + 0.3 * y // up toward the top of the tube, keeping some room
+      : Math.min(room, 2.2) - 0.35 * Math.abs(y - nearY); // roomy enough, then as level with the surfer as it can be
     if (!best || score > best.score) best = { z, y, room, score };
   }
   return best;
 }
 
 let lastShot = '';
-// Barrel view: on as soon as you're close to being barrelled, and it stays
-// on after you come out until you're out on the shoulder (TUBE_VIEW_OUT ahead
-// of the curl). tubeBlend eases the camera up into the tube and back down.
+// Barrel view: on once you're in the tube (as it always was), and it stays on
+// after you come out until you're out on the shoulder (TUBE_VIEW_OUT ahead of
+// the curl). tubeBlend eases the camera up into the tube and back down.
 const TUBE_VIEW_OUT = 5;
-let tubeView = false, tubeBlend = 0;
+let tubeView = false, tubeBlend = 0, camBack = 7, camBackWant = 7;
 function insideWaterAt(q) { return verticalHits(slice(q[0], 6), q[2]).filter((hit) => hit.y > q[1]).length % 2 === 1; }
 function updateTubeView(dt) {
   if (!WAVE.tube || rider.mode !== 'surf' || state === 'title') { tubeView = false; tubeBlend = 0; return; }
-  const ph = phaseAt(rider.xs);
-  if (rider.tube || (ph > TUNE.tubeEnter - 0.25 && ph < TUNE.tubeCollapse)) tubeView = true;
+  if (rider.tube && !rider.tube.pullIn) tubeView = true;
   else if (tubeView && rider.xs > TUBE_VIEW_OUT) tubeView = false;
   const inTube = rider.tube && !rider.tube.pullIn ? 1 : 0;
   tubeBlend += (inTube - tubeBlend) * (1 - Math.exp(-dt * 3));
@@ -259,18 +260,30 @@ function updateCamera(dt) {
     // there); coming out it eases back down to just behind you, and it only
     // slides in closer if water would be in the way. Everything moves
     // smoothly (it used to pick between fixed distances and jump).
-    const back = 7;
-    let w = [p[0] - back, p[1] + 1.4, p[2] + 0.3];
-    if (tubeBlend > 0.01) {
-      const c = tubeCenter(p[0] - back, p[1] + 0.8);
-      if (c) w = [w[0], w[1] + (c.y - w[1]) * tubeBlend, w[2] + (c.z - w[2]) * tubeBlend];
-    }
     const eye = [p[0], p[1] + 0.9, p[2]];
-    for (let i = 0; i < 10 && (insideWaterAt(w) || !clearView(w, eye)); i++) {
-      w = [w[0] + (p[0] - 2.0 - w[0]) * 0.25, w[1] + (p[1] + 1.1 - w[1]) * 0.25, w[2] + (p[2] + 0.2 - w[2]) * 0.25];
+    let w = [p[0] - 7, p[1] + 1.4, p[2] + 0.3];
+    if (tubeBlend > 0.01) {
+      // Pinned deep inside the tube, up toward the top. If the view to the
+      // surfer is blocked it comes closer along the inside of the tube
+      // (camBack eases, so it never jumps), never out of it.
+      const c = tubeCenter(p[0] - camBack, Infinity);
+      const spot = c && [p[0] - camBack, c.y, c.z];
+      const ok = spot && clearView(spot, eye);
+      camBackWant = ok ? Math.min(7, camBackWant + dt * 1.5) : Math.max(2.5, camBackWant - dt * 6);
+      camBack += (camBackWant - camBack) * (1 - Math.exp(-dt * 6));
+      if (spot) w = [p[0] - camBack, w[1] + (spot[1] - w[1]) * tubeBlend, w[2] + (spot[2] - w[2]) * tubeBlend];
+    } else {
+      camBack = camBackWant = 7;
+      for (let i = 0; i < 10 && (insideWaterAt(w) || !clearView(w, eye)); i++) {
+        w = [w[0] + (p[0] - 2.0 - w[0]) * 0.25, w[1] + (p[1] + 1.1 - w[1]) * 0.25, w[2] + (p[2] + 0.2 - w[2]) * 0.25];
+      }
     }
     want = w;
-    look = [p[0] + 5, p[1] + 0.4, p[2] + (p[2] - w[2]) * 0.4];
+    // (aimed out along the tube; from up near the roof it tips down toward
+    // the surfer so they sit a little above the middle of the frame, clear
+    // of the depth meter)
+    const drop = Math.max(0, w[1] - p[1] - 1.4);
+    look = [p[0] + 6 - drop * 1.2, p[1] + 0.4 - drop * 0.35, p[2] + (p[2] - w[2]) * 0.4];
     shot = 'tube';
   } else if (camMode === 0) {
     // From the channel, out in front of the surfer: balanced, so you see the
