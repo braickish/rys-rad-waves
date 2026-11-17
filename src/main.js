@@ -237,7 +237,7 @@ let lastShot = '';
 // holds for VIEW_HOLD before it can switch again, so it can't flick back and
 // forth right at the lip.
 // tubeBlend eases the camera up into the tube and back down.
-const VIEW_HOLD = 2.0; // (s) (2 s: the user found 0.6 still flickered)
+const VIEW_HOLD = 1.0; // (s) (the user's pick; with the 0.2 m gap between where the barrel starts and ends, rider.js)
 let viewHold = 0;
 const TUBE_CAM_BACK = 5.5, TUBE_CAM_UP = 1.5; // barrel view: this far behind and above the surfer (m)
 let tubeView = false, tubeBlend = 0, camBack = TUBE_CAM_BACK, camBackWant = TUBE_CAM_BACK, lastTubeSpot = null;

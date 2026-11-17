@@ -192,11 +192,11 @@ button).
     flats): the sim shape has a long low base in front of the face, and `t <= tBottom + tubeEnterLow` reached
     3-5 m out in front of the lip tip. Waves with `tubeReal` also need you `enterIn` (0.5 m, the user's
     pick, so the barrel is over you) in under the lip (`lipTipZ`), and near the opening (phase below
-    `outBefore` 0.45) you're out once you're out from under the lip for `outSettle` 0.25 s or by more than
-    `outBy` 0.75 m (~0.5 m past the tip riding out the opening; it used to wait for phase `tubeExit`, ~0.6-3.6
-    m further on), so a quick dip out and back stays one barrel. The barrel view (main.js `updateTubeView`) now
-    switches exactly with the barrel, on and off, and holds `VIEW_HOLD` 2 s after any switch (0.6 s still flickered for the user) (it used to
-    stay on until `TUBE_VIEW_OUT` 5 m out on the shoulder; the user asked for it to end where the barrel does). Deeper in, a low turn out in front of the curtain doesn't
+    `outBefore` 0.45) you're out once you're less than `exitIn` 0.3 m in: a 0.2 m gap between where it starts
+    and ends (the user's pick; a 0.25 s settle and a 0.75 m 'well out' rule were tried first). It used to wait
+    for phase `tubeExit`, ~0.6-3.6 m further on. The barrel view (main.js `updateTubeView`) switches with the
+    barrel and holds `VIEW_HOLD` 1 s after any switch (tried 0.6 s, then 2 s; it used to stay on until
+    `TUBE_VIEW_OUT` 5 m out on the shoulder). Deeper in, a low turn out in front of the curtain doesn't
     end the barrel (making that the lip landing on you was tried and was too harsh on S-turns). The position itself
     never jumped at entry (checked: the entry step is a normal step); it was where the view switched.
     **Slashes in the barrel are easier to start** (2026-11-17, the user): `slashTube` carries gentler gates

@@ -58,8 +58,9 @@ const reef = {
   // 92% of the way from the trough to the roof (where 11.9 sits on the normal reef), and over the falls
   // above 80% (looser than the normal reef; t-based, its 0.62 caught you at ~20% of the height here).
   // In the barrel once you're `enterIn` m in under the lip (so it's over you); near the opening
-  // (phase below `outBefore`) out once you're out from under it for `outSettle` s or by `outBy` m.
-  tubeReal: USE_SIM ? { top: 0.92, fall: 0.8, enterIn: 0.5, outBefore: 0.45, outSettle: 0.25, outBy: 0.75 } : null,
+  // (phase below `outBefore`) out once you're less than `exitIn` m in (0.2 m nearer the lip: a gap so
+  // it doesn't flick in and out at one spot).
+  tubeReal: USE_SIM ? { top: 0.92, fall: 0.8, enterIn: 0.5, exitIn: 0.3, outBefore: 0.45 } : null,
   tube: true,
   // Spray blowing back off the crest: along the tall wall ahead and over the barrel.
   plume: (s) => sstep(-1.3, -0.5, s) * (1 - sstep(1.1, 1.7, s)),
