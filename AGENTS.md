@@ -179,8 +179,8 @@ button).
     half depth: back knee dropped toward the deck, hips low, chest folded over the front thigh, hands low by
     the knees, head up looking down the line; surfer.js `bc`/`deep`). Really deep (past ~40% depth, full by
     85%) `r.frontLean` builds slowly: hips and chest shift toward the nose, and it adds a slight push
-    (`tubeLeanDrive`) and lets you trim slightly faster (`tubeLeanOver`, 0.6 m/s), so deep in you creep
-    forward a little (~0.6 m/s over the peel at 70% depth, vs 0.25).
+    (`tubeLeanDrive` 0.75) and lets you trim slightly faster (`tubeLeanOver`, 0.3 m/s; both halved from 1.5/0.6 at the user's request), so deep in you creep
+    forward a little (~0.35 m/s over the peel at 70% depth, vs 0.25 without the lean).
     **Turn damping in the barrel** (2026-11-17, the user's request): turn rate is scaled by
     `1 - tubeTurnDamp * r.tubeDamp`; `r.tubeDamp` eases toward depth (full by ~70%) and back out, so
     turns get gradually subtler the deeper you are (`tubeTurnDamp` 0.45 on the reef: a 0.25 s held turn
