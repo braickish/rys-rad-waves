@@ -64,11 +64,13 @@
   .mob { display: none; }
   #err { position: fixed; left: 12px; right: 12px; bottom: 60px; background: #b3123f; color: #fff; padding: 10px 14px; border-radius: 10px; font-size: 13px; z-index: 5; }
   #err[hidden] { display: none; }
+  #foam { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; display: none; filter: blur(3px); }
   body.touch .mob { display: inline; }
 </style>
 </head>
 <body>
 <canvas id="gfx"></canvas>
+<canvas id="foam"></canvas>
 
 <div class="hud">
   <div>

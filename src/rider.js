@@ -225,7 +225,7 @@ export function createRider() {
     moveCooldown: 0, lastBottomTurn: -9, bottomArmed: false,
     tube: null, fakie: null, driveBank: 0, lastTurnTime: -9, lastTurnDir: 0, overTheBack: false,
     rideDir: 1, lock: null, inDir: 0, lipSnap: null, snapGrip: false, roundhouse: null, crouchDepth: 0, slash: null, slide: 0, rightHeld: 0, turnDir: 0, turnDirAge: 9, turnHeld: 0, hard: 0, assist: null, bottomCarve: false, floater: null,
-    wipeReason: '', wipeTimer: 0,
+    wipeReason: '', wipeTimer: 0, washing: false,
     events: [],
     time: 0,
   };
@@ -250,9 +250,12 @@ function syncPose(r, f) {
 }
 
 function wipe(r, reason) {
+  // Wiping out in the barrel (or pulling in) throws you in the "washing
+  // machine": a longer hold-down (the foam ball screen in main.js).
+  r.washing = !!r.tube || reason.includes('caught up in the lip');
   r.mode = 'wipe';
   r.wipeReason = reason;
-  r.wipeTimer = 2.2;
+  r.wipeTimer = r.washing ? 3.2 : 2.2;
   r.inBarrel = false;
   r.events.push({ type: 'wipe', reason });
 }
@@ -872,10 +875,10 @@ function checkHazards(r, dt) {
   tb.depth = Math.max(tb.depth, depth);
   tb.depthSum += depth * dt;
   if (tb.pullIn) return;
-  if (ph > T.tubeCollapse) { r.tube = null; r.inBarrel = false; return wipe(r, 'Pinched! (too deep: drop down and drive forward)'); }
+  if (ph > T.tubeCollapse) { wipe(r, 'Pinched! (too deep: drop down and drive forward)'); r.tube = null; return; }
   // Up in the top of the barrel the lip grabs you and throws you over.
-  if (r.height > T.tubeFallHeight) { r.tube = null; r.inBarrel = false; return wipe(r, 'Over the falls! (too high in the barrel)'); }
-  if (r.t > T.tBottom + T.tubeLow) { r.tube = null; r.inBarrel = false; return wipe(r, 'The lip landed on you! (too low)'); }
+  if (r.height > T.tubeFallHeight) { wipe(r, 'Over the falls! (too high in the barrel)'); r.tube = null; return; }
+  if (r.t > T.tBottom + T.tubeLow) { wipe(r, 'The lip landed on you! (too low)'); r.tube = null; return; }
   if (ph < T.tubeExit) {
     r.events.push({ type: 'barrelExit', time: tb.time, depth: tb.depth, avgDepth: tb.depthSum / Math.max(tb.time, 1e-3) });
     r.tube = null; r.inBarrel = false; r.barrelTime = 0;

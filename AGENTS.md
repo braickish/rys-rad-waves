@@ -13,7 +13,7 @@ python3 -m http.server 8765 --bind 127.0.0.1   # then open http://127.0.0.1:8765
 It needs a WebGPU browser (recent Chrome/Edge, or Safari on macOS/iOS 26+).
 
 URL options: `?wave=barrel` (the barreling wave; default is a crumbling wave), `?play` (skip the
-title), `?auto` (autopilot works the pocket), `?xs=-4` (start behind the peel), `?cam=1` (chase
+title), `?auto` (autopilot works the pocket; a test can set `window.__manual = true` to take over the keys), `?xs=-4` (start behind the peel), `?cam=1` (chase
 camera), `?cam=3` (testing: fixed out in the channel, looking at the curl side-on, like a photo
 from the channel; used to compare the reef with reference photos), `?noparticles`.
 
@@ -197,9 +197,15 @@ button).
     Barrel view (main.js `updateTubeView`, the `tube` shot): on once you're in the tube (the user
     tried switching it on earlier and went back to this), and it stays on after you come out until
     you're out on the shoulder (`TUBE_VIEW_OUT`, 5 m ahead of the curl) or wipe out. In the tube the
-    camera is pinned deep inside, at the most open spot near your height (`tubeCenter(xs, y + 0.8)`;
-    up near the roof was tried and the user found it too high), `camBack` (up to 7 m) behind you; if the view to you is blocked it eases closer along the inside of the tube,
-    never out of it. It tips down toward you so you sit a little above the middle of the frame.
+    camera is pinned inside, `TUBE_CAM_BACK` (5.5 m) behind you and about `TUBE_CAM_UP` (1.5 m) above
+    you (the most open spot near that height, `tubeCenter`; up near the roof was tried and the user
+    found it too high; 7 m back was the previous distance). If there's no tube that far back (deep in
+    the back of the barrel it's pinched shut) or the view to you is blocked, it searches closer along
+    the inside of the tube, and with nowhere at all it holds its last spot (`lastTubeSpot`): it used
+    to pop out the back of the wave there.
+    **Washing machine:** wipe out in the barrel (pinched, too high, too low, caught in the lip) and
+    `r.washing` is set: a longer hold-down (3.2s) and the screen goes to a churning white foam ball
+    (`src/washer.js`, a 2D canvas `#foam` over the game), fading out as the score card comes up. It tips down toward you so you sit a little above the middle of the frame.
     Coming out it eases back down to right behind you (`tubeBlend`). It never snaps or jumps
     between distances (earlier versions did, and hopped around out on the flats). Mist particles
     fade near the camera-to-surfer sightline (shaders.js) so spray never covers the surfer. Reef shape is `KF_PIPE`

@@ -1,4 +1,5 @@
 import { createRenderer } from './renderer.js';
+import { updateWasher } from './washer.js';
 import { createRider, resetRider, stepRider, groundSpeed, frameAt, v3, TUNE, useWave, tubeDepth } from './rider.js';
 import { PEEL_SPEED, slice, verticalHits, WAVE, phaseAt } from './wave.js';
 import { WAVES } from './waves/index.js';
@@ -53,7 +54,7 @@ function autopilot() {
 // right. Touch: swipes do exactly the same (swipe left or up = Left, swipe
 // right or down = Right), harder the further you swipe.
 function readInput() {
-  if (params.has('auto')) return autopilot();
+  if (params.has('auto') && !window.__manual) return autopilot(); // (tests set __manual to take over)
   const k = (...c) => c.some((x) => keys.has(x));
   const turn = (k('ArrowLeft', 'KeyA') ? 1 : 0) - (k('ArrowRight', 'KeyD') ? 1 : 0);
   const tilt = (k('ArrowUp', 'KeyW') ? 1 : 0) - (k('ArrowDown', 'KeyS') ? 1 : 0);
@@ -233,7 +234,8 @@ let lastShot = '';
 // after you come out until you're out on the shoulder (TUBE_VIEW_OUT ahead of
 // the curl). tubeBlend eases the camera up into the tube and back down.
 const TUBE_VIEW_OUT = 5;
-let tubeView = false, tubeBlend = 0, camBack = 7, camBackWant = 7;
+const TUBE_CAM_BACK = 5.5, TUBE_CAM_UP = 1.5; // barrel view: this far behind and above the surfer (m)
+let tubeView = false, tubeBlend = 0, camBack = TUBE_CAM_BACK, camBackWant = TUBE_CAM_BACK, lastTubeSpot = null;
 function insideWaterAt(q) { return verticalHits(slice(q[0], 6), q[2]).filter((hit) => hit.y > q[1]).length % 2 === 1; }
 function updateTubeView(dt) {
   if (!WAVE.tube || rider.mode !== 'surf' || state === 'title') { tubeView = false; tubeBlend = 0; return; }
@@ -261,20 +263,29 @@ function updateCamera(dt) {
     // slides in closer if water would be in the way. Everything moves
     // smoothly (it used to pick between fixed distances and jump).
     const eye = [p[0], p[1] + 0.9, p[2]];
-    let w = [p[0] - 7, p[1] + 1.4, p[2] + 0.3];
+    let w = [p[0] - TUBE_CAM_BACK, p[1] + TUBE_CAM_UP, p[2] + 0.3];
     if (tubeBlend > 0.01) {
-      // Pinned deep inside the tube, at the most open spot near the surfer's
-      // height (high up near the roof was tried and looked wrong). If the
-      // view to the surfer is blocked it comes closer along the inside of
-      // the tube (camBack eases, so it never jumps), never out of it.
-      const c = tubeCenter(p[0] - camBack, p[1] + 0.8);
-      const spot = c && [p[0] - camBack, c.y, c.z];
-      const ok = spot && clearView(spot, eye);
-      camBackWant = ok ? Math.min(7, camBackWant + dt * 1.5) : Math.max(2.5, camBackWant - dt * 6);
-      camBack += (camBackWant - camBack) * (1 - Math.exp(-dt * 6));
-      if (spot) w = [p[0] - camBack, w[1] + (spot[1] - w[1]) * tubeBlend, w[2] + (spot[2] - w[2]) * tubeBlend];
+      // Pinned inside the tube TUBE_CAM_BACK behind the surfer, about
+      // TUBE_CAM_UP above them (the most open spot near that height). Deep
+      // in the back of the barrel there may be no tube that far back (it's
+      // pinched shut), or no clear view: then it looks closer and closer
+      // along the inside of the tube, and if there's still nowhere it holds
+      // its last spot inside the tube rather than popping out the back.
+      let spot = null;
+      for (let back = camBackWant; back >= 1.5 && !spot; back -= 0.5) {
+        const c = tubeCenter(p[0] - back, p[1] + TUBE_CAM_UP);
+        const s = c && [p[0] - back, c.y, c.z];
+        if (s && clearView(s, eye)) { spot = s; camBackWant = back; }
+      }
+      camBackWant = spot ? Math.min(TUBE_CAM_BACK, camBackWant + dt * 1.5) : camBackWant;
+      if (spot) {
+        camBack += (p[0] - spot[0] - camBack) * (1 - Math.exp(-dt * 6));
+        lastTubeSpot = [spot[0] - p[0], spot[1] - p[1], spot[2] - p[2]];
+        spot[0] = p[0] - camBack;
+      } else if (lastTubeSpot) spot = [p[0] + lastTubeSpot[0], p[1] + lastTubeSpot[1], p[2] + lastTubeSpot[2]];
+      if (spot) w = [spot[0], w[1] + (spot[1] - w[1]) * tubeBlend, w[2] + (spot[2] - w[2]) * tubeBlend];
     } else {
-      camBack = camBackWant = 7;
+      camBack = camBackWant = TUBE_CAM_BACK; lastTubeSpot = null;
       for (let i = 0; i < 10 && (insideWaterAt(w) || !clearView(w, eye)); i++) {
         w = [w[0] + (p[0] - 2.0 - w[0]) * 0.25, w[1] + (p[1] + 1.1 - w[1]) * 0.25, w[2] + (p[2] + 0.2 - w[2]) * 0.25];
       }
@@ -283,7 +294,7 @@ function updateCamera(dt) {
     // (aimed out along the tube; from up near the roof it tips down toward
     // the surfer so they sit a little above the middle of the frame, clear
     // of the depth meter)
-    const drop = Math.max(0, w[1] - p[1] - 1.4);
+    const drop = Math.max(0, w[1] - p[1] - TUBE_CAM_UP);
     look = [p[0] + 6 - drop * 1.2, p[1] + 0.4 - drop * 0.35, p[2] + (p[2] - w[2]) * 0.4];
     shot = 'tube';
   } else if (camMode === 0) {
@@ -418,6 +429,9 @@ async function main() {
     const aspect = canvas.clientWidth / Math.max(1, canvas.clientHeight);
     aspectNow = aspect;
     updateCamera(dt);
+    // Wiped out in the barrel: the washing machine, until you surface (it
+    // fades out once the ride's over or you start again).
+    updateWasher(dt, rider.mode === 'wipe' && rider.washing && state !== 'over');
     const proj = perspective(aspect < 1 ? 1.15 : 0.95, aspect, 0.1, 4000);
     const view = lookAt(camPos, camTarget, [0, 1, 0]);
     const vp = mul(proj, view);
