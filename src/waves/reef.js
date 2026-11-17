@@ -5,8 +5,17 @@ import { KF_SIM } from './sim-pipe.js';
 // `?sim` (or SIM=1 in node): shapes from the 2D breaking-wave simulation (sim-pipe.js), for comparison.
 export const USE_SIM = typeof location !== 'undefined' ? /[?&]sim(&|=|$)/.test(location.search) : !!(globalThis.process && process.env.SIM);
 import point from './point.js';
+// `?size=1.75` (or SIZE=1.75 in node): the whole reef wave this many times bigger, for trying
+// out sizes: its cross-section, its length along the wave (phase lengths, pocket, curl zone,
+// whitewater, where you drop in) and its peel speed by sqrt(size), like a bigger set wave.
+// Everything about getting caught in the barrel goes by place along the curve, phase and
+// real height in the tube, so it scales with it.
+const SIZE_K = (() => {
+  const v = typeof location !== 'undefined' ? new URLSearchParams(location.search).get('size') : globalThis.process && process.env.SIZE;
+  const k = Number(v); return k > 0.2 && k < 5 ? k : 1;
+})();
 
-export default {
+const reef = {
   id: 'reef',
   name: 'Reef Barrel',
   kind: 'barrel',
@@ -80,3 +89,21 @@ export default {
     roofCrash: 0.9, // driving into the roof steeper than this (sin of angle) = over the falls // this far below the bottom of the face and the lip lands on you
   },
 };
+
+// (applies ?size: lengths along the wave scale with it, peel speed by sqrt)
+function sized(w, k) {
+  if (k === 1) return w;
+  const p = w.phase, fv = w.foamVisual, pk = w.pocket, T = w.tune;
+  return {
+    ...w,
+    sizeK: k, // (the riding camera pulls back with it, main.js)
+    scale: w.scale * k,
+    peelSpeed: w.peelSpeed * Math.sqrt(k), waveSpeed: w.waveSpeed * Math.sqrt(k),
+    phase: { ...p, ahead: p.ahead * k, behind: p.behind * k, behindFar: p.behindFar && p.behindFar * k },
+    foamVisual: (s, t, xs) => fv(s, t, xs / k),
+    pocket: (xs) => pk(xs / k),
+    tune: { ...T, curlZone: T.curlZone.map((x) => x * k), startXs: T.startXs * k },
+  };
+}
+
+export default sized(reef, SIZE_K);

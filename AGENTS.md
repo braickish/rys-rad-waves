@@ -15,7 +15,14 @@ It needs a WebGPU browser (recent Chrome/Edge, or Safari on macOS/iOS 26+).
 URL options: `?wave=barrel` (the barreling wave; default is a crumbling wave), `?play` (skip the
 title), `?auto` (autopilot works the pocket; a test can set `window.__manual = true` to take over the keys), `?xs=-4` (start behind the peel), `?cam=1` (chase
 camera), `?cam=3` (testing: fixed out in the channel, looking at the curl side-on, like a photo
-from the channel; used to compare the reef with reference photos), `?noparticles`.
+from the channel; used to compare the reef with reference photos), `?noparticles`. `?size=1.75` (the reef this many times
+bigger, for trying sizes; works with `?sim`): reef.js `sized()` scales the cross-section (`scale`), the
+lengths along the wave (`phase`, `pocket`, whitewater, `curlZone`, `startXs`), the peel and wave speeds by
+sqrt(size) (as sets do), the riding camera's distance (`WAVE.sizeK`) and when the barrel view ends. The barrel's
+catch rules go by place along the curve, phase and real height in the tube, so they scale on their own
+(at 1.75 on `?sim`, riders are caught at 79-93% of the tube's height, as at size 1). On the bigger face the
+drop takes longer, so a slash needs a later bottom turn (test/slash.mjs's player-timing check only tries
+up to 0.8 s and fails at `SIM=1 SIZE=1.75`; from 1.4 s it slashes).
 
 Controls: one control, from the surfer's point of view. Left (or Up) turns the board to the surfer's
 left, Right (or Down) to their right; Up is exactly Left and Down exactly Right in every situation

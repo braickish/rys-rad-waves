@@ -240,7 +240,7 @@ function insideWaterAt(q) { return verticalHits(slice(q[0], 6), q[2]).filter((hi
 function updateTubeView(dt) {
   if (!WAVE.tube || rider.mode !== 'surf' || state === 'title') { tubeView = false; tubeBlend = 0; return; }
   if (rider.tube) tubeView = true;
-  else if (tubeView && rider.xs > TUBE_VIEW_OUT) tubeView = false;
+  else if (tubeView && rider.xs > TUBE_VIEW_OUT * (WAVE.tube ? WAVE.phase.ahead / 14 : 1)) tubeView = false; // (further out on a bigger wave: ?size)
   const inTube = rider.tube ? 1 : 0;
   tubeBlend += (inTube - tubeBlend) * (1 - Math.exp(-dt * 3));
 }
@@ -303,8 +303,9 @@ function updateCamera(dt) {
     // behind you (left) about equally, the surfer a little left of center
     // (more room ahead).
     const near = aspectNow < 1 ? 0.75 : 1; // closer on a phone held upright
-    want = [p[0] + 4.0 * near, 3.8 + p[1] * 0.35, p[2] + 14 * near];
-    look = [p[0] + -0.3 * near, 1.0 + p[1] * 0.55, p[2] - 0.5];
+    const g = WAVE.sizeK || 1; // (further out for a bigger wave: ?size)
+    want = [p[0] + 4.0 * near * g, 3.8 * g + p[1] * 0.35, p[2] + 14 * near * g];
+    look = [p[0] + -0.3 * near * g, 1.0 * g + p[1] * 0.55, p[2] - 0.5];
   } else if (camMode === 2) {
     // Close-up (testing): beside the rider, toward the beach.
     want = [p[0] + 2.4, p[1] + 1.5, p[2] + 4.2];
