@@ -195,7 +195,7 @@ button).
     `outBefore` 0.45) you're out once you're out from under the lip for `outSettle` 0.25 s or by more than
     `outBy` 0.75 m (~0.5 m past the tip riding out the opening; it used to wait for phase `tubeExit`, ~0.6-3.6
     m further on), so a quick dip out and back stays one barrel. The barrel view (main.js `updateTubeView`) now
-    switches exactly with the barrel, on and off, and holds `VIEW_HOLD` 0.6 s after any switch (it used to
+    switches exactly with the barrel, on and off, and holds `VIEW_HOLD` 2 s after any switch (0.6 s still flickered for the user) (it used to
     stay on until `TUBE_VIEW_OUT` 5 m out on the shoulder; the user asked for it to end where the barrel does). Deeper in, a low turn out in front of the curtain doesn't
     end the barrel (making that the lip landing on you was tried and was too harsh on S-turns). The position itself
     never jumped at entry (checked: the entry step is a normal step); it was where the view switched.
