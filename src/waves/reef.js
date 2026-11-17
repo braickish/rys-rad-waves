@@ -1,16 +1,13 @@
 // Reef Barrel: a hollow right that throws a lip over into a tube. Crouch (or
 // balance) in the barrel; the whitewater behind it is a closing tube.
 import { KF_PIPE, sstep } from './shapes.js';
-import { buildCylKeyframes } from './cylinder.js';
-// `?cyl` (or CYL=1 in node): shapes generated from one growing cylinder (cylinder.js), for comparison.
-export const USE_CYL = typeof location !== 'undefined' ? /[?&]cyl(&|=|$)/.test(location.search) : !!(globalThis.process && process.env.CYL);
 import point from './point.js';
 
 export default {
   id: 'reef',
   name: 'Reef Barrel',
   kind: 'barrel',
-  keyframes: USE_CYL ? buildCylKeyframes() : KF_PIPE,
+  keyframes: KF_PIPE,
   board: 'shortboard', // a 6'6" thruster with plenty of rocker for the steep, hollow face (mesh.js BOARDS)
   scale: 1.75, // much bigger than the point: a heavy, tall wave
   peelSpeed: 10.5, // peels fast: you have to race it (pointing up costs you more here)
@@ -40,7 +37,7 @@ export default {
   white: (s) => sstep(1.1, 1.4, s) * (1 - sstep(2.0, 2.8, s)),
   pocket: (xs) => (xs >= 0 ? Math.exp(-((xs / 6) ** 2)) : sstep(-13, -9, xs)),
   // Once the lip has thrown, the face you can ride tops out under the roof.
-  faceTop: (s) => (USE_CYL ? 7.8 : 5.3) + (11.9 - (USE_CYL ? 7.8 : 5.3)) * sstep(-0.3, 0.2, s), // (with ?cyl the open face tops out at the tip point, 8) // lowers smoothly as the lip throws
+  faceTop: (s) => 5.3 + (11.9 - 5.3) * sstep(-0.3, 0.2, s), // lowers smoothly as the lip throws
   tube: true,
   // Spray blowing back off the crest: along the tall wall ahead and over the barrel.
   plume: (s) => sstep(-1.3, -0.5, s) * (1 - sstep(1.1, 1.7, s)),
@@ -52,7 +49,6 @@ export default {
 
   tune: {
     ...point.tune,
-    ...(USE_CYL ? { tTop: 7.6 } : {}), // (?cyl: the open face tops out at the tip point)
     curlZone: [-16, 2.5], // behind the curl is the tube, not whitewater
     airs: false,
     shoulderReach: 0, // (the reef keeps its own feel)

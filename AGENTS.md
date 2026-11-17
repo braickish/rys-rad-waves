@@ -12,7 +12,7 @@ python3 -m http.server 8765 --bind 127.0.0.1   # then open http://127.0.0.1:8765
 
 It needs a WebGPU browser (recent Chrome/Edge, or Safari on macOS/iOS 26+).
 
-URL options: `?cyl` (reef shapes from one growing cylinder, experimental), `?wave=barrel` (the barreling wave; default is a crumbling wave), `?play` (skip the
+URL options: `?wave=barrel` (the barreling wave; default is a crumbling wave), `?play` (skip the
 title), `?auto` (autopilot works the pocket; a test can set `window.__manual = true` to take over the keys), `?xs=-4` (start behind the peel), `?cam=1` (chase
 camera), `?cam=3` (testing: fixed out in the channel, looking at the curl side-on, like a photo
 from the channel; used to compare the reef with reference photos), `?noparticles`.
@@ -251,16 +251,9 @@ button).
   flats to remove a spline sag in front of the wave (the user said it made it not work).
   Next idea (the user's): carry the cylinder out past the tube onto the shoulder, growing at a smooth rate,
   with only part of its circumference being wave (the rest sky) further out, and it only breaks up to a point.
-- **Cylinder wave (experimental, `?cyl`; `CYL=1` for node tests):** `src/waves/cylinder.js` generates the
-  reef's shapes from one cylinder along the whole wave (the user's model): smallest at the back of the tube,
-  growing steadily going out, its back wall moving forward steadily; the wave covers part of its
-  circumference (round over the top and down to the curtain in the tube, the lip part way round at the
-  opening, the back wall up to the crest ahead of the curl, only the lower back arc on the shoulder). Where
-  the lip goes over, the cylinder's height follows the wave's height (it only grows wider); on the open wall
-  it's taller than the wave. Keyframes every 0.1 of phase from -1.6 to 1.4, then the usual broken wave.
-  Rider: with ?cyl the open face tops out at the tip point (faceTop 7.8, tTop 7.6). Known differences: tube
-  rides last much longer (9-11 s S-turning vs ~3 s), slashes climb higher; from the channel the opening reads
-  as a tall white wall rather than an arch; slightly faceted roof (5 points round the circle).
+- **Cylinder wave (tried and dropped, 2026-11-17):** shapes generated from one growing cylinder along the whole
+  wave (behind `?cyl`). Smooth from inside the tube, but the user found it wasn't good overall; removed. Next:
+  wave shapes from real 2D breaking-wave simulations (see research/wave-sim).
 - **Texture on the flats:** the ripples carry on out across the flats in front of the wave (`flatsReach` in
   shaders.js), fading over ~50 m, instead of stopping at the bottom.
 - 2026-11-17: the project was rolled back to the surfboard commit (a3cc07a) after later reef work broke the
