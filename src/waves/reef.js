@@ -9,7 +9,7 @@ export default {
   kind: 'barrel',
   keyframes: KF_PIPE,
   board: 'shortboard', // a 6'6" thruster with plenty of rocker for the steep, hollow face (mesh.js BOARDS)
-  bend: 0.15, // the shoulder curves in toward the beach (wave.js bendZ): from the tube you see it sweep round ahead
+  bend: 0.3, // the shoulder curves in toward the beach (wave.js bendZ): from the tube you see it sweep round ahead
   scale: 1.75, // much bigger than the point: a heavy, tall wave
   peelSpeed: 10.5, // peels fast: you have to race it (pointing up costs you more here)
   waveSpeed: 5.0,

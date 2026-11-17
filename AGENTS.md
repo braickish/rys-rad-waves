@@ -233,6 +233,18 @@ button).
   dragged a fold across the rideable face as they peeled into the lip: the face just outside the opening
   overhung (112 deg at 4.5 m up, vs 78 in the tube). Now it peaks at 83 and eases out to the shoulder.
   `node test/steepness.mjs` measures it.
+- **Smooth from the tube out to the shoulder** (2026-11-17, the user's rules): (1) at any height the face
+  is steepest deep in the tube and only gets less steep going out (`test/steepness.mjs`); (2) along the wave
+  the wall only wraps in toward you, never bulges out (convex), seen from inside the tube (`test/concave.mjs`:
+  curvature of the face's position along the wave at fixed heights; negative = a bulge); (3) no corners: no
+  tight bends in any cross-section except right at the lip tip (`test/corners.mjs`, sharpest bend 1/m).
+  What it took: the tube's roof (points 10-13 of the full and closing tube) on an ellipse, so the top is a
+  true arc; the forming lip's points re-placed so it rolls over instead of creasing (radius 5 cm -> ~50 cm);
+  and the standing wall ahead of the curl (s -0.25) slid back ~1 m as a whole, because the face was jumping
+  forward right outside the opening and then slowing on the shoulder (the bulge). Points were tuned with a
+  small coordinate-descent script against these measurements, then checked visually from inside the tube,
+  the riding camera and the channel. Leftovers: a slight bulge 4-5 m up right at the opening and deep in the
+  tube near xs -11, and the crest rounding off high on the far shoulder.
 - **Texture on the flats:** the ripples carry on out across the flats in front of the wave (`flatsReach` in
   shaders.js), fading over ~50 m, instead of stopping at the bottom.
 - 2026-11-17: the project was rolled back to the surfboard commit (a3cc07a) after later reef work broke the
@@ -276,6 +288,8 @@ node test/pocket.mjs   # where different riding styles spend their time vs. the 
 node test/slash.mjs    # the slash: when it fires (and doesn't), climb, speed scrub, slide, turn; point, reef, barrel
 node test/plot-slices.mjs out.svg [crumble|barrel]   # draw the wave cross-sections
 node test/steepness.mjs  # reef face angle at fixed heights from the tube out to the shoulder
+node test/concave.mjs    # bulges along the wave (should wrap in, never bulge out)
+node test/corners.mjs    # sharpest bend in each cross-section (no corners)
 node test/drive.mjs test/out/<name> "<query>" <ms,...> ['<input json>']   # headless Chrome screenshots + console (test/out is git-ignored)
 MOBILE=1 node test/drive.mjs ...   # same, emulating a phone (390x844, touch)
 ```

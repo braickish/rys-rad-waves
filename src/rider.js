@@ -255,7 +255,7 @@ function wipe(r, reason) {
   r.washing = !!r.tube || reason.includes('caught up in the lip');
   r.mode = 'wipe';
   r.wipeReason = reason;
-  r.wipeTimer = r.washing ? 3.2 : 2.2;
+  r.wipeTimer = 2.2;
   r.wipeAge = 0;
   r.inBarrel = false;
   r.fallsBoard = null;
