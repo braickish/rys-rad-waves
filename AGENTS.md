@@ -201,6 +201,16 @@ button).
       mirrored in the water shader's `surfacePoint`; the reef uses 0.3, the point 0): from the tube you see
       the face sweep round ahead of you instead of a straight wall, which took the last bump out of the
       opening. It's applied in `surface`/`slice`, so riding follows the curved wave.
+    - The broken wave behind the tube (2026-11-17, after the user's whitewater-reference.jpeg, a heavy reef
+      break seen from the beach): where the lip lands the whitewater explodes into a mound as tall as the open
+      wave (keyframe s 1.7), rolls on as a broad wall (s 2.4) and settles to a low band (s 3.6). Points 9-13
+      trace the tube's trapped air as a shrinking pocket inside the foam, so the shape blends from the closing
+      tube without folding. The foam surface billows (`pile` in the wave, shaders.js `billowNoise`/`pileAt`:
+      lumps pushed out along the cross-section's normal, rolling forward over the top along the flow), lit like
+      cloud (bright lumps, blue-grey folds). The lip-impact particles burst up to about the wave's height
+      over the mound and the plume adds a veil of mist off its top; the general whitewater mist is thinner
+      there so it doesn't hide the mound. Leftover foam lines drift in across the flats toward the beach
+      (heavy waves, `pile` > 0). Particles were tried much bigger first: they fogged the whole thing white.
     - Tried and rejected: an extra keyframe as the lip starts to pitch (a hump and a sharp turn in the lip, the
       opening stopped being round). Keep the opening a round/oval arch.
     `node test/steepness.mjs` measures the face angle at fixed heights from the tube out to the shoulder; the lip throws far out into a round tube about

@@ -63,7 +63,14 @@ export const KF_PIPE = [
   { s: 0.8, p: [[-40, 0], [-30, 0], [-8, 0.4], [-2.5, 2.7], [0, 4.2], [1.5, 4.55], [3.2, 4.35], [4.6, 3.4], [5.3, -0.35], [5.05, -0.32], [4.6, 2.9], [3.2, 4.15], [1.6, 3.98], [1.1, 1.5], [2.4, -0.75], [22, 0]] },
   // Closing: the tube narrows and the lip drives down into the trough.
   { s: 1.3, p: [[-40, 0], [-30, 0], [-8, 0.4], [-2.5, 2.3], [0, 3.7], [1.4, 4.0], [2.9, 3.6], [4.0, 2.5], [4.4, -0.4], [4.15, -0.37], [3.85, 2.05], [2.8, 3.42], [1.4, 3.7], [1.1, 1.1], [2.4, -0.6], [22, 0]] },
-  KF_BARREL[7],
-  KF_BARREL[8],
+  // The lip has landed: whitewater explodes up into a mound as tall as the
+  // open wave (like the reference photo of a heavy reef break from the beach).
+  // The tube's air is trapped inside it (points 9-13 trace a shrinking pocket
+  // inside the foam), so the shape blends from the closing tube without folding.
+  { s: 1.7, p: [[-40, 0], [-30, 0], [-8, 0.45], [-2.6, 2.4], [0, 3.8], [1.5, 4.5], [3.2, 4.65], [4.9, 3.4], [5.9, -0.2], [5.6, -0.15], [5.0, 1.2], [3.9, 1.7], [3.0, 1.2], [3.1, 0.2], [5.6, -0.35], [22, 0]] },
+  // Rolling on: a big, broad wall of whitewater, slowly settling.
+  { s: 2.4, p: [[-40, 0], [-30, 0], [-8, 0.4], [-2.6, 1.9], [0, 2.9], [1.6, 3.35], [3.4, 3.3], [5.2, 2.4], [6.4, -0.1], [6.1, -0.05], [5.6, 0.6], [4.8, 0.9], [4.1, 0.6], [4.2, 0.1], [6.4, -0.25], [22, 0]] },
+  // Spent: a low, wide band of foam.
+  { s: 3.6, p: [[-40, 0], [-30, 0], [-10, 0.3], [-4, 0.9], [0, 1.5], [1.8, 1.75], [3.6, 1.7], [5.4, 1.3], [7.0, 0.2], [6.8, 0.15], [6.4, 0.4], [5.9, 0.5], [5.5, 0.35], [5.6, 0.05], [7.4, -0.05], [22, 0]] },
   KF_BARREL[9],
 ];
