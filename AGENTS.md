@@ -182,43 +182,14 @@ button).
     picks you up once you're on the face or just below its base (`tubeEnterLow`). Scored by time x average depth. HUD: depth across, height up/down.
     Reef shape (`KF_PIPE`, reshaped 2026-11-16 after a reference photo of a heavy reef barrel in
     braickish/reference-images, pipe-example.jpg): a tall wall stands up well ahead of the curl
-    (`phase.ahead` 14), steep but not hollow (no overhang until the lip throws). The face is steepest at the back of
-    the tube and gets gradually less steep all the way out to the shoulder (the user's spec, 2026-11-16: the near
-    vertical, slightly hollow wall that used to stand ahead of the curl made a ridge where the tube met the face).
-    The user's reference for the inside view is barrel inside pov.jpeg (braickish/reference-images): the back
-    wall near vertical, the face sweeping out from it in one smooth curve, the lip arching over the top, an oval
-    opening, nothing bulging back toward you. What it took:
-    - Points 7-14 of the two wall keyframes (s -1.2, -0.25) are sampled from one smooth design curve each (the
-      outer one is the inner one scaled to its height and leaned out), with points 8-12 close together high on
-      the upper face where the lip will form, so the lip pitches from the very top. Placed by hand, the
-      close-together points made a notch; placed lower, the lip started forming mid-face and bulged the wall out.
-    - `easeUntil` (wave.js `controlPoints`, the reef sets 0.15): up to the curl the keyframes blend evenly.
-      The Catmull-Rom blend mixes in neighboring keyframes with negative weight, and that subtracted some of
-      the pitching lip from the wall: a notch/fold on the face part way out to the shoulder. Past the curl the
-      usual blend stays: evenly blended there the lip paused at each keyframe and the opening lost its round top.
-    - A mid-throw tube keyframe (s 0.45) keeps the lip tip on the arc of the tube.
-    - The shoulder curves in toward the beach ahead of the curl (`bend` in the wave, `bendZ(xs)` in wave.js,
-      mirrored in the water shader's `bendZ`; the reef uses 0.15, the point 0): from the tube you see the
-      face sweep round ahead of you instead of a straight wall. It's applied in `surface`/`slice`, so riding
-      follows the curved wave. It must be smooth everywhere: a hyperbola, straight far behind, curving most
-      gently around the curl over about ±14 m (`BEND_SPAN`), running out to a steady angle ahead. The first
-      version switched its curvature on abruptly at the curl, and the user saw that as unevenness and a bump
-      at the tube's opening.
-    - Tried and reverted (2026-11-17): a tall billowing whitewater mound behind the tube (extra keyframes
-      after the closing tube, foam billows displacing the surface in the shader, bigger spray). The user said
-      it broke the barrel. If the broken part is revisited, leave the tube's keyframes alone and check the
-      tube from inside and from the channel before showing it.
-    - Tried and rejected: an extra keyframe as the lip starts to pitch (a hump and a sharp turn in the lip, the
-      opening stopped being round). Keep the opening a round/oval arch.
-    `node test/steepness.mjs` measures the face angle at fixed heights from the tube out to the shoulder; the lip throws far out into a round tube about
-    as wide as it is tall, the lip a thin sheet (roof and curtain), landing well out in front. The roof sits right up under the outside of the lip (raised 2026-11-16: the user found the top, where it breaks, too thick), and the pitching lip curls over and down in one round arc (it used to throw out nearly level, which from inside the tube made the top of the opening flare out into a point instead of arching over). A second pass (same day) raised it again and moved the pitching keyframe from phase 0.25 to 0.15 so the lip is thin sooner at the curl (lip ~1.1 m at the curl, ~0.15-0.3 m in the tube; don't push the roof higher at point 12 without checking the gap, since the spline there bulges up and touched the outside). The
+    (`phase.ahead` 14), near vertical and slightly hollow before it pitches (no overhang until the
+    lip throws, so the rideable face is unchanged); the lip throws far out into a round tube about
+    as wide as it is tall, the lip a thin sheet (roof and curtain), landing well out in front. The roof sits right up under the outside of the lip (raised 2026-11-16: the user found the top, where it breaks, too thick), and the pitching lip throws out nearly level before it falls, so from the channel the tube opening reaches up close to the crest. The
     broken wave behind the closing tube lasts longer (`phase.behindFar` 22 m per phase past
     `farFrom` 1.3, eased in so there's no crease; the tube itself keeps `behind` 13, since
     stretching it changed how the barrel rides). Looks: the thrown lip white and frothy across
     its whole outside (its glassy glow fades once it has thrown), feathering along the crest of the wall, light glowing through the
-    lip as it pitches and a narrower turquoise band just under the crest of the wall ahead (`thin`; the user
-    wants the wall's glow less tall than the lip's, fading out to the normal color quickly, down the face and
-    toward the shoulder: it used to reach half way down the wall), and an offshore spray plume blowing back off the crest (the wave's
+    wall's upper part (`thin`), and an offshore spray plume blowing back off the crest (the wave's
     `plume(s)`, particle kind 4, from the crest position in the lip table), and whitewater bursting up
     where the curtain lands (`lipImpact(s)`, blowing out toward shore, away from the tube). The reef drops you in
     at `startXs` (5 m) since the wall stands up further ahead. `test/plot-slices.mjs` draws the
@@ -232,15 +203,15 @@ button).
     the back of the barrel it's pinched shut) or the view to you is blocked, it searches closer along
     the inside of the tube, and with nowhere at all it holds its last spot (`lastTubeSpot`): it used
     to pop out the back of the wave there.
-    **Barrel wipeouts** (pinched, too high, too low, caught in the lip) set `r.washing`. (A white foam-ball
-    "washing machine" screen used to follow, `src/washer.js`; removed 2026-11-16 once the falls were in: the user
-    preferred just the falls.)
+    **Washing machine:** wipe out in the barrel (pinched, too high, too low, caught in the lip) and
+    `r.washing` is set: a longer hold-down (3.2s) and the screen goes to a churning white foam ball
+    (`src/washer.js`, a 2D canvas `#foam` over the game), fading out as the score card comes up.
     Caught up top (too high in the barrel, into the roof, or caught in the lip pulling in) you first
     go **over the falls** (`r.falls`, `startFalls`/`stepFalls` in rider.js): sucked up the face, round
     under the roof and out to the lip tip (`FALLS_UP`, 0.5s), then carried with the tip as it throws
     out and down until it lands near the trough (following the tip back along `xs` is following that
-    water in time), tumbling slowly. The camera cuts to the channel view to watch; the lip lands
-    (`fallsLand`, with a splash) and the score card follows. You come off your board (the user: you aren't
+    water in time), tumbling slowly. The camera cuts to the channel view to watch; the washing
+    machine starts when the lip lands (`fallsLand`, with a splash). You come off your board (the user: you aren't
     attached to it): the surfer goes over alone, curled up in a ball (the `tuck` in surfer.js), while the board
     (`r.fallsBoard`, `stepFallsBoard`) stalls on the face, then is dragged back under the curtain and down
     toward the trough, flipping end over end. It tips down toward you so you sit a little above the middle of the frame.
@@ -256,11 +227,6 @@ button).
   the curl; `phaseAt` raises the phase there). **Sections are currently off on both waves**
   (`sea.sections: false`); they didn't play well yet. Seeded (`seedSea`, `?seed=`); `?nosea` turns the
   sea off. Tests run without the sea.
-- **Water texture flow:** the ripples drift up the face (world-space, measured without the shoulder's
-  bend), never sideways along the wave (they used to drift back with the peel, which the user saw as water
-  sliding back into the tube). A version flowing along the cross-section (a distance-along-the-curve table,
-  folding at the lip tip) was tried 2026-11-16 and reverted: the user didn't like how it changed the flow
-  up the waves.
 - **Water rendering:** the GPU builds the surface every frame from a cross-section table (512 phases,
   built per wave in `buildWaterTable`) and each slice's current phase (`slicePhases`), so the wave can
   change over time. The spray emitter table is refreshed every frame too.
@@ -275,13 +241,9 @@ button).
   and ~3" tail lift; the user asked for more rocker). Shape, stance, fins and stringer live together in the
   board's entry; the stringer, fins and feet follow the rocker.
 - `src/shaders.js`: WGSL. Water (fresnel sky reflection, backlit translucency in the lip, flowing
-  ripple normals, foam; fine ripples up close, a mid-size chop, plus a coarse, slanted, streaky layer (`coarseTex`) that fades
-  in with distance, carrying on out across the flats in front of the wave (`flatsReach`, the user asked for it not to stop at the bottom), so the wall seen from the channel or the riding camera has the same texture as inside the
-  tube; it used to look smooth and plastic from outside). Each layer is anti-aliased (`pixelSpan`, screen-space
-  derivatives): it fades out once its detail is finer than a pixel or two, and on the steep wall the ripples
-  soften where it's seen edge-on (`graze`). Without that, from inside the tube the wall around the opening broke
-  up into a fan of bright streaks (the user saw it as a weird flow at the opening). The broad ribs only fade at
-  extreme squeeze, so the flats seen from the channel keep their texture., sky, solid shading, and particles (compute-shader sim of 65k particles: lip
+  ripple normals, foam; fine ripples up close plus a coarse, slanted, streaky layer (`coarseTex`) that fades
+  in with distance, so the wall seen from the channel or the riding camera has the same texture as inside the
+  tube; it used to look smooth and plastic from outside), sky, solid shading, and particles (compute-shader sim of 65k particles: lip
   feathering, whitewater mist, rail spray, barrel spit; drawn as soft billboards).
 - `src/renderer.js`: WebGPU setup and draw order. `src/main.js`: loop, input (keyboard + touch),
   cameras, surfer model, scoring, HUD.
@@ -296,7 +258,6 @@ node test/controls.mjs # human-style inputs on both waves: no glitches, Up/Down 
 node test/pocket.mjs   # where different riding styles spend their time vs. the curl
 node test/slash.mjs    # the slash: when it fires (and doesn't), climb, speed scrub, slide, turn; point, reef, barrel
 node test/plot-slices.mjs out.svg [crumble|barrel]   # draw the wave cross-sections
-node test/steepness.mjs [reef|point]  # face angle along the wave at 25/50/70% height; flags spots that get steeper going out
 node test/drive.mjs test/out/<name> "<query>" <ms,...> ['<input json>']   # headless Chrome screenshots + console (test/out is git-ignored)
 MOBILE=1 node test/drive.mjs ...   # same, emulating a phone (390x844, touch)
 ```

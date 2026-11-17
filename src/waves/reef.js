@@ -8,9 +8,7 @@ export default {
   name: 'Reef Barrel',
   kind: 'barrel',
   keyframes: KF_PIPE,
-  easeUntil: 0.15, // the wall keyframes up to the curl blend evenly (wave.js controlPoints): keeps the face free of notches from the tube out to the shoulder
   board: 'shortboard', // a 6'6" thruster with plenty of rocker for the steep, hollow face (mesh.js BOARDS)
-  bend: 0.15, // the shoulder curves in toward the beach ahead of the curl (wave.js bendZ): from the tube you see it sweep out ahead
   scale: 1.75, // much bigger than the point: a heavy, tall wave
   peelSpeed: 10.5, // peels fast: you have to race it (pointing up costs you more here)
   waveSpeed: 5.0,
@@ -28,12 +26,10 @@ export default {
     );
   },
   thin: (s, t) => Math.min(1,
-    // the lip as it pitches: light glowing through it
+    // the tall wall ahead of the curl: light shining through its upper part
+    Math.exp(-(((t - 7.5) / 2.0) ** 2)) * sstep(-1.3, -0.6, s) * (1 - sstep(-0.1, 0.3, s)) * 0.3 +
     Math.exp(-(((t - 8) / 2.4) ** 2)) * sstep(-0.6, 0.1, s) * (1 - sstep(0.2, 0.6, s)) * 1.1 // (glows while it pitches; once thrown it's white water, not glass)
-    // the wall ahead of the curl: a narrower band just under the crest than the
-    // lip's, fading out down the face and toward the shoulder quickly (it used
-    // to reach half way down the wall, taller than the lip's glow)
-    + Math.exp(-(((t - 7.2) / 1.3) ** 2)) * sstep(-0.9, -0.3, s) * (1 - sstep(0.3, 0.7, s)) * 0.65),
+    + Math.exp(-(((t - 9.5) / 2.5) ** 2)) * sstep(-1.6, -0.3, s) * (1 - sstep(0.3, 0.8, s)) * 0.45),
   lipT: 8,
   // Whitewater spray and mist: where the tube closes and behind it, not inside it.
   white: (s) => sstep(1.1, 1.4, s) * (1 - sstep(2.0, 2.8, s)),

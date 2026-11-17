@@ -40,29 +40,18 @@ export const sstep = (a, b, x) => { const u = Math.min(1, Math.max(0, (x - a) / 
 export const KF_PIPE = [
   KF_BARREL[0],
   KF_BARREL[1],
-  // Building: already a tall, steep wall ahead of the curl. The same shape as
-  // the standing wall below, scaled to this height and leaned out, so the
-  // blend between them is even (two differently shaped walls sagged into a
-  // fold on the face part way out toward the shoulder).
-  { s: -1.2, p: [[-40, 0], [-30, 0], [-9, 0.5], [-3.5, 2.2], [0, 3.2], [0.9, 3.32], [1.6, 3.24], [2.27, 3.07], [2.6, 2.89], [2.78, 2.75], [2.91, 2.6], [3.0, 2.45], [3.09, 2.27], [3.74, 0.98], [6.39, -0.26], [22, 0]] },
-  // (Points 7-14 of both wall keyframes are sampled from one smooth design
-  // curve each: placed by hand, the close-together points made a notch.)
-  // The wall stands up: tall and steep, the crest rounding over the top, no
-  // overhang yet. Points 8-12 sit close together on the upper face where the
-  // lip will form, so the face below is one smooth sweep and nothing has to
-  // fold over as it turns into the pitching lip (that left a ledge on the face).
-  { s: -0.25, p: [[-40, 0], [-30, 0], [-8, 0.45], [-3.0, 2.4], [0, 3.95], [0.9, 4.1], [1.6, 4.0], [1.99, 3.8], [2.19, 3.58], [2.3, 3.4], [2.37, 3.22], [2.42, 3.04], [2.48, 2.82], [2.86, 1.25], [4.45, -0.25], [22, 0]] },
+  // Building: already a tall, steep wall ahead of the curl.
+  { s: -1.2, p: [[-40, 0], [-30, 0], [-9, 0.5], [-3.5, 2.2], [0, 3.3], [0.8, 3.32], [1.45, 3.18], [1.95, 2.9], [2.3, 2.5], [2.55, 2.05], [2.75, 1.6], [2.95, 1.15], [3.3, 0.65], [4.1, 0.1], [6.2, -0.3], [22, 0]] },
+  // The wall stands up: tall, near vertical and slightly hollow, the crest
+  // rounding over the top (no overhang yet, so the rideable face is unchanged).
+  { s: -0.25, p: [[-40, 0], [-30, 0], [-8, 0.45], [-3.0, 2.4], [0, 3.95], [0.9, 4.1], [1.6, 4.0], [2.1, 3.7], [2.4, 3.25], [2.5, 2.75], [2.45, 2.2], [2.35, 1.65], [2.35, 1.1], [2.6, 0.45], [3.6, -0.35], [22, 0]] },
   // The lip pitches far out in front of the face.
-  { s: 0.15, p: [[-40, 0], [-30, 0], [-8, 0.4], [-2.5, 2.6], [0, 4.1], [1.4, 4.42], [2.9, 4.35], [4.05, 3.85], [4.75, 2.9], [4.5, 2.88], [3.85, 3.62], [2.8, 4.06], [1.6, 3.85], [1.45, 1.4], [3.0, -0.6], [22, 0]] },
-  // Mid-throw: the lip on its way down, the tip pushed out on the arc of the
-  // tube (with the reef's even keyframe blending the tip would otherwise go
-  // straight from pitching to landing and the opening would lose its round top).
-  { s: 0.45, p: [[-40, 0], [-30, 0], [-8, 0.4], [-2.5, 2.65], [0, 4.15], [1.45, 4.5], [3.05, 4.38], [4.5, 3.7], [5.3, 1.55], [5.05, 1.55], [4.3, 3.3], [3.0, 4.13], [1.6, 3.92], [1.25, 1.45], [2.7, -0.68], [22, 0]] },
+  { s: 0.25, p: [[-40, 0], [-30, 0], [-8, 0.4], [-2.5, 2.6], [0, 4.1], [1.4, 4.4], [2.9, 4.3], [4.15, 3.85], [4.9, 3.0], [4.65, 2.95], [3.9, 3.6], [2.8, 4.05], [1.75, 3.8], [1.45, 1.4], [3.0, -0.6], [22, 0]] },
   // Full barrel: a round tube (about as wide as it is tall), the thin curtain
   // of the lip landing well out in front.
-  { s: 0.8, p: [[-40, 0], [-30, 0], [-8, 0.4], [-2.5, 2.7], [0, 4.2], [1.5, 4.55], [3.2, 4.35], [4.6, 3.4], [5.3, -0.35], [5.05, -0.32], [4.6, 2.9], [3.2, 4.15], [1.6, 3.98], [1.1, 1.5], [2.4, -0.75], [22, 0]] },
+  { s: 0.8, p: [[-40, 0], [-30, 0], [-8, 0.4], [-2.5, 2.7], [0, 4.2], [1.5, 4.55], [3.2, 4.35], [4.6, 3.4], [5.3, -0.35], [5.05, -0.32], [4.55, 2.7], [3.2, 4.12], [1.75, 3.98], [1.1, 1.5], [2.4, -0.75], [22, 0]] },
   // Closing: the tube narrows and the lip drives down into the trough.
-  { s: 1.3, p: [[-40, 0], [-30, 0], [-8, 0.4], [-2.5, 2.3], [0, 3.7], [1.4, 4.0], [2.9, 3.6], [4.0, 2.5], [4.4, -0.4], [4.15, -0.37], [3.85, 2.05], [2.8, 3.42], [1.4, 3.7], [1.1, 1.1], [2.4, -0.6], [22, 0]] },
+  { s: 1.3, p: [[-40, 0], [-30, 0], [-8, 0.4], [-2.5, 2.3], [0, 3.7], [1.4, 4.0], [2.9, 3.6], [4.0, 2.5], [4.4, -0.4], [4.15, -0.37], [3.8, 1.9], [2.8, 3.35], [1.45, 3.45], [1.1, 1.1], [2.4, -0.6], [22, 0]] },
   KF_BARREL[7],
   KF_BARREL[8],
   KF_BARREL[9],

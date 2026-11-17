@@ -42,7 +42,7 @@ let KF = WAVE.keyframes;
 // via useWave() in rider.js; the renderer rebuilds its meshes.
 export function setWave(w) {
   WAVE = typeof w === 'string' ? waveById(w) : w;
-  WAVE_TYPE = WAVE.kind; KF = WAVE.keyframes; EASE = WAVE.easeUntil ?? -Infinity;
+  WAVE_TYPE = WAVE.kind; KF = WAVE.keyframes;
   setWaveSize(1);
   SECTIONS.length = 0;
 }
@@ -95,15 +95,6 @@ export function phaseAt(xs) {
 const smooth = (f) => f * f * (3 - 2 * f);
 
 // Control points for a phase, as a Float64Array [z0, y0, z1, y1, ...], scaled.
-// A wave can blend its keyframes evenly up to a phase (`easeUntil`): there
-// every point eases from one keyframe to the next at the same rate (zero slope
-// at those keyframes), so the shape in between is a blend of just those two
-// smooth shapes. The Catmull-Rom blend mixes in a little of the keyframes on
-// either side with negative weight, and on the reef that subtracted some of
-// the pitching lip from the wall ahead of the curl: a notch on the face. Past
-// it (the tube) the usual blend keeps the lip moving on a smooth path (evenly
-// blended, it paused at every keyframe and the opening lost its round top).
-let EASE = -Infinity;
 export function controlPoints(s, out = new Float64Array(NP * 2), scale = SCALE) {
   // A smooth curve through the keyframes (cubic Hermite with Catmull-Rom
   // slopes), so the wave has no creases where one keyframe hands over to
@@ -122,8 +113,8 @@ export function controlPoints(s, out = new Float64Array(NP * 2), scale = SCALE) 
     for (let c = 0; c < 2; c++) {
       const y0 = a.p[i][c], y1 = b.p[i][c];
       // slopes per unit phase, scaled to this interval (zero at the ends)
-      const m0 = k > 0 && a.s > EASE ? ((b.p[i][c] - pa.p[i][c]) / (b.s - pa.s)) * h : 0;
-      const m1 = k + 2 < n && b.s > EASE ? ((pb.p[i][c] - a.p[i][c]) / (pb.s - a.s)) * h : 0;
+      const m0 = k > 0 ? ((b.p[i][c] - pa.p[i][c]) / (b.s - pa.s)) * h : 0;
+      const m1 = k + 2 < n ? ((pb.p[i][c] - a.p[i][c]) / (pb.s - a.s)) * h : 0;
       out[i * 2 + c] = (h00 * y0 + h10 * m0 + h01 * y1 + h11 * m1) * scale;
     }
   }
@@ -168,26 +159,11 @@ export function crPoint(c, t, out) {
 const _cp = new Float64Array(NP * 2);
 const _o = [0, 0];
 
-// Ahead of the curl the wave can curve in toward the beach (`bend`, m): the
-// shoulder wraps round, its face turning back toward the tube, so from inside
-// you see more of it sweeping out ahead instead of the wall running straight or
-// curving away. A hyperbola: straight far behind, curving most gently around
-// the curl (spread over about ±BEND_SPAN m) and running out at `bend` m forward
-// per m along the wave ahead. Smooth everywhere: the first version switched its
-// curvature on abruptly at the curl, and that showed as a crease and a bump in
-// the face at the tube's opening. Applied everywhere the wave is built in 3D
-// (surface, slice; the water shader's bendZ mirrors it).
-const BEND_SPAN = 14;
-export function bendZ(xs) {
-  const B = WAVE.bend || 0;
-  return B ? (B * (Math.sqrt(xs * xs + BEND_SPAN * BEND_SPAN) + xs)) / 2 : 0;
-}
-
 // Surface point at (xs, t), t in [0, NP-1] along the cross-section.
 export function surface(xs, t, out = [0, 0, 0]) {
   controlPoints(phaseAt(xs), _cp);
   crPoint(_cp, t, _o);
-  out[0] = xs; out[1] = _o[1]; out[2] = _o[0] + bendZ(xs);
+  out[0] = xs; out[1] = _o[1]; out[2] = _o[0];
   return out;
 }
 
@@ -196,11 +172,11 @@ export function slice(xs, perSeg = 10) {
   const cp = controlPoints(phaseAt(xs));
   const count = (NP - 1) * perSeg + 1;
   const z = new Float64Array(count), y = new Float64Array(count), t = new Float64Array(count);
-  const o = [0, 0], bz = bendZ(xs);
+  const o = [0, 0];
   for (let i = 0; i < count; i++) {
     const tt = i / perSeg;
     crPoint(cp, tt, o);
-    z[i] = o[0] + bz; y[i] = o[1]; t[i] = tt;
+    z[i] = o[0]; y[i] = o[1]; t[i] = tt;
   }
   return { z, y, t, count };
 }

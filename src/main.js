@@ -1,4 +1,5 @@
 import { createRenderer } from './renderer.js';
+import { updateWasher } from './washer.js';
 import { createRider, resetRider, stepRider, groundSpeed, frameAt, v3, TUNE, useWave, tubeDepth } from './rider.js';
 import { PEEL_SPEED, slice, verticalHits, WAVE, phaseAt } from './wave.js';
 import { WAVES } from './waves/index.js';
@@ -429,6 +430,9 @@ async function main() {
     const aspect = canvas.clientWidth / Math.max(1, canvas.clientHeight);
     aspectNow = aspect;
     updateCamera(dt);
+    // Wiped out in the barrel: the washing machine, until you surface (it
+    // fades out once the ride's over or you start again).
+    updateWasher(dt, rider.mode === 'wipe' && rider.washing && !rider.falls && state !== 'over');
     const proj = perspective(aspect < 1 ? 1.15 : 0.95, aspect, 0.1, 4000);
     const view = lookAt(camPos, camTarget, [0, 1, 0]);
     const vp = mul(proj, view);

@@ -70,7 +70,7 @@ struct VO {
   @location(2) attr: vec3f,
 };
 // The water surface, built from the cross-section table (see mesh.js).
-struct WaterInfo { cols: u32, nx: u32, rows: u32, pad: u32, sMin: f32, sMax: f32, scale: f32, bend: f32 };
+struct WaterInfo { cols: u32, nx: u32, rows: u32, pad: u32, sMin: f32, sMax: f32, scale: f32, pad2: f32 };
 @group(0) @binding(1) var<uniform> W: WaterInfo;
 @group(0) @binding(2) var<storage, read> table: array<vec4f>;   // [z, y, foam, thin] per (row, col)
 @group(0) @binding(3) var<storage, read> slices: array<vec2f>;  // [xs, phase] per slice
@@ -81,16 +81,12 @@ fn tableAt(s: f32, j: u32) -> vec4f {
   let r1 = min(r0 + 1u, W.rows - 1u);
   return mix(table[r0 * W.cols + j], table[r1 * W.cols + j], f - floor(f));
 }
-// The shoulder curving in toward the beach ahead of the curl (wave.js bendZ).
-fn bendZ(xs: f32) -> f32 {
-  return W.bend * (sqrt(xs * xs + 196.0) + xs) * 0.5; // (BEND_SPAN 14)
-}
 // Surface point for slice i, column j.
 fn surfacePoint(i: u32, j: u32) -> vec3f {
   let sl = slices[i];
   let e = tableAt(sl.y, j);
-  if (j == 0u || j == W.cols - 1u) { return vec3f(sl.x, 0.0, e.x + bendZ(sl.x)); }
-  return vec3f(sl.x, e.y * W.scale, e.x * W.scale + bendZ(sl.x));
+  if (j == 0u || j == W.cols - 1u) { return vec3f(sl.x, 0.0, e.x); }
+  return vec3f(sl.x, e.y * W.scale, e.x * W.scale);
 }
 
 @vertex fn vs(@builtin(vertex_index) vi: u32) -> VO {
@@ -123,9 +119,6 @@ fn ripple(q: vec2f, t: f32) -> f32 {
   return noise(q * 0.7) * 0.5 + noise(q * 1.9 + vec2f(t * 0.4, 0.0)) * 0.3 + noise(q * 4.7 - vec2f(0.0, t * 0.6)) * 0.15;
 }
 
-// How far a texture coordinate moves across one pixel (for anti-aliasing).
-fn pixelSpan(q: vec2f) -> f32 { return max(length(dpdx(q)), length(dpdy(q))); }
-
 // Coarse water texture for the wave seen from further off: streaky ribs plus a
 // mottled octave so it doesn't read as regular stripes.
 fn coarseTex(q: vec2f, t: f32) -> f32 {
@@ -137,30 +130,12 @@ fn coarseTex(q: vec2f, t: f32) -> f32 {
   let peel = F.sunDir.w;
   let sun = F.sunDir.xyz;
   let v = normalize(F.camPos.xyz - i.wpos);
-  // Water texture flows up the face (the wave moves through it). It doesn't
-  // slide along the wave: it used to drift back with the peel, which looked
-  // like the water sliding back into the tube. (A version flowing along the
-  // cross-section, from a distance-along-the-curve table, was tried and the
-  // user preferred this.) z is measured without the shoulder's bend.
-  let fx = i.wpos.x;
-  let fy = (i.wpos.z - bendZ(i.wpos.x)) * 0.9 + i.wpos.y * 0.9 - t * 1.5;
-  let q = vec2f(fx, fy) * 1.8;
-  let qc = vec2f((fx + fy * 0.35) * 1.3, fy * 0.6);
-  let qm = vec2f(fx * 3.2 + fy * 0.8, fy * 2.2);
-  // Anti-aliasing: each texture layer fades out once its finest detail gets
-  // smaller than about two pixels. Seen nearly edge-on (the wall around the
-  // tube's opening from inside) the texture squeezed down below a pixel and
-  // broke up into a fan of bright streaks.
-  // (the broad ribs only ease off: they carry the texture out on the flats)
-  let aaF = 1.0 - smoothstep(0.1, 0.25, pixelSpan(q) * 4.7);
-  let aaC = 1.0 - smoothstep(0.35, 0.8, pixelSpan(qc) * 2.3);
-  let aaM = 1.0 - smoothstep(0.1, 0.25, pixelSpan(qm) * 4.7);
   var n = normalize(i.n);
   if (dot(n, v) < 0.0) { n = -n; } // looking at the inside of the lip from below
-  // ... and on the steep wall the ripples soften where it's seen edge-on (not
-  // on the flats, which from out in the channel are always seen edge-on).
-  let graze = mix(1.0, smoothstep(0.04, 0.3, abs(dot(n, v))), smoothstep(0.3, 0.6, 1.0 - abs(n.y)));
 
+  // Water texture flows backward along x (the peel runs away from it) and
+  // up the face (the wave moves through it).
+  let q = vec2f(i.wpos.x + t * peel, i.wpos.z * 0.9 + i.wpos.y * 0.9 - t * 1.5) * 1.8;
   let e = 0.06;
   let h0 = ripple(q, t);
   let gx = (ripple(q + vec2f(e, 0.0), t) - h0) / e;
@@ -168,27 +143,22 @@ fn coarseTex(q: vec2f, t: f32) -> f32 {
   let t1 = normalize(vec3f(1.0, 0.0, 0.0) - n * n.x);
   let t2 = cross(n, t1);
   let dist = length(F.camPos.xyz - i.wpos);
-  // Ripples on the sloped part of the wave, carrying on out across the flats
-  // in front of it (weaker, fading out over ~50 m), not stopping at the bottom.
-  let flatsReach = smoothstep(-3.0, 3.0, i.wpos.z) * (1.0 - smoothstep(14.0, 60.0, i.wpos.z));
-  let slope = max(smoothstep(0.03, 0.2, 1.0 - n.y), 0.65 * flatsReach);
-  let detail = 0.09 * exp(-dist * 0.03) * slope * aaF * graze;
+  // Fine, subtle ripples, only on the sloped part of the wave (none on the flats).
+  let slope = smoothstep(0.03, 0.2, 1.0 - n.y);
+  let detail = 0.09 * exp(-dist * 0.03) * slope;
   // Coarser texture that still reads from out in the channel: ribs of water
   // drawn up the face (stretched along the flow), plus broad lumps. Up close
   // the fine ripples above carry it, so this fades in with distance.
   // (slanted a little, the way the water draws up and along the wall)
+  let fx = i.wpos.x + t * peel;
+  let fy = i.wpos.z * 0.9 + i.wpos.y * 0.9 - t * 1.5;
+  let qc = vec2f((fx + fy * 0.35) * 1.3, fy * 0.6);
   let rib = coarseTex(qc, t);
   let ec = 0.05;
   let cgx = (coarseTex(qc + vec2f(ec, 0.0), t) - rib) / ec;
   let cgy = (coarseTex(qc + vec2f(0.0, ec), t) - rib) / ec;
-  let coarse = 0.32 * smoothstep(4.0, 14.0, dist) * exp(-dist * 0.008) * slope * aaC * graze;
-  // A mid-size chop between the two, so the wall from outside catches small
-  // glints like the inside does (fades in past the fine ripples, out far off).
-  let m0 = ripple(qm, t);
-  let mgx = (ripple(qm + vec2f(e, 0.0), t) - m0) / e;
-  let mgy = (ripple(qm + vec2f(0.0, e), t) - m0) / e;
-  let mid = 0.05 * smoothstep(5.0, 12.0, dist) * exp(-dist * 0.02) * slope * aaM * graze;
-  n = normalize(n - (t1 * (gx * detail + cgx * coarse * 1.3 + mgx * mid) + t2 * (gy * detail + cgy * coarse * 0.6 + mgy * mid)));
+  let coarse = 0.26 * smoothstep(4.0, 14.0, dist) * exp(-dist * 0.008) * slope;
+  n = normalize(n - (t1 * (gx * detail + cgx * coarse * 1.3) + t2 * (gy * detail + cgy * coarse * 0.6)));
 
   let phase = i.attr.x;
   let foamAmt = i.attr.y;
@@ -206,7 +176,7 @@ fn coarseTex(q: vec2f, t: f32) -> f32 {
   let diff = max(dot(n, sun), 0.0);
   body *= 0.6 + 0.4 * diff;
   // The ribs also show as lighter and darker streaks of water up the face.
-  body *= 1.0 + (rib - 0.5) * 1.1 * slope * smoothstep(3.0, 12.0, dist) * aaC;
+  body *= 1.0 + (rib - 0.5) * 0.9 * slope * smoothstep(3.0, 12.0, dist);
   // Light shining through thin water (the lip) glows green.
   let toward = max(dot(-v, sun), 0.0);
   let sss = vec3f(0.10, 0.66, 0.72) * thin * (0.35 + 1.6 * pow(toward, 2.5));
@@ -216,10 +186,10 @@ fn coarseTex(q: vec2f, t: f32) -> f32 {
   col += vec3f(1.0, 0.95, 0.85) * pow(max(dot(n, hv), 0.0), 500.0) * 4.0 * (1.0 - 0.85 * flatness);
 
   // Foam: broken up with noise, plus faint streaks on the face.
-  let fq = vec2f(i.wpos.x, i.wpos.y * 1.3 + (i.wpos.z - bendZ(i.wpos.x)) * 0.6 - t * 0.8);
+  let fq = vec2f(i.wpos.x + t * peel * 0.9, i.wpos.y * 1.3 + i.wpos.z * 0.6 - t * 0.8);
   let fn1 = noise(fq * 1.4) * 0.6 + noise(fq * 3.9 + vec2f(t, 0.0)) * 0.4;
   var foam = clamp(foamAmt * 1.6 - (1.0 - fn1) * 0.9, 0.0, 1.0);
-  let streak = smoothstep(0.78, 0.95, noise(vec2f(i.wpos.x * 0.6, (i.wpos.y + i.wpos.z - bendZ(i.wpos.x)) * 4.0)));
+  let streak = smoothstep(0.78, 0.95, noise(vec2f((i.wpos.x + t * peel) * 0.6, (i.wpos.y + i.wpos.z) * 4.0)));
   let onFace = smoothstep(-1.5, -0.3, phase) * (1.0 - smoothstep(1.0, 1.4, phase)) * smoothstep(0.3, 1.5, i.wpos.y);
   foam = max(foam, streak * onFace * 0.18);
   let foamCol = vec3f(0.93, 0.97, 1.0) * (0.72 + 0.28 * diff + 0.1);
