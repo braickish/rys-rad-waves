@@ -69,10 +69,9 @@ struct VO {
   @location(1) n: vec3f,
   @location(2) attr: vec3f,
   @location(3) arc: f32,
-  @location(4) bub: f32, // billow height (+ lump, - fold) times how much is heaped whitewater
 };
 // The water surface, built from the cross-section table (see mesh.js).
-struct WaterInfo { cols: u32, nx: u32, rows: u32, pad: u32, sMin: f32, sMax: f32, scale: f32, bend: f32, pile: f32, pad3: f32, pad4: f32, pad5: f32 };
+struct WaterInfo { cols: u32, nx: u32, rows: u32, pad: u32, sMin: f32, sMax: f32, scale: f32, bend: f32 };
 @group(0) @binding(1) var<uniform> W: WaterInfo;
 @group(0) @binding(2) var<storage, read> table: array<vec4f>;   // [z, y, foam, thin] per (row, col)
 @group(0) @binding(3) var<storage, read> slices: array<vec2f>;  // [xs, phase] per slice
@@ -95,40 +94,12 @@ fn bendZ(xs: f32) -> f32 {
   if (xs <= 0.0) { return 0.0; }
   return W.bend * xs * xs / (xs + 15.0);
 }
-// Billows on the broken wave: lumpy, churning whitewater, rolling forward
-// over the top and down the front (along the flow coordinate, see mesh.js
-// buildArcTable). Signed: + is a lump, - a fold between lumps.
-fn billowNoise(x: f32, arc: f32) -> f32 {
-  let t = F.camPos.w;
-  let q = vec2f(x * 0.36, arc * 0.42 - t * 0.5);
-  let b = noise(q * 0.5 + vec2f(0.0, t * 0.1)) * 0.35 + noise(q) * 0.3 + noise(q * 2.13 + vec2f(t * 0.21, 3.7)) * 0.22 + noise(q * 4.4 - vec2f(1.3, t * 0.35)) * 0.13;
-  // rounded tops, creased folds (cauliflower-like)
-  return 1.0 - pow(1.0 - clamp(b, 0.0, 1.0), 2.2) - 0.55;
-}
-// How much of a column is heaped-up whitewater (the broken wave behind the
-// tube), 0..1.
-fn pileAt(s: f32, foam: f32) -> f32 {
-  if (W.pile <= 0.0) { return 0.0; }
-  return clamp(foam, 0.0, 1.0) * smoothstep(1.25, 1.7, s);
-}
 // Surface point for slice i, column j.
 fn surfacePoint(i: u32, j: u32) -> vec3f {
   let sl = slices[i];
   let e = tableAt(sl.y, j);
   if (j == 0u || j == W.cols - 1u) { return vec3f(sl.x, 0.0, e.x + bendZ(sl.x)); }
-  var p = vec3f(sl.x, e.y * W.scale, e.x * W.scale + bendZ(sl.x));
-  let pile = pileAt(sl.y, e.z);
-  if (pile > 0.001) {
-    // pushed out along the cross-section's normal (from its neighbors in the table)
-    let a = tableAt(sl.y, max(j - 1u, 1u));
-    let b = tableAt(sl.y, min(j + 1u, W.cols - 2u));
-    let tz = b.x - a.x; let ty = b.y - a.y;
-    let nl = max(length(vec2f(tz, ty)), 1e-5);
-    let nrm = vec2f(-ty, tz) / nl; // (z, y), outward
-    let d = billowNoise(sl.x, arcAt(sl.y, j) * W.scale) * pile * W.pile * W.scale;
-    p = p + vec3f(0.0, nrm.y, nrm.x) * d;
-  }
-  return p;
+  return vec3f(sl.x, e.y * W.scale, e.x * W.scale + bendZ(sl.x));
 }
 
 @vertex fn vs(@builtin(vertex_index) vi: u32) -> VO {
@@ -155,7 +126,6 @@ fn surfacePoint(i: u32, j: u32) -> vec3f {
   o.n = n;
   o.attr = vec3f(sl.y, foam, e.w);
   o.arc = arcAt(sl.y, j) * W.scale;
-  o.bub = billowNoise(sl.x, o.arc) * pileAt(sl.y, e.z);
   return o;
 }
 
@@ -261,27 +231,7 @@ fn coarseTex(q: vec2f, t: f32) -> f32 {
   let streak = smoothstep(0.78, 0.95, noise(vec2f(i.wpos.x * 0.6, (i.arc - t * 2.0) * 4.0)));
   let onFace = smoothstep(-1.5, -0.3, phase) * (1.0 - smoothstep(1.0, 1.4, phase)) * smoothstep(0.3, 1.5, i.wpos.y);
   foam = max(foam, streak * onFace * 0.18);
-  // Leftover foam from earlier waves drifting in across the flats toward the
-  // beach: broken bands running along the wave (heavy waves only).
-  if (W.pile > 0.0) {
-    let fz = i.wpos.z - bendZ(i.wpos.x);
-    let flatsBand = smoothstep(9.0, 16.0, fz) * (1.0 - smoothstep(45.0, 70.0, fz));
-    let lines = noise(vec2f(i.wpos.x * 0.04, (fz - t * 0.9) * 0.22));
-    let patchy = noise(vec2f(i.wpos.x * 0.18 + 5.0, fz * 0.5 - t * 0.3)) * 0.6 + fn1 * 0.4;
-    foam = max(foam, smoothstep(0.6, 0.78, lines) * smoothstep(0.35, 0.65, patchy) * flatsBand * 0.75);
-  }
-  var foamCol = vec3f(0.93, 0.97, 1.0) * (0.72 + 0.28 * diff + 0.1);
-  // Heaped whitewater: solid white, lit like a cloud, bright on the lumps
-  // facing the sun, blue-grey down in the folds and on the shaded side.
-  let pileW = smoothstep(1.25, 1.7, phase) * clamp(foamAmt * 1.4, 0.0, 1.0);
-  if (pileW > 0.001) {
-    foam = max(foam, pileW);
-    let occl = smoothstep(-0.35, 0.3, i.bub / max(pileW, 0.05));
-    let lit = (0.15 + 0.85 * diff) * (0.3 + 0.7 * occl);
-    let shade = vec3f(0.4, 0.5, 0.6);
-    let pileCol = mix(shade, vec3f(1.0, 0.99, 0.97), clamp(lit + 0.2 * max(n.y, 0.0), 0.0, 1.0)) * 1.04;
-    foamCol = mix(foamCol, pileCol, pileW);
-  }
+  let foamCol = vec3f(0.93, 0.97, 1.0) * (0.72 + 0.28 * diff + 0.1);
   col = mix(col, foamCol, foam);
 
   col = fogMix(col, i.wpos);
@@ -377,17 +327,14 @@ fn respawn(id: u32) -> P {
   if (r0 >= 0.37 && r0 < 0.43) {
     // Where the lip lands: whitewater bursting up off the water in front of
     // the tube and blowing out toward shore (away from the tube).
-    // It explodes: chunks thrown up as high as the wave itself (like the
-    // reference photo), billowing and drifting back over the broken wave.
-    let xs = mix(-38.0, 0.0, rnd());
+    let xs = mix(-22.0, 0.0, rnd());
     let L = lipAt(xs);
     if (rnd() > L[2].w || L[0].x > 1.2) { p.pos = vec4f(0.0, -10.0, 0.0, 0.05 + rnd() * 0.2); return p; }
-    let hgt = max(L[2].x, 1.0); // the crest (top of the whitewater) here
-    let pos = vec3f(xs + rs() * 0.5, max(L[0].x, -0.4) + rnd() * hgt * 0.7, L[0].y + rs() * 1.2);
-    let v = vec3f(-peel * (0.3 + rnd() * 0.4) + rs() * 1.5, 2.0 + rnd() * (3.0 + hgt * 0.6) * L[2].w, 0.3 + rs() * 2.0);
-    p.pos = vec4f(pos, 0.9 + rnd() * 1.0);
+    let pos = vec3f(xs + rs() * 0.3, max(L[0].x, -0.4) + rnd() * 0.3, L[0].y + 0.2 + rnd() * 0.6);
+    let v = vec3f(-peel * (0.3 + rnd() * 0.3) + rs() * 1.0, 2.0 + rnd() * 5.0, 1.0 + rnd() * 3.5);
+    p.pos = vec4f(pos, 0.8 + rnd() * 0.9);
     p.vel = vec4f(v, 1.0);
-    p.extra = vec4f(p.pos.w, 0.3 + rnd() * 0.45, 0.0, 0.0);
+    p.extra = vec4f(p.pos.w, 0.22 + rnd() * 0.35, 0.0, 0.0);
     return p;
   }
   if (r0 >= 0.43 && r0 < 0.5) {
@@ -427,7 +374,7 @@ fn respawn(id: u32) -> P {
     let xs = mix(-40.0, 1.0, rnd());
     let L = lipAt(xs);
     let w = max(L[1].w, 0.15 * smoothstep(0.8, 1.6, L[1].z));
-    if (rnd() > w * 0.3) { p.pos = vec4f(0.0, -10.0, 0.0, 0.05 + rnd() * 0.2); return p; }
+    if (rnd() > w * 0.6) { p.pos = vec4f(0.0, -10.0, 0.0, 0.05 + rnd() * 0.2); return p; }
     let pos = vec3f(xs, L[0].x + 0.1 + rnd() * 0.5, L[0].y + rs() * 0.9);
     let v = vec3f(rs() * 1.5 - peel * 0.3, 1.2 + rnd() * 3.5 * w, 0.6 + rnd() * 2.0);
     p.pos = vec4f(pos, 0.9 + rnd() * 1.4);

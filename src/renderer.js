@@ -58,11 +58,11 @@ export async function createRenderer(canvas) {
   let arcTable = upload(buildArcTable(), GPUBufferUsage.STORAGE);
   const slicePhaseData = slicePhases();
   const sliceBuf = upload(slicePhaseData, GPUBufferUsage.STORAGE);
-  const waterInfoBuf = device.createBuffer({ size: 48, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
+  const waterInfoBuf = device.createBuffer({ size: 32, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
   const writeWaterInfo = () => {
-    const b = new ArrayBuffer(48), u = new Uint32Array(b), f = new Float32Array(b);
+    const b = new ArrayBuffer(32), u = new Uint32Array(b), f = new Float32Array(b);
     u[0] = COLS; u[1] = WATER_XS.length; u[2] = TABLE.rows;
-    f[4] = TABLE.sMin; f[5] = TABLE.sMax; f[6] = SCALE; f[7] = WAVE.bend || 0; f[8] = WAVE.pile || 0;
+    f[4] = TABLE.sMin; f[5] = TABLE.sMax; f[6] = SCALE; f[7] = WAVE.bend || 0;
     device.queue.writeBuffer(waterInfoBuf, 0, b);
   };
   writeWaterInfo();

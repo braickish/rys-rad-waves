@@ -11,7 +11,6 @@ export default {
   easeUntil: 0.15, // the wall keyframes up to the curl blend evenly (wave.js controlPoints): keeps the face free of notches from the tube out to the shoulder
   board: 'shortboard', // a 6'6" thruster with plenty of rocker for the steep, hollow face (mesh.js BOARDS)
   bend: 0.3, // the shoulder curves in toward the beach ahead of the curl (wave.js bendZ): from the tube you see it sweep out ahead
-  pile: 2.0, // whitewater billows: how far the lumps stand out (m at size 1; shaders.js billowNoise)
   scale: 1.75, // much bigger than the point: a heavy, tall wave
   peelSpeed: 10.5, // peels fast: you have to race it (pointing up costs you more here)
   waveSpeed: 5.0,
@@ -21,7 +20,7 @@ export default {
   foamVisual: (s, t, xs) => {
     const front = sstep(3.5, 5.5, t); // the front half of the wave, not the back
     return Math.max(
-      sstep(1.3, 1.65, s) * front * (1 - sstep(10, 40, -xs) * 0.5), // whitewater behind the barrel (the mound where the lip lands)
+      sstep(1.4, 2.0, s) * front * (1 - sstep(10, 40, -xs) * 0.5), // whitewater behind the barrel
       Math.exp(-(((t - 8.1) / 0.7) ** 2)) * sstep(0.45, 0.75, s) * (1 - sstep(1.7, 2.5, s)) * 0.95, // the lip crashing onto the water
       sstep(13.6, 14.3, t) * sstep(0.9, 1.3, s) * (1 - sstep(3, 6, s)) * 0.55, // where it lands
       sstep(4.0, 5.2, t) * (1 - sstep(8.6, 9.3, t)) * sstep(0.05, 0.3, s) * (1 - sstep(1.4, 1.8, s)) * 0.9, // the thrown lip: white and frothy across its outside and the curtain
@@ -43,9 +42,9 @@ export default {
   faceTop: (s) => 5.3 + (11.9 - 5.3) * sstep(-0.3, 0.2, s), // lowers smoothly as the lip throws
   tube: true,
   // Spray blowing back off the crest: along the tall wall ahead and over the barrel.
-  plume: (s) => sstep(-1.3, -0.5, s) * (1 - sstep(1.1, 1.7, s)) + 0.3 * sstep(1.3, 1.7, s) * (1 - sstep(2.4, 3.2, s)), // (and a veil of mist off the top of the whitewater mound)
+  plume: (s) => sstep(-1.3, -0.5, s) * (1 - sstep(1.1, 1.7, s)),
   // Whitewater bursting up where the curtain of the lip lands in front of the tube.
-  lipImpact: (s) => sstep(0.4, 0.65, s) * (1 - sstep(2.0, 2.6, s)), // (on through the whitewater mound exploding up behind the tube)
+  lipImpact: (s) => sstep(0.4, 0.65, s) * (1 - sstep(1.5, 2.0, s)),
 
   sea: { set: [0.95, 1.0, 1.15], sections: false },
 
