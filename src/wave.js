@@ -126,8 +126,27 @@ export function controlPoints(s, out = new Float64Array(NP * 2), scale = SCALE) 
 function knot(az, ay, bz, by) {
   return Math.max(1e-4, Math.sqrt(Math.hypot(bz - az, by - ay)));
 }
-export function crPoint(c, t, out) {
-  const n = NP - 1;
+// The last segment, from the trough (point NP-2) out to the open ocean (NP-1),
+// is very long, and on its own the curve sagged well below the trough before
+// rising to sea level: a hidden trench several metres out in front of the wave
+// (0.9 m deep on the reef), which showed as a dip and bump under the curl. A
+// hidden guide point on the flats (FLAT_AT of the way out, FLAT_RISE of the way
+// back up to sea level) keeps it settling smoothly from the trough. It takes
+// up the first FLAT_T of t past the trough.
+const FLAT_AT = 0.12, FLAT_RISE = 0.45, FLAT_T = 0.3;
+const _cx = new Float64Array((NP + 1) * 2);
+export function crPoint(c0, t, out) {
+  if (!WAVE.flatGuide) return crSpline(c0, NP, t, out); // (per wave: the point's sag is small, and its feel is tuned)
+  const m = NP - 2; // the trough point
+  for (let k = 0; k <= m * 2 + 1; k++) _cx[k] = c0[k];
+  const tz = c0[m * 2], ty = c0[m * 2 + 1], oz = c0[(m + 1) * 2], oy = c0[(m + 1) * 2 + 1];
+  _cx[(m + 1) * 2] = tz + (oz - tz) * FLAT_AT; _cx[(m + 1) * 2 + 1] = ty + (oy - ty) * FLAT_RISE;
+  _cx[(m + 2) * 2] = oz; _cx[(m + 2) * 2 + 1] = oy;
+  if (t > m) { const u = t - m; t = u < FLAT_T ? m + u / FLAT_T : m + 1 + (u - FLAT_T) / (1 - FLAT_T); }
+  return crSpline(_cx, NP + 1, t, out);
+}
+function crSpline(c, count, t, out) {
+  const n = count - 1;
   let i = Math.floor(t);
   if (i < 0) i = 0;
   if (i > n - 1) i = n - 1;
