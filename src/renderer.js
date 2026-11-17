@@ -2,7 +2,7 @@
 // particles (simulated in a compute shader, drawn as soft billboards).
 
 import { skyWGSL, waterWGSL, solidWGSL, particleComputeWGSL, particleRenderWGSL } from './shaders.js';
-import { buildWaterTable, buildWaterIndices, slicePhases, WATER_XS, COLS, TABLE, buildLipTable, LIP, boxMesh, sphereMesh, boardMesh, cylinderMesh, BOARDS, buildArcTable } from './mesh.js';
+import { buildWaterTable, buildWaterIndices, slicePhases, WATER_XS, COLS, TABLE, buildLipTable, LIP, boxMesh, sphereMesh, boardMesh, cylinderMesh, BOARDS } from './mesh.js';
 import { SCALE, WAVE } from './wave.js';
 
 export const PARTICLES = 40960;
@@ -55,7 +55,6 @@ export async function createRenderer(canvas) {
   const waterIdx = buildWaterIndices();
   const waterIB = upload(waterIdx, GPUBufferUsage.INDEX);
   let waterTable = upload(buildWaterTable(), GPUBufferUsage.STORAGE);
-  let arcTable = upload(buildArcTable(), GPUBufferUsage.STORAGE);
   const slicePhaseData = slicePhases();
   const sliceBuf = upload(slicePhaseData, GPUBufferUsage.STORAGE);
   const waterInfoBuf = device.createBuffer({ size: 32, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
@@ -171,7 +170,6 @@ export async function createRenderer(canvas) {
     { binding: 1, resource: { buffer: waterInfoBuf } },
     { binding: 2, resource: { buffer: waterTable } },
     { binding: 3, resource: { buffer: sliceBuf } },
-    { binding: 4, resource: { buffer: arcTable } },
   ]);
   let waterBG = makeWaterBG();
   const frameBG = device.createBindGroup({ layout: frameLayout, entries: [{ binding: 0, resource: { buffer: frameBuf } }] });
@@ -283,8 +281,6 @@ export async function createRenderer(canvas) {
   function rebuildWave() {
     waterTable.destroy();
     waterTable = upload(buildWaterTable(), GPUBufferUsage.STORAGE);
-    arcTable.destroy();
-    arcTable = upload(buildArcTable(), GPUBufferUsage.STORAGE);
     waterBG = makeWaterBG();
   }
 

@@ -256,11 +256,11 @@ button).
   the curl; `phaseAt` raises the phase there). **Sections are currently off on both waves**
   (`sea.sections: false`); they didn't play well yet. Seeded (`seedSea`, `?seed=`); `?nosea` turns the
   sea off. Tests run without the sea.
-- **Water texture flow:** the ripples move along the cross-section, never along the wave: in from the flats,
-  up the face, over the top (`buildArcTable` in mesh.js, distance along the curve, binding 4; the shader's
-  `i.arc`). Where the lip has thrown, the flow folds at the tip, so the roof and the outside of the lip
-  (and the back of the wave) both run out into the lip. (It used to drift back along the wave with the peel,
-  which the user saw as water sliding back into the tube: waves don't do that.)
+- **Water texture flow:** the ripples drift up the face (world-space, measured without the shoulder's
+  bend), never sideways along the wave (they used to drift back with the peel, which the user saw as water
+  sliding back into the tube). A version flowing along the cross-section (a distance-along-the-curve table,
+  folding at the lip tip) was tried 2026-11-16 and reverted: the user didn't like how it changed the flow
+  up the waves.
 - **Water rendering:** the GPU builds the surface every frame from a cross-section table (512 phases,
   built per wave in `buildWaterTable`) and each slice's current phase (`slicePhases`), so the wave can
   change over time. The spray emitter table is refreshed every frame too.

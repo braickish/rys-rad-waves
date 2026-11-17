@@ -68,26 +68,18 @@ struct VO {
   @location(0) wpos: vec3f,
   @location(1) n: vec3f,
   @location(2) attr: vec3f,
-  @location(3) arc: f32,
 };
 // The water surface, built from the cross-section table (see mesh.js).
 struct WaterInfo { cols: u32, nx: u32, rows: u32, pad: u32, sMin: f32, sMax: f32, scale: f32, bend: f32 };
 @group(0) @binding(1) var<uniform> W: WaterInfo;
 @group(0) @binding(2) var<storage, read> table: array<vec4f>;   // [z, y, foam, thin] per (row, col)
 @group(0) @binding(3) var<storage, read> slices: array<vec2f>;  // [xs, phase] per slice
-@group(0) @binding(4) var<storage, read> arcs: array<f32>;      // distance along the cross-section, from the front (scale 1)
 
 fn tableAt(s: f32, j: u32) -> vec4f {
   let f = clamp((s - W.sMin) / (W.sMax - W.sMin), 0.0, 1.0) * f32(W.rows - 1u);
   let r0 = u32(floor(f));
   let r1 = min(r0 + 1u, W.rows - 1u);
   return mix(table[r0 * W.cols + j], table[r1 * W.cols + j], f - floor(f));
-}
-fn arcAt(s: f32, j: u32) -> f32 {
-  let f = clamp((s - W.sMin) / (W.sMax - W.sMin), 0.0, 1.0) * f32(W.rows - 1u);
-  let r0 = u32(floor(f));
-  let r1 = min(r0 + 1u, W.rows - 1u);
-  return mix(arcs[r0 * W.cols + j], arcs[r1 * W.cols + j], f - floor(f));
 }
 // The shoulder curving in toward the beach ahead of the curl (wave.js bendZ).
 fn bendZ(xs: f32) -> f32 {
@@ -124,7 +116,6 @@ fn surfacePoint(i: u32, j: u32) -> vec3f {
   o.wpos = p;
   o.n = n;
   o.attr = vec3f(sl.y, foam, e.w);
-  o.arc = arcAt(sl.y, j) * W.scale;
   return o;
 }
 
@@ -146,12 +137,13 @@ fn coarseTex(q: vec2f, t: f32) -> f32 {
   let peel = F.sunDir.w;
   let sun = F.sunDir.xyz;
   let v = normalize(F.camPos.xyz - i.wpos);
-  // Water texture flows along the cross-section: in from the flats, up the
-  // face and over into the lip (i.arc: distance along it from the front, m).
-  // It doesn't slide along the wave (it used to drift back with the peel,
-  // which looked like the water sliding back into the tube).
+  // Water texture flows up the face (the wave moves through it). It doesn't
+  // slide along the wave: it used to drift back with the peel, which looked
+  // like the water sliding back into the tube. (A version flowing along the
+  // cross-section, from a distance-along-the-curve table, was tried and the
+  // user preferred this.) z is measured without the shoulder's bend.
   let fx = i.wpos.x;
-  let fy = i.arc - t * 2.0;
+  let fy = (i.wpos.z - bendZ(i.wpos.x)) * 0.9 + i.wpos.y * 0.9 - t * 1.5;
   let q = vec2f(fx, fy) * 1.8;
   let qc = vec2f((fx + fy * 0.35) * 1.3, fy * 0.6);
   let qm = vec2f(fx * 3.2 + fy * 0.8, fy * 2.2);
@@ -224,10 +216,10 @@ fn coarseTex(q: vec2f, t: f32) -> f32 {
   col += vec3f(1.0, 0.95, 0.85) * pow(max(dot(n, hv), 0.0), 500.0) * 4.0 * (1.0 - 0.85 * flatness);
 
   // Foam: broken up with noise, plus faint streaks on the face.
-  let fq = vec2f(i.wpos.x, i.arc * 1.3 - t * 1.6);
+  let fq = vec2f(i.wpos.x, i.wpos.y * 1.3 + (i.wpos.z - bendZ(i.wpos.x)) * 0.6 - t * 0.8);
   let fn1 = noise(fq * 1.4) * 0.6 + noise(fq * 3.9 + vec2f(t, 0.0)) * 0.4;
   var foam = clamp(foamAmt * 1.6 - (1.0 - fn1) * 0.9, 0.0, 1.0);
-  let streak = smoothstep(0.78, 0.95, noise(vec2f(i.wpos.x * 0.6, (i.arc - t * 2.0) * 4.0)));
+  let streak = smoothstep(0.78, 0.95, noise(vec2f(i.wpos.x * 0.6, (i.wpos.y + i.wpos.z - bendZ(i.wpos.x)) * 4.0)));
   let onFace = smoothstep(-1.5, -0.3, phase) * (1.0 - smoothstep(1.0, 1.4, phase)) * smoothstep(0.3, 1.5, i.wpos.y);
   foam = max(foam, streak * onFace * 0.18);
   let foamCol = vec3f(0.93, 0.97, 1.0) * (0.72 + 0.28 * diff + 0.1);
