@@ -918,7 +918,8 @@ function stepSurf(r, input, dt) {
   const turningNow = r.time - (r.lastTurnTime ?? -9) < T.turnWindow;
   const highOnFoam = !r.floater && !r.assist && !r.lipSnap && r.t > top && sinp > 0.2 && cosp > -0.15
     && (r.xs < T.curlZone[0] || foamAt(r.xs, r.t) > 0.3) && waveHeightFrac(r.pos[1]) > T.floaterHeight
-    && !(turningNow && sinp > 0.55);
+    && !(turningNow && sinp > 0.55)
+    && !(T.snapIntoLip > 0 && r.xs >= T.curlZone[0] - T.snapIntoLip && foamAt(r.xs, r.t) <= 0.65); // (on the lip's edge wait for the top: a turn there snaps)
   if (highOnFoam && !T.floaters && !T.softFoam) return wipe(r, 'Over the falls! (too heavy to float)');
   if (highOnFoam && T.floaters) { // (softFoam waves without floaters: you just climb the foam, which slows you)
     r.floater = { time: 0, t: r.t };
@@ -939,7 +940,8 @@ function stepSurf(r, input, dt) {
   if (ready && !r.tube && !r.floater && !r.assist && !r.lipSnap && !r.slash && r.rideDir >= 0
     && r.t > top && r.t <= top + T.snapZone && sinp > T.snapUp
     && r.time - (r.lastTurnTime ?? -9) < T.turnWindow && r.lastTurnDir < 0
-    && r.xs >= T.curlZone[0] && foamAt(r.xs, r.t + 0.6) <= 0.3) {
+    && (r.xs >= T.curlZone[0] && foamAt(r.xs, r.t + 0.6) <= 0.3
+      || T.snapIntoLip > 0 && r.xs >= T.curlZone[0] - T.snapIntoLip && foamAt(r.xs, r.t + 0.6) <= 0.65)) { // (snapIntoLip: a bit further into the breaking lip)
     const combo = r.time - (r.lastBottomTurn ?? -9) < T.comboWindow;
     if (snapAllowed(r, top)) {
       startLipSnap(r, top, -T.lipExit);
@@ -950,8 +952,11 @@ function stepSurf(r, input, dt) {
   if (!r.tube && !r.floater && !r.assist && !r.lipSnap && r.t <= top && sinp > 0) {
     r.t = top;
     const ph = phaseAt(r.xs);
-    const inWhitewater = r.xs < T.curlZone[0] || foamAt(r.xs, r.t + 0.6) > 0.3;
     const turning = r.time - (r.lastTurnTime ?? -9) < T.turnWindow;
+    // Turning as you meet the lip right where it's breaking is still a snap (Raglan `snapIntoLip`, the user,
+    // 2026-11-18: those turns were giving floaters): up to that far behind the curl's edge, with a little more foam.
+    const lipEdge = turning && T.snapIntoLip > 0 && r.xs >= T.curlZone[0] - T.snapIntoLip && foamAt(r.xs, r.t + 0.6) <= 0.65;
+    const inWhitewater = (r.xs < T.curlZone[0] || foamAt(r.xs, r.t + 0.6) > 0.3) && !lipEdge;
     const combo = r.time - (r.lastBottomTurn ?? -9) < T.comboWindow;
     if (inWhitewater && !T.floaters && !T.softFoam) return wipe(r, 'Over the falls!');
     // (soft whitewater without floaters, the longboard: turn off it for a re-entry, or it knocks you off)

@@ -63,6 +63,7 @@ export default {
     moveScrub: { roundhouse: 0.03, slash: 0.15, snap: 0.06, check: 0.05, reentry: 0.08, topTurn: 0.04, lip180: 0.1, floater: 0.05, rebound: 0.1, rebound180: 0.1, revert: 0.05, land: 0.05 },
     bleed: 0.65, // extra speed fades a little slower (rider default 0.9)
     curlZone: [-0.5, 2.5],
+    snapIntoLip: 1.0, // turning at the lip, a snap reaches 1 m further into the breaking lip before it's a floater (the user, 2026-11-18)
     foamContact: 0.25, reboundMinHeight: 0.33, rebound180MinHeight: 0.67,
     floaterHeight: 0.55, floaterMax: 1.2, climbFoamDrag: 0.35, foamLimit: 1.0,
     airs: true, floaters: true, rebounds: true, airSpeed: 11.5, airMinSpeed: 6, airCurlZone: 2.5, airBoostZone: 0.6, airBoostUp: 3.0,

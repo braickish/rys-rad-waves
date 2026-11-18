@@ -445,6 +445,11 @@ button).
   tube, trough (`tBottom`) to roof, per phase: the roof line (`topOfFace`) at 92% and over the falls above 80%.
   The t-based ones (`faceTop` 11.9, `tubeFallHeight` 0.62) assume the normal reef's point layout; on the sim
   layout they put the roof half way down the back wall and caught you at ~20% of the tube's height.
+- **Snaps into the breaking lip on Raglan** (2026-11-18, the user: turns right at the lip gave floaters): with
+  `snapIntoLip` 1 m, turning Right as you meet the lip still snaps up to 1 m further behind the curl's edge
+  (`curlZone[0]`), with foam up to 0.65 there (was 0.3). On that edge the climbing-into-the-whitewater floater
+  waits until you reach the top, so the turn decides; not turning there is still a floater. Climbing at 52 deg and
+  turning, snaps now reach xs -1.3 (were floaters behind -0.4); from -1.6 back it floats.
 - **Raglan turn drive** (2026-11-18, the user: some turns had too much artificial acceleration coming out of them).
   Found: turn drive made most of a bottom turn's speed (27 -> 38 mph; 13 without drive), released as a steady push at
   the acceleration cap; `highDropAccel` 4 raised the cap 5x whenever the nose pointed down high in the pocket, so a turn
