@@ -130,6 +130,8 @@ export function useWave(w) {
   setWave(w);
   for (const k of Object.keys(TUNE)) delete TUNE[k];
   Object.assign(TUNE, RIDER_TUNE, WAVE.tune);
+  // (nested settings a wave changes only part of, e.g. the reef's `slashTube`, merge over the rider's)
+  for (const k of ['slashTube']) if (WAVE.tune && WAVE.tune[k]) TUNE[k] = { ...RIDER_TUNE[k], ...WAVE.tune[k] };
   waveRef = null;
 }
 

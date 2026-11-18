@@ -205,6 +205,10 @@ button).
     counts), within `slashDropRecent` 1.6 s, from up to `slashLow` 0.45, with `slashWindow` 0.2 s and only
     `slashClimb` 0.15 nose-up. A drop / bottom turn / Right in the tube from mid-face now slashes 14/16 of
     the timings tried (9/16 before); little S-turns still never slash.
+    **Reef slashes turn less** (2026-11-17, the user): the reef's tune sets `slashSlideMax` 0.6 (point 1.0),
+    `slashSpin` 4, `slashCarve` 0.3, and in the barrel `slashTube` 0.26 / 0.22 (merged over the rider's
+    `slashTube` in `useWave`): a reef slash turns ~69 deg on a short hold, ~88 on a long one (was 83 / 120).
+    Barrel trim on the reef is 15% stronger (`tubeDrive` 5.2, `tubeTrimOver` 0.29, `tubeTrimOverHigh` 1.32).
     **Turn damping in the barrel** (2026-11-17, the user's request, then more): turn rate is scaled by
     `1 - tubeTurnDamp * r.tubeDamp`; `r.tubeDamp` eases toward depth (full by ~50%) and back out, so
     turns get gradually subtler the deeper you are (`tubeTurnDamp` 0.6 on the reef; was 0.45, full by 70%).
