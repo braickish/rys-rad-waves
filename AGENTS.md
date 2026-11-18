@@ -103,6 +103,11 @@ button).
   false) is 85% pivot (`pivotMax`) at 1.15x the rate (`pivotDownRate`, ~3.7 rad/s): 70 deg in 0.38 s (was 0.43).
   Turning toward the lip (nose up the face) is 50% pivot (`pivotMaxUp`) with a full rail carve's drive
   (`pivotDriveUp` 1.0): it holds her speed through the climb (10.1 -> 10.1 mph, was -> 9.6).
+  **Decided once per turn** (2026-11-18, the user: by whether the board pivots toward the wall of the wave or away):
+  `r.pivotUp` is set when a turn starts (the swing's first ~25 deg takes the nose further up the face = toward the
+  wall) and kept until the turn is released (`r.pivotDir`). It used to be re-decided every frame from the nose's
+  heading, so one pivot switched halfway (heading back and swinging round down the face: away, then toward the
+  wall as the nose came back up, slowing the second half; riding along and swinging up into the wall: the reverse).
   Pivots also work the first few feet out onto the flats, easing off further out (`pivotFlats` [0.33, 0.5] surface
   units past `tBottom`: full to ~1.2 m, rail turns by ~2.3 m; the user's idea, after a hard cutoff at the bottom
   made turns facing the whitewater slow). A pivot started within that lasts until you let go of the turn

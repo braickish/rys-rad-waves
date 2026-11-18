@@ -293,7 +293,7 @@ export function createRider() {
     airSpin: 0, airTime: 0, spinArmed: false,
     moveCooldown: 0, lastBottomTurn: -9, bottomArmed: false,
     tube: null, fakie: null, driveBank: 0, lastTurnTime: -9, lastTurnDir: 0, overTheBack: false,
-    rideDir: 1, lock: null, inDir: 0, lipSnap: null, snapGrip: false, roundhouse: null, crouchDepth: 0, barrelCrouch: 0, frontLean: 0, tubeDamp: 0, pivot: 0, foot: 0, footGoal: 0, shuf: 0, shufGoal: 0, walkDir: 1, pivotHeld: false, pivotUp: false, nose: 0, noseTime: 0, noseRisk: 0, onNose: false, slash: null, slide: 0, rightHeld: 0, turnDir: 0, turnDirAge: 9, turnHeld: 0, hard: 0, assist: null, bottomCarve: false, floater: null,
+    rideDir: 1, lock: null, inDir: 0, lipSnap: null, snapGrip: false, roundhouse: null, crouchDepth: 0, barrelCrouch: 0, frontLean: 0, tubeDamp: 0, pivot: 0, foot: 0, footGoal: 0, shuf: 0, shufGoal: 0, walkDir: 1, pivotHeld: false, pivotUp: false, pivotDir: 0, nose: 0, noseTime: 0, noseRisk: 0, onNose: false, slash: null, slide: 0, rightHeld: 0, turnDir: 0, turnDirAge: 9, turnHeld: 0, hard: 0, assist: null, bottomCarve: false, floater: null,
     wipeReason: '', wipeTimer: 0, wipeAge: 0, washing: false, falls: null, fallsBoard: null,
     events: [],
     time: 0,
@@ -562,7 +562,13 @@ function stepSurf(r, input, dt) {
     // Which way: nose swinging up the face toward the lip, or down away from it. Toward the lip it's more of
     // a rail turn that drives (`pivotMaxUp`, `pivotDriveUp`); away from it more of a quick pivot (`pivotMax`,
     // `pivotDownRate`, `pivotDriveK`).
-    if (d) r.pivotUp = Math.sign(d) === (Math.cos(r.phi) >= 0 ? 1 : -1);
+    // Decided once, when the turn starts, and kept until you let go (2026-11-18, the user: it should go by whether the
+    // board pivots toward the wall of the wave or away). It used to be re-decided every frame from where the nose was
+    // heading, so one pivot switched halfway: heading back and swinging round down the face, the second half (nose
+    // coming back up) slowed to the toward-the-wall setting. Toward the wall = the swing's first ~25 deg takes the
+    // nose further up the face (from straight down either way is toward the wall, from straight up either way away).
+    if (!d) r.pivotDir = 0;
+    else if (Math.sign(d) !== r.pivotDir) { r.pivotDir = Math.sign(d); r.pivotUp = Math.sin(r.phi + Math.sign(d) * 0.44) > Math.sin(r.phi); }
     const pmax = r.pivotUp ? (T.pivotMaxUp ?? T.pivotMax ?? 1) : (T.pivotMax ?? 1);
     const pv = (r.pivotHeld && !r.tube ? 1 : allow) * Math.max(0, -r.foot) * pmax; // (the tail spot is just ahead of the very tail, so it's part pivot, part rail)
     r.pivot += (pv - r.pivot) * (1 - Math.exp(-dt / 0.08));
