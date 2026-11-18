@@ -212,6 +212,9 @@ export function surferObjects(pose, rider, info, dt) {
   // In the tube: a compact, athletic crouch going in, right down deep in the barrel.
   if (bc > 0.01) kneeT = Math.max(kneeT, inB * (0.42 + 0.58 * deep));
   if (nr > 0.01) kneeT = kneeT * (1 - nr) + 0.22 * nr; // standing tall and relaxed walking up and on the nose
+  // A longboarder stands more upright than on a shortboard (the user, 2026-11-18), unless all the way back on the tail.
+  const upr = WAVE.noseride && rider.mode === 'surf' ? 1 - sstepS(0.5, 1, tl) : 0;
+  kneeT *= 1 - 0.4 * upr;
   if (rider.mode === 'air') kneeT = 0.7;
   // Going over the falls (off the board): curled up in a ball, knees to chest.
   const tuck = rider.falls ? clamp(rider.falls.time / 0.3, 0, 1) : 0;
@@ -309,7 +312,7 @@ export function surferObjects(pose, rider, info, dt) {
   const legF = ik(hipFront, frontFoot, THIGH, SHIN, kneePole(1));
 
   // Torso leans forward (toward the chest side) as you crouch.
-  const torsoDir0 = v3.norm(add(bodyUp, v3.mul(chest, 0.1 + 0.6 * knee + 0.35 * inB + 0.45 * deep), v3.mul(f, 0.1 * deep + 0.22 * fl))); // leaning into the tube (and onto the front foot)
+  const torsoDir0 = v3.norm(add(bodyUp, v3.mul(chest, (0.1 + 0.6 * knee) * (1 - 0.45 * upr) + 0.35 * inB + 0.45 * deep), v3.mul(f, 0.1 * deep + 0.22 * fl))); // leaning into the tube (and onto the front foot)
   const torsoDir = v3.norm(lerp3(torsoDir0, v3.norm(add(v3.mul(bodyUp, 0.45), chest)), tuck)); // (folded over the knees in a tuck)
   const neck = add(hip, v3.mul(torsoDir, 0.58));
   const headDir = v3.norm(lerp3(torsoDir, bodyUp, 0.5 * deep)); // head up, looking down the line, in the barrel stance

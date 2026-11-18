@@ -518,7 +518,9 @@ button).
   reaches forward and down and the back arm is bent, elbow back, hand by her chest; on the nose the front arm
   reaches low toward the nose and the back arm is raised high behind, bent, the hand above her head. The skinned
   head looks down at the board (`lookDown`). Her body was rebuilt slimmer with longer legs (build_surfer.py
-  `girl` macros) and her hair pulled back in a ponytail (`hairObjects`). With the body on, everything uses the real look. Cost
+  `girl` macros) and her hair pulled back in a ponytail (`hairObjects`). She stands more upright with her feet closer together (the user): `stance`
+  [-0.19, 0.17] (36 cm apart, was 54), `noseStance` [0.9, 1.23] (33 cm, was 49), knees 40% straighter and the torso
+  leaning less (`upr`), except all the way back on the tail. Drawing only: the riding is unchanged. With the body on, everything uses the real look. Cost
   (test/profile.mjs, retina): no measurable change (GPU about the same as the parts; JS +0.01 ms).
   Future (saved, not built): a skin texture and eyes from the system pack, Step 3 motion detail (spine bend,
   weight shift, arm and hair follow-through), proper hair and clothing meshes.
