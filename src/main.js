@@ -27,6 +27,8 @@ addEventListener('keydown', (e) => {
   if (e.code === 'KeyC') camMode = (camMode + 1) % 2;
   // On the longboard wave Space walks the board while riding (back -> middle -> front -> middle -> back); otherwise it drops in.
   if (e.code === 'Space' && state === 'play' && WAVE.noseride) { if (!e.repeat) walkPress = 'cycle'; }
+  // On waves with `walkKeys` (Queens, the user's trial) Up/Down walk the board instead of steering; Left/Right turn.
+  else if (WAVE.walkKeys && state === 'play' && ['ArrowUp', 'KeyW', 'ArrowDown', 'KeyS'].includes(e.code)) { if (!e.repeat) walkPress = e.code === 'ArrowUp' || e.code === 'KeyW' ? 1 : -1; }
   else if (e.code === 'Space' || e.code === 'Enter') startOrRestart();
 });
 let walkPress = 0; // (a press of Space ('cycle') or a walk button (+1 up / -1 back), handed to the rider once)
@@ -60,7 +62,7 @@ function readInput() {
   if (params.has('auto') && !window.__manual) { const walk = walkPress; walkPress = 0; return { ...autopilot(), walk }; } // (tests set __manual to take over; Space still walks the board)
   const k = (...c) => c.some((x) => keys.has(x));
   const turn = (k('ArrowLeft', 'KeyA') ? 1 : 0) - (k('ArrowRight', 'KeyD') ? 1 : 0);
-  const tilt = (k('ArrowUp', 'KeyW') ? 1 : 0) - (k('ArrowDown', 'KeyS') ? 1 : 0);
+  const tilt = WAVE.walkKeys ? 0 : (k('ArrowUp', 'KeyW') ? 1 : 0) - (k('ArrowDown', 'KeyS') ? 1 : 0); // (Up/Down walk the board on walkKeys waves)
   const walk = walkPress; walkPress = 0;
   return {
     turn: touch.turn || turn, tilt: touch.tilt || tilt,
@@ -80,8 +82,9 @@ $('walk-up').addEventListener('pointerdown', (e) => { e.preventDefault(); e.stop
 $('walk-back').addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); walkPress = -1; });
 canvas.addEventListener('pointerdown', (e) => {
   if (state === 'title' || state === 'over') { startOrRestart(); return; }
-  stickId = e.pointerId; stickStart = [e.clientX, e.clientY];
+  stickId = e.pointerId; stickStart = [e.clientX, e.clientY]; swipeWalked = false;
 });
+let swipeWalked = false; // (walkKeys waves: one walk step per up/down swipe)
 addEventListener('pointermove', (e) => {
   if (e.pointerId !== stickId) return;
   let dx = (e.clientX - stickStart[0]) / SWIPE_PX, dy = (e.clientY - stickStart[1]) / SWIPE_PX;
@@ -95,7 +98,9 @@ addEventListener('pointermove', (e) => {
   // Same as the keys: a sideways swipe is Left/Right, an up/down swipe is
   // Up/Down (whichever way you swiped most).
   const dz = (x) => (Math.abs(x) < 0.2 ? 0 : Math.sign(x) * Math.min(1, Math.abs(x)));
-  if (Math.abs(dx) > Math.abs(dy)) { touch.turn = dz(-dx); touch.tilt = 0; } else { touch.tilt = dz(-dy); touch.turn = 0; }
+  if (Math.abs(dx) > Math.abs(dy)) { touch.turn = dz(-dx); touch.tilt = 0; }
+  else if (WAVE.walkKeys) { touch.turn = 0; touch.tilt = 0; if (!swipeWalked && Math.abs(dy) > 0.5 && state === 'play') { walkPress = dy < 0 ? 1 : -1; swipeWalked = true; } } // (a swipe up / down walks one step)
+  else { touch.tilt = dz(-dy); touch.turn = 0; }
 });
 const endStick = (e) => { if (e.pointerId === stickId) { stickId = null; touch.turn = 0; touch.tilt = 0; } };
 addEventListener('pointerup', endStick);
@@ -487,6 +492,8 @@ async function main() {
     $('walk-up').hidden = !walking || rider.footGoal >= 1; // (gone once you're all the way up on the nose ...)
     $('walk-back').hidden = !walking || rider.footGoal <= -1; // (... or all the way back on the tail)
     $('hint-nose').hidden = !WAVE.noseride;
+    for (const el of document.querySelectorAll('.hint-std')) el.hidden = !!WAVE.walkKeys;
+    for (const el of document.querySelectorAll('.hint-walk')) el.hidden = !WAVE.walkKeys;
     $('score').textContent = Math.round(score);
     $('speed').textContent = Math.round(groundSpeed(rider) * 2.237);
     const tube = $('tube');

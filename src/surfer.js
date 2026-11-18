@@ -233,7 +233,15 @@ export function surferObjects(pose, rider, info, dt) {
   // Walking to the nose: the feet shuffle up the board one after the other
   // (back foot first), each lifting as it steps, to the hang-five stance.
   let st = dk > 0.01 ? [STANCE[0] + 0.22 * dk, STANCE[1]] : STANCE, lift = [0, 0]; // (dropknee: the back foot comes up behind the front)
-  if (tl > 0.001 && bs.tailStance) st = [st[0] + (bs.tailStance[0] - st[0]) * tl, st[1] + (bs.tailStance[1] - st[1]) * tl]; // (on the tail: back foot just ahead of the fin, front foot stepped back close behind it)
+  // Walking back to the tail, stepping like the walk to the nose: the front foot cross-steps back past the
+  // back foot first, then the back foot steps back onto the tail, each lifting as it steps (the other way
+  // round walking back up). (Back foot first put her in the splits.)
+  const wt = rider.mode === 'surf' ? Math.max(0, -(rider.foot || 0)) : 0;
+  if (wt > 0.001 && bs.tailStance) {
+    const TS = bs.tailStance, a = sstepS(0.4, 1, wt), b = sstepS(0, 0.55, wt);
+    st = [st[0] + (TS[0] - st[0]) * a, st[1] + (TS[1] - st[1]) * b];
+    lift = [0.12 * Math.sin(Math.PI * Math.max(0, Math.min(1, (wt - 0.4) / 0.6))), 0.12 * Math.sin(Math.PI * Math.min(1, wt / 0.55)) * (wt < 0.55 ? 1 : 0)];
+  }
   if (nr > 0.001 && bs.noseStance) {
     const NS = bs.noseStance, a = sstepS(0, 0.55, nr), b = sstepS(0.4, 1, nr);
     st = [STANCE[0] + (NS[0] - STANCE[0]) * a, STANCE[1] + (NS[1] - STANCE[1]) * b];

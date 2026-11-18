@@ -27,7 +27,7 @@ catch rules go by place along the curve, phase and real height in the tube, so t
 drop takes longer, so a slash needs a later bottom turn (test/slash.mjs's player-timing check only tries
 up to 0.8 s and fails at `SIM=1 SIZE=1.75`; from 1.4 s it slashes).
 
-Controls: one control, from the surfer's point of view. Left (or Up) turns the board to the surfer's
+Controls (Queens is the exception: see `walkKeys` below): one control, from the surfer's point of view. Left (or Up) turns the board to the surfer's
 left, Right (or Down) to their right; Up is exactly Left and Down exactly Right in every situation
 (tested). Riding right along the wave, the surfer's left is up the face. Air spins turn the same way
 (about the face normal at takeoff). Holding a turn progressively leans you into it harder (`hardAfter`: tighter arc,
@@ -62,9 +62,11 @@ button).
   read as a big wave in slow motion; no airs, snaps or slashes (turning off the top is a check turn).
   **Walking the board** (2026-11-17, the user's design; `WAVE.noseride`, rider.js `r.foot`/`r.footGoal`): three spots,
   -1 the tail, 0 the middle (where you start), 1 the nose. WALK UP / WALK BACK buttons (`#walk-up`, `#walk-back`; each
-  hides at its end) move one spot per press; Space walks back -> middle -> front -> middle -> back (`walk: 'cycle'`,
-  turning round at each end; otherwise Space drops in). Tail <-> middle takes `tailWalk` 0.4 s, middle -> nose
-  `noseWalkUp` 1.1 s, back 0.8 s; the feet shuffle along the board. The middle trims fastest with rail turns
+  hides at its end) move one spot per press, and so do **Up / Down** (and up / down swipes) on Queens (`walkKeys`, the
+  user's trial 2026-11-17, this wave only: there only Left/Right turn; the hint changes to match); Space walks back -> middle -> front -> middle -> back (`walk: 'cycle'`,
+  turning round at each end; otherwise Space drops in). Tail <-> middle takes `tailWalk` 0.6 s, middle -> nose
+  `noseWalkUp` 1.1 s, back 0.8 s; the feet step along the board one at a time, lifting as they step (to the nose
+  the back foot leads; to the tail the front foot cross-steps back first, since back foot first put her in the splits). The middle trims fastest with rail turns
   (`middleSpeed` 1.6x cruising speed, picked up `middleFeed` 2x quicker; `softMax` 10 / `maxSpeed` 12 / `maxAccel`
   4.5 raised with it; the user asked twice for more speed there). A pocket bot from the middle tops out ~16 mph and
   runs ahead onto the shoulder: walk up to the nose to stall, or cut back. **The tail is just for the turn**

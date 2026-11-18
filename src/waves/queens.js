@@ -25,6 +25,7 @@ export default {
   board: 'longboard',
   surfer: 'girl',
   noseride: true,
+  walkKeys: true, // (Up/Down and up/down swipes walk the board; only Left/Right turn: the user's trial, this wave only)
   dropknee: true, // (surfer.js: the roundhouse is drawn as a dropknee turn)
   moveNames: { roundhouse: 'DROPKNEE TURN!' },
   turquoise: 0.7, // clear, shallow, sunlit water (shaders.js)
@@ -60,7 +61,7 @@ export default {
     // Walking the board (rider.js): tail / middle / nose. From the tail every turn up on the wave pivots
     // round the fin at `pivotRate` whatever her speed, scrubbing `pivotDrag` of her speed per radian, and
     // the tail drags (cruising speed x `tailSpeed`); the middle trims fastest with rail turns.
-    pivotRate: 4.2, pivotMinHeight: 0.05, pivotDrag: 0.2, tailSpeed: 0.8, tailWalk: 0.4, tailHold: 1.5, tailAfterTurn: 0.15, // (on the tail just for the turn: back up to the middle once it's done, or after 1.5 s; the user's call)
+    pivotRate: 4.2, pivotMinHeight: 0.05, pivotDrag: 0.2, tailSpeed: 0.8, tailWalk: 0.6, // (s between the tail and the middle: two steps, like walking to the nose) tailHold: 1.5, tailAfterTurn: 0.15, // (on the tail just for the turn: back up to the middle once it's done, or after 1.5 s; the user's call)
     middleSpeed: 1.6, middleFeed: 2.0, // the middle is the fast spot: 60% higher cruising speed, picked up 2x quicker (the user asked twice for more)
     checkTurn: 2.0, checkRate: 7, // the check turn off the top has to bring you back down on a wave this small
     curlZone: [-0.5, 2.0],
