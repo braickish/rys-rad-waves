@@ -491,7 +491,8 @@ button).
   quads, MakeHuman's 53-bone `game_engine` skeleton) are built from MakeHuman's **CC0 core assets only** (MPFB2's
   bundled base mesh, targets and skeleton, plus the official system asset pack's `male_generic` / `female_generic`
   body meshes); no community assets (some are CC-BY: the user's rule; we make clothes and hair ourselves). Built by
-  `~/workspace/research/body/scripts/build_surfer.py` in Blender 4.5 LTS with the MPFB extension (body settings
+  `~/workspace/research/body/scripts/build_surfer.py` (repo braickish/surfer-body, private; its release
+  `sources-2026-11-18` keeps the full CC0 system pack and the MPFB 2.0.18 build) in Blender 4.5 LTS with the MPFB extension (body settings
   there; `feet_on_ground=False`, or MPFB fits the skeleton 0.86 m off the mesh). Game side, no dependencies:
   `src/glb.js` reads the .glb; `src/body.js` poses it from the same procedural pose as the parts surfer
   (`pose.J` from surfer.js): torso, neck and head by mapping the rest body frame onto ours (the head kept up and
