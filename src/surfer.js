@@ -9,7 +9,7 @@
 
 import { v3, frameAt } from './rider.js';
 import { basis } from './math.js';
-import { WAVE } from './wave.js';
+import { WAVE, toWorld } from './wave.js';
 import { BOARDS } from './mesh.js';
 
 // Illustrated look based on a reference photo: shirtless and tanned, short
@@ -122,7 +122,12 @@ export function surferObjects(pose, rider, info, dt) {
   // lying flat along the face (`faceTilt`: how much of the face's slope the board takes).
   const ft = boardShape().faceTilt;
   if (ft !== undefined && rider.mode === 'surf') u = v3.norm(v3.add(v3.mul(v3.norm(v3.rej([0, 1, 0], f)), 1 - ft), v3.mul(u, ft)));
-  const L = v3.norm(v3.cross(u, f)); // rider's left (toward the wave when going right)
+  const L = v3.norm(v3.cross(u, f)); // rider's left
+  // Stance (WAVE.stance): goofy (right foot forward, the default) faces their left, regular (left foot forward)
+  // their right. T is the toe side, where the chest faces: toward the wave riding frontside (goofy on a left,
+  // regular on a right). The body is built from it (front / back foot, shoulder and arm), not flipped.
+  const ss = WAVE.stance === 'regular' ? -1 : 1;
+  const T = v3.mul(L, ss);
 
   // Rail roll: in a hard turn the board banks onto its inside rail. Harder
   // and faster turns roll it further; holding a turn (leaning harder) more still.
@@ -197,7 +202,7 @@ export function surferObjects(pose, rider, info, dt) {
   if (rh > 0.01) kneeT = Math.max(kneeT, 0.45 + 0.65 * rh);
   if (tl > 0.01) kneeT = kneeT * (1 - 0.6 * tl) + 0.3 * 0.6 * tl; // (on the tail: fairly upright, knees softly bent)
   pose.knee += (clamp(kneeT, 0, 1) - pose.knee) * (1 - Math.exp(-dt * 9));
-  let leanT = clamp(info.turn * 0.2 * clamp(speed / 4, 0.8, 1.25) * (1 + 0.3 * committed), -0.85, 0.85); // + = toward L
+  let leanT = clamp(info.turn * 0.2 * clamp(speed / 4, 0.8, 1.25) * (1 + 0.3 * committed), -0.85, 0.85); // + = toward L (the rider's left, whatever the stance)
   if (committed > 0.5 && Math.abs(info.turn) > 0.3) leanT = Math.sign(leanT) * Math.max(Math.abs(leanT), (rider.bottomCarve ? 0.65 : 0.5) * committed);
   if (rh > 0.01 && Math.abs(info.turn) > 0.3) leanT = Math.sign(leanT) * Math.max(Math.abs(leanT), 0.5 + 0.35 * rh); // deeper into the roundhouse
   leanT *= 1 - 0.5 * pv; // (pivoting: standing over the tail, not laid over on a rail)
@@ -223,10 +228,10 @@ export function surferObjects(pose, rider, info, dt) {
   const unloadT = rider.unload > 0 ? 1 : 0;
   pose.unload = (pose.unload || 0) + (unloadT - (pose.unload || 0)) * (1 - Math.exp(-dt * (unloadT ? 22 : 6)));
   const windup = pose.windup, unload = pose.unload;
-  const twist = TWIST_WIND * windup - TWIST_UNLOAD * unload; // + = front shoulder round toward the wave
-  const chest0 = v3.norm(v3.rej(v3.add(v3.mul(L, Math.cos(CHEST_OPEN)), v3.mul(f, Math.sin(CHEST_OPEN))), bodyUp));
+  const twist = (TWIST_WIND * windup - TWIST_UNLOAD * unload) * ss; // + = front shoulder round toward the toe side
+  const chest0 = v3.norm(v3.rej(v3.add(v3.mul(T, Math.cos(CHEST_OPEN)), v3.mul(f, Math.sin(CHEST_OPEN))), bodyUp));
   const chest = v3.norm(rotateAbout(chest0, bodyUp, twist));
-  const across = v3.norm(v3.cross(chest, bodyUp)); // shoulder line, roughly toward the nose
+  const across = v3.mul(v3.norm(v3.cross(chest, bodyUp)), ss); // shoulder line, roughly toward the nose (front shoulder)
 
   // Stance toward the tail: back foot just ahead of the fin, front foot about
   // the middle of the board.
@@ -308,20 +313,20 @@ export function surferObjects(pose, rider, info, dt) {
     handFront = lerp3(handFront, add(legF.joint, v3.mul(chest, 0.2), v3.mul(f, 0.1), v3.mul(bodyUp, -0.04)), 0.85 * deep);
     handBack = lerp3(handBack, add(lerp3(legB.joint, legF.joint, 0.45), v3.mul(chest, 0.24), v3.mul(bodyUp, 0.04)), 0.85 * deep);
   }
-  if (lean > 0) {
+  if (lean * ss > 0) {
     // Turning toward the chest side (frontside bottom turn): back hand trails on the face.
-    handBack = lerp3(handBack, add(B, v3.mul(f, mid - 0.1), v3.mul(L, 0.6), v3.mul(u, 0.08)), reach);
+    handBack = lerp3(handBack, add(B, v3.mul(f, mid - 0.1), v3.mul(T, 0.6), v3.mul(u, 0.08)), reach);
     handFront = lerp3(handFront, add(shFront, v3.mul(f, 0.35), v3.mul(bodyUp, 0.25), v3.mul(chest, -0.1)), reach);
   } else {
     // Turning toward the heel side: front hand reaches down behind.
-    handFront = lerp3(handFront, add(B, v3.mul(f, mid + 0.2), v3.mul(L, -0.6), v3.mul(u, 0.08)), reach);
+    handFront = lerp3(handFront, add(B, v3.mul(f, mid + 0.2), v3.mul(T, -0.6), v3.mul(u, 0.08)), reach);
     handBack = lerp3(handBack, add(shBack, v3.mul(f, -0.35), v3.mul(bodyUp, 0.25), v3.mul(chest, 0.1)), reach);
   }
   // Bottom turn: front arm low and across the body toward the inside of the
   // turn (the wave side), leading the turn; back arm low behind.
   if (windup > 0.01) {
-    handFront = lerp3(handFront, add(B, v3.mul(f, mid + 0.3), v3.mul(L, 0.42), v3.mul(u, 0.32 + 0.3 * (1 - knee))), windup);
-    handBack = lerp3(handBack, add(B, v3.mul(f, mid - 0.45), v3.mul(L, 0.25), v3.mul(u, 0.35)), windup * 0.8);
+    handFront = lerp3(handFront, add(B, v3.mul(f, mid + 0.3), v3.mul(T, 0.42), v3.mul(u, 0.32 + 0.3 * (1 - knee))), windup);
+    handBack = lerp3(handBack, add(B, v3.mul(f, mid - 0.45), v3.mul(T, 0.25), v3.mul(u, 0.35)), windup * 0.8);
   }
   // Snap: like a spring unloading, both arms swing across the body (at about
   // chest height) toward the tail and the open side, turning the shoulders,
@@ -458,7 +463,9 @@ export function surferObjects(pose, rider, info, dt) {
     const bf0 = v3.norm(add(v3.mul(fr.e1, Math.cos(fb.yaw)), v3.mul(fr.e2, Math.sin(fb.yaw))));
     const bL0 = v3.norm(v3.cross(fr.n, bf0));
     const bf = rotateAbout(bf0, bL0, fb.flip), bu = rotateAbout(fr.n, bL0, fb.flip);
-    objs.push(...boardObjects(bf, bu, bL0, add(fr.P, v3.mul(fr.n, 0.25))));
+    const W = toWorld; // (the board's spot on the wave, placed in the world; its own left from the placed vectors)
+    const wf = W(bf), wu = W(bu);
+    objs.push(...boardObjects(wf, wu, v3.norm(v3.cross(wu, wf)), W(add(fr.P, v3.mul(fr.n, 0.25)))));
   }
   return objs;
 }

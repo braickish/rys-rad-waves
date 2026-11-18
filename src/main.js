@@ -1,6 +1,6 @@
 import { createRenderer } from './renderer.js';
 import { createRider, resetRider, stepRider, groundSpeed, frameAt, v3, TUNE, useWave, tubeDepth } from './rider.js';
-import { PEEL_SPEED, slice, verticalHits, WAVE, phaseAt } from './wave.js';
+import { PEEL_SPEED, slice, verticalHits, WAVE, phaseAt, toWorld, waveDir } from './wave.js';
 import { WAVES } from './waves/index.js';
 import { SEA, nextWave, stepSea, waveHeightFt, seedSea } from './sea.js';
 import { perspective, lookAt, mul, invert } from './math.js';
@@ -64,8 +64,11 @@ function readInput() {
   const turn = (k('ArrowLeft', 'KeyA') ? 1 : 0) - (k('ArrowRight', 'KeyD') ? 1 : 0);
   const tilt = WAVE.walkKeys ? 0 : (k('ArrowUp', 'KeyW') ? 1 : 0) - (k('ArrowDown', 'KeyS') ? 1 : 0); // (Up/Down walk the board on walkKeys waves)
   const walk = walkPress; walkPress = 0;
+  // (The rider works along the wave, where turning up the face is a left turn going ahead. On a right (WAVE.dir
+  // -1) up the face is the surfer's right, so the surfer's Left / Right go to the rider the other way round.)
+  const d = waveDir();
   return {
-    turn: touch.turn || turn, tilt: touch.tilt || tilt,
+    turn: d * (touch.turn || turn), tilt: d * (touch.tilt || tilt),
     crouch: k('ShiftLeft', 'ShiftRight', 'KeyJ') || touch.crouch,
     walk,
   };
@@ -364,6 +367,12 @@ function updateCamera(dt) {
   if (shot === 'tube' && insideWaterAt(camPos)) camPos = want.slice();
 }
 
+// The surfer as placed in the world: position, heading and velocity (the rest of the rider is along the wave).
+function worldRider() {
+  if (waveDir() > 0) return rider;
+  return { ...rider, pos: toWorld(rider.pos), heading: toWorld(rider.heading), vel: toWorld(rider.vel) };
+}
+
 // ---------- main ----------
 let renderer, frameMs = 16;
 function showError(msg) {
@@ -466,7 +475,9 @@ async function main() {
     aspectNow = aspect;
     updateCamera(dt);
     const proj = perspective(aspect < 1 ? 1.15 : 0.95, aspect, 0.1, 4000);
-    const view = lookAt(camPos, camTarget, [0, 1, 0]);
+    // (The shots are worked out along the wave; on a right they're placed in the world peeling the other way.)
+    const camW = toWorld(camPos);
+    const view = lookAt(camW, toWorld(camTarget), [0, 1, 0]);
     const vp = mul(proj, view);
     const camRight = [view[0], view[4], view[8]], camUp = [view[1], view[5], view[9]];
 
@@ -479,11 +490,11 @@ async function main() {
     burst = Math.max(0, burst - dt);
 
     renderer.render({
-      viewProj: vp, invViewProj: invert(vp), camPos, time, sunDir: SUN, peel: PEEL_SPEED,
+      viewProj: vp, invViewProj: invert(vp), camPos: camW, time, sunDir: SUN, peel: PEEL_SPEED,
       rider: rider.pos, spray: sprayAmt, riderVel: rider.vel, dt, sprayDir, frame,
       burst: burst > 0 ? 1 : 0, camRight, camUp,
-    }, surferObjects(pose, rider, {
-      n, e2: v3.norm(v3.cross(n, v3.norm(v3.rej([1, 0, 0], n)))), turn: turnSigned,
+    }, surferObjects(pose, worldRider(), {
+      n: toWorld(n), e2: toWorld(v3.norm(v3.cross(n, v3.norm(v3.rej([1, 0, 0], n))))), turn: turnSigned * waveDir(), // (turning left along the wave is turning right in the world on a right)
       pump: false,
     }, dt), { particles: !params.has('noparticles'), outlines: !params.has('nooutline') });
 

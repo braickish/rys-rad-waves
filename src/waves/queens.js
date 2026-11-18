@@ -1,4 +1,5 @@
-// Queens: a small, peeling right for longboarding, after the reference photo of
+// Queens: a small, peeling wave for longboarding (as built it peels toward +x, screen right from the beach:
+// a left for the surfer, ridden goofy; the real Queens is a right, which is Queens R, queens-r.js), after the reference photo of
 // a longboarder noseriding at Queens (braickish/reference-images, queens.jpg):
 // a clean, turquoise, waist-to-chest-high wave that crumbles rather than
 // throws, with whitewater rolling behind. Much smaller than the point.

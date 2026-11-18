@@ -13,9 +13,10 @@ python3 -m http.server 8765 --bind 127.0.0.1   # then open http://127.0.0.1:8765
 It needs a WebGPU browser (recent Chrome/Edge, or Safari on macOS/iOS 26+).
 
 Waves (2026-11-17 names, after real waves): **Raglan** (`point`, the crumbling point; was "Mellow Point"),
-**Pipe** (`reef`, the simulated barrel; was "Reef Barrel"), **Queens** (`queens`, a small longboard wave). The title
+**Pipe** (`reef`, the simulated barrel; was "Reef Barrel"), **Queens** (`queens`, a small longboard wave), **Queens R**
+(`queensR`, 2026-11-18: Queens as a right, ridden regular foot; see below). The title
 screen is just the wave picker and a DROP IN button (the instructions were dropped, the user's call).
-URL options: `?wave=point|reef|queens` (older `?wave=barrel` / `crumble` still work), `?play` (skip the
+URL options: `?wave=point|reef|queens|queensR` (older `?wave=barrel` / `crumble` still work), `?play` (skip the
 title), `?auto` (autopilot works the pocket; a test can set `window.__manual = true` to take over the keys), `?xs=-4` (start behind the peel), `?cam=1` (chase
 camera), `?cam=3` (testing: fixed out in the channel, looking at the curl side-on, like a photo
 from the channel; used to compare the reef with reference photos), `?noparticles`. `?size=1.75` (the reef this many times
@@ -115,6 +116,19 @@ button).
   the old roundhouse added ~3 mph); the back knee drops toward the deck (surfer.js `dk`). Zone 3 m out (small wave).
   Spray and mist scale with the wave (`misc.x` particle scale in the frame uniform; rail spray amount). A walk press
   counts once per frame (main.js clears `input.walk` after the first physics step: two steps moved it twice).
+- **Which way a wave breaks** (2026-11-18): every wave peels toward +x (screen right seen from the beach,
+  which for the surfer is a **left**: Raglan, Pipe and Queens are lefts, ridden goofy) unless its definition says
+  `dir: -1`, a **right** (peels toward -x). Riding works along the wave in the peel frame whichever way it runs
+  (xs ahead of the curl, the camera's shots, the particle sim); `toWorld` (wave.js) places it in the world: the
+  camera (main.js), the water and particles (shaders.js `dirX`, Frame `misc.z`) and the surfer's position,
+  heading and velocity (`worldRider`). The sun, sky and the surfer's body stay real-world, so a right gets its own
+  lighting and is not a flipped picture. Controls stay from the surfer's point of view: on a right up the face is
+  the surfer's right, so `readInput` hands Left/Right to the rider the other way round (Right turns up the face on
+  Queens R; checked in the browser). **Stance** is the surfer's (`stance: 'regular'` = left foot forward, default
+  goofy = right foot forward): surfer.js builds the body from the toe side `T` (where the chest faces).
+- **Queens R** (`src/waves/queens-r.js`, the user's correction 2026-11-18: the real Queens is a right, ridden
+  regular): its own definition, starting from Queens's settings, with `dir: -1` and `stance: 'regular'`, so she
+  rides frontside, left foot forward. The original Queens stays as it was.
 - `src/wave.js`: the wave model. Two wave types share one 16-point layout: **crumble** (default, the
   crest spills foam down the face, no overhang) and **barrel** (the lip throws over into a tube). The game runs in the **peel frame** (moves with the breaking point),
   where the wave shape is static. Each distance `xs` from the peel point has a 2D cross-section curve

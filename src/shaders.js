@@ -10,9 +10,13 @@ struct Frame {
   riderVel: vec4f,  // xyz, dt
   spray: vec4f,     // spray direction xyz, frame index
   params: vec4f,    // lip table x0, step, count, wipeout burst
-  misc: vec4f,      // x: particle scale (smaller on small waves), y: water ripple scale (finer on small waves), -, -
+  misc: vec4f,      // x: particle scale (smaller on small waves), y: water ripple scale (finer on small waves),
+                    // z: which way the wave peels in the world (WAVE.dir: 1 toward +x, -1 toward -x, a right seen from the beach), -
+  // (The wave, its peel frame and the particle sim work along the wave: +x is ahead of the curl. dirX() places
+  // that in the world; rider/riderVel/spray stay in the peel frame, camPos and everything drawn is in the world.)
 };
 @group(0) @binding(0) var<uniform> F: Frame;
+fn dirX(p: vec3f) -> vec3f { return vec3f(p.x * F.misc.z, p.y, p.z); } // peel frame <-> world (its own inverse)
 
 const HORIZON = vec3f(0.70, 0.84, 0.92);
 
@@ -109,9 +113,10 @@ fn surfacePoint(i: u32, j: u32) -> vec3f {
   let e = tableAt(sl.y, j);
   // Whitewater fades a little far behind the curl.
   let foam = e.z * (1.0 - smoothstep(10.0, 40.0, -sl.x) * 0.5 * smoothstep(0.8, 1.4, sl.y));
-  o.pos = F.viewProj * vec4f(p, 1.0);
-  o.wpos = p;
-  o.n = n;
+  let pw = dirX(p); // (built along the wave, placed in the world)
+  o.pos = F.viewProj * vec4f(pw, 1.0);
+  o.wpos = pw;
+  o.n = dirX(n);
   o.attr = vec3f(sl.y, foam, e.w);
   return o;
 }
@@ -137,12 +142,14 @@ fn coarseTex(q: vec2f, t: f32) -> f32 {
   // Water texture flows backward along x (the peel runs away from it) and
   // up the face (the wave moves through it).
   let rk = F.misc.y; // (ripples sized to the wave: finer on a small one)
-  let q = vec2f(i.wpos.x + t * peel, i.wpos.z * 0.9 + i.wpos.y * 0.9 - t * 1.5) * 1.8 * rk;
+  let ax = i.wpos.x * F.misc.z; // (along the wave, ahead of the curl: the texture flows with the peel whichever way it runs)
+  let q = vec2f(ax + t * peel, i.wpos.z * 0.9 + i.wpos.y * 0.9 - t * 1.5) * 1.8 * rk;
   let e = 0.06;
   let h0 = ripple(q, t);
   let gx = (ripple(q + vec2f(e, 0.0), t) - h0) / e;
   let gy = (ripple(q + vec2f(0.0, e), t) - h0) / e;
-  let t1 = normalize(vec3f(1.0, 0.0, 0.0) - n * n.x);
+  let xa = vec3f(F.misc.z, 0.0, 0.0); // (the 'along the wave' axis in the world)
+  let t1 = normalize(xa - n * dot(n, xa));
   let t2 = cross(n, t1);
   let dist = length(F.camPos.xyz - i.wpos);
   // Ripples on the sloped part of the wave, carrying on out across the flats
@@ -155,7 +162,7 @@ fn coarseTex(q: vec2f, t: f32) -> f32 {
   // drawn up the face (stretched along the flow), plus broad lumps. Up close
   // the fine ripples above carry it, so this fades in with distance.
   // (slanted a little, the way the water draws up and along the wall)
-  let fx = i.wpos.x + t * peel;
+  let fx = ax + t * peel;
   let fy = i.wpos.z * 0.9 + i.wpos.y * 0.9 - t * 1.5;
   let qc = vec2f((fx + fy * 0.35) * 1.3, fy * 0.6) * rk;
   let rib = coarseTex(qc, t);
@@ -193,10 +200,10 @@ fn coarseTex(q: vec2f, t: f32) -> f32 {
   col += vec3f(1.0, 0.95, 0.85) * pow(max(dot(n, hv), 0.0), 500.0) * 4.0 * (1.0 - 0.85 * flatness);
 
   // Foam: broken up with noise, plus faint streaks on the face.
-  let fq = vec2f(i.wpos.x + t * peel * 0.9, i.wpos.y * 1.3 + i.wpos.z * 0.6 - t * 0.8) * F.misc.y;
+  let fq = vec2f(ax + t * peel * 0.9, i.wpos.y * 1.3 + i.wpos.z * 0.6 - t * 0.8) * F.misc.y;
   let fn1 = noise(fq * 1.4) * 0.6 + noise(fq * 3.9 + vec2f(t, 0.0)) * 0.4;
   var foam = clamp(foamAmt * 1.6 - (1.0 - fn1) * 0.9, 0.0, 1.0);
-  let streak = smoothstep(0.78, 0.95, noise(vec2f((i.wpos.x + t * peel) * 0.6, (i.wpos.y + i.wpos.z) * 4.0)));
+  let streak = smoothstep(0.78, 0.95, noise(vec2f((ax + t * peel) * 0.6, (i.wpos.y + i.wpos.z) * 4.0)));
   let onFace = smoothstep(-1.5, -0.3, phase) * (1.0 - smoothstep(1.0, 1.4, phase)) * smoothstep(0.3, 1.5, i.wpos.y);
   foam = max(foam, streak * onFace * 0.18);
   let foamCol = vec3f(0.93, 0.97, 1.0) * (0.72 + 0.28 * diff + 0.1);
@@ -408,6 +415,8 @@ struct VO { @builtin(position) pos: vec4f, @location(0) uv: vec2f, @location(1) 
 @vertex fn vs(@builtin(vertex_index) vi: u32, @builtin(instance_index) ii: u32) -> VO {
   var o: VO;
   let p = parts[ii];
+  let pp = dirX(p.pos.xyz); // (simulated in the peel frame, drawn in the world)
+  let rw = dirX(F.rider.xyz);
   if (p.pos.w <= 0.0 || p.pos.y < -5.0) { o.pos = vec4f(0.0, 0.0, 2.0, 1.0); return o; }
   var corners = array<vec2f, 6>(vec2f(-1.0, -1.0), vec2f(1.0, -1.0), vec2f(1.0, 1.0), vec2f(-1.0, -1.0), vec2f(1.0, 1.0), vec2f(-1.0, 1.0));
   let corner = corners[vi];
@@ -415,11 +424,11 @@ struct VO { @builtin(position) pos: vec4f, @location(0) uv: vec2f, @location(1) 
   // Skip particles right in front of the camera, and cap how big any one can
   // get on screen: big translucent sprites near the lens are what cost the
   // most (overdraw), especially on high-DPI screens.
-  let camDist = length(p.pos.xyz - F.camPos.xyz);
+  let camDist = length(pp - F.camPos.xyz);
   if (camDist < 2.5) { o.pos = vec4f(0.0, 0.0, 2.0, 1.0); return o; }
   let grow = select(1.0, 1.0 + age * 2.5, p.vel.w == 4.0); // the plume billows out as it goes
   let size = min(p.extra.y * (0.7 + age * 1.0) * grow * F.misc.x, camDist * 0.06);
-  let w = p.pos.xyz + (cam[0].xyz * corner.x + cam[1].xyz * corner.y) * size;
+  let w = pp + (cam[0].xyz * corner.x + cam[1].xyz * corner.y) * size;
   o.pos = F.viewProj * vec4f(w, 1.0);
   o.uv = corner;
   let kind = p.vel.w;
@@ -430,12 +439,12 @@ struct VO { @builtin(position) pos: vec4f, @location(0) uv: vec2f, @location(1) 
   if (kind == 4.0) { alpha = 0.07 * (1.0 - age * 0.6); } // wispy, thinning out as it billows
   o.a = alpha * smoothstep(0.0, 0.1, age) * (1.0 - smoothstep(0.55, 1.0, age));
   o.a *= smoothstep(0.8, 5.0, length(w - F.camPos.xyz)); // don't fog the lens
-  if (kind == 3.0) { o.a *= smoothstep(1.0, 4.0, length(p.pos.xyz - F.rider.xyz)); } // spit never hides the surfer
+  if (kind == 3.0) { o.a *= smoothstep(1.0, 4.0, length(pp - rw)); } // spit never hides the surfer
   if (kind == 1.0 || kind == 3.0 || kind == 4.0) {
     // Mist never covers the surfer: fade it near the line from the camera to them.
-    let ab = F.rider.xyz + vec3f(0.0, 0.9, 0.0) - F.camPos.xyz;
-    let u = clamp(dot(p.pos.xyz - F.camPos.xyz, ab) / max(dot(ab, ab), 1e-3), 0.0, 1.0);
-    o.a *= smoothstep(0.6, 2.2, length(p.pos.xyz - (F.camPos.xyz + ab * u)) - size);
+    let ab = rw + vec3f(0.0, 0.9, 0.0) - F.camPos.xyz;
+    let u = clamp(dot(pp - F.camPos.xyz, ab) / max(dot(ab, ab), 1e-3), 0.0, 1.0);
+    o.a *= smoothstep(0.6, 2.2, length(pp - (F.camPos.xyz + ab * u)) - size);
   }
   o.wpos = w;
   o.kind = kind;

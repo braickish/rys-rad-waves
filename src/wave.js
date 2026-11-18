@@ -47,6 +47,13 @@ export function setWave(w) {
   SECTIONS.length = 0;
 }
 
+// Which way the wave peels in the world (`dir` in the wave definition): 1 toward +x (screen right from the
+// beach: a left, for the surfer), -1 toward -x (a right). Everything about riding works along the wave, in the
+// peel frame (xs ahead of the curl, t down the face, the camera's shots), whichever way it runs; toWorld places
+// a peel-frame point or direction in the world (the sun, the surfer's body and stance stay real-world).
+export const waveDir = () => (WAVE.dir < 0 ? -1 : 1);
+export const toWorld = (v) => (WAVE.dir < 0 ? [-v[0], v[1], v[2]] : v);
+
 // Size of the wave being ridden, relative to the wave's normal size (sets
 // bring bigger and smaller waves). Bigger waves peel a little faster.
 export let SIZE = 1;
