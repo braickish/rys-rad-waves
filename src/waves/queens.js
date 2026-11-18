@@ -63,7 +63,7 @@ export default {
     // the tail drags (cruising speed x `tailSpeed`); the middle trims fastest with rail turns.
     pivotRate: 3.2, pivotMax: 0.85, pivotDownRate: 1.15, pivotMaxUp: 0.5, pivotDriveUp: 1.0, // (by direction, the user's idea: turning away from the lip (nose down the face) is quicker and more pivot, 85% at 3.7 rad/s; toward the lip (nose up) more rail, 50% pivot, with a full carve's drive)
      pivotFlats: [0.33, 0.5], pivotDrag: 0, pivotDriveK: 0.5, tailSpeed: 0.8, tailWalk: 0.6, // (the user: pivots too easy, as if slightly too far back, and they should keep a little drive: the tail spot moved forward, the turn there is 70% pivot / 30% rail (pivotMax), pivotRate 3.5 -> 3.2, half a rail carve's drive (pivotDriveK 0.25 -> 0.5); pivotFlats: full pivots ~1.2 m out onto the flats, rail turns by ~2.3 m; tailWalk: s between the tail and the middle)
-    foamPush: 4.6, foamPushFeed: 2.5, // in the whitewater from the middle it pushes you along (~10 mph, picked up quickly) instead of dragging you to vFoam, and takes twice foamLimit to catch you (the user's call)
+    foamPush: 5.8, foamPushFeed: 2.5, // in the whitewater from the middle it pushes you along (~13 mph, close to trimming in the pocket from the middle; was 4.6, the user asked for nearer pocket speed; picked up quickly) instead of dragging you to vFoam, and takes twice foamLimit to catch you (the user's call)
     middleSpeed: 1.6, middleFeed: 2.0, // the middle is the fast spot: 60% higher cruising speed, picked up 2x quicker (the user asked twice for more)
     checkTurn: 2.0, checkRate: 7, // the check turn off the top has to bring you back down on a wave this small
     curlZone: [-0.5, 2.0],
