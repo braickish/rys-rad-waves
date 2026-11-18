@@ -71,7 +71,9 @@ button).
   heading back toward the whitewater), scrubbing `pivotDrag` 0.2 of her speed per radian and making no turn drive.
   Out on the flats (below `pivotMinHeight`) and in the barrel turns stay on the rail, and from the tail a cutback is a
   pivot rather than a dropknee turn. A tail cutback: 150 deg in ~0.5 s, ~11 -> 6 mph (from the middle 0.83 s, ~11 -> 9.6).
-  Drawn (surfer.js `tl`, `pv`): feet stepped back close together over the fin, more upright, arms half out; the nose
+  Feet (mesh.js): the middle spot is `stance` [-0.28, 0.26], either side of the board's middle (the user's call; it
+  used to be the back half); the tail spot `tailStance` [-1.1, -0.62] (moved slightly forward, the user's call).
+  Drawn (surfer.js `tl`, `pv`): feet stepped back close together just ahead of the fin, more upright, arms half out; the nose
   lifts a little standing there and up to ~29 deg swinging round in a pivot (`pose.tip`, about a point ahead of the
   back foot so the tail sinks), with less rail roll and lean. (A first version stepped back automatically when you
   held a turn; replaced by walking the same day.)

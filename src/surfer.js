@@ -233,7 +233,7 @@ export function surferObjects(pose, rider, info, dt) {
   // Walking to the nose: the feet shuffle up the board one after the other
   // (back foot first), each lifting as it steps, to the hang-five stance.
   let st = dk > 0.01 ? [STANCE[0] + 0.22 * dk, STANCE[1]] : STANCE, lift = [0, 0]; // (dropknee: the back foot comes up behind the front)
-  if (tl > 0.001) st = [st[0] - 0.35 * tl, st[1] - 0.4 * tl]; // (on the tail: back foot right on the tail over the fin, front foot stepped back close behind it)
+  if (tl > 0.001 && bs.tailStance) st = [st[0] + (bs.tailStance[0] - st[0]) * tl, st[1] + (bs.tailStance[1] - st[1]) * tl]; // (on the tail: back foot just ahead of the fin, front foot stepped back close behind it)
   if (nr > 0.001 && bs.noseStance) {
     const NS = bs.noseStance, a = sstepS(0, 0.55, nr), b = sstepS(0.4, 1, nr);
     st = [STANCE[0] + (NS[0] - STANCE[0]) * a, STANCE[1] + (NS[1] - STANCE[1]) * b];

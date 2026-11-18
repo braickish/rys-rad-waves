@@ -175,7 +175,8 @@ export const BOARDS = {
     rocker: (u) => 0.012 * u * u + 0.055 * Math.max(0, u - 0.6) ** 2 / 0.16 + 0.04 * Math.max(0, -u - 0.75) ** 2 / 0.0625,
     thick: (u) => 0.07 * (1 - 0.45 * u * u),
     noseFrom: 0.88,
-    stance: [-0.9, -0.4], // the middle: back foot near the fin, front foot behind the middle
+    stance: [-0.28, 0.26], // the middle spot: feet either side of the middle of the board
+    tailStance: [-1.1, -0.62], // the tail spot (pivots): back foot just ahead of the fin, front foot close behind it
     noseStance: [0.74, 1.23], // on the nose: back foot behind, front toes over the nose (hang five)
     fins: [[-1.18, 0, 0.23, 0.26]], // single fin
     stringer: [2.55, 0],
