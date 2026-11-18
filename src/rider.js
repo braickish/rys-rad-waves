@@ -284,7 +284,7 @@ export function createRider() {
     airSpin: 0, airTime: 0, spinArmed: false,
     moveCooldown: 0, lastBottomTurn: -9, bottomArmed: false,
     tube: null, fakie: null, driveBank: 0, lastTurnTime: -9, lastTurnDir: 0, overTheBack: false,
-    rideDir: 1, lock: null, inDir: 0, lipSnap: null, snapGrip: false, roundhouse: null, crouchDepth: 0, barrelCrouch: 0, frontLean: 0, tubeDamp: 0, pivot: 0, nose: 0, noseGoal: 0, noseTime: 0, noseRisk: 0, onNose: false, slash: null, slide: 0, rightHeld: 0, turnDir: 0, turnDirAge: 9, turnHeld: 0, hard: 0, assist: null, bottomCarve: false, floater: null,
+    rideDir: 1, lock: null, inDir: 0, lipSnap: null, snapGrip: false, roundhouse: null, crouchDepth: 0, barrelCrouch: 0, frontLean: 0, tubeDamp: 0, pivot: 0, foot: 0, footGoal: 0, walkDir: 1, nose: 0, noseTime: 0, noseRisk: 0, onNose: false, slash: null, slide: 0, rightHeld: 0, turnDir: 0, turnDirAge: 9, turnHeld: 0, hard: 0, assist: null, bottomCarve: false, floater: null,
     wipeReason: '', wipeTimer: 0, wipeAge: 0, washing: false, falls: null, fallsBoard: null,
     events: [],
     time: 0,
@@ -490,7 +490,7 @@ function stepSurf(r, input, dt) {
     r.inDir = raw ? Math.sign(raw) : (input.aim && (input.aim[0] || input.aim[1]) ? 2 : 0);
     const busy = r.assist || r.lipSnap || r.snapGrip;
     if (r.lock && !busy) r.lock = null; // the move's done: your input counts again
-    if (r.lock) input = { crouch: input.crouch, nose: input.nose }; // (the noseride button still works during a move)
+    if (r.lock) input = { crouch: input.crouch, walk: input.walk }; // (walking the board still works during a move)
   }
   const wantsTurn = !!(input.turn || input.tilt || (input.aim && (input.aim[0] || input.aim[1])));
   if (!wantsTurn || Math.sin(r.phi) > 0.5) r.bottomCarve = false;
@@ -530,15 +530,15 @@ function stepSurf(r, input, dt) {
   }
   r.hard = r.bottomCarve ? 1 : sstep(T.hardAfter[0], T.hardAfter[1], r.turnHeld);
   // --- fin pivot (longboard) ---
-  // A quick tap is a gentle rail turn (trimming). Hold a turn and the surfer steps back
-  // onto the tail (`pivotStepBack` s): the nose lifts and the board pivots round the fin
-  // (`pivotRate`, above), scrubbing speed as it swings (`pivotDrag`) and making none.
-  // Bottom turns stay on the rail (a long, driving arc), and so does the dropknee turn.
-  // Let go and you step forward to trim again (`pivotStepForward` s).
+  // Walked back to the tail (r.foot -1, the walk buttons below), every turn up on the wave
+  // pivots round the fin: the nose lifts and the board swings at `pivotRate` (above),
+  // whichever way you're heading, scrubbing speed as it swings (`pivotDrag`) and making none.
+  // Out on the flats in front of the wave a turn is on the rail even from the tail. From the
+  // middle or further forward, turns are rail turns.
   if (T.pivotRate) {
-    // (only up on the wave: out on the flats in front of it a turn is always on the rail)
-    const want = d && r.turnHeld >= T.pivotAfter && height > T.pivotMinHeight && !r.bottomCarve && !r.roundhouse && !r.noseGoal && r.nose < 0.05 && !r.tube;
-    r.pivot = clamp(r.pivot + (want ? dt / T.pivotStepBack : -dt / T.pivotStepForward), 0, 1);
+    const onFace = height > T.pivotMinHeight && !r.tube;
+    const pv = onFace ? Math.max(0, -r.foot) : 0;
+    r.pivot += (pv - r.pivot) * (1 - Math.exp(-dt / 0.08));
   }
   // --- slash: a Right turn started low on the way up (also in the barrel) ---
   // While it slides, your line keeps carving normally (carrying you on up the
@@ -599,7 +599,7 @@ function stepSurf(r, input, dt) {
   // bottom turn: turning the nose back up from pointing down)
   const bottomTurning = Math.sin(r.phi) < -0.3 && Math.sign(d) === (r.rideDir >= 0 ? 1 : -1);
   if (!r.roundhouse && d && r.turnHeld <= 0.1 && !bottomTurning && !r.assist && !r.lipSnap && !r.snapGrip && !r.slash && !r.floater && !r.tube
-    && r.xs > T.roundhouseZone && pk < T.roundhousePocket && Math.cos(r.phi) > 0.2) {
+    && r.xs > T.roundhouseZone && pk < T.roundhousePocket && Math.cos(r.phi) > 0.2 && !(r.foot < -0.5)) { // (from the tail a cutback is a fin pivot, not a dropknee turn)
     r.roundhouse = { dir: Math.sign(d), turned: 0, depth: 0, scored: false, time: 0 };
   }
   if (r.roundhouse) {
@@ -624,16 +624,24 @@ function stepSurf(r, input, dt) {
   // (for the surfer's pose: crouch lower and lean deeper as the roundhouse comes round)
   r.crouchDepth += ((r.roundhouse ? r.roundhouse.depth : 0) - r.crouchDepth) * (1 - Math.exp(-dt * (r.roundhouse ? 10 : 4)));
   if (r.roundhouse) r.hard = Math.max(r.hard, r.roundhouse.depth);
-  // --- noseriding (waves with `noseride`: the longboard) ---
-  // Space / the button toggles walking up to the nose and back. On the nose
+  // --- walking the board and noseriding (waves with `noseride`: the longboard) ---
+  // Three spots along the board (r.foot): -1 the tail (fin pivots, slower), 0 the middle
+  // (rail turns, the fastest trim), 1 the nose (hang five). Walk up / walk back (buttons,
+  // keys) move one spot per press (`tailWalk` s between the tail and the middle, `noseWalkUp`
+  // / `noseWalkBack` between the middle and the nose). On the nose
   // you can barely steer (noseTurnDamp, in `rate` above). In the pocket the
   // nose trims you to the curl's speed, so you slow down and stay there; out
   // on the shoulder (pocket power below nosePocket) it drags and starts going
   // under, and stay out there too long and you pearl.
   if (WAVE.noseride) {
-    if (input.nose) r.noseGoal = r.noseGoal ? 0 : 1;
-    const walk = r.noseGoal ? 1 / T.noseWalkUp : -1 / T.noseWalkBack;
-    r.nose = clamp(r.nose + walk * dt, 0, 1);
+    // (Space: 'cycle' walks back -> middle -> front -> middle -> back, turning round at each end)
+    if (input.walk === 'cycle') {
+      if (r.footGoal >= 1) r.walkDir = -1; else if (r.footGoal <= -1) r.walkDir = 1;
+      r.footGoal = clamp(r.footGoal + r.walkDir, -1, 1);
+    } else if (input.walk) r.footGoal = clamp(r.footGoal + Math.sign(input.walk), -1, 1);
+    if (r.foot < r.footGoal) r.foot = Math.min(r.footGoal, r.foot + dt / (r.foot >= 0 ? T.noseWalkUp : T.tailWalk));
+    else if (r.foot > r.footGoal) r.foot = Math.max(r.footGoal, r.foot - dt / (r.foot > 0 ? T.noseWalkBack : T.tailWalk));
+    r.nose = Math.max(0, r.foot);
     const n = sstep(0.3, 1, r.nose);
     if (r.nose >= 1 && !r.onNose) { r.onNose = true; r.events.push({ type: 'move', move: 'hang5', speed: r.speed, xs: r.xs }); }
     if (r.onNose) r.noseTime += dt;
@@ -740,6 +748,7 @@ function stepSurf(r, input, dt) {
   // (speed fades a little further out than the pocket itself: shoulderReach)
   const pkSpeed = r.xs > 0 ? pocketPower(Math.max(0, r.xs - T.shoulderReach)) : pk;
   let target = T.vLow + (T.vPocket - T.vLow) * pkSpeed * steep * (0.45 + 0.75 * height);
+  if (r.foot < 0) target *= 1 - (1 - (T.tailSpeed ?? 1)) * -r.foot; // (standing on the tail the board drags: slower than from the middle)
   r.boost = Math.max(0, (r.boost || 0) - dt);
   if (r.boost > 0 && r.boost < 0.85 && foam < 0.2) r.boost = 0; // cleared the foam you bounced off
   if (r.boost > 0) { /* just rebounded: the foam can't slow you for a moment */ }

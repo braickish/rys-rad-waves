@@ -50,16 +50,32 @@ button).
   goofy/regular should be a surfer stance, and a left should be its own wave). The title screen has a wave picker (remembered in localStorage).
 - **Queens** (`src/waves/queens.js`, 2026-11-17, after queens.jpg in braickish/reference-images): a small
   (~1.2 m face, `scale` 0.42), slow-peeling, crumbling right in clear turquoise water (`turquoise`, shaders.js), ridden
-  by a girl in a light blue bikini with long blonde hair (`surfer: 'girl'`, surfer.js) on a 9'6" yellow noserider
-  (`BOARDS.longboard`: wide round nose, single fin, `noseStance` for the hang five). Longboard feel in its `tune`:
+  by a girl in a light blue bikini with long blonde hair (`surfer: 'girl'`, surfer.js) on a 9'0" pink noserider
+  (`BOARDS.longboard`: wide round nose with little nose rocker, single fin, `noseStance` for the hang five; shortened
+  from 9'6" and changed from yellow 2026-11-17, the user's call). On a steep face it sits mostly level with the
+  wave-side rail cut into the wave (`faceTilt` 0.35 of the face's slope, the user's description) and rolls half as
+  far onto its rail in turns (`rollK`). Longboard feel in its `tune`:
   slower turns (turn rate 2.4 vs 5.2 rad/s) sized to the small wave, glides and carries speed (`bleed` 0.55, `climb`
   4), ~12 mph in the pocket (`vPocket` 5.2). Peel 4.8 m/s and wave speed 3.9 m/s (2026-11-17: the user found the wave
   felt slow; it had peeled at 3.0, and the surfer's speed had been cut to 4.0 m/s because she outran that slow peel).
   Water ripples are `rippleK` 2x finer than on the big waves (Frame `misc.y` in shaders.js), so the small wave doesn't
-  read as a big wave in slow motion; no airs, snaps or slashes (turning off the top is a check turn). **Noseriding**
-  (`WAVE.noseride`, rider.js): Space (desktop, while riding; otherwise Space drops in) or the HANG 5 / WALK BACK
-  button (`#nose-btn`) walks to the nose (`noseWalkUp` 1.1 s) and back (0.8 s); the feet shuffle up the board and the
-  arms go out wide (surfer.js `nr`). On the nose you can barely steer (`noseTurnDamp` 0.8); in the pocket the nose
+  read as a big wave in slow motion; no airs, snaps or slashes (turning off the top is a check turn).
+  **Walking the board** (2026-11-17, the user's design; `WAVE.noseride`, rider.js `r.foot`/`r.footGoal`): three spots,
+  -1 the tail, 0 the middle (where you start), 1 the nose. WALK UP / WALK BACK buttons (`#walk-up`, `#walk-back`; each
+  hides at its end) move one spot per press; Space walks back -> middle -> front -> middle -> back (`walk: 'cycle'`,
+  turning round at each end; otherwise Space drops in). Tail <-> middle takes `tailWalk` 0.4 s, middle -> nose
+  `noseWalkUp` 1.1 s, back 0.8 s; the feet shuffle along the board. The middle trims fastest with rail turns.
+  **The tail** is slower (cruising speed x `tailSpeed` 0.8) and every turn up on the wave is a **fin pivot**
+  (`r.pivot`, the user: on a small wave a longboard turns by pivoting round the fin, not on the rail; reference
+  pivot-turn.jpg): the board swings at `pivotRate` 4.2 rad/s whatever her speed, either way along the wave (also
+  heading back toward the whitewater), scrubbing `pivotDrag` 0.2 of her speed per radian and making no turn drive.
+  Out on the flats (below `pivotMinHeight`) and in the barrel turns stay on the rail, and from the tail a cutback is a
+  pivot rather than a dropknee turn. A tail cutback: 150 deg in ~0.5 s, ~11 -> 6 mph (from the middle 0.83 s, ~11 -> 9.6).
+  Drawn (surfer.js `tl`, `pv`): feet stepped back close together over the fin, more upright, arms half out; the nose
+  lifts a little standing there and up to ~29 deg swinging round in a pivot (`pose.tip`, about a point ahead of the
+  back foot so the tail sinks), with less rail roll and lean. (A first version stepped back automatically when you
+  held a turn; replaced by walking the same day.)
+  **On the nose** you steer a little (`noseTurnDamp` 0.55, was 0.8); in the pocket the nose
   trims you to just under the curl's speed (`noseHold`, `noseUnder`), so you stay there; out on the shoulder (pocket
   power below `nosePocket`) it drags and the nose dips under (`r.noseRisk`, drawn as the board pitching nose-down, the feet going with it) until
   you pearl (wipeout). Scores: HANG FIVE! on reaching the nose, then a noseride bonus by time when you walk back.
@@ -67,16 +83,8 @@ button).
   `moveNames`: "DROPKNEE TURN!"): no slow start, `roundhouseRate` 1.4x a normal longboard turn (up to 4 rad/s), and
   `roundhouseNoDrive`: it turns you without making speed (150 deg in ~0.95 s instead of ~1.6 s, no speed gain where
   the old roundhouse added ~3 mph); the back knee drops toward the deck (surfer.js `dk`). Zone 3 m out (small wave).
-  **Fin pivot** (2026-11-17, the user: on a small wave a longboard turns by pivoting round the fin, not on the
-  rail; pivot-turn.jpg in braickish/reference-images): hold a turn past `pivotAfter` (0.12 s) and she steps back
-  onto the tail (`r.pivot`, `pivotStepBack` 0.2 s; back again in `pivotStepForward` 0.3 s); the board then turns at
-  `pivotRate` (4.2 rad/s) whatever her speed, scrubs `pivotDrag` (0.2) of her speed per radian swung and makes no
-  turn drive. Quick taps stay gentle rail turns, and bottom turns (`bottomCarve`), the dropknee turn, the nose,
-  the barrel and the flats in front of the wave (below `pivotMinHeight` of the face, the user's call) don't pivot. A held cutback from mid-face: 150 deg in 0.72 s (1.0 s on the rail), 8.8 -> 5.5 mph (7.8).
-  Drawn (surfer.js `pv`): feet stepped back close together over the fin, the board tipped nose-up 0.3 rad about a
-  point ahead of the back foot (tail sinks), more upright, less rail roll and lean, arms out for balance.
-  Spray and mist scale with the wave (`misc.x` particle scale in the frame uniform; rail spray amount). A nose press
-  counts once per frame (main.js clears `input.nose` after the first physics step: two steps toggled it back).
+  Spray and mist scale with the wave (`misc.x` particle scale in the frame uniform; rail spray amount). A walk press
+  counts once per frame (main.js clears `input.walk` after the first physics step: two steps moved it twice).
 - `src/wave.js`: the wave model. Two wave types share one 16-point layout: **crumble** (default, the
   crest spills foam down the face, no overhang) and **barrel** (the lip throws over into a tube). The game runs in the **peel frame** (moves with the breaking point),
   where the wave shape is static. Each distance `xs` from the peel point has a 2D cross-section curve
