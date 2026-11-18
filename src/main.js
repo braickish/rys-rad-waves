@@ -45,16 +45,21 @@ function headStats(m, dom) {
   for (let v = 0; v < m.vertexCount; v++) if (dom[v] === 'head' && Math.abs(m.pos[v * 3 + 1] - capY) < 0.015) {
     zMin = Math.min(zMin, m.pos[v * 3 + 2]); zMax = Math.max(zMax, m.pos[v * 3 + 2]); xMax = Math.max(xMax, Math.abs(m.pos[v * 3]));
   }
-  return { top, front, capY, capZ: (zMin + zMax) / 2, capRx: xMax + 0.016, capRz: (zMax - zMin) / 2 + 0.003 };
+  // the back of the head, neck and upper back by depth below the top of the head (for long hair lying on it)
+  const backAt = (d) => { let mz = 1e9; for (let v = 0; v < m.vertexCount; v++) if (Math.abs(m.pos[v * 3 + 1] - (top - d)) < 0.012 && Math.abs(m.pos[v * 3]) < 0.07) mz = Math.min(mz, m.pos[v * 3 + 2]); return mz; };
+  return { top, front, capY, capZ: (zMin + zMax) / 2, capRx: xMax + 0.016, capRz: (zMax - zMin) / 2 + 0.003, backAt };
 }
 const BODY_LOOKS = {
   guy: { skin: [0.85, 0.56, 0.37, 0.35], hair: [0.3, 0.2, 0.12, 0.25] }, // (tanned, 2026-11-18, the user; the fill light keeps them easy to see)
-  girl: { skin: [0.9, 0.62, 0.43, 0.35], hair: [0.45, 0.3, 0.18, 0.25], hairMid: [0.51, 0.35, 0.21], hairHi: [0.64, 0.47, 0.3] },
+  girl: { skin: [0.9, 0.62, 0.43, 0.35], hair: [0.43, 0.29, 0.17, 0.25], hairMid: [0.48, 0.33, 0.2], hairHi: [0.56, 0.39, 0.24] }, // (long brown hair: hana-likeness.jpg, 2026-11-18)
 };
 function bodyColors(m, which) {
   const L = BODY_LOOKS[which], dom = dominantBones(m), hs = headStats(m, dom);
   const shorts = [0.22, 0.33, 0.5, 0.08], band = [0.08, 0.08, 0.1, 0.08];
-  const rash = [0.1, 0.6, 0.6, 0.15], cuff = [0.06, 0.42, 0.44, 0.15], floral = [0.93, 0.42, 0.5, 0.1], flowers = [[1, 0.97, 0.9, 0.1], [1, 0.84, 0.3, 0.1]];
+  const topBlue = [0.6, 0.72, 0.93, 0.12], topLilac = [0.74, 0.68, 0.92, 0.12], topWhite = [0.94, 0.95, 0.98, 0.12];
+  const sage = [0.6, 0.66, 0.52, 0.1], cream = [0.93, 0.91, 0.82, 0.1], brown = [0.44, 0.37, 0.27, 0.1];
+  const cord = [0.28, 0.2, 0.16, 0.2], cuffBlack = [0.05, 0.05, 0.06, 0.15];
+  const backSide = WAVE.stance === 'regular' ? 'r' : 'l'; // (regular: left foot forward, so the leash is on the right ankle)
   const c = new Float32Array(m.vertexCount * 4);
   const kneeY = m.rest.calf_l.head[1], waistY = m.rest.spine_01.head[1] + 0.02, neckY = m.rest.neck_01.head[1];
   const hipY = m.rest.thigh_l.head[1];
@@ -65,20 +70,32 @@ function bodyColors(m, which) {
     if (which === 'guy') {
       if (hipBone && y < waistY && y > kneeY + 0.07) col = y > waistY - 0.035 ? band : shorts;
     } else {
-      // rash guard: the torso from the waist to the base of the neck, and the arms to the wrists (darker cuffs)
-      const torso = /^(spine_0[123]|clavicle_[lr]|pelvis|Root)$/.test(bone) && y > waistY - 0.03;
-      const neckBase = bone === 'neck_01' && y < neckY + 0.025;
-      const arm = /^(upperarm|lowerarm)_[lr]$/.test(bone);
-      if (torso || neckBase || arm) col = rash;
-      if (bone.startsWith('lowerarm')) {
-        const hand = m.rest['hand_' + bone.slice(-1)].head, d = Math.hypot(x - hand[0], y - hand[1], z - hand[2]);
-        if (d < 0.035) col = cuff;
+      // After the user's reference (hana-likeness.jpg, 2026-11-18): a light-blue floral bralette top with thin
+      // straps and a scoop neck, a bare midriff, floral boy-short bottoms (sage, cream and brown), bare arms with a
+      // thin bracelet on each wrist, and a black leash cuff on the back ankle. Rest-pose landmarks (girl.glb):
+      // bust peak ~0.35 m, waist band ~0.12, the bottoms' legs end just below the crotch.
+      const torso = /^(spine_0[23]|clavicle_[lr])$/.test(bone);
+      const ax = Math.abs(x), front = z > 0.0;
+      const topEdge = front ? (ax < 0.1 ? 0.43 - 0.035 * (1 - ax / 0.1) : 0.41) : 0.37;
+      const bottomEdge = front ? 0.29 : 0.3;
+      const strap = torso && ax > 0.065 && ax < 0.09 && y >= topEdge && y < 0.53;
+      if ((torso && y > bottomEdge && y < topEdge) || strap) {
+        col = topBlue;
+        const f = Math.sin(x * 170 + 1.3) * Math.sin(y * 190) * Math.sin(z * 150 + 0.7);
+        if (f > 0.5) col = topLilac; else if (f < -0.62) col = topWhite;
       }
-      // bikini bottoms: from just under the rash guard down over the hips, higher at the sides; little flowers
-      if (hipBone && y <= waistY - 0.03 && y > hipY - 0.06 - 0.04 * (1 - Math.min(1, Math.abs(x) / 0.12))) {
-        col = floral;
-        const f = Math.sin(x * 140) * Math.sin(y * 150) * Math.sin(z * 130);
-        if (f > 0.55) col = flowers[(Math.floor((x + y + z) * 60) & 1)];
+      if (hipBone && y < 0.12 && y > -0.05) {
+        col = sage;
+        const f = Math.sin(x * 120 + 0.4) * Math.sin(y * 135 + 1.1) * Math.sin(z * 110);
+        if (f > 0.45) col = cream; else if (f < -0.55) col = brown;
+      }
+      if (bone.startsWith('lowerarm')) { // bracelets
+        const hand = m.rest['hand_' + bone.slice(-1)].head, d = Math.hypot(x - hand[0], y - hand[1], z - hand[2]);
+        if (d > 0.028 && d < 0.04) col = cord;
+      }
+      if (bone === 'calf_' + backSide) { // leash cuff
+        const ft = m.rest['foot_' + backSide].head, d = y - ft[1];
+        if (d > 0.015 && d < 0.075) col = cuffBlack;
       }
     }
     // hair painted on the scalp: the hairline high at the forehead, above the ears at the sides, low at the nape
@@ -100,12 +117,42 @@ function hairObjects(b, mats) {
   const ell = (cx, cy, cz, rx, ry, rz) => [rx * 2, 0, 0, 0, 0, ry * 2, 0, 0, 0, 0, rz * 2, 0, cx, cy, cz, 1];
   const out = [{ mesh: 'sphere', model: mul(M, ell(0, hs.capY, hs.capZ, hs.capRx, 0.085, hs.capRz)), color: L.hair.slice(0, 3), spec: 0.25, outline: 0 }];
   if (b.which === 'girl') {
-    // hair pulled back in a ponytail (the user's longboard references, 2026-11-18): a knot at the back of the head
-    // and the tail hanging down behind, lighter toward the end
-    const back = hs.capZ - hs.capRz;
-    out.push({ mesh: 'sphere', model: mul(M, ell(0, hs.capY - 0.03, back - 0.015, 0.045, 0.045, 0.04)), color: L.hair.slice(0, 3), spec: 0.25, outline: 0 });
-    out.push({ mesh: 'sphere', model: mul(M, ell(0, hs.capY - 0.13, back - 0.04, 0.035, 0.09, 0.03)), color: L.hairMid, spec: 0.25, outline: 0 });
-    out.push({ mesh: 'sphere', model: mul(M, ell(0, hs.capY - 0.24, back - 0.045, 0.025, 0.06, 0.022)), color: L.hairHi, spec: 0.25, outline: 0 });
+    // long, lighter-brown hair falling loose down her back (the user, 2026-11-18; the ponytail is gone): layers lying
+    // just behind the measured back of her head, neck and shoulders, wider over the shoulders, lighter toward the
+    // ends, and flowing: they lag behind the head's movement on a spring, more the further down they hang.
+    const hp = [M[12], M[13], M[14]], dt = b.dt || 1 / 60;
+    const st = b.sway ||= { p: hp.slice(), v: [0, 0, 0], off: [0, 0, 0] };
+    for (let i = 0; i < 3; i++) {
+      const vel = (hp[i] - st.p[i]) / dt; // the head's velocity
+      const acc = -60 * st.off[i] - 9 * st.v[i] - (vel - (st.lastVel?.[i] ?? vel)) / dt * 0.6; // spring back, damped, pushed by the head's acceleration
+      st.v[i] += acc * dt; st.off[i] += st.v[i] * dt;
+      st.off[i] = Math.max(-0.08, Math.min(0.08, st.off[i]));
+    }
+    st.lastVel = hp.map((x, i) => (x - st.p[i]) / dt); st.p = hp;
+    // the top of the hair moves with the head; further down it lies on her upper back (riding the spine_03 bone),
+    // so looking down at the board doesn't swing it into her back
+    const sp = b.body.model.rest.spine_03.index, MS = Array.from(mats.subarray(sp * 16, sp * 16 + 16));
+    const lerpC = (a, c, t) => a.map((x, i) => x + (c[i] - x) * t);
+    // a smooth fall in three overlapping, flattened pieces (more, smaller ones read as stacked rolls): over the back
+    // of the head, a long sheet down her upper back fanning out over the shoulders, and the lighter ends
+    const zAt = (d, rz) => Math.min(hs.backAt(d), hs.capZ - hs.capRz + 0.01) - rz * 0.4;
+    const pieces = [ // [bone matrix, depth of center, half width, half height, half depth, color, sway]
+      [M, 0.13, hs.capRx * 0.97, 0.12, 0.045, L.hair.slice(0, 3), 0.1],
+      [MS, 0.32, 0.135, 0.2, 0.024, lerpC(L.hair.slice(0, 3), L.hairMid, 0.5), 0.5],
+      [MS, 0.48, 0.12, 0.1, 0.02, L.hairHi, 1],
+    ];
+    for (const [B, d, rx, ry, rz, color, k] of pieces) {
+      const m4 = mul(B, ell(0, hs.top - d, zAt(d, rz), rx, ry, rz));
+      m4[12] += st.off[0] * k; m4[13] += st.off[1] * k * 0.5; m4[14] += st.off[2] * k;
+      out.push({ mesh: 'sphere', model: m4, color, spec: 0.3, outline: 0 });
+    }
+    // a lock falling forward over each shoulder (the reference), from the side of the head down onto the chest
+    for (const sx of [-1, 1]) for (let i = 0; i < 4; i++) {
+      const u = i / 3, d = 0.12 + 0.22 * u;
+      const m4 = mul(u < 0.3 ? M : MS, ell(sx * (hs.capRx - 0.012 + 0.012 * u), hs.top - d, 0.02 + 0.06 * u, 0.03, 0.07, 0.022));
+      m4[12] += st.off[0] * u * 0.5; m4[14] += st.off[2] * u * 0.5;
+      out.push({ mesh: 'sphere', model: m4, color: lerpC(L.hair.slice(0, 3), L.hairMid, u), spec: 0.3, outline: 0 });
+    }
   }
   return out;
 }
@@ -608,7 +655,7 @@ async function main() {
       pump: false,
     }, dt);
     const bodyMats = drawMh && pose.J ? body.body.update(pose.J) : null;
-    if (bodyMats) objs.push(...hairObjects(body, bodyMats));
+    if (bodyMats) { body.dt = dt; objs.push(...hairObjects(body, bodyMats)); }
     renderer.render({
       viewProj: vp, invViewProj: invert(vp), camPos: camW, time, sunDir: SUN, peel: PEEL_SPEED,
       rider: rider.pos, spray: sprayAmt, riderVel: rider.vel, dt, sprayDir, frame,
