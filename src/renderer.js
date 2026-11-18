@@ -10,7 +10,7 @@ export const PARTICLES = 40960;
 // this keeps it sharp but much cheaper.
 const MAX_PIXELS = 3.2e6;
 const SAMPLES = 4;
-const MAX_OBJECTS = 48;
+const MAX_OBJECTS = 96; // (pieces of the surfer and board drawn each frame; past this they were dropped: the rash guard's extra pieces cost Queens an arm)
 const OBJ_STRIDE = 256;
 
 // Make every triangle wind the same way relative to its normals, so the

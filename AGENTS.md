@@ -50,7 +50,7 @@ button).
   goofy/regular should be a surfer stance, and a left should be its own wave). The title screen has a wave picker (remembered in localStorage).
 - **Queens** (`src/waves/queens.js`, 2026-11-17, after queens.jpg in braickish/reference-images): a small
   (~1.2 m face, `scale` 0.42), slow-peeling, crumbling right in clear turquoise water (`turquoise`, shaders.js), ridden
-  by a girl in a teal long-sleeve rash guard and fuller floral bottoms (was a light blue bikini; the user's pick) with long light brown hair, lighter toward the ends with slight highlights (was blonde; the user's pick) (`surfer: 'girl'`, surfer.js) on a 9'0" pink noserider
+  by a girl in a teal long-sleeve rash guard and floral bikini bottoms (was a light blue bikini; the user's pick) with long light brown hair, lighter toward the ends with slight highlights (was blonde; the user's pick) (`surfer: 'girl'`, surfer.js) on a 9'0" pink noserider
   (`BOARDS.longboard`: wide round nose with little nose rocker, single fin, `noseStance` for the hang five; shortened
   from 9'6" and changed from yellow 2026-11-17, the user's call). On a steep face it sits mostly level with the
   wave-side rail cut into the wave (`faceTilt` 0.35 of the face's slope, the user's description) and rolls half as
