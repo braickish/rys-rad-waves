@@ -2,7 +2,7 @@ import { createRenderer } from './renderer.js';
 import { createRider, resetRider, stepRider, groundSpeed, frameAt, v3, TUNE, useWave, tubeDepth } from './rider.js';
 import { PEEL_SPEED, slice, verticalHits, WAVE, phaseAt, toWorld, waveDir } from './wave.js';
 import { WAVES } from './waves/index.js';
-import { SEA, nextWave, stepSea, waveHeightFt, seedSea } from './sea.js';
+import { SEA, nextWave, stepSea, seedSea } from './sea.js';
 import { perspective, lookAt, mul, invert } from './math.js';
 import { createPose, surferObjects } from './surfer.js';
 import { loadSkinnedGLB } from './glb.js';
@@ -278,7 +278,7 @@ function startOrRestart() {
   score = 0; rideTime = 0;
   $('title').hidden = true;
   $('over').hidden = true;
-  flash('Drop in!', SEA.enabled && SEA.waveInSet > 0 ? `wave ${SEA.waveInSet} of ${SEA.setSize} · ${Math.round(waveHeightFt())} ft face` : '');
+  flash('Drop in!', ''); // (no wave-of-set count or face size: the user, 2026-11-18; sets still vary the waves)
 }
 
 function flash(text, sub = '') {
@@ -667,7 +667,7 @@ async function main() {
     for (const el of document.querySelectorAll('.hint-lb')) el.hidden = !WAVE.noseride; // (longboard: walk; shortboard: shuffle the feet)
     for (const el of document.querySelectorAll('.hint-sb')) el.hidden = !!WAVE.noseride;
     $('score').textContent = Math.round(score);
-    $('speed').textContent = Math.round(groundSpeed(rider) * 2.237);
+    window.__speedMph = Math.round(groundSpeed(rider) * 2.237); // (the speed readout was dropped from the screen, the user's call; kept for tests)
     const tube = $('tube');
     tube.style.width = `${Math.min(100, rider.barrelTime * 25)}%`;
     tube.parentElement.classList.toggle('on', rider.inBarrel);

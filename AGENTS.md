@@ -476,6 +476,8 @@ button).
 - 2026-11-17: the project was rolled back to the surfboard commit (a3cc07a) after later reef work broke the
   waves; the glow band, the smooth bend and the flats texture were then re-applied one at a time. The water
   still flows the original way (up the face, drifting with the peel).
+- **HUD** (2026-11-18, the user): score and best only; the speed readout is gone (`window.__speedMph` keeps it for
+  tests), and "Drop in!" no longer says which wave of the set or the face size (sets still vary the waves).
 - `src/sea.js`: **sets and sections**, from the wave's `sea` settings. Each ride is the next wave of the
   set (`setWaveSize`: bigger waves peel a bit faster). Sections (`SECTIONS` in wave.js) are stretches
   ahead that break early for a while (fixed to the reef, so in the peel frame they move back toward
