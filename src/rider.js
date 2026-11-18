@@ -723,7 +723,8 @@ function stepSurf(r, input, dt) {
   const driveLow = 1 - sstep(0.35, 0.9, height); // starts higher up the face, and works out on the flats too
   const high = sstep(0.55, 0.95, height);
   // (Only your own carving drives you, not the quick assisted pivots.)
-  const carveDrive = (r.bottomCarve ? T.bottomCarveDrive : 1 + 0.35 * hard) * (1 - (r.pivot || 0)); // (a fin pivot isn't on the rail: no drive)
+  const pivotK = 1 - (r.pivot || 0) * (1 - (T.pivotDriveK || 0)); // (a fin pivot isn't on the rail: only `pivotDriveK` of a carve's drive)
+  const carveDrive = (r.bottomCarve ? T.bottomCarveDrive : 1 + 0.35 * hard) * pivotK;
   // Turn drive goes into a buffer that releases smoothly, so speed builds
   // through the turn instead of jumping.
   // A committed bottom turn drives from its very first moment (the nose
@@ -733,7 +734,7 @@ function stepSurf(r, input, dt) {
   const driving = r.bottomCarve ? r.carvingUp : Math.sin(r.phi) > sinBefore;
   const turnDrives = !(r.roundhouse && T.roundhouseNoDrive); // (a dropknee turn turns you, it doesn't make speed)
   if (turnDrives && driveLow > 0 && driving && d === playerD && !(r.slash && r.slash.released) && !r.slide) r.driveBank += T.bottomDrive * carveDrive * Math.abs(d) * driveLow * (0.4 + 0.6 * pk);
-  if (turnDrives && high > 0 && d === playerD && !(r.slash && r.slash.released) && !r.slide) r.driveBank += T.topDrive * Math.abs(d) * high * pk * (1 - (r.pivot || 0));
+  if (turnDrives && high > 0 && d === playerD && !(r.slash && r.slash.released) && !r.slide) r.driveBank += T.topDrive * Math.abs(d) * high * pk * pivotK;
   // Pivoting on the fin scrubs speed as the board swings (more the faster it swings).
   if (T.pivotRate && r.pivot > 0 && playerD) r.speed *= Math.exp(-T.pivotDrag * r.pivot * Math.abs(playerD)); // (pivotDrag: per radian swung)
   const release = r.driveBank * (1 - Math.exp(-dt / T.driveSmooth));

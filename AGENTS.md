@@ -78,8 +78,11 @@ button).
   from the middle she's at ~12 mph after 1 s and back to the curl in ~3 s (was slowing to ~9 mph, falling behind). (An automatic walk back to the middle after a tail turn was tried and removed the same day, the user's call.)
   **The tail** is slower (cruising speed x `tailSpeed` 0.8) and every turn up on the wave is a **fin pivot**
   (`r.pivot`, the user: on a small wave a longboard turns by pivoting round the fin, not on the rail; reference
-  pivot-turn.jpg): the board swings at `pivotRate` 4.2 rad/s whatever her speed, either way along the wave (also
-  heading back toward the whitewater), scrubbing `pivotDrag` 0.2 of her speed per radian and making no turn drive.
+  pivot-turn.jpg): the board swings at `pivotRate` (3.5 rad/s) whatever her speed, either way along the wave (also
+  heading back toward the whitewater). Since 2026-11-17 (the user: 'almost too quick', and wanted a teeny bit of
+  speed from them) `pivotRate` is 3.5 rad/s (was 4.2; 120 deg in 0.67 s, was 0.57), `pivotDrag` 0 (was 0.2 of her speed
+  per radian) and a pivot gives `pivotDriveK` 0.25 of a rail carve's drive (was none): a pivot down the face now gains
+  a little (10.1 -> 10.7 mph, was -> 8.1), a cutback up the face keeps more (-> 7.8 mph, was -> 4.8).
   Pivots also work the first few feet out onto the flats, easing off further out (`pivotFlats` [0.33, 0.5] surface
   units past `tBottom`: full to ~1.2 m, rail turns by ~2.3 m; the user's idea, after a hard cutoff at the bottom
   made turns facing the whitewater slow). A pivot started within that lasts until you let go of the turn
