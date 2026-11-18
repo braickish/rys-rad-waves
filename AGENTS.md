@@ -64,6 +64,14 @@ button).
   `moveNames`: "DROPKNEE TURN!"): no slow start, `roundhouseRate` 1.4x a normal longboard turn (up to 4 rad/s), and
   `roundhouseNoDrive`: it turns you without making speed (150 deg in ~0.95 s instead of ~1.6 s, no speed gain where
   the old roundhouse added ~3 mph); the back knee drops toward the deck (surfer.js `dk`). Zone 3 m out (small wave).
+  **Fin pivot** (2026-11-17, the user: on a small wave a longboard turns by pivoting round the fin, not on the
+  rail; pivot-turn.jpg in braickish/reference-images): hold a turn past `pivotAfter` (0.12 s) and she steps back
+  onto the tail (`r.pivot`, `pivotStepBack` 0.2 s; back again in `pivotStepForward` 0.3 s); the board then turns at
+  `pivotRate` (4.2 rad/s) whatever her speed, scrubs `pivotDrag` (0.2) of her speed per radian swung and makes no
+  turn drive. Quick taps stay gentle rail turns, and bottom turns (`bottomCarve`), the dropknee turn, the nose and
+  the barrel don't pivot. A held cutback from mid-face: 150 deg in 0.72 s (1.0 s on the rail), 8.8 -> 5.5 mph (7.8).
+  Drawn (surfer.js `pv`): feet stepped back close together over the fin, the board tipped nose-up 0.3 rad about a
+  point ahead of the back foot (tail sinks), more upright, less rail roll and lean, arms out for balance.
   Spray and mist scale with the wave (`misc.x` particle scale in the frame uniform; rail spray amount). A nose press
   counts once per frame (main.js clears `input.nose` after the first physics step: two steps toggled it back).
 - `src/wave.js`: the wave model. Two wave types share one 16-point layout: **crumble** (default, the

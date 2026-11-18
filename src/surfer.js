@@ -137,6 +137,8 @@ export function surferObjects(pose, rider, info, dt) {
   const nr = rider.mode === 'surf' ? rider.nose || 0 : 0;
   // Dropknee turn (the longboard's roundhouse): the back knee drops toward the deck.
   const dk = WAVE.dropknee ? rh : 0;
+  // Fin pivot (rider.js, the longboard): pv 0 (trimming) -> 1 (stepped back on the tail, nose up).
+  const pv = rider.mode === 'surf' ? sstepS(0, 1, rider.pivot || 0) : 0;
   const onNose = sstepS(0.6, 1, nr);
   const girl = WAVE.surfer === 'girl';
   const C = girl ? { ...COL, skin: GIRL.skin, hair: GIRL.hair, shorts: GIRL.bikini } : COL;
@@ -148,6 +150,7 @@ export function surferObjects(pose, rider, info, dt) {
   }
   // Roundhouse: up on the rail more and more as it comes round (past the usual limit).
   if (rh > 0.01 && Math.abs(info.turn) > 0.2) rollT = Math.sign(rollT || info.turn) * Math.max(Math.abs(rollT), 0.7 + 0.5 * rh);
+  rollT *= 1 - 0.55 * pv; // (pivoting on the fin, not up on the rail)
   pose.roll = (pose.roll || 0) + (rollT - (pose.roll || 0)) * (1 - Math.exp(-dt * (rider.bottomCarve ? 16 : 10)));
   // Tilt the board's up vector toward the inside of the turn (+ roll = left
   // rail down), so the inside rail digs in.
@@ -157,6 +160,12 @@ export function surferObjects(pose, rider, info, dt) {
   let bf = f;
   const dip = rider.mode === 'surf' ? 0.32 * (rider.noseRisk || 0) : 0;
   if (dip > 0) { bf = v3.norm(rotateAbout(f, Lb, dip)); ub = v3.norm(rotateAbout(ub, Lb, dip)); } // (+: nose down, tail up)
+  // Pivoting (pivot-turn.jpg in braickish/reference-images): her weight right back sinks the
+  // tail into the water and the nose stands well up out of it; the board tips about a point just
+  // ahead of the back foot, so the middle rises and the tail goes under.
+  const tip = 0.3 * pv;
+  if (tip > 0) { bf = v3.norm(rotateAbout(bf, Lb, -tip)); ub = v3.norm(rotateAbout(ub, Lb, -tip)); }
+  const tipUp = v3.mul(u, 0.75 * boardShape().half * Math.sin(tip));
 
   // --- pose drivers ---
   const speed = v3.len(rider.vel);
@@ -174,10 +183,12 @@ export function surferObjects(pose, rider, info, dt) {
   if (tuck > 0) kneeT = 1;
   // Roundhouse: lower and lower as it comes round, right down at full depth.
   if (rh > 0.01) kneeT = Math.max(kneeT, 0.45 + 0.65 * rh);
+  if (pv > 0.01) kneeT = kneeT * (1 - 0.6 * pv) + 0.3 * 0.6 * pv; // (pivoting: fairly upright, knees softly bent)
   pose.knee += (clamp(kneeT, 0, 1) - pose.knee) * (1 - Math.exp(-dt * 9));
   let leanT = clamp(info.turn * 0.2 * clamp(speed / 4, 0.8, 1.25) * (1 + 0.3 * committed), -0.85, 0.85); // + = toward L
   if (committed > 0.5 && Math.abs(info.turn) > 0.3) leanT = Math.sign(leanT) * Math.max(Math.abs(leanT), (rider.bottomCarve ? 0.65 : 0.5) * committed);
   if (rh > 0.01 && Math.abs(info.turn) > 0.3) leanT = Math.sign(leanT) * Math.max(Math.abs(leanT), 0.5 + 0.35 * rh); // deeper into the roundhouse
+  leanT *= 1 - 0.5 * pv; // (pivoting: standing over the tail, not laid over on a rail)
   pose.lean += (leanT - pose.lean) * (1 - Math.exp(-dt * 8));
   const knee = pose.knee, lean = pose.lean;
   const reach = clamp((Math.abs(lean) - 0.25) / 0.35, 0, 1);
@@ -185,7 +196,7 @@ export function surferObjects(pose, rider, info, dt) {
   // --- skeleton ---
   // Up on a rail the board sits a little higher, so it cuts in rather than sinks.
   const railLift = 0.12 * Math.abs(Math.sin(pose.roll));
-  const B = add(p, v3.mul(u, 0.06 + railLift)); // top of the board
+  const B = add(p, v3.mul(u, 0.06 + railLift), tipUp); // top of the board
   // Body axis: between board-normal and world-up, leaned into the turn.
   const up0 = v3.norm(add(v3.mul(u, 0.5), [0, 0.5, 0]));
   const bodyUp = v3.norm(rotateAbout(up0, f, -lean));
@@ -212,13 +223,14 @@ export function surferObjects(pose, rider, info, dt) {
   // Walking to the nose: the feet shuffle up the board one after the other
   // (back foot first), each lifting as it steps, to the hang-five stance.
   let st = dk > 0.01 ? [STANCE[0] + 0.22 * dk, STANCE[1]] : STANCE, lift = [0, 0]; // (dropknee: the back foot comes up behind the front)
+  if (pv > 0.001) st = [st[0] - 0.35 * pv, st[1] - 0.4 * pv]; // (pivot: back foot right on the tail over the fin, front foot stepped back close behind it)
   if (nr > 0.001 && bs.noseStance) {
     const NS = bs.noseStance, a = sstepS(0, 0.55, nr), b = sstepS(0.4, 1, nr);
     st = [STANCE[0] + (NS[0] - STANCE[0]) * a, STANCE[1] + (NS[1] - STANCE[1]) * b];
     lift = [0.12 * Math.sin(Math.PI * Math.min(1, nr / 0.55)) * (nr < 0.55 ? 1 : 0), 0.12 * Math.sin(Math.PI * Math.max(0, Math.min(1, (nr - 0.4) / 0.6)))];
   }
   // (along the board as drawn: when the nose dips the feet go down with it)
-  const du = dip > 0 ? v3.norm(rotateAbout(u, Lb, dip)) : u;
+  const du = dip > 0 || tip > 0 ? v3.norm(rotateAbout(u, Lb, dip - tip)) : u;
   let backFoot = add(B, v3.mul(bf, st[0]), v3.mul(du, bs.rocker(st[0] / bs.half) + lift[0]));
   let frontFoot = add(B, v3.mul(bf, st[1]), v3.mul(du, bs.rocker(st[1] / bs.half) + lift[1]));
   const mid = (st[0] + st[1]) / 2;
@@ -295,6 +307,11 @@ export function surferObjects(pose, rider, info, dt) {
     handBack = lerp3(handBack, add(shBack, v3.mul(across, -0.55), v3.mul(bodyUp, 0.05), v3.mul(chest, 0.05)), w);
     handFront = lerp3(handFront, add(shFront, v3.mul(across, 0.55), v3.mul(bodyUp, 0.12), v3.mul(chest, 0.05)), w);
   }
+  // Pivoting on the tail: arms out for balance, the front one reaching forward and low, the back one out behind.
+  if (pv > 0.01) {
+    handBack = lerp3(handBack, add(shBack, v3.mul(across, -0.45), v3.mul(bodyUp, -0.05), v3.mul(chest, 0.15)), 0.85 * pv);
+    handFront = lerp3(handFront, add(shFront, v3.mul(across, 0.5), v3.mul(bodyUp, -0.12), v3.mul(chest, 0.2)), 0.85 * pv);
+  }
   if (tuck > 0) {
     // arms wrapped round the shins
     handBack = lerp3(handBack, add(lerp3(legB.joint, backFoot, 0.4), v3.mul(chest, 0.08)), tuck);
@@ -308,7 +325,7 @@ export function surferObjects(pose, rider, info, dt) {
   const objs = [];
   // Board (banked onto its rail). Going over the falls you've come off it:
   // it's drawn on its own where the wave has taken it (rider.fallsBoard).
-  if (!rider.falls) objs.push(...boardObjects(bf, ub, Lb, add(p, v3.mul(u, 0.04 + railLift))));
+  if (!rider.falls) objs.push(...boardObjects(bf, ub, Lb, add(p, v3.mul(u, 0.04 + railLift), tipUp)));
   // Legs: boardshorts to just above the knee, then bare legs and feet.
   for (const [hp, leg, foot, logo] of [[hipBack, legB, backFoot, false], [hipFront, legF, frontFoot, true]]) {
     if (girl) {

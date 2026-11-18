@@ -56,6 +56,10 @@ export default {
     // slower, drawn-out turns than the shortboard (turn rate 2.4 vs 5.2 rad/s), sized to a small wave
     turn: 2.4, minTurn: 0.8, rTop: 1.0, rBottom: 3.0, hardRate: 1.1, hardRadius: 0.85,
     bottomDrive: 1.8, topDrive: 0.4, maxAccel: 3.5, accelTaper: [3.5, 6],
+    // Fin pivot (rider.js): hold a turn past `pivotAfter` and she steps back on the tail and the board
+    // swings round the fin at `pivotRate` whatever her speed (the rail turn above is slow at ~9 mph),
+    // scrubbing `pivotDrag` of her speed per radian. Taps stay gentle rail turns; bottom turns stay on the rail.
+    pivotRate: 4.2, pivotAfter: 0.12, pivotStepBack: 0.2, pivotStepForward: 0.3, pivotDrag: 0.2,
     checkTurn: 2.0, checkRate: 7, // the check turn off the top has to bring you back down on a wave this small
     curlZone: [-0.5, 2.0],
     foamContact: 0.25, reboundMinHeight: 0.33, rebound180MinHeight: 0.67,

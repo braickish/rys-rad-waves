@@ -284,7 +284,7 @@ export function createRider() {
     airSpin: 0, airTime: 0, spinArmed: false,
     moveCooldown: 0, lastBottomTurn: -9, bottomArmed: false,
     tube: null, fakie: null, driveBank: 0, lastTurnTime: -9, lastTurnDir: 0, overTheBack: false,
-    rideDir: 1, lock: null, inDir: 0, lipSnap: null, snapGrip: false, roundhouse: null, crouchDepth: 0, barrelCrouch: 0, frontLean: 0, tubeDamp: 0, nose: 0, noseGoal: 0, noseTime: 0, noseRisk: 0, onNose: false, slash: null, slide: 0, rightHeld: 0, turnDir: 0, turnDirAge: 9, turnHeld: 0, hard: 0, assist: null, bottomCarve: false, floater: null,
+    rideDir: 1, lock: null, inDir: 0, lipSnap: null, snapGrip: false, roundhouse: null, crouchDepth: 0, barrelCrouch: 0, frontLean: 0, tubeDamp: 0, pivot: 0, nose: 0, noseGoal: 0, noseTime: 0, noseRisk: 0, onNose: false, slash: null, slide: 0, rightHeld: 0, turnDir: 0, turnDirAge: 9, turnHeld: 0, hard: 0, assist: null, bottomCarve: false, floater: null,
     wipeReason: '', wipeTimer: 0, wipeAge: 0, washing: false, falls: null, fallsBoard: null,
     events: [],
     time: 0,
@@ -497,7 +497,10 @@ function stepSurf(r, input, dt) {
   else if (r.turnHeld === 0 && !r.turnDir && Math.sin(r.phi) < -0.3 && height < 0.6) r.bottomCarve = true;
   const hard = r.bottomCarve ? 1 : r.hard;
   const radius = (T.rTop + (T.rBottom - T.rTop) * low) * (r.bottomCarve ? T.bottomCarveRadius : 1 - (1 - T.hardRadius) * hard);
-  const rate = (1 - (T.tubeTurnDamp || 0) * r.tubeDamp) * (1 - (T.noseTurnDamp || 0) * r.nose) * clamp(r.speed / radius, T.minTurn, T.turn * (1 + (T.hardRate - 1) * hard)); // (damped in the barrel: subtler turns the deeper you are)
+  let rate = (1 - (T.tubeTurnDamp || 0) * r.tubeDamp) * (1 - (T.noseTurnDamp || 0) * r.nose) * clamp(r.speed / radius, T.minTurn, T.turn * (1 + (T.hardRate - 1) * hard)); // (damped in the barrel: subtler turns the deeper you are)
+  // Fin pivot (longboard, `pivotRate`): stepped back on the tail, the board swings round
+  // the fin at its own rate, however slow you're going, instead of carving an arc on the rail.
+  if (T.pivotRate && r.pivot > 0) rate += (T.pivotRate - rate) * r.pivot;
   // Which way you're riding along the wave, with hysteresis: it only flips
   // once you're clearly heading the other way, so Up/Down can't swap
   // direction while the nose is near vertical (e.g. coming off a snap).
@@ -526,6 +529,16 @@ function stepSurf(r, input, dt) {
     if (r.turnDirAge > 0.15) r.turnDir = 0;
   }
   r.hard = r.bottomCarve ? 1 : sstep(T.hardAfter[0], T.hardAfter[1], r.turnHeld);
+  // --- fin pivot (longboard) ---
+  // A quick tap is a gentle rail turn (trimming). Hold a turn and the surfer steps back
+  // onto the tail (`pivotStepBack` s): the nose lifts and the board pivots round the fin
+  // (`pivotRate`, above), scrubbing speed as it swings (`pivotDrag`) and making none.
+  // Bottom turns stay on the rail (a long, driving arc), and so does the dropknee turn.
+  // Let go and you step forward to trim again (`pivotStepForward` s).
+  if (T.pivotRate) {
+    const want = d && r.turnHeld >= T.pivotAfter && !r.bottomCarve && !r.roundhouse && !r.noseGoal && r.nose < 0.05 && !r.tube;
+    r.pivot = clamp(r.pivot + (want ? dt / T.pivotStepBack : -dt / T.pivotStepForward), 0, 1);
+  }
   // --- slash: a Right turn started low on the way up (also in the barrel) ---
   // While it slides, your line keeps carving normally (carrying you on up the
   // face) and the board swings round ahead of it (r.slide); when you let go,
@@ -694,7 +707,7 @@ function stepSurf(r, input, dt) {
   const driveLow = 1 - sstep(0.35, 0.9, height); // starts higher up the face, and works out on the flats too
   const high = sstep(0.55, 0.95, height);
   // (Only your own carving drives you, not the quick assisted pivots.)
-  const carveDrive = r.bottomCarve ? T.bottomCarveDrive : 1 + 0.35 * hard;
+  const carveDrive = (r.bottomCarve ? T.bottomCarveDrive : 1 + 0.35 * hard) * (1 - (r.pivot || 0)); // (a fin pivot isn't on the rail: no drive)
   // Turn drive goes into a buffer that releases smoothly, so speed builds
   // through the turn instead of jumping.
   // A committed bottom turn drives from its very first moment (the nose
@@ -704,7 +717,9 @@ function stepSurf(r, input, dt) {
   const driving = r.bottomCarve ? r.carvingUp : Math.sin(r.phi) > sinBefore;
   const turnDrives = !(r.roundhouse && T.roundhouseNoDrive); // (a dropknee turn turns you, it doesn't make speed)
   if (turnDrives && driveLow > 0 && driving && d === playerD && !(r.slash && r.slash.released) && !r.slide) r.driveBank += T.bottomDrive * carveDrive * Math.abs(d) * driveLow * (0.4 + 0.6 * pk);
-  if (turnDrives && high > 0 && d === playerD && !(r.slash && r.slash.released) && !r.slide) r.driveBank += T.topDrive * Math.abs(d) * high * pk;
+  if (turnDrives && high > 0 && d === playerD && !(r.slash && r.slash.released) && !r.slide) r.driveBank += T.topDrive * Math.abs(d) * high * pk * (1 - (r.pivot || 0));
+  // Pivoting on the fin scrubs speed as the board swings (more the faster it swings).
+  if (T.pivotRate && r.pivot > 0 && playerD) r.speed *= Math.exp(-T.pivotDrag * r.pivot * Math.abs(playerD)); // (pivotDrag: per radian swung)
   const release = r.driveBank * (1 - Math.exp(-dt / T.driveSmooth));
   r.speed += release; r.driveBank -= release;
   if (playerD) { r.lastTurnTime = r.time; r.lastTurnDir = Math.sign(playerD); }
