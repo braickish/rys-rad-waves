@@ -523,7 +523,7 @@ button).
   leaning less (`upr`), except all the way back on the tail. Drawing only: the riding is unchanged.
   **Her look after hana-likeness.jpg** (the user's reference, 2026-11-18; styling only, not the face): long brown
   hair worn loose (the ponytail removed) as a smooth fall down her back in three flattened pieces (head, a long
-  sheet on the upper back riding `spine_03`, lighter ends) plus a lock over each shoulder, swaying on a spring
+  sheet on the upper back riding `spine_03`, lighter ends) (no locks over the shoulders, the user's call; she's also more tan), swaying on a spring
   with the head's movement (`hairObjects`, `b.sway`); a light-blue floral bralette top with thin straps and a scoop
   neck, a bare midriff, floral boy-short bottoms (sage, cream, brown), bracelets, and a black leash cuff on the back
   ankle (main.js `bodyColors`). Skinned body only: the parts surfer keeps the rash guard and bikini bottoms. With the body on, everything uses the real look. Cost

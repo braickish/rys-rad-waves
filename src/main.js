@@ -51,7 +51,8 @@ function headStats(m, dom) {
 }
 const BODY_LOOKS = {
   guy: { skin: [0.85, 0.56, 0.37, 0.35], hair: [0.3, 0.2, 0.12, 0.25] }, // (tanned, 2026-11-18, the user; the fill light keeps them easy to see)
-  girl: { skin: [0.9, 0.62, 0.43, 0.35], hair: [0.43, 0.29, 0.17, 0.25], hairMid: [0.48, 0.33, 0.2], hairHi: [0.56, 0.39, 0.24] }, // (long brown hair: hana-likeness.jpg, 2026-11-18)
+  girl: { skin: [0.84, 0.55, 0.36, 0.35], // (more tan, 2026-11-18, the user)
+    hair: [0.43, 0.29, 0.17, 0.25], hairMid: [0.48, 0.33, 0.2], hairHi: [0.56, 0.39, 0.24] }, // (long brown hair: hana-likeness.jpg, 2026-11-18)
 };
 function bodyColors(m, which) {
   const L = BODY_LOOKS[which], dom = dominantBones(m), hs = headStats(m, dom);
@@ -145,13 +146,6 @@ function hairObjects(b, mats) {
       const m4 = mul(B, ell(0, hs.top - d, zAt(d, rz), rx, ry, rz));
       m4[12] += st.off[0] * k; m4[13] += st.off[1] * k * 0.5; m4[14] += st.off[2] * k;
       out.push({ mesh: 'sphere', model: m4, color, spec: 0.3, outline: 0 });
-    }
-    // a lock falling forward over each shoulder (the reference), from the side of the head down onto the chest
-    for (const sx of [-1, 1]) for (let i = 0; i < 4; i++) {
-      const u = i / 3, d = 0.12 + 0.22 * u;
-      const m4 = mul(u < 0.3 ? M : MS, ell(sx * (hs.capRx - 0.012 + 0.012 * u), hs.top - d, 0.02 + 0.06 * u, 0.03, 0.07, 0.022));
-      m4[12] += st.off[0] * u * 0.5; m4[14] += st.off[2] * u * 0.5;
-      out.push({ mesh: 'sphere', model: m4, color: lerpC(L.hair.slice(0, 3), L.hairMid, u), spec: 0.3, outline: 0 });
     }
   }
   return out;
