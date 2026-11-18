@@ -24,7 +24,7 @@ const reef = {
   kind: 'barrel',
   keyframes: USE_SIM ? KF_SIM : KF_PIPE,
   board: 'shortboard', // a 6'6" thruster with plenty of rocker for the steep, hollow face (mesh.js BOARDS)
-  scale: 1.75, // much bigger than the point: a heavy, tall wave
+  scale: 1.75, rippleK: 1.5, // (ripples 1.5x finer, like Queens and Raglan but less: at 2x the distant flats seen from the barrel went grainy) much bigger than the point: a heavy, tall wave
   peelSpeed: 10.5, // peels fast: you have to race it (pointing up costs you more here)
   waveSpeed: 5.0,
   phase: { ahead: 14, behind: 13, behindFar: 22, farFrom: 1.3 }, // (the broken wave behind the closing tube lasts longer: behindFar) // a long tall wall ahead of the curl (like the reference photo); the tube runs further behind it

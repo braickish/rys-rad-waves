@@ -402,7 +402,7 @@ button).
   layout they put the roof half way down the back wall and caught you at ~20% of the tube's height.
 - **Ripple size** (`rippleK`, Frame `misc.y`): Queens and Raglan both use 2x finer ripples than the base (Raglan
   since 2026-11-17: the user thought its texture looked slightly off next to Queens; at 1x it read as coarse,
-  blotchy streaks). Real ripples come from the wind, so they shouldn't grow with the wave. Pipe is still at 1x.
+  blotchy streaks). Real ripples come from the wind, so they shouldn't grow with the wave. Pipe uses 1.5x (2x made the distant flats grainy seen from inside the barrel).
 - **Texture on the flats:** the ripples carry on out across the flats in front of the wave (`flatsReach` in
   shaders.js), fading over ~50 m, instead of stopping at the bottom.
 - 2026-11-17: the project was rolled back to the surfboard commit (a3cc07a) after later reef work broke the
