@@ -83,6 +83,7 @@ export function boardObjects(f, ub, Lb, bc) {
   const objs = [];
   objs.push({ mesh: `board-${name}`, model: basis(f, ub, Lb, 1, 1, 1, bc), color: B.colors ? B.colors.deck : COL.board });
   objs.push({ mesh: `boardNose-${name}`, model: basis(f, ub, Lb, 1, 1, 1, bc), color: B.colors ? B.colors.nose : COL.nose });
+  if (B.colors && B.colors.rail) objs.push({ mesh: `boardRail-${name}`, model: basis(f, ub, Lb, 1, 1, 1, bc), color: B.colors.rail });
   // (stringer in short pieces so it follows the rocker)
   const rk = (x) => B.rocker(x / B.half);
   const n = 8, sl = B.stringer[0] / n;

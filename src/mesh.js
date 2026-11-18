@@ -166,7 +166,7 @@ export const BOARDS = {
   },
   // A 9'0" noserider (Queens; was 9'6", the user had it shortened): 23" wide, a wide round nose
   // (for standing on it) and a squared tail, thick and flat with only a little nose kick (less than
-  // before: a noserider wants a flat nose) and a little tail kick, one big fin. Pink (the user's pick).
+  // before: a noserider wants a flat nose) and a little tail kick, one big fin. Seafoam with a turquoise rail (the user's pick).
   // faceTilt: on a steep face it sits mostly level with the wave-side rail cut in (surfer.js).
   longboard: {
     half: 1.37,
@@ -182,11 +182,15 @@ export const BOARDS = {
     stringer: [2.55, 0],
     faceTilt: 0.35,
     rollK: 0.5, // half the rail roll of the shortboards in turns
-    colors: { deck: [0.98, 0.56, 0.72], nose: [0.93, 0.34, 0.56] },
+    // Seafoam green with a turquoise border all the way round the edge (the user's pick; was pink).
+    // `rail` draws the edge as its own band (boardMesh part 'rail'): the outer railS of the ring.
+    colors: { deck: [0.62, 0.89, 0.76], nose: [0.62, 0.89, 0.76], rail: [0.0, 0.76, 0.8] },
+    railS: 0.68, // the border: ring faces within asin(0.68) = 43 deg of the rail line (outer ~25% of each side from above)
   },
 };
 export const BOARD_HALF_LENGTH = BOARDS.fish.half;
-export function boardMesh(shape = BOARDS.fish, u0 = -1, u1 = 1, segs = 28, ring = 14) {
+// part: 'all', or 'body' / 'rail' to split off the edge band (shape.railS) so it can be its own color.
+export function boardMesh(shape = BOARDS.fish, u0 = -1, u1 = 1, segs = 28, ring = 14, part = 'all') {
   const L = shape.half, width = shape.width, rocker = shape.rocker, thick = shape.thick;
   const NOTCH = shape.notch;
   const notchAt = (u, c) => NOTCH * clampU((-u - 0.82) / 0.18) * (1 - Math.abs(c));
@@ -209,14 +213,20 @@ export function boardMesh(shape = BOARDS.fish, u0 = -1, u1 = 1, segs = 28, ring 
   }
   const v = [];
   const push = ([p, n]) => v.push(...p, ...n);
+  const keep = (k) => {
+    if (part === 'all') return true;
+    const isRail = Math.abs(Math.sin(((k + 0.5) / ring) * Math.PI * 2)) < shape.railS;
+    return (part === 'rail') === isRail;
+  };
   for (let i = 0; i < segs; i++) {
     for (let k = 0; k < ring; k++) {
+      if (!keep(k)) continue;
       const a = pts[i][k], b = pts[i][(k + 1) % ring], c = pts[i + 1][k], d = pts[i + 1][(k + 1) % ring];
       push(a); push(c); push(b); push(b); push(c); push(d);
     }
   }
-  // Cap the tail end.
-  if (u0 <= -1) {
+  // Cap the tail end (part of the border when there is one).
+  if (u0 <= -1 && part !== 'body') {
     const row = pts[0], ctr = [u0 * L + NOTCH * 0.9, rocker(u0), 0];
     for (let k = 0; k < ring; k++) {
       push([ctr, [-1, 0, 0]]); push([row[(k + 1) % ring][0], [-1, 0, 0]]); push([row[k][0], [-1, 0, 0]]);

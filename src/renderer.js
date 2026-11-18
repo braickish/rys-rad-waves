@@ -70,7 +70,10 @@ export async function createRenderer(canvas) {
   for (const [name, data] of Object.entries({
     box: boxMesh(), sphere: sphereMesh(12, 18), cyl: cylinderMesh(),
     // every board: 'board-<name>' and its colored nose 'boardNose-<name>'
-    ...Object.fromEntries(Object.entries(BOARDS).flatMap(([k, b]) => [[`board-${k}`, boardMesh(b, -1, b.noseFrom)], [`boardNose-${k}`, boardMesh(b, b.noseFrom, 1, 8)]])),
+    // (a board with a rail color also gets 'boardRail-<name>', its edge band, finer round the ring)
+    ...Object.fromEntries(Object.entries(BOARDS).flatMap(([k, b]) => b.colors && b.colors.rail
+      ? [[`board-${k}`, boardMesh(b, -1, b.noseFrom, 28, 32, 'body')], [`boardNose-${k}`, boardMesh(b, b.noseFrom, 1, 8, 32, 'body')], [`boardRail-${k}`, boardMesh(b, -1, 1, 48, 32, 'rail')]]
+      : [[`board-${k}`, boardMesh(b, -1, b.noseFrom)], [`boardNose-${k}`, boardMesh(b, b.noseFrom, 1, 8)]])),
   })) solids[name] = { vb: upload(orientTriangles(data), GPUBufferUsage.VERTEX), count: data.length / 6 };
   const lipBuf = upload(buildLipTable(), GPUBufferUsage.STORAGE);
 
