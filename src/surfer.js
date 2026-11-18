@@ -23,7 +23,7 @@ const COL = {
 // The girl on the longboard wave (WAVE.surfer === 'girl'): fair, tanned skin,
 // long light brown hair with slight sun-lightened highlights (the user's pick; was blonde), a light blue
 // bikini (after the Queens reference photo).
-const GIRL = { skin: [0.93, 0.7, 0.52], hair: [0.56, 0.4, 0.26], hairMid: [0.63, 0.47, 0.31], hairHi: [0.76, 0.6, 0.41], bikini: [0.6, 0.84, 0.95] };
+const GIRL = { skin: [0.93, 0.7, 0.52], hair: [0.45, 0.3, 0.18], hairMid: [0.51, 0.35, 0.21], hairHi: [0.64, 0.47, 0.3], bikini: [0.6, 0.84, 0.95] };
 const THIGH = 0.46, SHIN = 0.46, UPPER = 0.3, FORE = 0.3;
 const MAX_ROLL = 0.95; // furthest the board banks onto a rail (rad, ~55 deg)
 const CHEST_OPEN = 0.45;
