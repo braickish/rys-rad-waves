@@ -65,9 +65,11 @@ button).
   hides at its end) move one spot per press; Space walks back -> middle -> front -> middle -> back (`walk: 'cycle'`,
   turning round at each end; otherwise Space drops in). Tail <-> middle takes `tailWalk` 0.4 s, middle -> nose
   `noseWalkUp` 1.1 s, back 0.8 s; the feet shuffle along the board. The middle trims fastest with rail turns
-  (`middleSpeed` 1.35x cruising speed, picked up `middleFeed` 1.8x quicker; `softMax` 8.6 / `maxSpeed` 10.5 / `maxAccel`
-  4.5 raised with it; the user asked for 'a lot more speed' there). A pocket bot from the middle tops out ~14 mph and
-  now runs ahead onto the shoulder (in the pocket 38% of the time, was 78%): walk up to the nose to stall, or cut back.
+  (`middleSpeed` 1.6x cruising speed, picked up `middleFeed` 2x quicker; `softMax` 10 / `maxSpeed` 12 / `maxAccel`
+  4.5 raised with it; the user asked twice for more speed there). A pocket bot from the middle tops out ~16 mph and
+  runs ahead onto the shoulder: walk up to the nose to stall, or cut back. **The tail is just for the turn**
+  (the user): once a turn from there is done (`tailAfterTurn` 0.15 s after letting go), or after `tailHold` 1.5 s at
+  most, she walks back up to the middle on her own, and Space then carries on toward the nose.
   **The tail** is slower (cruising speed x `tailSpeed` 0.8) and every turn up on the wave is a **fin pivot**
   (`r.pivot`, the user: on a small wave a longboard turns by pivoting round the fin, not on the rail; reference
   pivot-turn.jpg): the board swings at `pivotRate` 4.2 rad/s whatever her speed, either way along the wave (also
@@ -81,7 +83,7 @@ button).
   back foot so the tail sinks), with less rail roll and lean. (A first version stepped back automatically when you
   held a turn; replaced by walking the same day.)
   **On the nose** you steer a little (`noseTurnDamp` 0.55, was 0.8); in the pocket the nose
-  trims you to just under the curl's speed (`noseHold`, `noseUnder`), so you stay there; out on the shoulder (pocket
+  trims you to just under the curl's speed (`noseHold`, `noseUnder` 0.8 m/s under; was 0.45, the user wanted it slower), so you stay there; out on the shoulder (pocket
   power below `nosePocket`) it drags and the nose dips under (`r.noseRisk`, drawn as the board pitching nose-down, the feet going with it) until
   you pearl (wipeout). Scores: HANG FIVE! on reaching the nose, then a noseride bonus by time when you walk back.
   **Dropknee turn** (the user: a longboard's roundhouse): on Queens the roundhouse is a dropknee turn (`WAVE.dropknee`,

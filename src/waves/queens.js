@@ -51,7 +51,7 @@ export default {
   tune: {
     vPocket: 5.2, vLow: 2.7, vFoam: 2.1, // ~12 mph in the pocket. (It was cut to 4.0 when she outran the curl on the old 3.0 m/s peel; the peel was the real problem.)
     drop: 3.2, topDropBoost: 1.0, highDropAccel: 0.8, highDropSoftMax: 0.4,
-    softMax: 8.6, maxSpeed: 10.5, minSpeed: 1.5, // (raised with middleSpeed so the middle's trim isn't capped)
+    softMax: 10.0, maxSpeed: 12.0, minSpeed: 1.5, // (raised with middleSpeed so the middle's trim isn't capped)
     bleed: 0.55, // glides: extra speed fades slower than a shortboard (rider default 0.9)
     climb: 4.0, // and it carries up the face (6)
     // slower, drawn-out turns than the shortboard (turn rate 2.4 vs 5.2 rad/s), sized to a small wave
@@ -60,8 +60,8 @@ export default {
     // Walking the board (rider.js): tail / middle / nose. From the tail every turn up on the wave pivots
     // round the fin at `pivotRate` whatever her speed, scrubbing `pivotDrag` of her speed per radian, and
     // the tail drags (cruising speed x `tailSpeed`); the middle trims fastest with rail turns.
-    pivotRate: 4.2, pivotMinHeight: 0.05, pivotDrag: 0.2, tailSpeed: 0.8, tailWalk: 0.4,
-    middleSpeed: 1.35, middleFeed: 1.8, // the middle is the fast spot: 35% higher cruising speed, picked up 1.8x quicker (the user: 'a lot more speed')
+    pivotRate: 4.2, pivotMinHeight: 0.05, pivotDrag: 0.2, tailSpeed: 0.8, tailWalk: 0.4, tailHold: 1.5, tailAfterTurn: 0.15, // (on the tail just for the turn: back up to the middle once it's done, or after 1.5 s; the user's call)
+    middleSpeed: 1.6, middleFeed: 2.0, // the middle is the fast spot: 60% higher cruising speed, picked up 2x quicker (the user asked twice for more)
     checkTurn: 2.0, checkRate: 7, // the check turn off the top has to bring you back down on a wave this small
     curlZone: [-0.5, 2.0],
     foamContact: 0.25, reboundMinHeight: 0.33, rebound180MinHeight: 0.67,
@@ -79,7 +79,7 @@ export default {
     // Noseriding (rider.js): walking up and back, steering, holding the pocket, pearling.
     noseWalkUp: 1.1, noseWalkBack: 0.8, // seconds to walk to the nose / back
     noseTurnDamp: 0.55, // on the nose you steer only a little (was 0.8; the user wanted a bit more turn)
-    noseHold: 6, noseUnder: 0.45, // in the pocket the nose trims you to (just under) the curl's speed (1/s, scaled by pocket power), so you stay there
+    noseHold: 6, noseUnder: 0.8, // (0.45 -> 0.8: the user wanted the nose to slow you a bit more) // in the pocket the nose trims you to (just under) the curl's speed (1/s, scaled by pocket power), so you stay there
     nosePocket: 0.35, // below this pocket power (out on the shoulder) ...
     nosePearl: 1.1, // ... the nose starts going under; it's gone after about this long (s)
     noseDrag: 0.6, // ... and it drags you (1/s)

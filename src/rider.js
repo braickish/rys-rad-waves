@@ -284,7 +284,7 @@ export function createRider() {
     airSpin: 0, airTime: 0, spinArmed: false,
     moveCooldown: 0, lastBottomTurn: -9, bottomArmed: false,
     tube: null, fakie: null, driveBank: 0, lastTurnTime: -9, lastTurnDir: 0, overTheBack: false,
-    rideDir: 1, lock: null, inDir: 0, lipSnap: null, snapGrip: false, roundhouse: null, crouchDepth: 0, barrelCrouch: 0, frontLean: 0, tubeDamp: 0, pivot: 0, foot: 0, footGoal: 0, walkDir: 1, nose: 0, noseTime: 0, noseRisk: 0, onNose: false, slash: null, slide: 0, rightHeld: 0, turnDir: 0, turnDirAge: 9, turnHeld: 0, hard: 0, assist: null, bottomCarve: false, floater: null,
+    rideDir: 1, lock: null, inDir: 0, lipSnap: null, snapGrip: false, roundhouse: null, crouchDepth: 0, barrelCrouch: 0, frontLean: 0, tubeDamp: 0, pivot: 0, foot: 0, footGoal: 0, walkDir: 1, tailTime: 0, tailTurned: false, nose: 0, noseTime: 0, noseRisk: 0, onNose: false, slash: null, slide: 0, rightHeld: 0, turnDir: 0, turnDirAge: 9, turnHeld: 0, hard: 0, assist: null, bottomCarve: false, floater: null,
     wipeReason: '', wipeTimer: 0, wipeAge: 0, washing: false, falls: null, fallsBoard: null,
     events: [],
     time: 0,
@@ -639,6 +639,14 @@ function stepSurf(r, input, dt) {
       if (r.footGoal >= 1) r.walkDir = -1; else if (r.footGoal <= -1) r.walkDir = 1;
       r.footGoal = clamp(r.footGoal + r.walkDir, -1, 1);
     } else if (input.walk) r.footGoal = clamp(r.footGoal + Math.sign(input.walk), -1, 1);
+    // Stepped right back on the tail she stays there only for the turn: once a turn from there is
+    // finished (`tailAfterTurn` s after letting go), or after `tailHold` s at most, she walks back up
+    // to the middle (and Space carries on from there toward the nose).
+    if (T.tailHold && r.footGoal <= -1 && r.foot <= -1) {
+      r.tailTime += dt;
+      if (r.turnDir) r.tailTurned = true;
+      if (r.tailTime >= T.tailHold || (r.tailTurned && r.turnDirAge > T.tailAfterTurn)) { r.footGoal = 0; r.walkDir = 1; }
+    } else { r.tailTime = 0; r.tailTurned = false; }
     if (r.foot < r.footGoal) r.foot = Math.min(r.footGoal, r.foot + dt / (r.foot >= 0 ? T.noseWalkUp : T.tailWalk));
     else if (r.foot > r.footGoal) r.foot = Math.max(r.footGoal, r.foot - dt / (r.foot > 0 ? T.noseWalkBack : T.tailWalk));
     r.nose = Math.max(0, r.foot);
