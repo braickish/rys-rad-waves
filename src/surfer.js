@@ -21,8 +21,9 @@ const COL = {
   band: [0.08, 0.08, 0.1], logo: [0.85, 0.2, 0.25],
 };
 // The girl on the longboard wave (WAVE.surfer === 'girl'): fair, tanned skin,
-// long blonde hair, a light blue bikini (after the Queens reference photo).
-const GIRL = { skin: [0.93, 0.7, 0.52], hair: [0.95, 0.82, 0.52], bikini: [0.6, 0.84, 0.95] };
+// long light brown hair with slight sun-lightened highlights (the user's pick; was blonde), a light blue
+// bikini (after the Queens reference photo).
+const GIRL = { skin: [0.93, 0.7, 0.52], hair: [0.56, 0.4, 0.26], hairMid: [0.63, 0.47, 0.31], hairHi: [0.76, 0.6, 0.41], bikini: [0.6, 0.84, 0.95] };
 const THIGH = 0.46, SHIN = 0.46, UPPER = 0.3, FORE = 0.3;
 const MAX_ROLL = 0.95; // furthest the board banks onto a rail (rad, ~55 deg)
 const CHEST_OPEN = 0.45;
@@ -369,7 +370,7 @@ export function surferObjects(pose, rider, info, dt) {
   // Pelvis: a rounded block of boardshorts joining both thighs.
   if (girl) {
     // Bikini bottoms, a slim waist and torso, narrower shoulders, a bikini top,
-    // and long blonde hair down her back.
+    // and long light brown hair down her back, lighter toward the ends, with a couple of thin highlight streaks.
     objs.push(ball(add(hip, v3.mul(torsoDir, 0.02)), 0.14, C.shorts, across, torsoDir, chest, 0.7));
     objs.push(cyl(add(hip, v3.mul(torsoDir, 0.08)), add(neck, v3.mul(torsoDir, -0.12)), 0.115, 0.09, across, C.skin));
     objs.push({ mesh: 'sphere', model: basis(across, torsoDir, chest, 0.36, 0.32, 0.21, add(neck, v3.mul(torsoDir, -0.17))), color: C.skin });
@@ -377,8 +378,10 @@ export function surferObjects(pose, rider, info, dt) {
     objs.push(cyl(neck, add(neck, v3.mul(torsoDir, 0.1)), 0.04, 0.04, across, C.skin));
     objs.push(ball(head, 0.11, C.skin, across, torsoDir, chest, 1.12));
     objs.push(ball(add(head, v3.mul(torsoDir, 0.05), v3.mul(chest, -0.03)), 0.12, C.hair, across, torsoDir, chest, 0.8));
-    objs.push(ball(add(head, v3.mul(torsoDir, -0.1), v3.mul(chest, -0.09)), 0.1, C.hair, across, torsoDir, chest, 1.3));
-    objs.push(ball(add(head, v3.mul(torsoDir, -0.28), v3.mul(chest, -0.1)), 0.085, C.hair, across, torsoDir, chest, 1.5));
+    objs.push(ball(add(head, v3.mul(torsoDir, -0.1), v3.mul(chest, -0.09)), 0.1, GIRL.hairMid, across, torsoDir, chest, 1.3));
+    objs.push(ball(add(head, v3.mul(torsoDir, -0.28), v3.mul(chest, -0.1)), 0.085, GIRL.hairHi, across, torsoDir, chest, 1.5));
+    // highlight streaks: thin strands just proud of the hair, either side of the back
+    for (const sx of [-1, 1]) objs.push(ball(add(head, v3.mul(across, 0.045 * sx), v3.mul(torsoDir, -0.12), v3.mul(chest, -0.13)), 0.03, GIRL.hairHi, across, torsoDir, chest, 5));
   } else {
   objs.push(ball(add(hip, v3.mul(torsoDir, 0.02)), 0.16, COL.shorts, across, torsoDir, chest, 0.85));
   // Waistband: just a black band of the shorts, flush with the body (same
