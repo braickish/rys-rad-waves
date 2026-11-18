@@ -64,6 +64,7 @@ export default {
     // Walking the board (rider.js): tail / middle / nose. From the tail every turn up on the wave pivots
     // round the fin at `pivotRate` whatever her speed, scrubbing `pivotDrag` of her speed per radian, and
     // the tail drags (cruising speed x `tailSpeed`); the middle trims fastest with rail turns.
+    pivotSpeedRef: 5.0, pivotSlowMin: 0.4, // the tail pivot swings slower as the board slows: full from ~11 mph, 40% nearly stopped (the user, 2026-11-18)
     pocketTurn: 0.15, pocketWallTurn: 0.2, // in the pocket, tail turns 15% slower, toward the wall 35% (on top of wallTurn) (the user, 2026-11-18)
     wallTurn: 0.85, // from the tail, a turn toward the wall of the wave is a bit slower, on the face or anywhere (the user, 2026-11-18)
     pivotRate: 3.2, pivotMax: 0.85, pivotDownRate: 1.15, pivotMaxUp: 0.5, pivotDriveUp: 1.0, // (by direction, the user's idea: turning away from the lip (nose down the face) is quicker and more pivot, 85% at 3.7 rad/s; toward the lip (nose up) more rail, 50% pivot, with a full carve's drive)

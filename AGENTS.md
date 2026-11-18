@@ -114,6 +114,9 @@ button).
   In the pocket tail turns are slower still (`pocketTurn` 0.15, plus `pocketWallTurn` 0.2 toward the wall, scaled by
   pocket power): from mid-face in the pocket, 27 deg toward the wall vs 49 away in 0.3 s (was 41 / 58); out on the
   shoulder unchanged. (A tail turn toward the wall that reaches the lip sets off the check turn, which spins fast.)
+  The pivot also swings slower as the board slows (`pivotSpeedRef` 5 m/s, `pivotSlowMin` 0.4; it used to be the same
+  at any speed): away from the wall from the tail, 24 / 38 / 52 / 57 deg in 0.3 s at 4 / 7 / 10 / 13 mph (was
+  52 / 55 / 57 / 57).
   Pivots also work the first few feet out onto the flats, easing off further out (`pivotFlats` [0.33, 0.5] surface
   units past `tBottom`: full to ~1.2 m, rail turns by ~2.3 m; the user's idea, after a hard cutoff at the bottom
   made turns facing the whitewater slow). A pivot started within that lasts until you let go of the turn

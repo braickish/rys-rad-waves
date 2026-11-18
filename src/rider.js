@@ -515,7 +515,10 @@ function stepSurf(r, input, dt) {
   // Fin pivot (longboard, `pivotRate`): stepped back on the tail, the board swings round
   // the fin at its own rate, however slow you're going, instead of carving an arc on the rail.
   // (turning away from the lip, nose swinging down the face, it pivots quicker: `pivotDownRate`)
-  if (T.pivotRate && r.pivot > 0) rate += (T.pivotRate * (r.pivotUp ? 1 : (T.pivotDownRate ?? 1)) - rate) * r.pivot;
+  // (and it swings slower as the board slows: full quickness from `pivotSpeedRef` up, down to `pivotSlowMin` of it
+  // nearly stopped; the user, 2026-11-18)
+  const pivotSpeedK = T.pivotSpeedRef ? clamp(r.speed / T.pivotSpeedRef, T.pivotSlowMin ?? 0.4, 1) : 1;
+  if (T.pivotRate && r.pivot > 0) rate += (T.pivotRate * (r.pivotUp ? 1 : (T.pivotDownRate ?? 1)) * pivotSpeedK - rate) * r.pivot;
   // Which way you're riding along the wave, with hysteresis: it only flips
   // once you're clearly heading the other way, so Up/Down can't swap
   // direction while the nose is near vertical (e.g. coming off a snap).
