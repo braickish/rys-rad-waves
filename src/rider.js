@@ -762,11 +762,12 @@ function stepSurf(r, input, dt) {
   if (r.boost > 0 && r.boost < 0.85 && foam < 0.2) r.boost = 0; // cleared the foam you bounced off
   if (r.boost > 0) { /* just rebounded: the foam can't slow you for a moment */ }
   else if (r.floater) target = Math.max(target, r.speed); // floating holds your speed
-  else target += (T.vFoam - target) * foam * (climbingFoam(r) ? T.climbFoamDrag : 1); // climbing up the whitewater drags less
+  else target += (T.vFoam + ((T.foamPush ?? T.vFoam) - T.vFoam) * mid - target) * foam * (climbingFoam(r) ? T.climbFoamDrag : 1); // climbing up the whitewater drags less; on a longboard from the middle the whitewater pushes you along (`foamPush`)
   // The pocket only feeds you while you're not climbing: point up the face
   // and you slow down for real.
   const climbing = sstep(0.15, 0.6, Math.sin(r.phi));
-  r.speed += (target - r.speed) * (r.speed < target ? T.feed * feedK * (1 - climbing) : T.bleed) * dt;
+  const foamFeed = 1 + ((T.foamPushFeed || 1) - 1) * mid * foam; // (and it picks you up quickly)
+  r.speed += (target - r.speed) * (r.speed < target ? T.feed * feedK * foamFeed * (1 - climbing) : T.bleed) * dt;
   const sinp = Math.sin(r.phi);
   // Pointing down pays, and pays most from the top third of the wave: that's
   // where the drop has the most height to turn into speed.
@@ -1072,7 +1073,8 @@ function checkHazards(r, dt) {
   // The foam only takes you if you sit in it.
   if (r.foam > 0.6 && !r.floater && !(r.boost > 0) && !climbingFoam(r)) r.foamTime += dt; // floating on it, carrying out of a move, or climbing it doesn't count
   else r.foamTime = Math.max(0, r.foamTime - dt * 2);
-  if (r.foamTime > TUNE.foamLimit) return wipe(r, 'Caught by the whitewater!');
+  const midFoam = TUNE.foamPush ? 1 - Math.min(1, Math.abs(r.foot)) : 0; // (riding the whitewater from the middle of a longboard: it takes twice as long to catch you)
+  if (r.foamTime > TUNE.foamLimit * (1 + midFoam)) return wipe(r, 'Caught by the whitewater!');
   // The whitewater rolling out across the flats knocks you off at once if you
   // ride into it down there (climbing up into it, nose well up, is a floater
   // from the flats; just out of a move you're carried through).

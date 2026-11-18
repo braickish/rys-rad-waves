@@ -72,7 +72,10 @@ button).
   the back foot leads; to the tail the front foot cross-steps back first, since back foot first put her in the splits). The middle trims fastest with rail turns
   (`middleSpeed` 1.6x cruising speed, picked up `middleFeed` 2x quicker; `softMax` 10 / `maxSpeed` 12 / `maxAccel`
   4.5 raised with it; the user asked twice for more speed there). A pocket bot from the middle tops out ~16 mph and
-  runs ahead onto the shoulder: walk up to the nose to stall, or cut back. (An automatic walk back to the middle after a tail turn was tried and removed the same day, the user's call.)
+  runs ahead onto the shoulder: walk up to the nose to stall, or cut back. **In the whitewater from the middle** the foam pushes you
+  along instead of dragging you down (`foamPush` 4.6 m/s target in the foam, picked up `foamPushFeed` 2.5x quicker)
+  and takes twice `foamLimit` to catch you (the user's call): dropped into the foam 2.5 m behind the curl at ~6 mph,
+  from the middle she's at ~12 mph after 1 s and back to the curl in ~3 s (was slowing to ~9 mph, falling behind). (An automatic walk back to the middle after a tail turn was tried and removed the same day, the user's call.)
   **The tail** is slower (cruising speed x `tailSpeed` 0.8) and every turn up on the wave is a **fin pivot**
   (`r.pivot`, the user: on a small wave a longboard turns by pivoting round the fin, not on the rail; reference
   pivot-turn.jpg): the board swings at `pivotRate` 4.2 rad/s whatever her speed, either way along the wave (also
