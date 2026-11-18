@@ -1,12 +1,12 @@
-// Queens: a small, peeling wave for longboarding (as built it peels toward +x, screen right from the beach:
-// a left for the surfer, ridden goofy; the real Queens is a right, which is Queens R, queens-r.js), after the reference photo of
-// a longboarder noseriding at Queens (braickish/reference-images, queens.jpg):
-// a clean, turquoise, waist-to-chest-high wave that crumbles rather than
-// throws, with whitewater rolling behind. Much smaller than the point.
-// The board is a 9'6" noserider (mesh.js BOARDS.longboard) ridden by a girl in
-// a bikini (surfer.js); Space (or the on-screen button) walks to the nose for a
-// hang five and back (rider.js noseride). Noseriding in the pocket slows you
-// and holds you there; out on the shoulder the nose goes under.
+// Queens: a small, peeling right for longboarding (seen from the beach it peels toward the left; riding it,
+// it runs toward your right), ridden regular foot (left foot forward), facing the wave. After the reference
+// photo of a longboarder noseriding at Queens (braickish/reference-images, queens.jpg): a small, clean,
+// turquoise wave that crumbles rather than throws, whitewater rolling behind. The board is the 9'0" noserider
+// (mesh.js BOARDS.longboard) ridden by the girl (surfer.js); walking the board and the nose: rider.js noseride.
+// `dir: -1` places it in the world peeling toward -x (wave.js toWorld), so the sun, the camera's side and the
+// surfer's stance are real, not a flipped picture; the riding itself works along the wave, as on every wave.
+// (2026-11-18: built as "Queens R" next to the first Queens, which peeled the other way (a left, ridden goofy);
+// the user checked they matched in speed and settings, then dropped the first one and named this Queens.)
 import { KF_CRUMBLE, sstep } from './shapes.js';
 
 // The spill of foam from the crest down the face (a gentle, crumbly lip).
@@ -19,6 +19,8 @@ const whitewater = (s, t) => sstep(0.8, 1.4, s) * sstep(3.5, 5.0, t);
 export default {
   id: 'queens',
   name: 'Queens',
+  dir: -1, // a right: peels toward -x in the world (wave.js toWorld)
+  stance: 'regular', // left foot forward (surfer.js), frontside on this right
   kind: 'crumble', // no tube
   keyframes: KF_CRUMBLE,
   scale: 0.42, // ~1.2 m face: about a third of the point's
