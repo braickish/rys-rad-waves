@@ -450,10 +450,10 @@ button).
   (`curlZone[0]`), with foam up to 0.65 there (was 0.3). On that edge the climbing-into-the-whitewater floater
   waits until you reach the top, so the turn decides; not turning there is still a floater. Climbing at 52 deg and
   turning, snaps now reach xs -1.3 (were floaters behind -0.4); from -1.6 back it floats.
-  Then (the user's rule, same day): right at the lip or barely on it (`curlZone[0]` - `snapIntoLip` to +0.5 m), a
+  Then (the user's rule, same day): barely onto the breaking lip (`curlZone[0]` - `snapIntoLip` to `curlZone[0]`), a
   board pointing straight up or angled toward the shoulder at all (`cos phi >= -0.1`) snaps even without a turn
-  (`autoSnap`); angled back toward the whitewater it's the usual moves. No turn, on the lip: 40-90 deg snap (were
-  floaters, or airs just at the curl); 100 deg unchanged; out on the open face still airs.
+  (`autoSnap`); angled back toward the whitewater it's the usual moves. Right at the curl and ahead of it, not
+  turning as you cross the top is still an air (the user), and turning there snaps.
 - **Raglan turn drive** (2026-11-18, the user: some turns had too much artificial acceleration coming out of them).
   Found: turn drive made most of a bottom turn's speed (27 -> 38 mph; 13 without drive), released as a steady push at
   the acceleration cap; `highDropAccel` 4 raised the cap 5x whenever the nose pointed down high in the pocket, so a turn

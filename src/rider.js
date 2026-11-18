@@ -956,9 +956,10 @@ function stepSurf(r, input, dt) {
     // Turning as you meet the lip right where it's breaking is still a snap (Raglan `snapIntoLip`, the user,
     // 2026-11-18: those turns were giving floaters): up to that far behind the curl's edge, with a little more foam.
     const onLip = T.snapIntoLip > 0 && r.rideDir >= 0 && r.xs >= T.curlZone[0] - T.snapIntoLip && r.xs <= T.curlZone[0] + 0.5 && foamAt(r.xs, r.t + 0.6) <= 0.65;
-    // ... and right at the lip or barely on it, pointing straight up or angled toward the shoulder at all, it's a snap
-    // even without a turn (the user's rule, 2026-11-18); angled back toward the whitewater it's the usual moves.
-    const autoSnap = onLip && cosp >= -0.1;
+    // ... and barely onto the breaking lip, pointing straight up or angled toward the shoulder at all, it's a snap
+    // even without a turn (the user's rule, 2026-11-18); angled back toward the whitewater it's the usual moves; right
+    // at the curl (not yet on the lip) not turning is still an air.
+    const autoSnap = onLip && r.xs < T.curlZone[0] && cosp >= -0.1; // (only into the breaking lip: right at the curl, not turning is an air)
     const lipEdge = onLip && (turning || autoSnap);
     const inWhitewater = (r.xs < T.curlZone[0] || foamAt(r.xs, r.t + 0.6) > 0.3) && !lipEdge;
     const combo = r.time - (r.lastBottomTurn ?? -9) < T.comboWindow;
