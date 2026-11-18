@@ -100,10 +100,12 @@ function hairObjects(b, mats) {
   const ell = (cx, cy, cz, rx, ry, rz) => [rx * 2, 0, 0, 0, 0, ry * 2, 0, 0, 0, 0, rz * 2, 0, cx, cy, cz, 1];
   const out = [{ mesh: 'sphere', model: mul(M, ell(0, hs.capY, hs.capZ, hs.capRx, 0.085, hs.capRz)), color: L.hair.slice(0, 3), spec: 0.25, outline: 0 }];
   if (b.which === 'girl') {
-    const back = hs.capZ - hs.capRz; // the back of the head
-    out.push({ mesh: 'sphere', model: mul(M, ell(0, hs.capY - 0.09, back + 0.035, hs.capRx * 0.95, 0.12, 0.06)), color: L.hair.slice(0, 3), spec: 0.25, outline: 0 });
-    out.push({ mesh: 'sphere', model: mul(M, ell(0, hs.capY - 0.2, back + 0.02, hs.capRx * 0.85, 0.11, 0.045)), color: L.hairMid, spec: 0.25, outline: 0 });
-    out.push({ mesh: 'sphere', model: mul(M, ell(0, hs.capY - 0.3, back + 0.01, hs.capRx * 0.7, 0.08, 0.035)), color: L.hairHi, spec: 0.25, outline: 0 });
+    // hair pulled back in a ponytail (the user's longboard references, 2026-11-18): a knot at the back of the head
+    // and the tail hanging down behind, lighter toward the end
+    const back = hs.capZ - hs.capRz;
+    out.push({ mesh: 'sphere', model: mul(M, ell(0, hs.capY - 0.03, back - 0.015, 0.045, 0.045, 0.04)), color: L.hair.slice(0, 3), spec: 0.25, outline: 0 });
+    out.push({ mesh: 'sphere', model: mul(M, ell(0, hs.capY - 0.13, back - 0.04, 0.035, 0.09, 0.03)), color: L.hairMid, spec: 0.25, outline: 0 });
+    out.push({ mesh: 'sphere', model: mul(M, ell(0, hs.capY - 0.24, back - 0.045, 0.025, 0.06, 0.022)), color: L.hairHi, spec: 0.25, outline: 0 });
   }
   return out;
 }

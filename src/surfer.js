@@ -340,6 +340,15 @@ export function surferObjects(pose, rider, info, dt) {
   // chest height, back arm low and behind, reaching toward the water.
   let handBack = add(shBack, v3.mul(across, -0.36), v3.mul(bodyUp, -0.48), v3.mul(chest, 0.14));
   let handFront = add(shFront, v3.mul(across, 0.26), v3.mul(bodyUp, -0.08), v3.mul(chest, 0.34));
+  // Longboard, standing in the middle (stance for longboard.jpg in braickish/reference-images, 2026-11-18): relaxed
+  // and upright, the front arm hanging nearly straight down by her side, the back arm bent at the elbow with the
+  // hand out a little to the side at about hip height. Turns still move the arms from here (below); walking to the
+  // nose or the tail blends into those poses.
+  const lbMid = WAVE.noseride && rider.mode === 'surf' ? (1 - Math.min(1, nr * 1.5)) * (1 - tl) : 0;
+  if (lbMid > 0.01) {
+    handFront = lerp3(handFront, add(shFront, v3.mul(bodyUp, -0.56), v3.mul(chest, 0.06), v3.mul(across, 0.03)), lbMid);
+    handBack = lerp3(handBack, add(shBack, v3.mul(across, -0.3), v3.mul(bodyUp, -0.36), v3.mul(chest, 0.14)), lbMid);
+  }
   // Barrel stance: both hands low in front, by the knees.
   if (deep > 0.01) {
     handFront = lerp3(handFront, add(legF.joint, v3.mul(chest, 0.2), v3.mul(f, 0.1), v3.mul(bodyUp, -0.04)), 0.85 * deep);
@@ -373,12 +382,24 @@ export function surferObjects(pose, rider, info, dt) {
     handBack = add(handBack, v3.mul(bodyUp, swing));
     handFront = add(handFront, v3.mul(bodyUp, swing));
   }
-  // On the nose (after the turning poses, so it wins): arms out wide for balance, a little raised (the reference photo).
+  // On the nose (after the turning poses, so it wins; nose-ride-position.jpg, 2026-11-18): the front arm reaching
+  // low and forward toward the nose, the back arm raised high behind her, bent, the hand above her head.
   if (nr > 0.01) {
     const w = Math.max(onNose, 0.5 * Math.sin(Math.PI * nr));
-    handBack = lerp3(handBack, add(shBack, v3.mul(across, -0.55), v3.mul(bodyUp, 0.05), v3.mul(chest, 0.05)), w);
-    handFront = lerp3(handFront, add(shFront, v3.mul(across, 0.55), v3.mul(bodyUp, 0.12), v3.mul(chest, 0.05)), w);
+    handBack = lerp3(handBack, add(shBack, v3.mul(across, -0.24), v3.mul(bodyUp, 0.4), v3.mul(chest, -0.06)), w);
+    handFront = lerp3(handFront, add(shFront, v3.mul(across, 0.26), v3.mul(bodyUp, -0.48), v3.mul(chest, 0.16)), w);
   }
+  // Walking the board (walking-position.jpg, 2026-11-18): while she steps up or back, upright, the front arm reaching
+  // forward and down, the back arm bent with the elbow back and the hand up by her chest.
+  if (WAVE.noseride && rider.mode === 'surf') {
+    const walkingNow = Math.abs((rider.foot || 0) - (rider.footGoal || 0)) > 1e-3 ? 1 : 0;
+    pose.walkW = (pose.walkW || 0) + (walkingNow - (pose.walkW || 0)) * (1 - Math.exp(-dt / 0.12));
+    const w = pose.walkW;
+    if (w > 0.01) {
+      handFront = lerp3(handFront, add(shFront, v3.mul(across, 0.32), v3.mul(bodyUp, -0.42), v3.mul(chest, 0.12)), w);
+      handBack = lerp3(handBack, add(shBack, v3.mul(across, -0.12), v3.mul(bodyUp, -0.12), v3.mul(chest, 0.1)), w);
+    }
+  } else pose.walkW = 0;
   // Pivoting on the tail: arms out for balance, the front one reaching forward and low, the back one out behind.
   if (tl > 0.01) {
     const w = Math.max(0.5 * tl, 0.85 * pv);
@@ -421,7 +442,8 @@ export function surferObjects(pose, rider, info, dt) {
   // The joints, for the skinned body (body.js), which is posed from them instead of drawing the parts.
   pose.J = { ss, bodyUp, torsoDir, chest, hip, headDir, hChest, ub, f, T,
     legF: { root: hipFront, ...legF }, legB: { root: hipBack, ...legB }, frontFoot, backFoot,
-    armF, armB, shFront, shBack, poleF: elbowOut(1), poleB: elbowOut(-1), dt, tumble: null };
+    armF, armB, shFront, shBack, poleF: elbowOut(1), poleB: elbowOut(-1), dt, tumble: null,
+    lookDown: WAVE.noseride && rider.mode === 'surf' ? 0.55 : 0 }; // (the longboarder watches her feet and the nose: the references)
 
   // --- meshes ---
   const objs = [];

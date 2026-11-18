@@ -78,7 +78,8 @@ export function createBody(model) {
     for (const s of ['l', 'r']) S['clavicle_' + s] = S.spine_03;
     // head up and looking down the line (toward the nose and the wave), however far the torso leans: a real
     // head tipped forward with a crouching torso drops out of sight behind the shoulders
-    const headUp = norm(lerp(J.headDir, J.bodyUp, 0.55)), face = add(J.hChest, mul(J.f, 0.6));
+    let headUp = norm(lerp(J.headDir, J.bodyUp, 0.55)), face = add(J.hChest, mul(J.f, 0.6));
+    if (J.lookDown) { headUp = norm(add(headUp, mul(norm(face), 0.45 * J.lookDown))); face = add(face, mul(J.bodyUp, -0.9 * J.lookDown)); } // (longboard: looking down at the board)
     put('neck_01', mulRT(bodyFrame(lerp(J.torsoDir, headUp, 0.5), face), REST), at('spine_03', H('neck_01')));
     put('head', mulRT(bodyFrame(headUp, face), REST), at('neck_01', H('head')));
     // legs: hips from the pelvis, IK to the ankles above our feet, knees toward our knees

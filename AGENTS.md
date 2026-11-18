@@ -510,7 +510,15 @@ button).
   bent toward one shared, mostly-downward pole, so a hanging arm lined up with it and the elbow spun round (the
   upper arm twisting up to 180 deg in a frame). Now each arm has its own pole (back, out to its side, a little
   down: `poleF`/`poleB`), and body.js holds and eases the bend side in the body frame (~0.06 s) when the arm lines
-  up with it; test/elbows.mjs: worst twist 180 -> 28 deg/frame (Raglan), 177 -> 53 (Pipe). Both surfers tanned. With the body on, everything uses the real look. Cost
+  up with it; test/elbows.mjs: worst twist 180 -> 28 deg/frame (Raglan), 177 -> 53 (Pipe). Both surfers tanned.
+  **Longboarder after the user's references** (2026-11-18: `stance for longboard.jpg`, `walking-position.jpg`,
+  `nose-ride-position.jpg` in braickish/reference-images; surfer.js, both surfers): in the middle the front arm
+  hangs nearly straight by her side and the back arm is bent with the hand out a little at hip height (`lbMid`;
+  turns still move the arms from there); walking (`pose.walkW`, while `foot` moves toward `footGoal`) the front arm
+  reaches forward and down and the back arm is bent, elbow back, hand by her chest; on the nose the front arm
+  reaches low toward the nose and the back arm is raised high behind, bent, the hand above her head. The skinned
+  head looks down at the board (`lookDown`). Her body was rebuilt slimmer with longer legs (build_surfer.py
+  `girl` macros) and her hair pulled back in a ponytail (`hairObjects`). With the body on, everything uses the real look. Cost
   (test/profile.mjs, retina): no measurable change (GPU about the same as the parts; JS +0.01 ms).
   Future (saved, not built): a skin texture and eyes from the system pack, Step 3 motion detail (spine bend,
   weight shift, arm and hair follow-through), proper hair and clothing meshes.
