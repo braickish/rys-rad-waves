@@ -438,9 +438,16 @@ button).
   sea off. Tests run without the sea.
 - **Water rendering:** the GPU builds the surface every frame from a cross-section table (512 phases,
   built per wave in `buildWaterTable`) and each slice's current phase (`slicePhases`), so the wave can
-  change over time. The spray emitter table is refreshed every frame too.
+  change over time. The spray emitter table is refreshed every frame too. (`buildLipTable` works out each cross-section's shape
+  once and reads every point off it, ~0.3 ms; it used to call `surface()` 18 times per xs, ~1 ms of the ~1.3 ms of
+  JS per frame, with identical output.)
 - **Riding camera** (main.js, `camMode` 0): out in the channel a little ahead of the surfer, so the
-  shoulder ahead and the broken part behind are both in frame. The flat water's sun reflection is
+  shoulder ahead and the broken part behind are both in frame. On a phone held upright (aspect < 1) it sits 1.3x further out
+  and aims 2 m ahead of the surfer, so they're in the left third with the shoulder in view (2026-11-18, the user:
+  it used to come 25% closer and you lost the shoulder).
+- **Ink outlines** (shaders.js `vsOutline`): an object's `outline` is its thickness seen from the riding camera
+  (~14.8 m out); closer than 14 m it thins with distance so the line keeps the same weight on screen. In the barrel
+  view (~5.5 m behind) it was ~3x heavier and the surfer looked like a cartoon cut-out next to the shoulder view. The flat water's sun reflection is
   damped (shaders.js `flatness`), since facing the sun more it blew out into a white smear.
 - **Scoring:** only moves, airs and barrels score; riding by itself doesn't. Bottom turns and top
   turns aren't called out as moves: they add their points quietly (main.js `handleEvents`).
@@ -473,6 +480,11 @@ node test/corners.mjs    # sharpest bend in each cross-section (no corners)
 node test/drive.mjs test/out/<name> "<query>" <ms,...> ['<input json>']   # headless Chrome screenshots + console (test/out is git-ignored)
 MOBILE=1 node test/drive.mjs ...   # same, emulating a phone (390x844, touch)
 ```
+
+`node test/profile.mjs "<query>" [s]` (add `RETINA=1` for MacBook size): frame rate, JS and GPU time per frame,
+and a CPU profile of where the JS time goes. 2026-11-18 at retina size: JS ~1.0 ms/frame on every wave; GPU ~12 ms
+on Pipe (spray particles ~7 ms of it), ~6.4 ms on Queens. Culling particles that have faded out made no measurable
+difference. Idea for later: lower the render resolution a little only while frames run late.
 
 Performance: `RETINA=1 node test/drive.mjs ...` renders at 2880x1800 like a MacBook; the game's
 debug object reports smoothed frame time (`ms`). Keep it near 16.7 ms there. Big translucent particles

@@ -70,23 +70,27 @@ export function slicePhases(out = new Float32Array(WATER_XS.length * 2)) {
 //   [crestY, crestZ, plume, impact] (plume: spray blowing back off the crest;
 //   impact: whitewater bursting up where the lip lands)
 export const LIP = { x0: -45, step: 0.25, count: 241 };
-export function buildLipTable() {
-  const data = new Float32Array(LIP.count * 12);
+export function buildLipTable(data = new Float32Array(LIP.count * 12)) {
+  // (each cross-section's shape is worked out once and every point read off it: the same numbers as
+  // calling surface() for each point, which redid the wave shape 18 times per xs, every frame)
+  const cp = new Float64Array(NP * 2), o = [0, 0];
+  const at = (t, out) => { crPoint(cp, t, o); out[1] = o[1]; out[2] = o[0]; return out; };
   const a = [0, 0, 0], b = [0, 0, 0], c = [0, 0, 0], d = [0, 0, 0];
   for (let i = 0; i < LIP.count; i++) {
     const xs = LIP.x0 + i * LIP.step;
+    const s = phaseAt(xs);
+    controlPoints(s, cp);
     const tipT = WAVE.lipT;
-    surface(xs, tipT, a);
-    surface(xs, tipT + 0.15, b);
-    surface(xs, 12.6, c);
+    at(tipT, a);
+    at(tipT + 0.15, b);
+    at(12.6, c);
     let dy = b[1] - a[1], dz = b[2] - a[2];
     const l = Math.hypot(dy, dz) || 1;
     // How active the whitewater is here (drives crest spray and mist).
-    const s = phaseAt(xs);
     const white = WAVE.white(s);
     // The crest: the highest point of the cross-section's top.
     let best = -1e9;
-    for (let t = 3.0; t <= 6.5; t += 0.25) { surface(xs, t, b); if (b[1] > best) { best = b[1]; d[1] = b[1]; d[2] = b[2]; } }
+    for (let t = 3.0; t <= 6.5; t += 0.25) { at(t, b); if (b[1] > best) { best = b[1]; d[1] = b[1]; d[2] = b[2]; } }
     const plume = WAVE.plume ? WAVE.plume(s) : 0;
     const impact = WAVE.lipImpact ? WAVE.lipImpact(s) : 0;
     data.set([a[1], a[2], dy / l, dz / l, (a[1] + c[1]) * 0.5, (a[2] + c[2]) * 0.5, s, white, d[1], d[2], plume, impact], i * 12);

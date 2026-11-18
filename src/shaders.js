@@ -235,11 +235,15 @@ struct VO { @builtin(position) pos: vec4f, @location(0) wpos: vec3f, @location(1
 }
 
 // Ink outline: the back faces of each part, pushed out along the normal.
-// O.color.w is the line thickness (m).
+// O.color.w is the line thickness (m) as seen from the riding camera, ~15 m out in the channel (14 m or further: unchanged). Closer
+// than that (the barrel view, ~5.5 m behind) it thins with distance so the line keeps the same weight on
+// screen and the surfer looks the same as from out on the shoulder (it used to be ~3x heavier there).
 @vertex fn vsOutline(@location(0) p: vec3f, @location(1) n: vec3f) -> VO {
   var o: VO;
   let nw = normalize((O.model * vec4f(n, 0.0)).xyz);
-  let w = (O.model * vec4f(p, 1.0)).xyz + nw * O.color.w;
+  let base = (O.model * vec4f(p, 1.0)).xyz;
+  let k = clamp(length(base - F.camPos.xyz) / 14.0, 0.2, 1.0); // (1 from the riding camera, ~14.8 m)
+  let w = base + nw * O.color.w * k;
   o.pos = F.viewProj * vec4f(w, 1.0);
   o.wpos = w;
   o.n = nw;

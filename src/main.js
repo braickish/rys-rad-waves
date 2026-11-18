@@ -331,10 +331,15 @@ function updateCamera(dt) {
     // shoulder coming up ahead (right) and the part that's already broken
     // behind you (left) about equally, the surfer a little left of center
     // (more room ahead).
-    const near = aspectNow < 1 ? 0.75 : 1; // closer on a phone held upright
+    // On a phone held upright the narrow screen shows far less from side to side: the camera sits 30% further
+    // out and aims 2 m ahead of the surfer, so she's in the left third with the shoulder in view (2026-11-18, the
+    // user: it was 25% closer, and you lost the view of the shoulder).
+    const portrait = aspectNow < 1;
+    const near = portrait ? 1.3 : 1;
     const g = WAVE.sizeK || 1; // (further out for a bigger wave: ?size)
     want = [p[0] + 4.0 * near * g, 3.8 * g + p[1] * 0.35, p[2] + 14 * near * g];
-    look = [p[0] + -0.3 * near * g, 1.0 * g + p[1] * 0.55, p[2] - 0.5];
+    const ahead = portrait ? 2 : 0;
+    look = [p[0] + (-0.3 * near + ahead) * g, 1.0 * g + p[1] * 0.55, p[2] - 0.5];
   } else if (camMode === 2) {
     // Close-up (testing): beside the rider, toward the beach.
     want = [p[0] + 2.4, p[1] + 1.5, p[2] + 4.2];

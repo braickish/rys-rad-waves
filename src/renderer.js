@@ -75,7 +75,8 @@ export async function createRenderer(canvas) {
       ? [[`board-${k}`, boardMesh(b, -1, b.noseFrom, 28, 32, 'body')], [`boardNose-${k}`, boardMesh(b, b.noseFrom, 1, 8, 32, 'body')], [`boardRail-${k}`, boardMesh(b, -1, 1, 48, 32, 'rail')]]
       : [[`board-${k}`, boardMesh(b, -1, b.noseFrom)], [`boardNose-${k}`, boardMesh(b, b.noseFrom, 1, 8)]])),
   })) solids[name] = { vb: upload(orientTriangles(data), GPUBufferUsage.VERTEX), count: data.length / 6 };
-  const lipBuf = upload(buildLipTable(), GPUBufferUsage.STORAGE);
+  const lipData = buildLipTable();
+  const lipBuf = upload(lipData, GPUBufferUsage.STORAGE);
 
   // Particles start dead with staggered negative life so they trickle in.
   const pInit = new Float32Array(PARTICLES * 12);
@@ -214,7 +215,7 @@ export async function createRenderer(canvas) {
     // the size, and where spray comes off.
     device.queue.writeBuffer(sliceBuf, 0, slicePhases(slicePhaseData));
     writeWaterInfo();
-    device.queue.writeBuffer(lipBuf, 0, buildLipTable());
+    device.queue.writeBuffer(lipBuf, 0, buildLipTable(lipData));
     frameData.set(f.viewProj, 0);
     frameData.set(f.invViewProj, 16);
     frameData.set([...f.camPos, f.time], 32);
