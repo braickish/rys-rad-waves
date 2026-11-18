@@ -373,6 +373,10 @@ export function surferObjects(pose, rider, info, dt) {
     // light brown hair down her back, lighter toward the ends, with a couple of thin highlight streaks.
     const hipC = add(hip, v3.mul(torsoDir, 0.02));
     objs.push(ball(hipC, 0.14, GIRL.floral, across, torsoDir, chest, 0.7));
+    // ... with a V at the back covering a bit more of the bottom: a wider panel over the seat narrowing down
+    // to the middle (behind her is -chest).
+    objs.push({ mesh: 'sphere', model: basis(across, torsoDir, chest, 0.27, 0.15, 0.2, add(hipC, v3.mul(chest, -0.035), v3.mul(torsoDir, -0.035))), color: GIRL.floral });
+    objs.push({ mesh: 'sphere', model: basis(across, torsoDir, chest, 0.15, 0.15, 0.17, add(hipC, v3.mul(chest, -0.035), v3.mul(torsoDir, -0.085))), color: GIRL.floral });
     // little flowers printed round the bottoms
     for (let i = 0; i < 6; i++) {
       const a = (i / 6) * Math.PI * 2 + 0.3, h = (i % 2 ? 0.015 : -0.02);

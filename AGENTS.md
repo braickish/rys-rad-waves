@@ -72,14 +72,15 @@ button).
   the back foot leads; to the tail the front foot cross-steps back first, since back foot first put her in the splits). The middle trims fastest with rail turns
   (`middleSpeed` 1.6x cruising speed, picked up `middleFeed` 2x quicker; `softMax` 10 / `maxSpeed` 12 / `maxAccel`
   4.5 raised with it; the user asked twice for more speed there). A pocket bot from the middle tops out ~16 mph and
-  runs ahead onto the shoulder: walk up to the nose to stall, or cut back. **The tail is just for the turn**
-  (the user): once a turn from there is done (`tailAfterTurn` 0.15 s after letting go), or after `tailHold` 1.5 s at
-  most, she walks back up to the middle on her own, and Space then carries on toward the nose.
+  runs ahead onto the shoulder: walk up to the nose to stall, or cut back. (An automatic walk back to the middle after a tail turn was tried and removed the same day, the user's call.)
   **The tail** is slower (cruising speed x `tailSpeed` 0.8) and every turn up on the wave is a **fin pivot**
   (`r.pivot`, the user: on a small wave a longboard turns by pivoting round the fin, not on the rail; reference
   pivot-turn.jpg): the board swings at `pivotRate` 4.2 rad/s whatever her speed, either way along the wave (also
   heading back toward the whitewater), scrubbing `pivotDrag` 0.2 of her speed per radian and making no turn drive.
-  Out on the flats (below `pivotMinHeight`) and in the barrel turns stay on the rail, and from the tail a cutback is a
+  A pivot must start up on the wave, but then lasts until you let go of the turn (`r.pivotHeld`), even if it
+  swings you onto the flats: facing the whitewater, a turn down the face used to drop to a slow rail turn
+  partway round (1.1-1.6 s for 120 deg instead of 0.5; the user noticed). Turns started out on the flats
+  (below `pivotMinHeight`) and in the barrel stay on the rail, and from the tail a cutback is a
   pivot rather than a dropknee turn. A tail cutback: 150 deg in ~0.5 s, ~11 -> 6 mph (from the middle 0.83 s, ~11 -> 9.6).
   Feet (mesh.js): the middle spot is `stance` [-0.28, 0.26], either side of the board's middle (the user's call; it
   used to be the back half); the tail spot `tailStance` [-1.1, -0.62] (moved slightly forward, the user's call).
