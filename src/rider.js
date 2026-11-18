@@ -526,6 +526,16 @@ function stepSurf(r, input, dt) {
   // along the wave, the surfer's left is up the face. Nothing depends on
   // which way you're riding, so it can never flip.
   const steer = clamp((input.turn || 0) + (input.tilt || 0), -1, 1);
+  // Toward the wall of the wave or away, decided once when a turn starts and kept until you let go (2026-11-18, the
+  // user): toward the wall = the swing's first ~25 deg takes the nose further up the face (from straight down
+  // either way is toward the wall, from straight up either way away). It used to be re-decided every frame from the
+  // nose's heading, so one turn switched halfway. On waves with `wallTurn` a turn from the tail toward the wall is
+  // that much slower, wherever she is on the wave (on top of the pivot settings by direction); from the middle and
+  // the nose turns are the same both ways.
+  const swing = steer ? Math.sign(steer) : input.aim && (input.aim[0] || input.aim[1]) ? Math.sign(wrap(Math.atan2(input.aim[1], input.aim[0]) - r.phi)) : 0;
+  if (!swing) r.pivotDir = 0;
+  else if (swing !== r.pivotDir) { r.pivotDir = swing; r.pivotUp = Math.sin(r.phi + swing * 0.44) > Math.sin(r.phi); }
+  if (swing && r.pivotUp && T.wallTurn) rate *= 1 - (1 - T.wallTurn) * Math.max(0, -r.foot); // (tail turns only)
   let d = 0;
   if (steer) d = steer * rate * dt;
   else if (input.aim && (input.aim[0] || input.aim[1])) {
@@ -567,8 +577,7 @@ function stepSurf(r, input, dt) {
     // heading, so one pivot switched halfway: heading back and swinging round down the face, the second half (nose
     // coming back up) slowed to the toward-the-wall setting. Toward the wall = the swing's first ~25 deg takes the
     // nose further up the face (from straight down either way is toward the wall, from straight up either way away).
-    if (!d) r.pivotDir = 0;
-    else if (Math.sign(d) !== r.pivotDir) { r.pivotDir = Math.sign(d); r.pivotUp = Math.sin(r.phi + Math.sign(d) * 0.44) > Math.sin(r.phi); }
+    // (r.pivotUp: toward the wall or away, decided once per turn where the turn starts, above)
     const pmax = r.pivotUp ? (T.pivotMaxUp ?? T.pivotMax ?? 1) : (T.pivotMax ?? 1);
     const pv = (r.pivotHeld && !r.tube ? 1 : allow) * Math.max(0, -r.foot) * pmax; // (the tail spot is just ahead of the very tail, so it's part pivot, part rail)
     r.pivot += (pv - r.pivot) * (1 - Math.exp(-dt / 0.08));

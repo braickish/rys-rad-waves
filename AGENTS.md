@@ -108,6 +108,9 @@ button).
   wall) and kept until the turn is released (`r.pivotDir`). It used to be re-decided every frame from the nose's
   heading, so one pivot switched halfway (heading back and swinging round down the face: away, then toward the
   wall as the nose came back up, slowing the second half; riding along and swinging up into the wall: the reverse).
+  On top of that, from the tail a turn toward the wall is `wallTurn` 0.85 as fast, on the face or anywhere (the
+  user, same day: always a bit slower): up on the face from the tail, 41 deg toward vs 58 away in 0.3 s (was 48 /
+  58). From the middle and the nose turns are the same both ways.
   Pivots also work the first few feet out onto the flats, easing off further out (`pivotFlats` [0.33, 0.5] surface
   units past `tBottom`: full to ~1.2 m, rail turns by ~2.3 m; the user's idea, after a hard cutoff at the bottom
   made turns facing the whitewater slow). A pivot started within that lasts until you let go of the turn

@@ -64,6 +64,7 @@ export default {
     // Walking the board (rider.js): tail / middle / nose. From the tail every turn up on the wave pivots
     // round the fin at `pivotRate` whatever her speed, scrubbing `pivotDrag` of her speed per radian, and
     // the tail drags (cruising speed x `tailSpeed`); the middle trims fastest with rail turns.
+    wallTurn: 0.85, // from the tail, a turn toward the wall of the wave is a bit slower, on the face or anywhere (the user, 2026-11-18)
     pivotRate: 3.2, pivotMax: 0.85, pivotDownRate: 1.15, pivotMaxUp: 0.5, pivotDriveUp: 1.0, // (by direction, the user's idea: turning away from the lip (nose down the face) is quicker and more pivot, 85% at 3.7 rad/s; toward the lip (nose up) more rail, 50% pivot, with a full carve's drive)
      pivotFlats: [0.33, 0.5], pivotDrag: 0, pivotDriveK: 0.5, tailSpeed: 0.8, tailWalk: 0.6, // (the user: pivots too easy, as if slightly too far back, and they should keep a little drive: the tail spot moved forward, the turn there is 70% pivot / 30% rail (pivotMax), pivotRate 3.5 -> 3.2, half a rail carve's drive (pivotDriveK 0.25 -> 0.5); pivotFlats: full pivots ~1.2 m out onto the flats, rail turns by ~2.3 m; tailWalk: s between the tail and the middle)
     foamPush: 5.8, foamPushFeed: 2.5, // in the whitewater from the middle it pushes you along (~13 mph, close to trimming in the pocket from the middle; was 4.6, the user asked for nearer pocket speed; picked up quickly) instead of dragging you to vFoam, and takes twice foamLimit to catch you (the user's call)
