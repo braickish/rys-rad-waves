@@ -61,7 +61,7 @@ export default {
     // Walking the board (rider.js): tail / middle / nose. From the tail every turn up on the wave pivots
     // round the fin at `pivotRate` whatever her speed, scrubbing `pivotDrag` of her speed per radian, and
     // the tail drags (cruising speed x `tailSpeed`); the middle trims fastest with rail turns.
-    pivotRate: 4.2, pivotMinHeight: 0.05, pivotDrag: 0.2, tailSpeed: 0.8, tailWalk: 0.6, // (s between the tail and the middle: two steps, like walking to the nose)
+    pivotRate: 4.2, pivotFlats: [0.33, 0.5], pivotDrag: 0.2, tailSpeed: 0.8, tailWalk: 0.6, // (pivotFlats: full pivots ~1.2 m out onto the flats, rail turns by ~2.3 m; tailWalk: s between the tail and the middle, two steps like walking to the nose)
     foamPush: 4.6, foamPushFeed: 2.5, // in the whitewater from the middle it pushes you along (~10 mph, picked up quickly) instead of dragging you to vFoam, and takes twice foamLimit to catch you (the user's call)
     middleSpeed: 1.6, middleFeed: 2.0, // the middle is the fast spot: 60% higher cruising speed, picked up 2x quicker (the user asked twice for more)
     checkTurn: 2.0, checkRate: 7, // the check turn off the top has to bring you back down on a wave this small

@@ -539,10 +539,12 @@ function stepSurf(r, input, dt) {
     // A pivot has to start up on the wave, but once started it carries on until you let go of the turn,
     // even if it swings you down onto the flats (facing the whitewater, a turn down the face used to drop
     // to a slow rail turn partway round).
-    const onFace = height > T.pivotMinHeight && !r.tube;
+    // (out on the flats it eases off: full pivots for the first few feet past the bottom of the face,
+    // `pivotFlats[0]` in surface units, fading to rail turns by `pivotFlats[1]`)
+    const allow = r.tube ? 0 : 1 - sstep(T.pivotFlats[0], T.pivotFlats[1], r.t - T.tBottom);
     if (!d) r.pivotHeld = false;
-    else if (onFace && r.foot < -0.5) r.pivotHeld = true;
-    const pv = (onFace || r.pivotHeld) && !r.tube ? Math.max(0, -r.foot) : 0;
+    else if (allow > 0.5 && r.foot < -0.5) r.pivotHeld = true;
+    const pv = (r.pivotHeld && !r.tube ? 1 : allow) * Math.max(0, -r.foot);
     r.pivot += (pv - r.pivot) * (1 - Math.exp(-dt / 0.08));
   }
   // --- slash: a Right turn started low on the way up (also in the barrel) ---

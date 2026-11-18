@@ -80,10 +80,12 @@ button).
   (`r.pivot`, the user: on a small wave a longboard turns by pivoting round the fin, not on the rail; reference
   pivot-turn.jpg): the board swings at `pivotRate` 4.2 rad/s whatever her speed, either way along the wave (also
   heading back toward the whitewater), scrubbing `pivotDrag` 0.2 of her speed per radian and making no turn drive.
-  A pivot must start up on the wave, but then lasts until you let go of the turn (`r.pivotHeld`), even if it
-  swings you onto the flats: facing the whitewater, a turn down the face used to drop to a slow rail turn
-  partway round (1.1-1.6 s for 120 deg instead of 0.5; the user noticed). Turns started out on the flats
-  (below `pivotMinHeight`) and in the barrel stay on the rail, and from the tail a cutback is a
+  Pivots also work the first few feet out onto the flats, easing off further out (`pivotFlats` [0.33, 0.5] surface
+  units past `tBottom`: full to ~1.2 m, rail turns by ~2.3 m; the user's idea, after a hard cutoff at the bottom
+  made turns facing the whitewater slow). A pivot started within that lasts until you let go of the turn
+  (`r.pivotHeld`) even if it swings you further out: facing the whitewater, a turn down the face used to drop to a
+  slow rail turn partway round (1.1-1.6 s for 120 deg instead of 0.5). Further out on the flats and in the barrel
+  turns stay on the rail, and from the tail a cutback is a
   pivot rather than a dropknee turn. A tail cutback: 150 deg in ~0.5 s, ~11 -> 6 mph (from the middle 0.83 s, ~11 -> 9.6).
   Feet (mesh.js): the middle spot is `stance` [-0.28, 0.26], either side of the board's middle (the user's call; it
   used to be the back half); the tail spot `tailStance` [-1.1, -0.62] (moved slightly forward, the user's call).
