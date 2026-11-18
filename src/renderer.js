@@ -2,7 +2,7 @@
 // particles (simulated in a compute shader, drawn as soft billboards).
 
 import { skyWGSL, waterWGSL, solidWGSL, particleComputeWGSL, particleRenderWGSL, skinnedWGSL } from './shaders.js';
-import { buildWaterTable, buildWaterIndices, slicePhases, WATER_XS, COLS, TABLE, buildLipTable, LIP, boxMesh, sphereMesh, boardMesh, cylinderMesh, BOARDS, latheMesh, LIMB_PROFILES } from './mesh.js';
+import { buildWaterTable, buildWaterIndices, slicePhases, WATER_XS, COLS, TABLE, buildLipTable, LIP, boxMesh, sphereMesh, boardMesh, cylinderMesh, BOARDS } from './mesh.js';
 import { SCALE, WAVE } from './wave.js';
 
 export const PARTICLES = 40960;
@@ -69,7 +69,6 @@ export async function createRenderer(canvas) {
   const solids = {};
   for (const [name, data] of Object.entries({
     box: boxMesh(), sphere: sphereMesh(12, 18), cyl: cylinderMesh(),
-    ...Object.fromEntries(Object.entries(LIMB_PROFILES).map(([k, prof]) => [k, latheMesh(prof)])), // (shaped limbs: the real look)
     // every board: 'board-<name>' and its colored nose 'boardNose-<name>'
     // (a board with a rail color also gets 'boardRail-<name>', its edge band, finer round the ring)
     ...Object.fromEntries(Object.entries(BOARDS).flatMap(([k, b]) => b.colors && b.colors.rail
@@ -294,7 +293,7 @@ export async function createRenderer(canvas) {
     device.queue.submit([enc.finish()]);
   }
 
-  // The skinned body (body.js, ?body=mh): set once its model has loaded; drawn when render() gets opts.body.
+  // The skinned body (body.js): set once its model has loaded; drawn when render() gets opts.body.
   let skinned = null;
   const skinMod = mod(skinnedWGSL);
   const bonesLayout = device.createBindGroupLayout({ entries: [{ binding: 0, visibility: GPUShaderStage.VERTEX, buffer: { type: 'read-only-storage' } }] });

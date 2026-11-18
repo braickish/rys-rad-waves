@@ -31,7 +31,7 @@ up to 0.8 s and fails at `SIM=1 SIZE=1.75`; from 1.4 s it slashes).
 `walkKeys`, so Up/Down (and up/down swipes) move the feet and only Left/Right turn. On Queens they walk the longboard
 (tail / middle / nose, below). On the shortboards (Raglan, Pipe: `shuffle`) they shuffle the feet one spot, subtly,
 in `shuffleTime` 0.2 s: back (-1), middle (0, the normal stance; where you start) and forward (1) (rider.js `r.shuf`;
-drawn as both feet sliding along the board in two little lifted steps; spots 15 cm apart since 2026-11-18, the user:
+drawn as a real shuffle: the leading foot (back foot going back, front foot going forward) lifts ~6 cm, moves and lands in 0.13 s, then the other foot (`pose.shuf`); spots 15 cm apart since 2026-11-18, the user:
 back 10 cm behind the board's stance, middle 5 cm ahead of it, forward 20 cm ahead; the riding effects unchanged). Back: sharper turns (`backRadius` 0.9, `backTurn` 1.1),
 slightly more pivot (`backPivot` 0.05 of the turn rate stops depending on speed; turning scrubs `backScrub` 0.03 per
 radian), slightly slower (`backSpeed` 0.95). Forward: helps you accelerate (`fwdFeed` 1.25, `fwdAccel` 1.15,
@@ -493,8 +493,10 @@ button).
   boardshorts hem and side stripe, and the surfer's shadow on water the sun lights (not on the face, which is in
   the wave's own shade with the sun behind it). Saved for later (not built): Step 2, one continuous skinned body
   driven by the pose skeleton; Step 3, motion detail (spine bend, weight shifts, arm follow-through).
-- **Skinned body** (2026-11-18, Step 2 toward a realistic surfer; `?body=mh` / `?body=parts` or **B** in the game,
-  remembered; the parts surfer stays the default). `assets/body/guy.glb` and `girl.glb` (~0.95 MB each, 13.7-13.9k
+- **Skinned body: the only surfer** (2026-11-18, Step 2 toward a realistic surfer; made the default and the parts
+  surfer of spheres and cylinders dropped the same day, the user's call: no `?body`/B/V switches any more, surfer.js
+  draws only the board and works out the pose, `pose.J`; both bodies are fetched at start-up, the current wave's
+  before the first frame). `assets/body/guy.glb` and `girl.glb` (~0.95 MB each, 13.7-13.9k
   quads, MakeHuman's 53-bone `game_engine` skeleton) are built from MakeHuman's **CC0 core assets only** (MPFB2's
   bundled base mesh, targets and skeleton, plus the official system asset pack's `male_generic` / `female_generic`
   body meshes); no community assets (some are CC-BY: the user's rule; we make clothes and hair ourselves). Built by

@@ -239,39 +239,6 @@ export function boardMesh(shape = BOARDS.fish, u0 = -1, u1 = 1, segs = 28, ring 
   return new Float32Array(v);
 }
 
-// Shaped limbs for the real look (surfer.js LOOK.real): a unit lathe along y (-0.5 at the start of the
-// segment .. 0.5 at its end), radius 0.5 x profile(u), u 0..1 along it, with flat caps (the joints are
-// covered by spheres). The profiles give limbs their muscle shape, averaging about 1 so they keep the size
-// the plain cylinders had: a thigh tapering to the knee, a calf bulge, deltoid and bicep, a forearm thinning
-// to the wrist, a torso from a narrow waist out to the chest (a swimmer's V).
-const gauss = (u, c, w) => Math.exp(-(((u - c) / w) ** 2));
-export const LIMB_PROFILES = {
-  thigh: (u) => 1.12 - 0.34 * Math.pow(u, 1.4) + 0.05 * gauss(u, 0.35, 0.25),
-  shin: (u) => 0.72 + 0.42 * gauss(u, 0.28, 0.24) - 0.12 * u,
-  upperArm: (u) => 0.86 + 0.26 * gauss(u, 0.08, 0.22) + 0.12 * gauss(u, 0.5, 0.18) - 0.06 * u,
-  forearm: (u) => 0.66 + 0.46 * gauss(u, 0.18, 0.32),
-  torso: (u) => 0.86 + 0.26 * (u * u * (3 - 2 * u)),
-};
-export function latheMesh(profile, segs = 14, ring = 16) {
-  const v = [];
-  const pt = (i, k) => {
-    const u = i / segs, a = (k / ring) * Math.PI * 2, c = Math.cos(a), sn = Math.sin(a);
-    const r = 0.5 * profile(u), dr = 0.5 * (profile(Math.min(1, u + 0.01)) - profile(Math.max(0, u - 0.01))) / 0.02;
-    const n = [c, -dr, sn], l = Math.hypot(...n);
-    return [[c * r, u - 0.5, sn * r], [n[0] / l, n[1] / l, n[2] / l]];
-  };
-  const push = ([p, n]) => v.push(...p, ...n);
-  for (let i = 0; i < segs; i++) for (let k = 0; k < ring; k++) {
-    const a = pt(i, k), b = pt(i, k + 1), c = pt(i + 1, k), d = pt(i + 1, k + 1);
-    push(a); push(c); push(b); push(b); push(c); push(d);
-  }
-  for (const [i, ny] of [[0, -1], [segs, 1]]) for (let k = 0; k < ring; k++) {
-    const a = pt(i, k)[0], b = pt(i, k + 1)[0];
-    push([[0, i / segs - 0.5, 0], [0, ny, 0]]); push([a, [0, ny, 0]]); push([b, [0, ny, 0]]);
-  }
-  return new Float32Array(v);
-}
-
 // Unit cylinder along y (-0.5..0.5), radius 0.5, smooth sides and flat caps.
 // Used for the surfer's limbs and torso (joints are covered by spheres).
 export function cylinderMesh(seg = 16) {

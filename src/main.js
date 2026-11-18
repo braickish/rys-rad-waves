@@ -4,7 +4,7 @@ import { PEEL_SPEED, slice, verticalHits, WAVE, phaseAt, toWorld, waveDir } from
 import { WAVES } from './waves/index.js';
 import { SEA, nextWave, stepSea, waveHeightFt, seedSea } from './sea.js';
 import { perspective, lookAt, mul, invert } from './math.js';
-import { createPose, surferObjects, LOOK } from './surfer.js';
+import { createPose, surferObjects } from './surfer.js';
 import { loadSkinnedGLB } from './glb.js';
 import { createBody } from './body.js';
 
@@ -14,13 +14,7 @@ const params = new URLSearchParams(location.search);
 let savedWave = null;
 try { savedWave = localStorage.getItem('rys-rad-waves-wave'); } catch {}
 useWave(params.get('wave') || savedWave || 'point');
-// The surfer's look: illustrated (default) or the real look (Step 1 toward a realistic body): ?look=real|toon,
-// or V in the game; remembered.
-try { LOOK.real = localStorage.getItem('rys-rad-waves-look') === 'real'; } catch {}
-if (params.has('look')) LOOK.real = params.get('look') === 'real';
-// The skinned body (Step 2 toward a realistic surfer, body.js): ?body=mh|parts, or B in the game; remembered.
-try { LOOK.mh = localStorage.getItem('rys-rad-waves-body') === 'mh'; } catch {}
-if (params.has('body')) LOOK.mh = params.get('body') === 'mh';
+// The surfer: the skinned MakeHuman body (body.js), the only body since 2026-11-18 (the parts surfer was dropped).
 const BODY_FILES = { guy: 'assets/body/guy.glb', girl: 'assets/body/girl.glb' };
 const bodies = {}; // which -> { body, loading }
 // Colors per vertex (rgb + shine), painted from the bone each vertex follows and its rest-pose position: skin, and
@@ -150,15 +144,17 @@ function hairObjects(b, mats) {
   }
   return out;
 }
+// Fetch a body (once): both are fetched at start-up (~1 MB each), the current wave's first.
+function loadBody(which) {
+  const b = bodies[which] ||= { body: null, loading: null };
+  if (!b.body && !b.loading) b.loading = loadSkinnedGLB(BODY_FILES[which]).then((m) => { const bc = bodyColors(m, which); Object.assign(b, { body: createBody(m), colors: bc.colors, head: bc.head, which }); }).catch((e) => console.error('body', e));
+  return b;
+}
 function wantBody() {
-  if (!LOOK.mh || !renderer) return null;
+  if (!renderer) return null;
   const which = WAVE.surfer === 'girl' ? 'girl' : 'guy';
   if (!BODY_FILES[which]) return null; // (not built yet: the parts surfer)
-  const b = bodies[which] ||= { body: null, loading: false };
-  if (!b.body && !b.loading) {
-    b.loading = true;
-    loadSkinnedGLB(BODY_FILES[which]).then((m) => { const bc = bodyColors(m, which); Object.assign(b, { body: createBody(m), colors: bc.colors, head: bc.head, which }); }).catch((e) => console.error('body', e));
-  }
+  const b = loadBody(which);
   if (b.body && renderer.bodyShown !== which) { renderer.setBody(b.body.model, b.colors); renderer.bodyShown = which; }
   return b.body ? b : null;
 }
@@ -175,8 +171,6 @@ addEventListener('keydown', (e) => {
   if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) e.preventDefault();
   keys.add(e.code);
   if (e.code === 'KeyC') camMode = (camMode + 1) % 2;
-  if (e.code === 'KeyB') { LOOK.mh = !LOOK.mh; try { localStorage.setItem('rys-rad-waves-body', LOOK.mh ? 'mh' : 'parts'); } catch {} }
-  if (e.code === 'KeyV') { LOOK.real = !LOOK.real; try { localStorage.setItem('rys-rad-waves-look', LOOK.real ? 'real' : 'toon'); } catch {} }
   // On the longboard wave Space walks the board while riding (back -> middle -> front -> middle -> back); otherwise it drops in.
   if (e.code === 'Space' && state === 'play' && WAVE.noseride) { if (!e.repeat) walkPress = 'cycle'; }
   // On waves with `walkKeys` (all of them since 2026-11-18) Up/Down walk the board (Queens) or shuffle the feet (shortboards) instead of steering; Left/Right turn.
@@ -538,6 +532,9 @@ window.addEventListener('unhandledrejection', (e) => showError(e.reason?.message
 async function main() {
   try {
     renderer = await createRenderer(canvas);
+    const first = WAVE.surfer === 'girl' ? 'girl' : 'guy';
+    await loadBody(first).loading; // (the surfer is there from the first frame)
+    loadBody(first === 'girl' ? 'guy' : 'girl');
   } catch (err) {
     console.error(err);
     $('nogpu-detail').textContent = err.message === 'no-webgpu' ? '' : `Error: ${err.message}`;
@@ -642,20 +639,18 @@ async function main() {
     burst = Math.max(0, burst - dt);
 
     const body = wantBody(); // (the skinned body, once loaded; until then, and for a body not built yet, the parts)
-    const drawMh = LOOK.mh && body;
-    LOOK.mh = !!LOOK.mh; const mhWanted = LOOK.mh; LOOK.mh = !!drawMh; // (surferObjects only drops the parts if the body can be drawn)
+    // (until its model has loaded only the board is drawn: the bodies are fetched at start-up, see main())
     const objs = surferObjects(pose, worldRider(), {
       n: toWorld(n), e2: toWorld(v3.norm(v3.cross(n, v3.norm(v3.rej([1, 0, 0], n))))), turn: turnSigned * waveDir(), // (turning left along the wave is turning right in the world on a right)
       pump: false,
     }, dt);
-    const bodyMats = drawMh && pose.J ? body.body.update(pose.J) : null;
+    const bodyMats = body && pose.J ? body.body.update(pose.J) : null;
     if (bodyMats) { body.dt = dt; objs.push(...hairObjects(body, bodyMats)); }
     renderer.render({
       viewProj: vp, invViewProj: invert(vp), camPos: camW, time, sunDir: SUN, peel: PEEL_SPEED,
       rider: rider.pos, spray: sprayAmt, riderVel: rider.vel, dt, sprayDir, frame,
       burst: burst > 0 ? 1 : 0, camRight, camUp,
-    }, objs, { particles: !params.has('noparticles'), outlines: !params.has('nooutline'), look: LOOK.real || !!drawMh, body: bodyMats, shadow: objs.length > 0 });
-    LOOK.mh = mhWanted;
+    }, objs, { particles: !params.has('noparticles'), outlines: !params.has('nooutline'), look: true, body: bodyMats, shadow: !!bodyMats });
 
     frameMs = frameMs * 0.95 + (dt * 1000) * 0.05; // smoothed frame time
     window.__dbg = { view: tubeView, cam: camPos.map((x) => +x.toFixed(2)), pos: rider.pos.map((x) => +x.toFixed(2)), rt: +rider.t.toFixed(2), tube: !!rider.tube, wave: WAVE.id, wind: +(pose.windup || 0).toFixed(2), unl: +(pose.unload || 0).toFixed(2), ms: +frameMs.toFixed(1), phi: +(rider.phi * 57.3).toFixed(0), turn: touch.turn, tilt: touch.tilt, depth: rider.tube ? +tubeDepth(rider).toFixed(2) : null, state, mode: rider.mode, xs: +rider.xs.toFixed(1), y: +rider.pos[1].toFixed(1), score: Math.round(score), reason: rider.wipeReason, slash: !!rider.slash, slide: +(rider.slide * 57.3).toFixed(0), shuf: +(rider.shuf || 0).toFixed(2) };
