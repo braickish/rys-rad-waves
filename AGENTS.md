@@ -501,7 +501,11 @@ button).
   The renderer skins it on the GPU (`skinnedWGSL`, the real-look lighting, one draw). Clothes and hair are ours,
   painted per vertex in main.js `bodyColors` (by bone and rest position: boardshorts and waistband; the girl's
   rash guard with cuffs and floral bottoms; scalp hair and eyebrows from each head's measured top and face) plus
-  hair volume riding the head bone (`hairObjects`). With the body on, everything uses the real look. Cost
+  hair volume riding the head bone (`hairObjects`). Lighter (2026-11-18, the user found them dark): a soft fill light from
+  the camera's side in `skinnedWGSL` and lighter skin tones. Arms smoothed (the user: jerky): surfer.js eases each
+  hand toward its pose spot (~0.07 s, measured from its shoulder in the body frame, for both surfers), and the
+  skinned elbows use the pose's steady `elbowPole`; test/arms.mjs: worst riding jump per frame 21 -> 4.6 cm
+  (Raglan), 91 -> 15 cm (Pipe), 12 -> 4.4 cm (Queens). With the body on, everything uses the real look. Cost
   (test/profile.mjs, retina): no measurable change (GPU about the same as the parts; JS +0.01 ms).
   Future (saved, not built): a skin texture and eyes from the system pack, Step 3 motion detail (spine bend,
   weight shift, arm and hair follow-through), proper hair and clothing meshes.
@@ -534,6 +538,7 @@ node test/moves.mjs    # audit every move: peak acceleration, speed before/after
 node test/controls.mjs # human-style inputs on both waves: no glitches, Up/Down never flips you
 node test/pocket.mjs   # where different riding styles spend their time vs. the curl
 node test/shuffle.mjs  # shortboard feet: back / middle / forward, turn and speed effects on Raglan and Pipe
+node test/arms.mjs     # how jerkily the hands move against the shoulders while riding (lower is smoother)
 node test/slash.mjs    # the slash: when it fires (and doesn't), climb, speed scrub, slide, turn; point, reef, barrel
 node test/plot-slices.mjs out.svg [crumble|barrel]   # draw the wave cross-sections
 node test/steepness.mjs  # reef face angle at fixed heights from the tube out to the shoulder

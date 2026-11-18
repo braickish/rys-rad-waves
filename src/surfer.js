@@ -388,6 +388,20 @@ export function surferObjects(pose, rider, info, dt) {
     handBack = lerp3(handBack, add(lerp3(legB.joint, backFoot, 0.4), v3.mul(chest, 0.08)), tuck);
     handFront = lerp3(handFront, add(lerp3(legF.joint, frontFoot, 0.4), v3.mul(chest, 0.08)), tuck);
   }
+  // Smooth the hands (2026-11-18, the user: the arms moved jerkily): the poses above switch between hand spots
+  // quickly (turn direction, wind-up, snap, barrel stance), so each hand eases toward its spot with a ~0.07 s time
+  // constant, measured from its shoulder in the body's frame (so riding fast doesn't make it lag). Tumbling and
+  // tucked over the falls they follow at once.
+  {
+    const lf = v3.cross(bodyUp, chest), loc = (p, sh) => { const d = v3.sub(p, sh); return [v3.dot(d, lf), v3.dot(d, bodyUp), v3.dot(d, chest)]; };
+    const world = (l, sh) => add(sh, v3.mul(lf, l[0]), v3.mul(bodyUp, l[1]), v3.mul(chest, l[2]));
+    const tb = loc(handBack, shBack), tf = loc(handFront, shFront);
+    const snapNow = rider.mode !== 'surf' && rider.mode !== 'air' || tuck > 0 || !pose.hands;
+    const kH = snapNow ? 1 : 1 - Math.exp(-dt / 0.07);
+    if (snapNow) pose.hands = { b: tb, f: tf };
+    for (let i = 0; i < 3; i++) { pose.hands.b[i] += (tb[i] - pose.hands.b[i]) * kH; pose.hands.f[i] += (tf[i] - pose.hands.f[i]) * kH; }
+    handBack = world(pose.hands.b, shBack); handFront = world(pose.hands.f, shFront);
+  }
   const elbowPole = add(v3.mul(bodyUp, -0.6), v3.mul(chest, -0.2), v3.mul(across, 0.2));
   const armB = ik(shBack, handBack, UPPER, FORE, elbowPole);
   const armF = ik(shFront, handFront, UPPER, FORE, elbowPole);
@@ -402,7 +416,7 @@ export function surferObjects(pose, rider, info, dt) {
   // The joints, for the skinned body (body.js), which is posed from them instead of drawing the parts.
   pose.J = { ss, bodyUp, torsoDir, chest, hip, headDir, hChest, ub, f, T,
     legF: { root: hipFront, ...legF }, legB: { root: hipBack, ...legB }, frontFoot, backFoot,
-    armF, armB, shFront, shBack, tumble: null };
+    armF, armB, shFront, shBack, elbowPole, tumble: null };
 
   // --- meshes ---
   const objs = [];

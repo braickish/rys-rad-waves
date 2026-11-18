@@ -96,7 +96,7 @@ export function createBody(model) {
     // arms: shoulders ride with the chest, IK to our hands, elbows toward our elbows
     for (const [side, arm, sh] of [[front, J.armF, J.shFront], [back, J.armB, J.shBack]]) {
       const shP = at('spine_03', H('upperarm_' + side));
-      const pole = norm(sub(arm.joint, lerp(sh, arm.end, 0.5)));
+      const pole = norm(J.elbowPole); // (the pose's steady elbow direction: one worked out from a nearly straight arm flips about)
       const s = ik(shP, arm.end, L.upper, L.fore, pole);
       const inside = mul(pole, -1); // (rest: the elbows point back, the inside of the bend forward)
       put('upperarm_' + side, mulRT(aimFrame(sub(s.joint, shP), inside), aimFrame(sub(H('lowerarm_' + side), H('upperarm_' + side)), [0, 0, 1])), shP);

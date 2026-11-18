@@ -523,6 +523,9 @@ struct VO { @builtin(position) pos: vec4f, @location(0) wpos: vec3f, @location(1
   var n = normalize(i.n);
   let v = normalize(F.camPos.xyz - i.wpos);
   var col = realShade(n, v, i.wpos, i.col.rgb, i.col.a);
+  // a soft fill light from the camera's side (2026-11-18, the user: the body read too dark; with the sun behind
+  // the wave we mostly see its shaded side), so the figure stays easy to see against the water
+  col += i.col.rgb * (0.3 * max(dot(n, v), 0.0) + 0.07);
   col = fogMix(col, i.wpos);
   return vec4f(tonemap(col), 1.0);
 }
