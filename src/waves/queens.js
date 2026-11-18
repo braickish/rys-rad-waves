@@ -28,8 +28,9 @@ export default {
   dropknee: true, // (surfer.js: the roundhouse is drawn as a dropknee turn)
   moveNames: { roundhouse: 'DROPKNEE TURN!' },
   turquoise: 0.7, // clear, shallow, sunlit water (shaders.js)
-  peelSpeed: 3.0, // a slow, even peel
-  waveSpeed: 3.0,
+  peelSpeed: 4.8, // an even peel (was 3.0, which made the whole wave feel slow; real ones run ~4.5-6 m/s)
+  waveSpeed: 3.9, // shallow-water wave speed at breaking depth for a ~1.2 m wave (sqrt(g*1.5 m))
+  rippleK: 2.0, // water ripples this much finer than on the big waves (scaled to the wave: big ripples read as a big wave in slow motion)
   phase: { ahead: 9, behind: 7 },
 
   foam: (s, t) => Math.max(spill(s, t), whitewater(s, t)),
@@ -48,9 +49,9 @@ export default {
 
   // A longboard: slower, wider turns and it glides, carrying its speed.
   tune: {
-    vPocket: 4.0, vLow: 2.1, vFoam: 1.6, // a small wave: ~9 mph in the pocket (was 4.8: the user found it ran too fast into the shoulder)
+    vPocket: 5.2, vLow: 2.7, vFoam: 2.1, // ~12 mph in the pocket. (It was cut to 4.0 when she outran the curl on the old 3.0 m/s peel; the peel was the real problem.)
     drop: 3.2, topDropBoost: 1.0, highDropAccel: 0.8, highDropSoftMax: 0.4,
-    softMax: 5.4, maxSpeed: 6.8, minSpeed: 1.2,
+    softMax: 7.0, maxSpeed: 8.8, minSpeed: 1.5,
     bleed: 0.55, // glides: extra speed fades slower than a shortboard (rider default 0.9)
     climb: 4.0, // and it carries up the face (6)
     // slower, drawn-out turns than the shortboard (turn rate 2.4 vs 5.2 rad/s), sized to a small wave
@@ -59,7 +60,7 @@ export default {
     // Fin pivot (rider.js): hold a turn past `pivotAfter` and she steps back on the tail and the board
     // swings round the fin at `pivotRate` whatever her speed (the rail turn above is slow at ~9 mph),
     // scrubbing `pivotDrag` of her speed per radian. Taps stay gentle rail turns; bottom turns stay on the rail.
-    pivotRate: 4.2, pivotAfter: 0.12, pivotStepBack: 0.2, pivotStepForward: 0.3, pivotDrag: 0.2,
+    pivotRate: 4.2, pivotAfter: 0.12, pivotMinHeight: 0.05, pivotStepBack: 0.2, pivotStepForward: 0.3, pivotDrag: 0.2,
     checkTurn: 2.0, checkRate: 7, // the check turn off the top has to bring you back down on a wave this small
     curlZone: [-0.5, 2.0],
     foamContact: 0.25, reboundMinHeight: 0.33, rebound180MinHeight: 0.67,

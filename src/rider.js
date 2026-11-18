@@ -536,7 +536,8 @@ function stepSurf(r, input, dt) {
   // Bottom turns stay on the rail (a long, driving arc), and so does the dropknee turn.
   // Let go and you step forward to trim again (`pivotStepForward` s).
   if (T.pivotRate) {
-    const want = d && r.turnHeld >= T.pivotAfter && !r.bottomCarve && !r.roundhouse && !r.noseGoal && r.nose < 0.05 && !r.tube;
+    // (only up on the wave: out on the flats in front of it a turn is always on the rail)
+    const want = d && r.turnHeld >= T.pivotAfter && height > T.pivotMinHeight && !r.bottomCarve && !r.roundhouse && !r.noseGoal && r.nose < 0.05 && !r.tube;
     r.pivot = clamp(r.pivot + (want ? dt / T.pivotStepBack : -dt / T.pivotStepForward), 0, 1);
   }
   // --- slash: a Right turn started low on the way up (also in the barrel) ---

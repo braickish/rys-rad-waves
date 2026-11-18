@@ -10,7 +10,7 @@ struct Frame {
   riderVel: vec4f,  // xyz, dt
   spray: vec4f,     // spray direction xyz, frame index
   params: vec4f,    // lip table x0, step, count, wipeout burst
-  misc: vec4f,      // x: particle scale (smaller on small waves), -, -, -
+  misc: vec4f,      // x: particle scale (smaller on small waves), y: water ripple scale (finer on small waves), -, -
 };
 @group(0) @binding(0) var<uniform> F: Frame;
 
@@ -136,7 +136,8 @@ fn coarseTex(q: vec2f, t: f32) -> f32 {
 
   // Water texture flows backward along x (the peel runs away from it) and
   // up the face (the wave moves through it).
-  let q = vec2f(i.wpos.x + t * peel, i.wpos.z * 0.9 + i.wpos.y * 0.9 - t * 1.5) * 1.8;
+  let rk = F.misc.y; // (ripples sized to the wave: finer on a small one)
+  let q = vec2f(i.wpos.x + t * peel, i.wpos.z * 0.9 + i.wpos.y * 0.9 - t * 1.5) * 1.8 * rk;
   let e = 0.06;
   let h0 = ripple(q, t);
   let gx = (ripple(q + vec2f(e, 0.0), t) - h0) / e;
@@ -156,7 +157,7 @@ fn coarseTex(q: vec2f, t: f32) -> f32 {
   // (slanted a little, the way the water draws up and along the wall)
   let fx = i.wpos.x + t * peel;
   let fy = i.wpos.z * 0.9 + i.wpos.y * 0.9 - t * 1.5;
-  let qc = vec2f((fx + fy * 0.35) * 1.3, fy * 0.6);
+  let qc = vec2f((fx + fy * 0.35) * 1.3, fy * 0.6) * rk;
   let rib = coarseTex(qc, t);
   let ec = 0.05;
   let cgx = (coarseTex(qc + vec2f(ec, 0.0), t) - rib) / ec;
@@ -192,7 +193,7 @@ fn coarseTex(q: vec2f, t: f32) -> f32 {
   col += vec3f(1.0, 0.95, 0.85) * pow(max(dot(n, hv), 0.0), 500.0) * 4.0 * (1.0 - 0.85 * flatness);
 
   // Foam: broken up with noise, plus faint streaks on the face.
-  let fq = vec2f(i.wpos.x + t * peel * 0.9, i.wpos.y * 1.3 + i.wpos.z * 0.6 - t * 0.8);
+  let fq = vec2f(i.wpos.x + t * peel * 0.9, i.wpos.y * 1.3 + i.wpos.z * 0.6 - t * 0.8) * F.misc.y;
   let fn1 = noise(fq * 1.4) * 0.6 + noise(fq * 3.9 + vec2f(t, 0.0)) * 0.4;
   var foam = clamp(foamAmt * 1.6 - (1.0 - fn1) * 0.9, 0.0, 1.0);
   let streak = smoothstep(0.78, 0.95, noise(vec2f((i.wpos.x + t * peel) * 0.6, (i.wpos.y + i.wpos.z) * 4.0)));

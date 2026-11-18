@@ -220,7 +220,7 @@ export async function createRenderer(canvas) {
     frameData.set([...f.riderVel, f.dt], 44);
     frameData.set([...f.sprayDir, f.frame], 48);
     frameData.set([LIP.x0, LIP.step, LIP.count, f.burst], 52);
-    frameData.set([Math.min(1, Math.max(0.3, WAVE.scale / 1.25)), 0, 0, 0], 56); // particle scale: smaller spray on small waves (Queens)
+    frameData.set([Math.min(1, Math.max(0.3, WAVE.scale / 1.25)), WAVE.rippleK || 1, 0, 0], 56); // particle scale: smaller spray on small waves (Queens); ripple scale (finer on Queens)
     device.queue.writeBuffer(frameBuf, 0, frameData);
     device.queue.writeBuffer(camBuf, 0, new Float32Array([...f.camRight, 0, ...f.camUp, 0]));
     const n = Math.min(objects.length, MAX_OBJECTS);
