@@ -218,10 +218,34 @@ function climbingFoam(r) {
 function topOfFace(xs) {
   const s = phaseAt(xs);
   if (!WAVE.tubeReal) return WAVE.faceTop(s);
-  // Waves with `tubeReal` (the ?sim reef) put the roof line at a real height
-  // in the tube instead of a fixed place along the curve: the roof's place
-  // along the curve moves as the tube forms there.
-  return WAVE.faceTop(s) + (tubeLineT(s, WAVE.tubeReal.top) - WAVE.faceTop(s)) * sstep(-0.3, 0.2, s);
+  // Waves with `tubeReal` (the sim reef) set both lines by real height instead
+  // of a fixed place along the curve: on the open face the top is `faceTop`
+  // of the way from the trough up to the crest (t 5.3 put you on top of the
+  // sim shapes' broad, rounded crest, riding over the curl), and in the
+  // barrel the roof line is `top` of the way up the tube.
+  const open = faceLineT(s, WAVE.tubeReal.faceTop);
+  return open + (tubeLineT(s, WAVE.tubeReal.top) - open) * sstep(-0.3, 0.2, s);
+}
+
+// The place along the curve (t) on the open face at `frac` of the way from the
+// trough (at tBottom) up to the crest (the highest point), for phase s.
+// Tabled per wave at size 1, like tubeLineT.
+let faceTable = null;
+function faceLineT(s, frac) {
+  if (!faceTable || faceTable.wave !== WAVE || faceTable.frac !== frac) {
+    faceTable = { wave: WAVE, frac, row: [] };
+    const cp = new Float64Array(NP * 2), o = [0, 0];
+    for (let i = 0; i <= 160; i++) {
+      controlPoints(-0.4 + i * 0.02, cp, 1);
+      let crestT = 4, crestY = -1e9;
+      for (let t = 2; t <= 6.5; t += 0.01) { const y = crPoint(cp, t, o)[1]; if (y > crestY) { crestY = y; crestT = t; } }
+      const lo = crPoint(cp, TUNE.tBottom, o)[1], want = lo + frac * (crestY - lo);
+      let line = crestT; for (let t = crestT; t <= TUNE.tBottom; t += 0.01) if (crPoint(cp, t, o)[1] <= want) { line = t; break; }
+      faceTable.row.push(line);
+    }
+  }
+  const u = clamp((s + 0.4) / 0.02, 0, 160), i = Math.min(159, Math.floor(u)), row = faceTable.row;
+  return s < -0.4 ? row[0] : row[i] + (row[i + 1] - row[i]) * (u - i);
 }
 
 // The place along the curve (t) on the back wall of the tube at `frac` of the

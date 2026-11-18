@@ -60,7 +60,7 @@ const reef = {
   // In the barrel once you're `enterIn` m in under the lip (so it's over you); near the opening
   // (phase below `outBefore`) out once you're less than `exitIn` m in (0.2 m nearer the lip: a gap so
   // it doesn't flick in and out at one spot).
-  tubeReal: USE_SIM ? { top: 0.92, fall: 0.9, enterIn: 0.5, exitIn: 0.3, outBefore: 0.45 } : null,
+  tubeReal: USE_SIM ? { faceTop: 0.88, top: 0.92, fall: 0.9, enterIn: 0.5, exitIn: 0.3, outBefore: 0.45 } : null, // (faceTop: the open face's top, of the way from trough to crest)
   tube: true,
   // Spray blowing back off the crest: along the tall wall ahead and over the barrel.
   plume: (s) => sstep(-1.3, -0.5, s) * (1 - sstep(1.1, 1.7, s)),
@@ -74,7 +74,7 @@ const reef = {
     ...point.tune,
     curlZone: [-16, 2.5], // behind the curl is the tube, not whitewater
     airs: false,
-    shoulderReach: 0, // (the reef keeps its own feel)
+    shoulderReach: 6, // the pocket's speed carries this much further out toward the shoulder (m, x size; was 0: the user found the speed died too soon going out)
     startXs: 5, // drop in a little further along: the tall wall stands up well ahead of the curl
     faceFlow: 5.7, // water rushing up the face (m/s): point a little down to hold your line
     floaters: false, rebounds: false, // too heavy: hit the whitewater or the lip next to it and you go over the falls
@@ -88,7 +88,7 @@ const reef = {
     slashSlideMax: 0.6, slashSpin: 4, slashCarve: 0.3,
     // Snaps only right at the lip and out of the pocket toward the shoulder (the user, 2026-11-17);
     // elsewhere turning Right up high is a check turn (rider.js snapAllowed / startCheckTurn).
-    snapShoulder: 4.0, snapNear: 0.8,
+    snapShoulder: 4.0, snapNear: 0.8, snapZone: 1.5, // (snapZone: how far below the top a Right turn counts as a snap/check at all; lower down it is just a carve)
     slashTube: { slashSlideMax: 0.26, slashCarve: 0.22 }, // (merged over the rider's slashTube, rider.js useWave)
     tubeDrive: 5.2, // in the barrel, trimming flat or down the line adds this much acceleration (m/s^2) (+15%, the user) ...
     tubeLeanOver: 0.45, tubeLeanDrive: 1.1, // really deep, leaning onto the front foot: up to this much faster (m/s, ~1 mph) and more push (the user: halved from 0.6/1.5, then up a bit to here, 2026-11-17)
@@ -116,7 +116,7 @@ function sized(w, k) {
     phase: { ...p, ahead: p.ahead * k, behind: p.behind * k, behindFar: p.behindFar && p.behindFar * k },
     foamVisual: (s, t, xs) => fv(s, t, xs / k),
     pocket: (xs) => pk(xs / k),
-    tune: { ...T, curlZone: T.curlZone.map((x) => x * k), startXs: T.startXs * k, snapShoulder: T.snapShoulder * k },
+    tune: { ...T, curlZone: T.curlZone.map((x) => x * k), startXs: T.startXs * k, snapShoulder: T.snapShoulder * k, shoulderReach: T.shoulderReach * k },
   };
 }
 

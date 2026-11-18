@@ -218,6 +218,14 @@ button).
     **No roof deflection** (removed the same day): in the barrel, riding up into the roof is over the falls
     (it used to pivot you back down at snap speed). The lip moves don't happen in the tube at all. The
     'too high' line is at 90% of the tube's height (`tubeReal.fall`, was 80%), so you go over right by the roof.
+    **Open-face top by real height** (2026-11-17: the user saw the surfer ride into / through the lip on the
+    shoulder): the drawn water and the physics surface match (checked: within 0.11 m), but the open face's top
+    (`faceTop` t 5.3) sat over the sim shapes' broad, rounded crest, so you rode along on top of the curl. On
+    `tubeReal` waves the open-face top is now `tubeReal.faceTop` 0.88 of the way from the trough to the crest
+    (`faceLineT`), blending into the barrel's roof line as the lip throws; riders top out at 86-88% (were
+    98-101%). The reef's `snapZone` is 1.5 (was 3) so the zone near the top where Right is a snap/check turn
+    doesn't reach down the face. **Shoulder speed:** the reef's `shoulderReach` is 6 m (x size; was 0), so the
+    pocket's speed carries further out (racing out: ~34 mph 12 m ahead of the curl, was fading before 8 m).
     **Turn damping in the barrel** (2026-11-17, the user's request, then more): turn rate is scaled by
     `1 - tubeTurnDamp * r.tubeDamp`; `r.tubeDamp` eases toward depth (full by ~50%) and back out, so
     turns get gradually subtler the deeper you are (`tubeTurnDamp` 0.6 on the reef; was 0.45, full by 70%).
