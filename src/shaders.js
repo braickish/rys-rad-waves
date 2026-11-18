@@ -211,12 +211,19 @@ export const solidWGSL = common + /* wgsl */ `
 struct Obj { model: mat4x4f, color: vec4f };
 @group(1) @binding(0) var<uniform> O: Obj;
 struct VO { @builtin(position) pos: vec4f, @location(0) wpos: vec3f, @location(1) n: vec3f };
+// Ink thinner than O.color.w closer in than the riding camera (see vsOutline): this much of it, 1 from 14 m out.
+fn inkK(base: vec3f) -> f32 { return clamp(length(base - F.camPos.xyz) / 14.0, 0.2, 1.0); }
 @vertex fn vs(@location(0) p: vec3f, @location(1) n: vec3f) -> VO {
   var o: VO;
-  let w = O.model * vec4f(p, 1.0);
-  o.pos = F.viewProj * w;
-  o.wpos = w.xyz;
-  o.n = (O.model * vec4f(n, 0.0)).xyz;
+  let nw = normalize((O.model * vec4f(n, 0.0)).xyz);
+  let base = (O.model * vec4f(p, 1.0)).xyz;
+  // Up close the part fills out by the ink it lost, so it keeps its size as seen from the shoulder (thin parts,
+  // the neck, arms and wrists, looked 20-25% skinnier in the barrel view when the line just got thinner).
+  // (a negative O.color.w: no ink drawn, but fills out the same, for flush details: waistband, logo, stringer)
+  let w = base + nw * abs(O.color.w) * (1.0 - inkK(base));
+  o.pos = F.viewProj * vec4f(w, 1.0);
+  o.wpos = w;
+  o.n = nw;
   return o;
 }
 // Illustrated look: toon shading in a few flat bands, plus a thin ink
@@ -235,15 +242,15 @@ struct VO { @builtin(position) pos: vec4f, @location(0) wpos: vec3f, @location(1
 }
 
 // Ink outline: the back faces of each part, pushed out along the normal.
-// O.color.w is the line thickness (m) as seen from the riding camera, ~15 m out in the channel (14 m or further: unchanged). Closer
-// than that (the barrel view, ~5.5 m behind) it thins with distance so the line keeps the same weight on
-// screen and the surfer looks the same as from out on the shoulder (it used to be ~3x heavier there).
+// O.color.w is the line thickness (m) as seen from the riding camera, ~15 m out in the channel (14 m or further: unchanged).
+// Closer than that (the barrel view, ~5.5 m behind) the line thins with distance so it keeps the same weight on
+// screen (it was ~3x heavier there), and the part fills out by the difference (vs), so each part's overall size
+// is the same as from out on the shoulder.
 @vertex fn vsOutline(@location(0) p: vec3f, @location(1) n: vec3f) -> VO {
   var o: VO;
   let nw = normalize((O.model * vec4f(n, 0.0)).xyz);
   let base = (O.model * vec4f(p, 1.0)).xyz;
-  let k = clamp(length(base - F.camPos.xyz) / 14.0, 0.2, 1.0); // (1 from the riding camera, ~14.8 m)
-  let w = base + nw * O.color.w * k;
+  let w = base + nw * O.color.w; // (the outer edge stays put: the part itself fills out up close, vs above)
   o.pos = F.viewProj * vec4f(w, 1.0);
   o.wpos = w;
   o.n = nw;

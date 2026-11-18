@@ -447,7 +447,14 @@ button).
   it used to come 25% closer and you lost the shoulder).
 - **Ink outlines** (shaders.js `vsOutline`): an object's `outline` is its thickness seen from the riding camera
   (~14.8 m out); closer than 14 m it thins with distance so the line keeps the same weight on screen. In the barrel
-  view (~5.5 m behind) it was ~3x heavier and the surfer looked like a cartoon cut-out next to the shoulder view. The flat water's sun reflection is
+  view (~5.5 m behind) it was ~3x heavier and the surfer looked like a cartoon cut-out next to the shoulder view. The
+  part itself fills out by the ink it loses (`vs`, `inkK`), so every part keeps its shoulder-view size (thinning the
+  line alone made the neck, arms and wrists 20-25% skinnier). A negative `outline` draws no ink but still fills out
+  (waistband, shorts logo, stringer, which sit flush on parts that grow).
+- **Round body parts** (surfer.js): spheres on the axes across / along the torso / toward the chest shear as the
+  torso leans; the shear is capped at `SHEAR_MAX` 0.6 (ordinary riding reaches ~0.57, so riding is unchanged; the deep
+  barrel stance squashed the chest and head). The neck, head and hair follow `headDir` (in the barrel stance the head
+  used to lift off the end of the neck, leaving a skinny strip), and the head squares up as the stance builds. The flat water's sun reflection is
   damped (shaders.js `flatness`), since facing the sun more it blew out into a white smear.
 - **Scoring:** only moves, airs and barrels score; riding by itself doesn't. Bottom turns and top
   turns aren't called out as moves: they add their points quietly (main.js `handleEvents`).

@@ -90,7 +90,7 @@ export function boardObjects(f, ub, Lb, bc) {
   for (let i = 0; i < n; i++) {
     const x = B.stringer[1] - B.stringer[0] / 2 + sl * (i + 0.5);
     const th = B.thick(x / B.half);
-    objs.push({ mesh: 'box', model: basis(f, ub, Lb, sl * 1.02, th * 1.6, 0.012, add(bc, v3.mul(f, x), v3.mul(ub, rk(x)))), color: COL.stringer, outline: 0 });
+    objs.push({ mesh: 'box', model: basis(f, ub, Lb, sl * 1.02, th * 1.6, 0.012, add(bc, v3.mul(f, x), v3.mul(ub, rk(x)))), color: COL.stringer, outline: -0.018 }); // (no ink, fills out with the board up close)
   }
   for (const [along, acr, h, len] of B.fins) {
     const bottom = rk(along) - B.thick(along / B.half) * 0.8;
@@ -277,6 +277,21 @@ export function surferObjects(pose, rider, info, dt) {
   const neck = add(hip, v3.mul(torsoDir, 0.58));
   const headDir = v3.norm(lerp3(torsoDir, bodyUp, 0.5 * deep)); // head up, looking down the line, in the barrel stance
   const head = add(neck, v3.mul(headDir, 0.2), v3.mul(chest, 0.03), v3.mul(across, 0.03));
+  // Round parts (hips, chest, head, hair, hands) are spheres stretched on the axes across / along the torso /
+  // toward the chest. Leaning the torso forward tips those last two toward each other and shears the spheres
+  // flat. Ordinary riding leans up to ~0.57 (dot of torso and chest); the deep barrel stance leaned further and
+  // squashed the chest and head, so the shear is capped there (SHEAR_MAX) and riding looks exactly as before.
+  // The head tips up off the torso in the barrel stance (headDir): the head, hair and neck follow it (they used
+  // to follow the torso, so the head lifted off the end of the neck, which showed as a skinny strip).
+  const SHEAR_MAX = 0.6;
+  const capShear = (up, max = SHEAR_MAX) => {
+    const c = v3.dot(chest, up), cc = Math.min(c, max);
+    if (c <= cc) return chest;
+    const ortho = v3.norm(v3.rej(chest, up));
+    return v3.norm(add(v3.mul(ortho, Math.sqrt(1 - cc * cc)), v3.mul(up, cc)));
+  };
+  const tChest = capShear(torsoDir), hUp = headDir, hChest = capShear(headDir, SHEAR_MAX * (1 - deep)), hAcross = across; // (the head squares up as the barrel stance builds: upright, looking down the line)
+  const neckTop = add(neck, v3.mul(headDir, 0.1)); // (up into the head, whichever way it's tipped)
   // Front shoulder drops into a bottom turn; both lift as you spring open.
   const shW = girl ? 0.16 : 0.19; // (narrower shoulders for the girl)
   const shBack = add(neck, v3.mul(across, -shW), v3.mul(torsoDir, -0.04 + 0.05 * windup + 0.03 * unload));
@@ -365,7 +380,7 @@ export function surferObjects(pose, rider, info, dt) {
     objs.push(ball(leg.joint, 0.064, COL.skin));
     objs.push(cyl(leg.joint, foot, 0.052, 0.055, f, COL.skin));
     objs.push(ball(add(foot, v3.mul(ub, 0.03), v3.mul(chest, 0.04)), 0.07, COL.skin, f, ub, Lb, 0.45));
-    if (logo) objs.push({ mesh: 'box', model: basis(f, ub, Lb, 0.05, 0.04, 0.012, add(lerp3(hp, shortsEnd, 0.6), v3.mul(chest, 0.1))), color: COL.logo, outline: 0 });
+    if (logo) objs.push({ mesh: 'box', model: basis(f, ub, Lb, 0.05, 0.04, 0.012, add(lerp3(hp, shortsEnd, 0.6), v3.mul(chest, 0.1))), color: COL.logo, outline: -0.018 }); // (no ink, but fills out with the shorts up close: shaders.js)
   }
   // Hips (shorts) and the waistband.
   // Pelvis: a rounded block of boardshorts joining both thighs.
@@ -373,42 +388,42 @@ export function surferObjects(pose, rider, info, dt) {
     // Floral bikini bottoms, a slim waist and torso in a teal long-sleeve rash guard, narrower shoulders, and long
     // light brown hair down her back, lighter toward the ends, with a couple of thin highlight streaks.
     const hipC = add(hip, v3.mul(torsoDir, 0.02));
-    objs.push(ball(hipC, 0.14, GIRL.floral, across, torsoDir, chest, 0.7));
+    objs.push(ball(hipC, 0.14, GIRL.floral, across, torsoDir, tChest, 0.7));
     // ... with a V at the back covering a bit more of the bottom: a wider panel over the seat narrowing down
     // to the middle (behind her is -chest).
-    objs.push({ mesh: 'sphere', model: basis(across, torsoDir, chest, 0.27, 0.15, 0.2, add(hipC, v3.mul(chest, -0.035), v3.mul(torsoDir, -0.035))), color: GIRL.floral });
-    objs.push({ mesh: 'sphere', model: basis(across, torsoDir, chest, 0.15, 0.15, 0.17, add(hipC, v3.mul(chest, -0.035), v3.mul(torsoDir, -0.085))), color: GIRL.floral });
+    objs.push({ mesh: 'sphere', model: basis(across, torsoDir, tChest, 0.27, 0.15, 0.2, add(hipC, v3.mul(chest, -0.035), v3.mul(torsoDir, -0.035))), color: GIRL.floral });
+    objs.push({ mesh: 'sphere', model: basis(across, torsoDir, tChest, 0.15, 0.15, 0.17, add(hipC, v3.mul(chest, -0.035), v3.mul(torsoDir, -0.085))), color: GIRL.floral });
     // little flowers printed round the bottoms
     for (let i = 0; i < 6; i++) {
       const a = (i / 6) * Math.PI * 2 + 0.3, h = (i % 2 ? 0.015 : -0.02);
       const dir = v3.add(v3.mul(across, Math.cos(a)), v3.mul(chest, Math.sin(a)));
-      objs.push(ball(add(hipC, v3.mul(dir, 0.138), v3.mul(torsoDir, h)), 0.02, GIRL.flowers[i % 2], across, torsoDir, chest, 0.6));
+      objs.push(ball(add(hipC, v3.mul(dir, 0.138), v3.mul(torsoDir, h)), 0.02, GIRL.flowers[i % 2], across, torsoDir, tChest, 0.6));
     }
     objs.push(cyl(add(hip, v3.mul(torsoDir, 0.08)), add(neck, v3.mul(torsoDir, -0.12)), 0.118, 0.094, across, GIRL.rash));
-    objs.push({ mesh: 'sphere', model: basis(across, torsoDir, chest, 0.37, 0.33, 0.22, add(neck, v3.mul(torsoDir, -0.17))), color: GIRL.rash });
+    objs.push({ mesh: 'sphere', model: basis(across, torsoDir, tChest, 0.37, 0.33, 0.22, add(neck, v3.mul(torsoDir, -0.17))), color: GIRL.rash });
     objs.push(cyl(add(neck, v3.mul(torsoDir, -0.03)), add(neck, v3.mul(torsoDir, 0.02)), 0.047, 0.047, across, GIRL.rashCuff)); // collar
-    objs.push(cyl(neck, add(neck, v3.mul(torsoDir, 0.1)), 0.04, 0.04, across, C.skin));
-    objs.push(ball(head, 0.11, C.skin, across, torsoDir, chest, 1.12));
-    objs.push(ball(add(head, v3.mul(torsoDir, 0.05), v3.mul(chest, -0.03)), 0.12, C.hair, across, torsoDir, chest, 0.8));
-    objs.push(ball(add(head, v3.mul(torsoDir, -0.1), v3.mul(chest, -0.09)), 0.1, GIRL.hairMid, across, torsoDir, chest, 1.3));
-    objs.push(ball(add(head, v3.mul(torsoDir, -0.28), v3.mul(chest, -0.1)), 0.085, GIRL.hairHi, across, torsoDir, chest, 1.5));
+    objs.push(cyl(neck, neckTop, 0.04, 0.04, hAcross, C.skin));
+    objs.push(ball(head, 0.11, C.skin, hAcross, hUp, hChest, 1.12));
+    objs.push(ball(add(head, v3.mul(hUp, 0.05), v3.mul(hChest, -0.03)), 0.12, C.hair, hAcross, hUp, hChest, 0.8));
+    objs.push(ball(add(head, v3.mul(hUp, -0.1), v3.mul(hChest, -0.09)), 0.1, GIRL.hairMid, hAcross, hUp, hChest, 1.3));
+    objs.push(ball(add(head, v3.mul(hUp, -0.28), v3.mul(hChest, -0.1)), 0.085, GIRL.hairHi, hAcross, hUp, hChest, 1.5));
     // highlight streaks: thin strands just proud of the hair, either side of the back
-    for (const sx of [-1, 1]) objs.push(ball(add(head, v3.mul(across, 0.045 * sx), v3.mul(torsoDir, -0.12), v3.mul(chest, -0.13)), 0.03, GIRL.hairHi, across, torsoDir, chest, 5));
+    for (const sx of [-1, 1]) objs.push(ball(add(head, v3.mul(hAcross, 0.045 * sx), v3.mul(hUp, -0.12), v3.mul(hChest, -0.13)), 0.03, GIRL.hairHi, hAcross, hUp, hChest, 5));
   } else {
-  objs.push(ball(add(hip, v3.mul(torsoDir, 0.02)), 0.16, COL.shorts, across, torsoDir, chest, 0.85));
+  objs.push(ball(add(hip, v3.mul(torsoDir, 0.02)), 0.16, COL.shorts, across, torsoDir, tChest, 0.85));
   // Waistband: just a black band of the shorts, flush with the body (same
   // size as the bottom of the torso), no outline.
-  objs.push({ ...cyl(add(hip, v3.mul(torsoDir, 0.08)), add(hip, v3.mul(torsoDir, 0.15)), 0.131, 0.096, across, COL.band), outline: 0 });
+  objs.push({ ...cyl(add(hip, v3.mul(torsoDir, 0.08)), add(hip, v3.mul(torsoDir, 0.15)), 0.131, 0.096, across, COL.band), outline: -0.018 }); // (no ink, fills out with the torso up close)
   // Bare torso, tapering out to the shoulders.
   // (narrow waist, broad shoulders: a swimmer's V)
   objs.push(cyl(add(hip, v3.mul(torsoDir, 0.1)), add(neck, v3.mul(torsoDir, -0.12)), 0.13, 0.11, across, COL.skin));
   // Chest and shoulders: one rounded shape, broad across the shoulders.
-  objs.push({ mesh: 'sphere', model: basis(across, torsoDir, chest, 0.44, 0.36, 0.24, add(neck, v3.mul(torsoDir, -0.17))), color: COL.skin });
-  objs.push(cyl(neck, add(neck, v3.mul(torsoDir, 0.1)), 0.045, 0.045, across, COL.skin));
+  objs.push({ mesh: 'sphere', model: basis(across, torsoDir, tChest, 0.44, 0.36, 0.24, add(neck, v3.mul(torsoDir, -0.17))), color: COL.skin });
+  objs.push(cyl(neck, neckTop, 0.045, 0.045, hAcross, COL.skin));
   // Head and short dark hair (a little fringe toward the front).
-  objs.push(ball(head, 0.12, COL.skin, across, torsoDir, chest, 1.12));
-  objs.push(ball(add(head, v3.mul(torsoDir, 0.06), v3.mul(chest, -0.02)), 0.125, COL.hair, across, torsoDir, chest, 0.72));
-  objs.push(ball(add(head, v3.mul(torsoDir, 0.09), v3.mul(chest, 0.07)), 0.07, COL.hair, across, torsoDir, chest, 0.55));
+  objs.push(ball(head, 0.12, COL.skin, hAcross, hUp, hChest, 1.12));
+  objs.push(ball(add(head, v3.mul(hUp, 0.06), v3.mul(hChest, -0.02)), 0.125, COL.hair, hAcross, hUp, hChest, 0.72));
+  objs.push(ball(add(head, v3.mul(hUp, 0.09), v3.mul(hChest, 0.07)), 0.07, COL.hair, hAcross, hUp, hChest, 0.55));
   }
   // Arms: shoulders, upper arm, elbow, forearm, hand (bare; on the girl, long rash-guard sleeves to the wrist).
   for (const [sh, arm] of [[shBack, armB], [shFront, armF]]) {
@@ -418,7 +433,7 @@ export function surferObjects(pose, rider, info, dt) {
     objs.push(ball(arm.joint, 0.04 * k * (girl ? 1.1 : 1), sl));
     objs.push(cyl(arm.joint, arm.end, 0.036 * k * (girl ? 1.1 : 1), 0.036 * k * (girl ? 1.1 : 1), chest, sl));
     if (girl) objs.push(cyl(lerp3(arm.joint, arm.end, 0.86), lerp3(arm.joint, arm.end, 0.96), 0.042 * k, 0.042 * k, chest, GIRL.rashCuff)); // cuff
-    objs.push(ball(arm.end, 0.048 * k, C.skin, across, torsoDir, chest, 1.2));
+    objs.push(ball(arm.end, 0.048 * k, C.skin, across, torsoDir, tChest, 1.2));
   }
 
   if (rider.mode === 'wipe') {
