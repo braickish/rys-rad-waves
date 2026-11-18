@@ -24,6 +24,12 @@ const COL = {
 // long light brown hair with slight sun-lightened highlights (the user's pick; was blonde), a long-sleeve teal
 // rash guard and floral bikini bottoms (the user's pick; was a light blue bikini; fuller bottoms read as shorts).
 const GIRL = { rash: [0.1, 0.6, 0.6], rashCuff: [0.06, 0.42, 0.44], floral: [0.93, 0.42, 0.5], flowers: [[1, 0.97, 0.9], [1, 0.84, 0.3]], skin: [0.93, 0.7, 0.52], hair: [0.45, 0.3, 0.18], hairMid: [0.51, 0.35, 0.21], hairHi: [0.64, 0.47, 0.3], bikini: [0.6, 0.84, 0.95] };
+// The real look (Step 1 toward a realistic body, 2026-11-18; ?look=real or V in the game, main.js): shaped limbs
+// and torso (mesh.js LIMB_PROFILES), hands and feet shaped like hands and feet, board and shorts graphics, and
+// materials for the smooth shading (spec: shine). Off, the illustrated look is exactly as it was.
+export const LOOK = { real: false };
+const shaped = (o, kind) => (LOOK.real ? { ...o, mesh: kind } : o);
+const jr = (r, real) => (LOOK.real ? real : r); // (joint spheres sized to meet the shaped limbs, not bulge past them)
 const THIGH = 0.46, SHIN = 0.46, UPPER = 0.3, FORE = 0.3;
 const MAX_ROLL = 0.95; // furthest the board banks onto a rail (rad, ~55 deg)
 const CHEST_OPEN = 0.45;
@@ -96,6 +102,17 @@ export function boardObjects(f, ub, Lb, bc) {
     const bottom = rk(along) - B.thick(along / B.half) * 0.8;
     objs.push({ mesh: 'box', model: basis(f, ub, Lb, len, h, 0.012, add(bc, v3.mul(f, along), v3.mul(Lb, acr), v3.mul(ub, bottom - h * 0.5))), color: COL.fin, outline: 0.008 });
   }
+  if (LOOK.real) {
+    // Graphics: an oval logo up toward the nose and, on the shortboards, a dark traction pad on the tail.
+    const deck = (x) => rk(x) + B.thick(x / B.half) * 0.97;
+    const lx = B.half * 0.42;
+    objs.push({ mesh: 'sphere', model: basis(f, ub, Lb, 0.2, 0.008, 0.085, add(bc, v3.mul(f, lx), v3.mul(ub, deck(lx)))), color: B.colors ? [0.97, 0.97, 0.94] : COL.logo, outline: 0, spec: 0.7 });
+    if (!B.colors) {
+      const px = -B.half * 0.8;
+      objs.push({ mesh: 'box', model: basis(f, ub, Lb, 0.28, 0.01, B.width(px / B.half) * 1.6, add(bc, v3.mul(f, px), v3.mul(ub, deck(px)))), color: [0.16, 0.17, 0.2], outline: 0, spec: 0.05 });
+    }
+  }
+  for (const o of objs) if (o.spec === undefined) o.spec = 0.7; // (a glassed board)
   return objs;
 }
 
@@ -362,6 +379,13 @@ export function surferObjects(pose, rider, info, dt) {
   const armB = ik(shBack, handBack, UPPER, FORE, elbowPole);
   const armF = ik(shFront, handFront, UPPER, FORE, elbowPole);
 
+  // A foot (real look): long, low and narrow, toes toward the toe side, the front foot angled a little toward
+  // the nose, the back foot a little toward the tail.
+  const realFoot = (foot, sgn, color, k) => {
+    const fl = v3.norm(v3.rej(add(T, v3.mul(f, 0.35 * sgn)), ub)), fw = v3.norm(v3.cross(ub, fl));
+    return { mesh: 'sphere', model: basis(fl, ub, fw, 0.25 * k, 0.07 * k, 0.1 * k, add(foot, v3.mul(ub, 0.035), v3.mul(fl, 0.04))), color };
+  };
+
   // --- meshes ---
   const objs = [];
   // Board (banked onto its rail). Going over the falls you've come off it:
@@ -372,19 +396,26 @@ export function surferObjects(pose, rider, info, dt) {
     if (girl) {
       // bare legs, slimmer
       objs.push(ball(hp, 0.095, C.skin));
-      objs.push(cyl(hp, leg.joint, 0.078, 0.082, f, C.skin));
-      objs.push(ball(leg.joint, 0.058, C.skin));
-      objs.push(cyl(leg.joint, foot, 0.048, 0.05, f, C.skin));
-      objs.push(ball(add(foot, v3.mul(ub, 0.03), v3.mul(chest, 0.04)), 0.065, C.skin, f, ub, Lb, 0.45));
+      objs.push(shaped(cyl(hp, leg.joint, 0.078, 0.082, f, C.skin), 'thigh'));
+      objs.push(ball(leg.joint, jr(0.058, 0.05), C.skin));
+      objs.push(shaped(cyl(leg.joint, foot, 0.048, 0.05, f, C.skin), 'shin'));
+      objs.push(LOOK.real ? realFoot(foot, logo ? 1 : -1, C.skin, 0.9) : ball(add(foot, v3.mul(ub, 0.03), v3.mul(chest, 0.04)), 0.065, C.skin, f, ub, Lb, 0.45));
       continue;
     }
     const shortsEnd = lerp3(hp, leg.joint, 0.78);
     objs.push(ball(hp, 0.105, COL.shorts)); // hip joint, so the thigh meets the hips cleanly
     objs.push(cyl(hp, shortsEnd, 0.1, 0.105, f, COL.shorts));
     objs.push(cyl(shortsEnd, leg.joint, 0.062, 0.062, f, COL.skin));
-    objs.push(ball(leg.joint, 0.064, COL.skin));
-    objs.push(cyl(leg.joint, foot, 0.052, 0.055, f, COL.skin));
-    objs.push(ball(add(foot, v3.mul(ub, 0.03), v3.mul(chest, 0.04)), 0.07, COL.skin, f, ub, Lb, 0.45));
+    objs.push(ball(leg.joint, jr(0.064, 0.052), COL.skin));
+    objs.push(shaped(cyl(leg.joint, foot, 0.052, 0.055, f, COL.skin), 'shin'));
+    objs.push(LOOK.real ? realFoot(foot, logo ? 1 : -1, COL.skin, 1) : ball(add(foot, v3.mul(ub, 0.03), v3.mul(chest, 0.04)), 0.07, COL.skin, f, ub, Lb, 0.45));
+    if (LOOK.real) {
+      // boardshorts: a darker hem and a stripe down the outside seam
+      objs.push({ ...cyl(lerp3(hp, shortsEnd, 0.86), shortsEnd, 0.103, 0.108, f, COL.shortsDark), outline: 0, spec: 0.08 });
+      const ax = v3.norm(v3.sub(shortsEnd, hp)), out = v3.norm(v3.rej(v3.sub(hp, hip), ax));
+      const sm = lerp3(hp, shortsEnd, 0.45);
+      objs.push({ mesh: 'box', model: basis(out, ax, v3.norm(v3.cross(out, ax)), 0.012, v3.len(v3.sub(shortsEnd, hp)) * 0.8, 0.03, add(sm, v3.mul(out, 0.1))), color: [0.95, 0.93, 0.88], outline: 0, spec: 0.08 });
+    }
     if (logo) objs.push({ mesh: 'box', model: basis(f, ub, Lb, 0.05, 0.04, 0.012, add(lerp3(hp, shortsEnd, 0.6), v3.mul(chest, 0.1))), color: COL.logo, outline: -0.018 }); // (no ink, but fills out with the shorts up close: shaders.js)
   }
   // Hips (shorts) and the waistband.
@@ -404,7 +435,7 @@ export function surferObjects(pose, rider, info, dt) {
       const dir = v3.add(v3.mul(across, Math.cos(a)), v3.mul(chest, Math.sin(a)));
       objs.push(ball(add(hipC, v3.mul(dir, 0.138), v3.mul(torsoDir, h)), 0.02, GIRL.flowers[i % 2], across, torsoDir, tChest, 0.6));
     }
-    objs.push(cyl(add(hip, v3.mul(torsoDir, 0.08)), add(neck, v3.mul(torsoDir, -0.12)), 0.118, 0.094, across, GIRL.rash));
+    objs.push(shaped(cyl(add(hip, v3.mul(torsoDir, 0.08)), add(neck, v3.mul(torsoDir, -0.12)), 0.118, 0.094, across, GIRL.rash), 'torso'));
     objs.push({ mesh: 'sphere', model: basis(across, torsoDir, tChest, 0.37, 0.33, 0.22, add(neck, v3.mul(torsoDir, -0.17))), color: GIRL.rash });
     objs.push(cyl(add(neck, v3.mul(torsoDir, -0.03)), add(neck, v3.mul(torsoDir, 0.02)), 0.047, 0.047, across, GIRL.rashCuff)); // collar
     objs.push(cyl(neck, neckTop, 0.04, 0.04, hAcross, C.skin));
@@ -421,7 +452,7 @@ export function surferObjects(pose, rider, info, dt) {
   objs.push({ ...cyl(add(hip, v3.mul(torsoDir, 0.08)), add(hip, v3.mul(torsoDir, 0.15)), 0.131, 0.096, across, COL.band), outline: -0.018 }); // (no ink, fills out with the torso up close)
   // Bare torso, tapering out to the shoulders.
   // (narrow waist, broad shoulders: a swimmer's V)
-  objs.push(cyl(add(hip, v3.mul(torsoDir, 0.1)), add(neck, v3.mul(torsoDir, -0.12)), 0.13, 0.11, across, COL.skin));
+  objs.push(shaped(cyl(add(hip, v3.mul(torsoDir, 0.1)), add(neck, v3.mul(torsoDir, -0.12)), 0.13, 0.11, across, COL.skin), 'torso'));
   // Chest and shoulders: one rounded shape, broad across the shoulders.
   objs.push({ mesh: 'sphere', model: basis(across, torsoDir, tChest, 0.44, 0.36, 0.24, add(neck, v3.mul(torsoDir, -0.17))), color: COL.skin });
   objs.push(cyl(neck, neckTop, 0.045, 0.045, hAcross, COL.skin));
@@ -430,15 +461,26 @@ export function surferObjects(pose, rider, info, dt) {
   objs.push(ball(add(head, v3.mul(hUp, 0.06), v3.mul(hChest, -0.02)), 0.125, COL.hair, hAcross, hUp, hChest, 0.72));
   objs.push(ball(add(head, v3.mul(hUp, 0.09), v3.mul(hChest, 0.07)), 0.07, COL.hair, hAcross, hUp, hChest, 0.55));
   }
+  if (LOOK.real) {
+    // a nose and ears (real look), on the head's own axes: the face looks toward hChest
+    const hr = girl ? 0.11 : 0.12;
+    objs.push({ mesh: 'sphere', model: basis(hAcross, hUp, hChest, 0.028, 0.045, 0.034, add(head, v3.mul(hChest, hr * 0.93), v3.mul(hUp, -0.012))), color: C.skin });
+    for (const sx of [-1, 1]) objs.push({ mesh: 'sphere', model: basis(hAcross, hUp, hChest, 0.022, 0.05, 0.034, add(head, v3.mul(hAcross, hr * 0.94 * sx), v3.mul(hChest, -0.01), v3.mul(hUp, -0.005))), color: C.skin });
+  }
   // Arms: shoulders, upper arm, elbow, forearm, hand (bare; on the girl, long rash-guard sleeves to the wrist).
   for (const [sh, arm] of [[shBack, armB], [shFront, armF]]) {
     const k = girl ? 0.85 : 1, sl = girl ? GIRL.rash : C.skin;
-    objs.push(ball(sh, 0.06 * k * (girl ? 1.08 : 1), sl));
-    objs.push(cyl(sh, arm.joint, 0.043 * k * (girl ? 1.1 : 1), 0.043 * k * (girl ? 1.1 : 1), chest, sl));
-    objs.push(ball(arm.joint, 0.04 * k * (girl ? 1.1 : 1), sl));
-    objs.push(cyl(arm.joint, arm.end, 0.036 * k * (girl ? 1.1 : 1), 0.036 * k * (girl ? 1.1 : 1), chest, sl));
+    objs.push(ball(sh, jr(0.06 * k * (girl ? 1.08 : 1), 0.048 * k * (girl ? 1.1 : 1)), sl));
+    objs.push(shaped(cyl(sh, arm.joint, 0.043 * k * (girl ? 1.1 : 1), 0.043 * k * (girl ? 1.1 : 1), chest, sl), 'upperArm'));
+    objs.push(ball(arm.joint, jr(0.04, 0.035) * k * (girl ? 1.1 : 1), sl));
+    objs.push(shaped(cyl(arm.joint, arm.end, 0.036 * k * (girl ? 1.1 : 1), 0.036 * k * (girl ? 1.1 : 1), chest, sl), 'forearm'));
     if (girl) objs.push(cyl(lerp3(arm.joint, arm.end, 0.86), lerp3(arm.joint, arm.end, 0.96), 0.042 * k, 0.042 * k, chest, GIRL.rashCuff)); // cuff
-    objs.push(ball(arm.end, 0.048 * k, C.skin, across, torsoDir, tChest, 1.2));
+    if (LOOK.real) {
+      // a hand: a flat palm and fingers carrying on from the forearm, a little thumb on the chest side
+      const hd = v3.norm(v3.sub(arm.end, arm.joint)), hw = v3.norm(v3.rej(across, hd)), ht = v3.norm(v3.cross(hw, hd));
+      objs.push({ mesh: 'sphere', model: basis(hw, hd, ht, 0.085 * k, 0.18 * k, 0.04 * k, add(arm.end, v3.mul(hd, 0.06 * k))), color: C.skin });
+      objs.push({ mesh: 'sphere', model: basis(hw, hd, ht, 0.026 * k, 0.07 * k, 0.026 * k, add(arm.end, v3.mul(hd, 0.03 * k), v3.mul(ht, 0.03 * k))), color: C.skin });
+    } else objs.push(ball(arm.end, 0.048 * k, C.skin, across, torsoDir, tChest, 1.2));
   }
 
   if (rider.mode === 'wipe') {
@@ -467,5 +509,8 @@ export function surferObjects(pose, rider, info, dt) {
     const wf = W(bf), wu = W(bu);
     objs.push(...boardObjects(wf, wu, v3.norm(v3.cross(wu, wf)), W(add(fr.P, v3.mul(fr.n, 0.25)))));
   }
+  // Materials for the real look: skin has a soft sheen, hair a little, cloth almost none (the board set its own).
+  const hairs = [C.hair, GIRL.hairMid, GIRL.hairHi];
+  for (const o of objs) if (o.spec === undefined) o.spec = o.color === C.skin ? 0.35 : hairs.includes(o.color) ? 0.25 : 0.1;
   return objs;
 }

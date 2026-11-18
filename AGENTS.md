@@ -465,6 +465,16 @@ button).
   part itself fills out by the ink it loses (`vs`, `inkK`), so every part keeps its shoulder-view size (thinning the
   line alone made the neck, arms and wrists 20-25% skinnier). A negative `outline` draws no ink but still fills out
   (waistband, shorts logo, stringer, which sit flush on parts that grow).
+- **Real look** (2026-11-18, Step 1 toward a realistic body; the user's reference more-refined-body.jpg in
+  braickish/reference-images, a realism target only): `?look=real` / `?look=toon` or **V** in the game (remembered,
+  `LOOK.real` in surfer.js; default the illustrated look, which is unchanged). Smooth shading instead of toon bands
+  and ink (shaders.js `realShade`: wrapped sunlight, sky and water-bounce light, sheen by material `spec`: cloth 0.1,
+  skin 0.35, hair 0.25, board 0.7; Obj `mat`, Frame `misc.w`), shaped limbs and torso (mesh.js `LIMB_PROFILES`:
+  thigh taper, calf, deltoid/bicep, forearm, V torso), joint spheres sized to meet them (`jr`), hands (palm and
+  thumb), feet (long, toes to the toe side), a nose and ears, board graphics (nose logo, tail pad on shortboards),
+  boardshorts hem and side stripe, and the surfer's shadow on water the sun lights (not on the face, which is in
+  the wave's own shade with the sun behind it). Saved for later (not built): Step 2, one continuous skinned body
+  driven by the pose skeleton; Step 3, motion detail (spine bend, weight shifts, arm follow-through).
 - **Round body parts** (surfer.js): spheres on the axes across / along the torso / toward the chest shear as the
   torso leans; the shear is capped at `SHEAR_MAX` 0.6 (ordinary riding reaches ~0.57, so riding is unchanged; the deep
   barrel stance squashed the chest and head). The neck, head and hair follow `headDir` (in the barrel stance the head

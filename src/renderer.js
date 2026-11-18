@@ -2,7 +2,7 @@
 // particles (simulated in a compute shader, drawn as soft billboards).
 
 import { skyWGSL, waterWGSL, solidWGSL, particleComputeWGSL, particleRenderWGSL } from './shaders.js';
-import { buildWaterTable, buildWaterIndices, slicePhases, WATER_XS, COLS, TABLE, buildLipTable, LIP, boxMesh, sphereMesh, boardMesh, cylinderMesh, BOARDS } from './mesh.js';
+import { buildWaterTable, buildWaterIndices, slicePhases, WATER_XS, COLS, TABLE, buildLipTable, LIP, boxMesh, sphereMesh, boardMesh, cylinderMesh, BOARDS, latheMesh, LIMB_PROFILES } from './mesh.js';
 import { SCALE, WAVE } from './wave.js';
 
 export const PARTICLES = 40960;
@@ -69,6 +69,7 @@ export async function createRenderer(canvas) {
   const solids = {};
   for (const [name, data] of Object.entries({
     box: boxMesh(), sphere: sphereMesh(12, 18), cyl: cylinderMesh(),
+    ...Object.fromEntries(Object.entries(LIMB_PROFILES).map(([k, prof]) => [k, latheMesh(prof)])), // (shaped limbs: the real look)
     // every board: 'board-<name>' and its colored nose 'boardNose-<name>'
     // (a board with a rail color also gets 'boardRail-<name>', its edge band, finer round the ring)
     ...Object.fromEntries(Object.entries(BOARDS).flatMap(([k, b]) => b.colors && b.colors.rail
@@ -112,7 +113,7 @@ export async function createRenderer(canvas) {
     { binding: 0, visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT | GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } },
   ] });
   const objLayout = device.createBindGroupLayout({ entries: [
-    { binding: 0, visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT, buffer: { type: 'uniform', hasDynamicOffset: true, minBindingSize: 80 } },
+    { binding: 0, visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT, buffer: { type: 'uniform', hasDynamicOffset: true, minBindingSize: 96 } },
   ] });
   const solidPipe = device.createRenderPipeline({
     layout: device.createPipelineLayout({ bindGroupLayouts: [frameLayout, objLayout] }),
@@ -177,7 +178,7 @@ export async function createRenderer(canvas) {
   ]);
   let waterBG = makeWaterBG();
   const frameBG = device.createBindGroup({ layout: frameLayout, entries: [{ binding: 0, resource: { buffer: frameBuf } }] });
-  const objBG = device.createBindGroup({ layout: objLayout, entries: [{ binding: 0, resource: { buffer: objBuf, size: 80 } }] });
+  const objBG = device.createBindGroup({ layout: objLayout, entries: [{ binding: 0, resource: { buffer: objBuf, size: 96 } }] });
   const pcBG = bg(pcPipe, [
     { binding: 0, resource: { buffer: frameBuf } },
     { binding: 1, resource: { buffer: partBuf } },
@@ -224,13 +225,14 @@ export async function createRenderer(canvas) {
     frameData.set([...f.riderVel, f.dt], 44);
     frameData.set([...f.sprayDir, f.frame], 48);
     frameData.set([LIP.x0, LIP.step, LIP.count, f.burst], 52);
-    frameData.set([Math.min(1, Math.max(0.3, WAVE.scale / 1.25)), WAVE.rippleK || 1, WAVE.dir < 0 ? -1 : 1, 0], 56); // particle scale: smaller spray on small waves (Queens); ripple scale (finer on Queens)
+    frameData.set([Math.min(1, Math.max(0.3, WAVE.scale / 1.25)), WAVE.rippleK || 1, WAVE.dir < 0 ? -1 : 1, opts.look ? 1 : 0], 56); // (w: the real look) // particle scale: smaller spray on small waves (Queens); ripple scale (finer on Queens)
     device.queue.writeBuffer(frameBuf, 0, frameData);
     device.queue.writeBuffer(camBuf, 0, new Float32Array([...f.camRight, 0, ...f.camUp, 0]));
     const n = Math.min(objects.length, MAX_OBJECTS);
     for (let i = 0; i < n; i++) {
       objData.set(objects[i].model, i * 64);
       objData.set([...objects[i].color, objects[i].outline ?? 0.018], i * 64 + 16); // w = outline thickness
+      objData.set([objects[i].spec ?? 0.1, 0, 0, 0], i * 64 + 20); // material: x = shine (the real look)
     }
     if (n) device.queue.writeBuffer(objBuf, 0, objData, 0, n * 64);
 
@@ -255,7 +257,7 @@ export async function createRenderer(canvas) {
     pass.drawIndexed(waterIdx.length);
 
     pass.setBindGroup(0, frameBG);
-    for (let i = 0; i < n && opts.outlines !== false; i++) {
+    for (let i = 0; i < n && opts.outlines !== false && !opts.look; i++) { // (no ink in the real look)
       if ((objects[i].outline ?? 0.018) <= 0) continue;
       pass.setPipeline(mirrored(objects[i].model) ? outlinePipeMirrored : outlinePipe);
       pass.setBindGroup(1, objBG, [i * OBJ_STRIDE]);

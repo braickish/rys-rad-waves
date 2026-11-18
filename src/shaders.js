@@ -172,6 +172,25 @@ fn coarseTex(q: vec2f, t: f32) -> f32 {
   let coarse = 0.26 * smoothstep(4.0, 14.0, dist) * exp(-dist * 0.008) * slope;
   n = normalize(n - (t1 * (gx * detail + cgx * coarse * 1.3) + t2 * (gy * detail + cgy * coarse * 0.6)));
 
+  // The surfer's shadow on the water (the real look): the body as a short segment up from where they stand,
+  // seen along the sunlight; points behind it (away from the sun) within ~0.3 m of it are shaded.
+  var shade = 1.0;
+  let lit = smoothstep(0.0, 0.25, dot(normalize(i.n), F.sunDir.xyz)); // (only on water the sun lights: with the sun behind the wave, the face is already in its shade)
+  if (F.misc.w > 0.5 && lit > 0.0) {
+    let rw = dirX(F.rider.xyz);
+    let sd = F.sunDir.xyz;
+    let d = i.wpos - rw;
+    let behind = -dot(d, sd);
+    if (behind > 0.0) {
+      let axis = vec3f(0.0, 1.5 * min(1.0, F.misc.x * 1.25 + 0.3), 0.0);
+      let pq = d - sd * dot(d, sd);
+      let pa = axis - sd * dot(axis, sd);
+      let k = clamp(dot(pq, pa) / max(dot(pa, pa), 1e-4), 0.0, 1.0);
+      let dd = length(pq - pa * k);
+      shade = 1.0 - 0.38 * lit * (1.0 - smoothstep(0.12, 0.34, dd)) * smoothstep(0.0, 0.3, behind) * (1.0 - smoothstep(6.0, 12.0, behind));
+    }
+  }
+
   let phase = i.attr.x;
   let foamAmt = i.attr.y;
   let thin = i.attr.z;
@@ -208,6 +227,7 @@ fn coarseTex(q: vec2f, t: f32) -> f32 {
   foam = max(foam, streak * onFace * 0.18);
   let foamCol = vec3f(0.93, 0.97, 1.0) * (0.72 + 0.28 * diff + 0.1);
   col = mix(col, foamCol, foam);
+  col *= shade; // (the surfer's shadow, real look)
 
   col = fogMix(col, i.wpos);
   return vec4f(tonemap(col), 1.0);
@@ -215,7 +235,7 @@ fn coarseTex(q: vec2f, t: f32) -> f32 {
 `;
 
 export const solidWGSL = common + /* wgsl */ `
-struct Obj { model: mat4x4f, color: vec4f };
+struct Obj { model: mat4x4f, color: vec4f, mat: vec4f }; // mat.x: shine (the real look)
 @group(1) @binding(0) var<uniform> O: Obj;
 struct VO { @builtin(position) pos: vec4f, @location(0) wpos: vec3f, @location(1) n: vec3f };
 // Ink thinner than O.color.w closer in than the riding camera (see vsOutline): this much of it, 1 from 14 m out.
@@ -227,7 +247,7 @@ fn inkK(base: vec3f) -> f32 { return clamp(length(base - F.camPos.xyz) / 14.0, 0
   // Up close the part fills out by the ink it lost, so it keeps its size as seen from the shoulder (thin parts,
   // the neck, arms and wrists, looked 20-25% skinnier in the barrel view when the line just got thinner).
   // (a negative O.color.w: no ink drawn, but fills out the same, for flush details: waistband, logo, stringer)
-  let w = base + nw * abs(O.color.w) * (1.0 - inkK(base));
+  let w = base + nw * abs(O.color.w) * (1.0 - inkK(base)) * (1.0 - F.misc.w); // (no ink in the real look: nothing to fill out)
   o.pos = F.viewProj * vec4f(w, 1.0);
   o.wpos = w;
   o.n = nw;
@@ -244,8 +264,28 @@ fn inkK(base: vec3f) -> f32 { return clamp(length(base - F.camPos.xyz) / 14.0, 0
   let sky = mix(vec3f(0.55, 0.62, 0.72), vec3f(0.85, 0.92, 1.0), smoothstep(-0.2, 0.2, n.y));
   let rim = smoothstep(0.62, 0.7, 1.0 - max(dot(n, v), 0.0)) * 0.18;
   var col = O.color.rgb * mix(sky * 0.55, vec3f(1.05, 0.97, 0.88), band) + rim;
+  if (F.misc.w > 0.5) { col = realShade(n, v, i.wpos); }
   col = fogMix(col, i.wpos);
   return vec4f(tonemap(col), 1.0);
+}
+// The real look (F.misc.w, ?look=real / V): smooth light instead of toon bands and ink. Wrapped sunlight (soft
+// terminator, a hint of light through skin), sky light from above and light bounced off the water from below
+// and in front, a soft sheen by material (mat.x: cloth ~0.08, skin ~0.35, a glassed board ~0.7) and a faint rim
+// so the figure still separates from the water.
+fn realShade(n: vec3f, v: vec3f, wpos: vec3f) -> vec3f {
+  let sun = F.sunDir.xyz;
+  let shine = O.mat.x;
+  let ndl = dot(n, sun);
+  let wrap = clamp((ndl + 0.4) / 1.4, 0.0, 1.0);
+  let skyL = mix(vec3f(0.2, 0.33, 0.36), vec3f(0.62, 0.74, 0.88), n.y * 0.5 + 0.5); // (water-tinted from below)
+  let bounce = vec3f(0.3, 0.42, 0.42) * max(dot(n, normalize(vec3f(0.0, -0.35, 1.0))), 0.0) * 0.5;
+  var col = O.color.rgb * (skyL * 0.62 + bounce + vec3f(1.0, 0.93, 0.82) * wrap * 0.85);
+  let h = normalize(sun + v);
+  let spec = pow(max(dot(n, h), 0.0), mix(10.0, 70.0, shine)) * shine * smoothstep(-0.1, 0.2, ndl);
+  col += vec3f(1.0, 0.95, 0.88) * spec * 0.7;
+  let fres = pow(1.0 - max(dot(n, v), 0.0), 3.0);
+  col += skyL * fres * 0.22;
+  return col;
 }
 
 // Ink outline: the back faces of each part, pushed out along the normal.

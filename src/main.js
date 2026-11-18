@@ -4,7 +4,7 @@ import { PEEL_SPEED, slice, verticalHits, WAVE, phaseAt, toWorld, waveDir } from
 import { WAVES } from './waves/index.js';
 import { SEA, nextWave, stepSea, waveHeightFt, seedSea } from './sea.js';
 import { perspective, lookAt, mul, invert } from './math.js';
-import { createPose, surferObjects } from './surfer.js';
+import { createPose, surferObjects, LOOK } from './surfer.js';
 
 const params = new URLSearchParams(location.search);
 // Crumbling wave by default; ?wave=barrel for the barreling one. Must be set
@@ -12,6 +12,10 @@ const params = new URLSearchParams(location.search);
 let savedWave = null;
 try { savedWave = localStorage.getItem('rys-rad-waves-wave'); } catch {}
 useWave(params.get('wave') || savedWave || 'point');
+// The surfer's look: illustrated (default) or the real look (Step 1 toward a realistic body): ?look=real|toon,
+// or V in the game; remembered.
+try { LOOK.real = localStorage.getItem('rys-rad-waves-look') === 'real'; } catch {}
+if (params.has('look')) LOOK.real = params.get('look') === 'real';
 
 const $ = (id) => document.getElementById(id);
 const canvas = $('gfx');
@@ -25,6 +29,7 @@ addEventListener('keydown', (e) => {
   if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) e.preventDefault();
   keys.add(e.code);
   if (e.code === 'KeyC') camMode = (camMode + 1) % 2;
+  if (e.code === 'KeyV') { LOOK.real = !LOOK.real; try { localStorage.setItem('rys-rad-waves-look', LOOK.real ? 'real' : 'toon'); } catch {} }
   // On the longboard wave Space walks the board while riding (back -> middle -> front -> middle -> back); otherwise it drops in.
   if (e.code === 'Space' && state === 'play' && WAVE.noseride) { if (!e.repeat) walkPress = 'cycle'; }
   // On waves with `walkKeys` (Queens, the user's trial) Up/Down walk the board instead of steering; Left/Right turn.
@@ -496,7 +501,7 @@ async function main() {
     }, surferObjects(pose, worldRider(), {
       n: toWorld(n), e2: toWorld(v3.norm(v3.cross(n, v3.norm(v3.rej([1, 0, 0], n))))), turn: turnSigned * waveDir(), // (turning left along the wave is turning right in the world on a right)
       pump: false,
-    }, dt), { particles: !params.has('noparticles'), outlines: !params.has('nooutline') });
+    }, dt), { particles: !params.has('noparticles'), outlines: !params.has('nooutline'), look: LOOK.real });
 
     frameMs = frameMs * 0.95 + (dt * 1000) * 0.05; // smoothed frame time
     window.__dbg = { view: tubeView, cam: camPos.map((x) => +x.toFixed(2)), pos: rider.pos.map((x) => +x.toFixed(2)), rt: +rider.t.toFixed(2), tube: !!rider.tube, wave: WAVE.id, wind: +(pose.windup || 0).toFixed(2), unl: +(pose.unload || 0).toFixed(2), ms: +frameMs.toFixed(1), phi: +(rider.phi * 57.3).toFixed(0), turn: touch.turn, tilt: touch.tilt, depth: rider.tube ? +tubeDepth(rider).toFixed(2) : null, state, mode: rider.mode, xs: +rider.xs.toFixed(1), y: +rider.pos[1].toFixed(1), score: Math.round(score), reason: rider.wipeReason, slash: !!rider.slash, slide: +(rider.slide * 57.3).toFixed(0) };
