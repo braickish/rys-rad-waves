@@ -12,7 +12,10 @@ python3 -m http.server 8765 --bind 127.0.0.1   # then open http://127.0.0.1:8765
 
 It needs a WebGPU browser (recent Chrome/Edge, or Safari on macOS/iOS 26+).
 
-URL options: `?wave=barrel` (the barreling wave; default is a crumbling wave), `?play` (skip the
+Waves (2026-11-17 names, after real waves): **Raglan** (`point`, the crumbling point; was "Mellow Point"),
+**Pipe** (`reef`, the simulated barrel; was "Reef Barrel"), **Queens** (`queens`, a small longboard wave). The title
+screen is just the wave picker and a DROP IN button (the instructions were dropped, the user's call).
+URL options: `?wave=point|reef|queens` (older `?wave=barrel` / `crumble` still work), `?play` (skip the
 title), `?auto` (autopilot works the pocket; a test can set `window.__manual = true` to take over the keys), `?xs=-4` (start behind the peel), `?cam=1` (chase
 camera), `?cam=3` (testing: fixed out in the channel, looking at the curl side-on, like a photo
 from the channel; used to compare the reef with reference photos), `?noparticles`. `?size=1.75` (the reef this many times
@@ -45,6 +48,20 @@ button).
   `useWave()` in rider.js. Rider/board feel settings stay in `RIDER_TUNE`. `?wave=<id>` picks a wave;
   `renderer.rebuildWave()` rebuilds the meshes after `useWave()`. Every wave is its own design (mirrored lefts were tried and removed:
   goofy/regular should be a surfer stance, and a left should be its own wave). The title screen has a wave picker (remembered in localStorage).
+- **Queens** (`src/waves/queens.js`, 2026-11-17, after queens.jpg in braickish/reference-images): a small
+  (~1.2 m face, `scale` 0.42), slow-peeling, crumbling right in clear turquoise water (`turquoise`, shaders.js), ridden
+  by a girl in a light blue bikini with long blonde hair (`surfer: 'girl'`, surfer.js) on a 9'6" yellow noserider
+  (`BOARDS.longboard`: wide round nose, single fin, `noseStance` for the hang five). Longboard feel in its `tune`:
+  slower turns (turn rate 2.4 vs 5.2 rad/s) sized to the small wave, glides and carries speed (`bleed` 0.4, `climb`
+  4), ~11 mph in the pocket; no airs, snaps or slashes (turning off the top is a check turn). **Noseriding**
+  (`WAVE.noseride`, rider.js): Space (desktop, while riding; otherwise Space drops in) or the HANG 5 / WALK BACK
+  button (`#nose-btn`) walks to the nose (`noseWalkUp` 1.1 s) and back (0.8 s); the feet shuffle up the board and the
+  arms go out wide (surfer.js `nr`). On the nose you can barely steer (`noseTurnDamp` 0.8); in the pocket the nose
+  trims you to just under the curl's speed (`noseHold`, `noseUnder`), so you stay there; out on the shoulder (pocket
+  power below `nosePocket`) it drags and the nose dips under (`r.noseRisk`, drawn as the board pitching down) until
+  you pearl (wipeout). Scores: HANG FIVE! on reaching the nose, then a noseride bonus by time when you walk back.
+  Spray and mist scale with the wave (`misc.x` particle scale in the frame uniform; rail spray amount). A nose press
+  counts once per frame (main.js clears `input.nose` after the first physics step: two steps toggled it back).
 - `src/wave.js`: the wave model. Two wave types share one 16-point layout: **crumble** (default, the
   crest spills foam down the face, no overhang) and **barrel** (the lip throws over into a tube). The game runs in the **peel frame** (moves with the breaking point),
   where the wave shape is static. Each distance `xs` from the peel point has a 2D cross-section curve

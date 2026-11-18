@@ -10,6 +10,7 @@ struct Frame {
   riderVel: vec4f,  // xyz, dt
   spray: vec4f,     // spray direction xyz, frame index
   params: vec4f,    // lip table x0, step, count, wipeout burst
+  misc: vec4f,      // x: particle scale (smaller on small waves), -, -, -
 };
 @group(0) @binding(0) var<uniform> F: Frame;
 
@@ -70,7 +71,7 @@ struct VO {
   @location(2) attr: vec3f,
 };
 // The water surface, built from the cross-section table (see mesh.js).
-struct WaterInfo { cols: u32, nx: u32, rows: u32, pad: u32, sMin: f32, sMax: f32, scale: f32, pad2: f32 };
+struct WaterInfo { cols: u32, nx: u32, rows: u32, pad: u32, sMin: f32, sMax: f32, scale: f32, turquoise: f32 };
 @group(0) @binding(1) var<uniform> W: WaterInfo;
 @group(0) @binding(2) var<storage, read> table: array<vec4f>;   // [z, y, foam, thin] per (row, col)
 @group(0) @binding(3) var<storage, read> slices: array<vec2f>;  // [xs, phase] per slice
@@ -176,6 +177,8 @@ fn coarseTex(q: vec2f, t: f32) -> f32 {
   let deep = vec3f(0.01, 0.12, 0.19);
   let upper = vec3f(0.03, 0.34, 0.40);
   var body = mix(deep, upper, smoothstep(-0.5, 4.0, i.wpos.y));
+  // Clear, shallow, sunlit water (W.turquoise, e.g. Queens): brighter turquoise throughout.
+  body = mix(body, mix(vec3f(0.02, 0.36, 0.42), vec3f(0.08, 0.62, 0.6), smoothstep(-0.3, 1.2, i.wpos.y)), W.turquoise);
   let diff = max(dot(n, sun), 0.0);
   body *= 0.6 + 0.4 * diff;
   // The ribs also show as lighter and darker streaks of water up the face.
@@ -403,7 +406,7 @@ struct VO { @builtin(position) pos: vec4f, @location(0) uv: vec2f, @location(1) 
   let camDist = length(p.pos.xyz - F.camPos.xyz);
   if (camDist < 2.5) { o.pos = vec4f(0.0, 0.0, 2.0, 1.0); return o; }
   let grow = select(1.0, 1.0 + age * 2.5, p.vel.w == 4.0); // the plume billows out as it goes
-  let size = min(p.extra.y * (0.7 + age * 1.0) * grow, camDist * 0.06);
+  let size = min(p.extra.y * (0.7 + age * 1.0) * grow * F.misc.x, camDist * 0.06);
   let w = p.pos.xyz + (cam[0].xyz * corner.x + cam[1].xyz * corner.y) * size;
   o.pos = F.viewProj * vec4f(w, 1.0);
   o.uv = corner;

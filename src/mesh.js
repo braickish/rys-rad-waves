@@ -164,6 +164,22 @@ export const BOARDS = {
     fins: [[-0.72, 0.15, 0.11, 0.13], [-0.72, -0.15, 0.11, 0.13], [-0.88, 0, 0.11, 0.13]], // thruster
     stringer: [1.7, -0.05],
   },
+  // A 9'6" noserider (Queens): 23" wide, a wide round nose (for standing on
+  // it) and a squared tail, thick and flat with a little nose and tail kick,
+  // one big fin. Yellow, like the board in the reference photo.
+  longboard: {
+    half: 1.45,
+    width: planform(0.292, 0.22, 0.42, -0.95), // 23" wide; the nose stays wide (round), the tail squares off
+    notch: 0,
+    rocker: (u) => 0.012 * u * u + 0.1 * Math.max(0, u - 0.6) ** 2 / 0.16 + 0.04 * Math.max(0, -u - 0.75) ** 2 / 0.0625,
+    thick: (u) => 0.07 * (1 - 0.45 * u * u),
+    noseFrom: 0.88,
+    stance: [-0.95, -0.42], // trimming: back foot near the fin, front foot behind the middle
+    noseStance: [0.78, 1.3], // on the nose: back foot behind, front toes over the nose (hang five)
+    fins: [[-1.25, 0, 0.23, 0.26]], // single fin
+    stringer: [2.7, 0],
+    colors: { deck: [0.98, 0.78, 0.3], nose: [0.97, 0.55, 0.22] },
+  },
 };
 export const BOARD_HALF_LENGTH = BOARDS.fish.half;
 export function boardMesh(shape = BOARDS.fish, u0 = -1, u1 = 1, segs = 28, ring = 14) {

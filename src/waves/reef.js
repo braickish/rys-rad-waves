@@ -20,7 +20,7 @@ const SIZE_K = (() => {
 
 const reef = {
   id: 'reef',
-  name: 'Reef Barrel',
+  name: 'Pipe',
   kind: 'barrel',
   keyframes: USE_SIM ? KF_SIM : KF_PIPE,
   board: 'shortboard', // a 6'6" thruster with plenty of rocker for the steep, hollow face (mesh.js BOARDS)

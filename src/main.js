@@ -25,8 +25,11 @@ addEventListener('keydown', (e) => {
   if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) e.preventDefault();
   keys.add(e.code);
   if (e.code === 'KeyC') camMode = (camMode + 1) % 2;
-  if (e.code === 'Space' || e.code === 'Enter') startOrRestart();
+  // Space walks to the nose and back on the longboard wave while riding; otherwise it drops in.
+  if (e.code === 'Space' && state === 'play' && WAVE.noseride) { if (!e.repeat) nosePress = true; }
+  else if (e.code === 'Space' || e.code === 'Enter') startOrRestart();
 });
+let nosePress = false; // (a press of Space / the nose button, handed to the rider once)
 addEventListener('keyup', (e) => keys.delete(e.code));
 addEventListener('blur', () => keys.clear());
 
@@ -42,7 +45,8 @@ function autopilot() {
   }
 
 
-  if (autoUp && rider.height > 0.88) autoUp = false;
+  const upTo = WAVE.noseride ? 0.6 : 0.88; // (the longboard turns slowly: come back down sooner)
+  if (autoUp && rider.height > upTo) autoUp = false;
   if (!autoUp && rider.height < 0.15) autoUp = true;
   if (Math.cos(rider.phi) < 0) return { aim: [1, -0.3] }; // facing back: turn back down the line
   if (rider.xs < -1) return { aim: [1, 0.6] }; // behind the curl: climb out along the line
@@ -53,13 +57,15 @@ function autopilot() {
 // right. Touch: swipes do exactly the same (swipe left or up = Left, swipe
 // right or down = Right), harder the further you swipe.
 function readInput() {
-  if (params.has('auto') && !window.__manual) return autopilot(); // (tests set __manual to take over)
+  if (params.has('auto') && !window.__manual) { const nose = nosePress; nosePress = false; return { ...autopilot(), nose }; } // (tests set __manual to take over; Space still walks to the nose)
   const k = (...c) => c.some((x) => keys.has(x));
   const turn = (k('ArrowLeft', 'KeyA') ? 1 : 0) - (k('ArrowRight', 'KeyD') ? 1 : 0);
   const tilt = (k('ArrowUp', 'KeyW') ? 1 : 0) - (k('ArrowDown', 'KeyS') ? 1 : 0);
+  const nose = nosePress; nosePress = false;
   return {
     turn: touch.turn || turn, tilt: touch.tilt || tilt,
     crouch: k('ShiftLeft', 'ShiftRight', 'KeyJ') || touch.crouch,
+    nose,
   };
 }
 
@@ -67,7 +73,10 @@ function readInput() {
 let stickId = null, stickStart = [0, 0];
 const SWIPE_PX = 45; // full turn at this far from where the swipe started
 // The title and game-over panels cover the canvas, so taps land on them.
-for (const id of ['title', 'over']) $(id).addEventListener('pointerdown', (e) => { e.preventDefault(); startOrRestart(); });
+$('over').addEventListener('pointerdown', (e) => { e.preventDefault(); startOrRestart(); });
+$('start').addEventListener('click', (e) => { e.preventDefault(); startOrRestart(); });
+// The noseride button (longboard wave): walk to the nose / walk back.
+$('nose-btn').addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); nosePress = true; });
 canvas.addEventListener('pointerdown', (e) => {
   if (state === 'title' || state === 'over') { startOrRestart(); return; }
   stickId = e.pointerId; stickStart = [e.clientX, e.clientY];
@@ -127,6 +136,11 @@ function flash(text, sub = '') {
 
 function handleEvents() {
   for (const e of rider.events) {
+    if (e.type === 'noseride' && e.time > 0.3) {
+      const pts = Math.round(150 + e.time * 250);
+      score += pts;
+      flash(e.time > 3 ? 'LONG NOSERIDE!' : 'Noseride', `${e.time.toFixed(1)}s on the nose  +${pts}`);
+    }
     if (e.type === 'barrelEnter') flash('In the barrel!', 'drop from high to drive forward · stay off the roof');
     if (e.type === 'barrelExit' && e.time > 0.4) {
       // Time in the tube, more the deeper you got.
@@ -147,6 +161,7 @@ function handleEvents() {
         bottomTurn: ['Bottom turn', 100, 0],
         topTurn: ['Top turn', 150, 0.15],
         snap: ['SNAP!', 500, 0.35],
+        hang5: ['HANG FIVE!', 250, 0],
         check: ['CHECK TURN', 200, 0.25],
         reentry: ['RE-ENTRY!', 700, 0.4],
         floater: ['FLOATER!', 600, 0.3],
@@ -404,6 +419,7 @@ async function main() {
       while (acc >= STEP) {
         stepSea(STEP);
         stepRider(rider, input, STEP);
+        input.nose = false; // (a press counts once, not once per physics step this frame)
         handleEvents();
         for (const e of SEA.events) {
           if (e.type === 'section') flash(e.kind === 'closeout' ? 'Section closing out ahead!' : "It's throwing ahead!", e.kind === 'closeout' ? 'race it, or float over it' : 'get in there');
@@ -445,7 +461,7 @@ async function main() {
     const surfing = rider.mode === 'surf';
     const speed = v3.len(rider.vel);
     snapSpray = Math.max(0, snapSpray - dt);
-    const sprayAmt = surfing ? Math.min(1, Math.abs(turnSigned) * 0.3 * Math.min(1, speed / 6) + (rider.pumping ? 0.15 : 0) + (snapSpray > 0 ? 0.5 : 0)) : 0;
+    const sprayAmt = (surfing ? Math.min(1, Math.abs(turnSigned) * 0.3 * Math.min(1, speed / 6) + (rider.pumping ? 0.15 : 0) + (snapSpray > 0 ? 0.5 : 0)) : 0) * Math.min(1, WAVE.scale / 1.25); // (less on small waves)
     const side = v3.norm(v3.cross(n, rider.heading));
     const sprayDir = v3.norm(v3.add(v3.mul(side, turnSigned > 0 ? -1 : 1), v3.mul(rider.heading, -0.4)));
     burst = Math.max(0, burst - dt);
@@ -465,6 +481,10 @@ async function main() {
     msgTimer -= dt;
     if (msgTimer <= 0) $('msg').classList.remove('pop');
     $('hint').hidden = state !== 'play';
+    const nb = $('nose-btn');
+    nb.hidden = !(state === 'play' && WAVE.noseride && rider.mode === 'surf');
+    if (!nb.hidden) nb.textContent = rider.noseGoal ? 'Walk back' : 'Hang 5';
+    $('hint-nose').hidden = !WAVE.noseride;
     $('score').textContent = Math.round(score);
     $('speed').textContent = Math.round(groundSpeed(rider) * 2.237);
     const tube = $('tube');

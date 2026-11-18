@@ -284,7 +284,7 @@ export function createRider() {
     airSpin: 0, airTime: 0, spinArmed: false,
     moveCooldown: 0, lastBottomTurn: -9, bottomArmed: false,
     tube: null, fakie: null, driveBank: 0, lastTurnTime: -9, lastTurnDir: 0, overTheBack: false,
-    rideDir: 1, lock: null, inDir: 0, lipSnap: null, snapGrip: false, roundhouse: null, crouchDepth: 0, barrelCrouch: 0, frontLean: 0, tubeDamp: 0, slash: null, slide: 0, rightHeld: 0, turnDir: 0, turnDirAge: 9, turnHeld: 0, hard: 0, assist: null, bottomCarve: false, floater: null,
+    rideDir: 1, lock: null, inDir: 0, lipSnap: null, snapGrip: false, roundhouse: null, crouchDepth: 0, barrelCrouch: 0, frontLean: 0, tubeDamp: 0, nose: 0, noseGoal: 0, noseTime: 0, noseRisk: 0, onNose: false, slash: null, slide: 0, rightHeld: 0, turnDir: 0, turnDirAge: 9, turnHeld: 0, hard: 0, assist: null, bottomCarve: false, floater: null,
     wipeReason: '', wipeTimer: 0, wipeAge: 0, washing: false, falls: null, fallsBoard: null,
     events: [],
     time: 0,
@@ -490,14 +490,14 @@ function stepSurf(r, input, dt) {
     r.inDir = raw ? Math.sign(raw) : (input.aim && (input.aim[0] || input.aim[1]) ? 2 : 0);
     const busy = r.assist || r.lipSnap || r.snapGrip;
     if (r.lock && !busy) r.lock = null; // the move's done: your input counts again
-    if (r.lock) input = { crouch: input.crouch };
+    if (r.lock) input = { crouch: input.crouch, nose: input.nose }; // (the noseride button still works during a move)
   }
   const wantsTurn = !!(input.turn || input.tilt || (input.aim && (input.aim[0] || input.aim[1])));
   if (!wantsTurn || Math.sin(r.phi) > 0.5) r.bottomCarve = false;
   else if (r.turnHeld === 0 && !r.turnDir && Math.sin(r.phi) < -0.3 && height < 0.6) r.bottomCarve = true;
   const hard = r.bottomCarve ? 1 : r.hard;
   const radius = (T.rTop + (T.rBottom - T.rTop) * low) * (r.bottomCarve ? T.bottomCarveRadius : 1 - (1 - T.hardRadius) * hard);
-  const rate = (1 - (T.tubeTurnDamp || 0) * r.tubeDamp) * clamp(r.speed / radius, T.minTurn, T.turn * (1 + (T.hardRate - 1) * hard)); // (damped in the barrel: subtler turns the deeper you are)
+  const rate = (1 - (T.tubeTurnDamp || 0) * r.tubeDamp) * (1 - (T.noseTurnDamp || 0) * r.nose) * clamp(r.speed / radius, T.minTurn, T.turn * (1 + (T.hardRate - 1) * hard)); // (damped in the barrel: subtler turns the deeper you are)
   // Which way you're riding along the wave, with hysteresis: it only flips
   // once you're clearly heading the other way, so Up/Down can't swap
   // direction while the nose is near vertical (e.g. coming off a snap).
@@ -609,6 +609,31 @@ function stepSurf(r, input, dt) {
   // (for the surfer's pose: crouch lower and lean deeper as the roundhouse comes round)
   r.crouchDepth += ((r.roundhouse ? r.roundhouse.depth : 0) - r.crouchDepth) * (1 - Math.exp(-dt * (r.roundhouse ? 10 : 4)));
   if (r.roundhouse) r.hard = Math.max(r.hard, r.roundhouse.depth);
+  // --- noseriding (waves with `noseride`: the longboard) ---
+  // Space / the button toggles walking up to the nose and back. On the nose
+  // you can barely steer (noseTurnDamp, in `rate` above). In the pocket the
+  // nose trims you to the curl's speed, so you slow down and stay there; out
+  // on the shoulder (pocket power below nosePocket) it drags and starts going
+  // under, and stay out there too long and you pearl.
+  if (WAVE.noseride) {
+    if (input.nose) r.noseGoal = r.noseGoal ? 0 : 1;
+    const walk = r.noseGoal ? 1 / T.noseWalkUp : -1 / T.noseWalkBack;
+    r.nose = clamp(r.nose + walk * dt, 0, 1);
+    const n = sstep(0.3, 1, r.nose);
+    if (r.nose >= 1 && !r.onNose) { r.onNose = true; r.events.push({ type: 'move', move: 'hang5', speed: r.speed, xs: r.xs }); }
+    if (r.onNose) r.noseTime += dt;
+    if (r.onNose && r.nose < 0.6) { // walked back
+      r.events.push({ type: 'noseride', time: r.noseTime });
+      r.onNose = false; r.noseTime = 0;
+    }
+    if (n > 0) {
+      r.speed += (PEEL_SPEED - (T.noseUnder || 0) - r.speed) * (1 - Math.exp(-dt * T.noseHold * pk * n)); // (a touch under the curl's speed: the wave adds a little back)
+      const out = clamp(1 - pk / T.nosePocket, 0, 1); // 0 in the pocket .. 1 well out on the shoulder
+      r.speed *= Math.exp(-dt * T.noseDrag * out * n);
+      r.noseRisk = clamp(r.noseRisk + (out > 0 ? out * n / T.nosePearl : -1.5) * dt, 0, 1);
+      if (r.noseRisk >= 1) return wipe(r, 'Pearled! (noseride in the pocket, not out on the shoulder)');
+    } else r.noseRisk = Math.max(0, r.noseRisk - 1.5 * dt);
+  }
   // In the barrel: crouch lower the deeper you are (a compact crouch as you go
   // in, right down to the full barrel stance deep in), and really deep, a
   // slight lean onto the front foot (which drives you forward a little; see

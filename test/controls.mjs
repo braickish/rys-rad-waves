@@ -25,7 +25,7 @@ function play(name, script, { secs = 8, tiltOnly = false } = {}) {
   console.log(`${ok ? 'ok  ' : 'FAIL'} ${name.padEnd(40)} ${(i * dt).toFixed(1).padStart(4)}s minHeadingX=${minHx.toFixed(2)} minVx=${minVx.toFixed(1)} airs=${airs} ${r.mode === 'wipe' ? '(' + r.wipeReason + ')' : ''}`);
 }
 const alt = (period, a, b) => (t) => (Math.floor(t / period) % 2 ? b : a);
-for (const wave of ['crumble', 'barrel']) {
+for (const wave of ['crumble', 'barrel', 'queens']) {
   useWave(wave);
   console.log(`-- ${wave}`);
   play('Up only, then Down only', (t) => ({ tilt: t < 1.2 ? 1 : -1 }), { tiltOnly: true });

@@ -3,7 +3,7 @@
 
 import { skyWGSL, waterWGSL, solidWGSL, particleComputeWGSL, particleRenderWGSL } from './shaders.js';
 import { buildWaterTable, buildWaterIndices, slicePhases, WATER_XS, COLS, TABLE, buildLipTable, LIP, boxMesh, sphereMesh, boardMesh, cylinderMesh, BOARDS } from './mesh.js';
-import { SCALE } from './wave.js';
+import { SCALE, WAVE } from './wave.js';
 
 export const PARTICLES = 40960;
 // Cap the render resolution: a Retina laptop at full 2x is ~5M pixels (x4 MSAA);
@@ -61,7 +61,7 @@ export async function createRenderer(canvas) {
   const writeWaterInfo = () => {
     const b = new ArrayBuffer(32), u = new Uint32Array(b), f = new Float32Array(b);
     u[0] = COLS; u[1] = WATER_XS.length; u[2] = TABLE.rows;
-    f[4] = TABLE.sMin; f[5] = TABLE.sMax; f[6] = SCALE;
+    f[4] = TABLE.sMin; f[5] = TABLE.sMax; f[6] = SCALE; f[7] = WAVE.turquoise || 0; // (clear, shallow water: Queens)
     device.queue.writeBuffer(waterInfoBuf, 0, b);
   };
   writeWaterInfo();
@@ -220,6 +220,7 @@ export async function createRenderer(canvas) {
     frameData.set([...f.riderVel, f.dt], 44);
     frameData.set([...f.sprayDir, f.frame], 48);
     frameData.set([LIP.x0, LIP.step, LIP.count, f.burst], 52);
+    frameData.set([Math.min(1, Math.max(0.3, WAVE.scale / 1.25)), 0, 0, 0], 56); // particle scale: smaller spray on small waves (Queens)
     device.queue.writeBuffer(frameBuf, 0, frameData);
     device.queue.writeBuffer(camBuf, 0, new Float32Array([...f.camRight, 0, ...f.camUp, 0]));
     const n = Math.min(objects.length, MAX_OBJECTS);

@@ -50,6 +50,8 @@
   .waves { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin: 0 auto 16px; max-width: 460px; }
   .waves button { font-family: Rubik, sans-serif; font-weight: 700; font-size: 13px; color: #fff; background: rgba(11,26,36,.55); border: 2px solid rgba(255,255,255,.5); border-radius: 18px; padding: 6px 12px; cursor: pointer; }
   .waves button.on { background: var(--teal); border-color: #fff; color: var(--ink); }
+  .start { font-family: Bungee, sans-serif; font-size: 22px; color: var(--ink); background: var(--teal); border: 3px solid #fff; border-radius: 28px; padding: 10px 34px; cursor: pointer; box-shadow: 3px 3px 0 rgba(0,0,0,.3); }
+  #nose-btn { position: fixed; right: 16px; bottom: 56px; min-width: 96px; height: 96px; border-radius: 48px; border: 3px solid #fff; font-family: Bungee, sans-serif; font-size: 15px; color: #fff; background: rgba(255,170,40,.85); box-shadow: 3px 3px 0 rgba(0,0,0,.3); touch-action: none; cursor: pointer; z-index: 5; padding: 0 14px; }
   .tip { font-size: 12px; }
   .keys { margin: 14px auto 0; display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; text-align: left; font-size: 14px; background: rgba(11,26,36,.5); padding: 14px 18px; border-radius: 12px; max-width: 400px; }
   .keys b { font-family: Bungee, sans-serif; font-weight: 400; color: var(--yellow); white-space: nowrap; }
@@ -82,7 +84,8 @@
 </div>
 <div id="msg"></div>
 <div id="balance" hidden><div class="ends"><span>out</span><span>deeper ⟶ more points</span><span>pinch</span></div><div class="track"><div class="zone deep"></div><div class="zone r"></div><div class="safe"></div><div id="balance-needle"></div></div><small>drop from high to drive forward · stay off the roof · don't get pinched</small></div>
-<div id="hint"><span class="desk">←/↑ toward the wave · →/↓ away (hold to lean harder) · C camera</span><span class="mob">Swipe left/up to turn left · right/down to turn right</span></div>
+<button id="nose-btn" hidden>Hang 5</button>
+<div id="hint"><span class="desk">←/↑ toward the wave · →/↓ away (hold to lean harder) · C camera<span id="hint-nose" hidden> · Space: walk to the nose</span></span><span class="mob">Swipe left/up to turn left · right/down to turn right</span></div>
 
 <div id="err" hidden></div>
 
@@ -90,18 +93,7 @@
   <div class="card">
     <h1 class="logo">Ry's Rad<span>Waves</span></h1>
     <div id="waves" class="waves"></div>
-    <div class="go"><span class="desk">Press Space to drop in</span><span class="mob">Tap to drop in</span></div>
-    <div class="keys desk">
-      <b>← / ↑</b><span>Turn toward the wave (up the face)</span>
-      <b>→ / ↓</b><span>Turn away from the wave (down the face; keep going round for a cutback)</span>
-      <b>→ early</b><span>Coming up out of a bottom turn, turn → while still at the bottom: the fins release and the board slides round for a SLASH</span>
-      <b>Shoulder: turn back round</b><span>Out on the shoulder, carve all the way back toward the whitewater for a ROUNDHOUSE (crouch low as it comes round)</span>
-      <b>In the barrel</b><span>Surf it like the face: drop from high to drive forward · don't get pinched, stay off the roof</span>
-      <b>Hold a turn</b><span>Lean into it harder: tighter, more drive out of a bottom turn</span>
-      <b>Turn in the air</b><span>Spin (finish it to land)</span>
-      <b>C</b><span>Switch camera</span>
-    </div>
-    <p class="tip">Your speed comes from the pocket, right next to where the wave is breaking. Bottom turns make speed. Points come from moves, not just riding.<br>Bottom turn, then turn → near the top for a snap (into the whitewater it's a re-entry).<br>Cut back (→ around) and meet the whitewater high, turning as you hit it: ← to rebound, → to spin a 180. Out on the shoulder you'll bog down.</p>
+    <button id="start" class="start">Drop in</button>
   </div>
 </div>
 

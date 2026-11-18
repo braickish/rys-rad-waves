@@ -20,6 +20,9 @@ const COL = {
   skin: [0.86, 0.6, 0.42], hair: [0.42, 0.29, 0.17], shorts: [0.42, 0.48, 0.6], shortsDark: [0.3, 0.35, 0.46],
   band: [0.08, 0.08, 0.1], logo: [0.85, 0.2, 0.25],
 };
+// The girl on the longboard wave (WAVE.surfer === 'girl'): fair, tanned skin,
+// long blonde hair, a light blue bikini (after the Queens reference photo).
+const GIRL = { skin: [0.93, 0.7, 0.52], hair: [0.95, 0.82, 0.52], bikini: [0.6, 0.84, 0.95] };
 const THIGH = 0.46, SHIN = 0.46, UPPER = 0.3, FORE = 0.3;
 const MAX_ROLL = 0.95; // furthest the board banks onto a rail (rad, ~55 deg)
 const CHEST_OPEN = 0.45;
@@ -77,8 +80,8 @@ function ball(p, r, color, x = [1, 0, 0], y = [0, 1, 0], z = [0, 0, 1], sy = 1) 
 export function boardObjects(f, ub, Lb, bc) {
   const B = boardShape(), name = WAVE.board && BOARDS[WAVE.board] ? WAVE.board : 'fish';
   const objs = [];
-  objs.push({ mesh: `board-${name}`, model: basis(f, ub, Lb, 1, 1, 1, bc), color: COL.board });
-  objs.push({ mesh: `boardNose-${name}`, model: basis(f, ub, Lb, 1, 1, 1, bc), color: COL.nose });
+  objs.push({ mesh: `board-${name}`, model: basis(f, ub, Lb, 1, 1, 1, bc), color: B.colors ? B.colors.deck : COL.board });
+  objs.push({ mesh: `boardNose-${name}`, model: basis(f, ub, Lb, 1, 1, 1, bc), color: B.colors ? B.colors.nose : COL.nose });
   // (stringer in short pieces so it follows the rocker)
   const rk = (x) => B.rocker(x / B.half);
   const n = 8, sl = B.stringer[0] / n;
@@ -130,6 +133,11 @@ export function surferObjects(pose, rider, info, dt) {
   const bc = rider.mode === 'surf' ? rider.barrelCrouch || 0 : 0;
   const inB = clamp(bc / 0.3, 0, 1), deep = sstepS(0.3, 1, bc);
   const fl = rider.mode === 'surf' ? rider.frontLean || 0 : 0;
+  // Noseriding (rider.js): nr walks 0 (normal stance) -> 1 (on the nose).
+  const nr = rider.mode === 'surf' ? rider.nose || 0 : 0;
+  const onNose = sstepS(0.6, 1, nr);
+  const girl = WAVE.surfer === 'girl';
+  const C = girl ? { ...COL, skin: GIRL.skin, hair: GIRL.hair, shorts: GIRL.bikini } : COL;
   let rollT = rider.mode === 'surf'
     ? clamp(info.turn * 0.17 * clamp(speed0 / 5, 0.85, 1.4) * (1 + 0.35 * committed), -MAX_ROLL, MAX_ROLL)
     : 0;
@@ -141,8 +149,12 @@ export function surferObjects(pose, rider, info, dt) {
   pose.roll = (pose.roll || 0) + (rollT - (pose.roll || 0)) * (1 - Math.exp(-dt * (rider.bottomCarve ? 16 : 10)));
   // Tilt the board's up vector toward the inside of the turn (+ roll = left
   // rail down), so the inside rail digs in.
-  const ub = v3.norm(rotateAbout(u, f, -pose.roll));
-  const Lb = v3.norm(v3.cross(ub, f));
+  let ub = v3.norm(rotateAbout(u, f, -pose.roll));
+  let Lb = v3.norm(v3.cross(ub, f));
+  // Pearling (noseriding out on the shoulder): the nose dips under.
+  let bf = f;
+  const dip = rider.mode === 'surf' ? 0.32 * (rider.noseRisk || 0) : 0;
+  if (dip > 0) { bf = v3.norm(rotateAbout(f, Lb, -dip)); ub = v3.norm(rotateAbout(ub, Lb, -dip)); }
 
   // --- pose drivers ---
   const speed = v3.len(rider.vel);
@@ -153,6 +165,7 @@ export function surferObjects(pose, rider, info, dt) {
   if (rider.crouch && !rider.tube) kneeT = 0.85;
   // In the tube: a compact, athletic crouch going in, right down deep in the barrel.
   if (bc > 0.01) kneeT = Math.max(kneeT, inB * (0.42 + 0.58 * deep));
+  if (nr > 0.01) kneeT = kneeT * (1 - nr) + 0.22 * nr; // standing tall and relaxed walking up and on the nose
   if (rider.mode === 'air') kneeT = 0.7;
   // Going over the falls (off the board): curled up in a ball, knees to chest.
   const tuck = rider.falls ? clamp(rider.falls.time / 0.3, 0, 1) : 0;
@@ -194,9 +207,17 @@ export function surferObjects(pose, rider, info, dt) {
   // the middle of the board.
   const STANCE = boardShape().stance; // back and front foot along the board (m from its middle)
   const bs = boardShape(); // (feet sit on the deck, which rises with the rocker)
-  let backFoot = add(B, v3.mul(f, STANCE[0]), v3.mul(u, bs.rocker(STANCE[0] / bs.half)));
-  let frontFoot = add(B, v3.mul(f, STANCE[1]), v3.mul(u, bs.rocker(STANCE[1] / bs.half)));
-  const mid = (STANCE[0] + STANCE[1]) / 2;
+  // Walking to the nose: the feet shuffle up the board one after the other
+  // (back foot first), each lifting as it steps, to the hang-five stance.
+  let st = STANCE, lift = [0, 0];
+  if (nr > 0.001 && bs.noseStance) {
+    const NS = bs.noseStance, a = sstepS(0, 0.55, nr), b = sstepS(0.4, 1, nr);
+    st = [STANCE[0] + (NS[0] - STANCE[0]) * a, STANCE[1] + (NS[1] - STANCE[1]) * b];
+    lift = [0.12 * Math.sin(Math.PI * Math.min(1, nr / 0.55)) * (nr < 0.55 ? 1 : 0), 0.12 * Math.sin(Math.PI * Math.max(0, Math.min(1, (nr - 0.4) / 0.6)))];
+  }
+  let backFoot = add(B, v3.mul(f, st[0]), v3.mul(u, bs.rocker(st[0] / bs.half) + lift[0]));
+  let frontFoot = add(B, v3.mul(f, st[1]), v3.mul(u, bs.rocker(st[1] / bs.half) + lift[1]));
+  const mid = (st[0] + st[1]) / 2;
   // Hips drop and slide back over the heels as the knees bend.
   // (deep in the barrel the hips sink further, and leaning onto the front foot moves them forward)
   const hipH = (0.92 - 0.44 * knee - 0.1 * deep) * (1 - 0.4 * tuck);
@@ -220,8 +241,9 @@ export function surferObjects(pose, rider, info, dt) {
   const headDir = v3.norm(lerp3(torsoDir, bodyUp, 0.5 * deep)); // head up, looking down the line, in the barrel stance
   const head = add(neck, v3.mul(headDir, 0.2), v3.mul(chest, 0.03), v3.mul(across, 0.03));
   // Front shoulder drops into a bottom turn; both lift as you spring open.
-  const shBack = add(neck, v3.mul(across, -0.19), v3.mul(torsoDir, -0.04 + 0.05 * windup + 0.03 * unload));
-  const shFront = add(neck, v3.mul(across, 0.19), v3.mul(torsoDir, -0.04 - 0.1 * windup + 0.03 * unload));
+  const shW = girl ? 0.16 : 0.19; // (narrower shoulders for the girl)
+  const shBack = add(neck, v3.mul(across, -shW), v3.mul(torsoDir, -0.04 + 0.05 * windup + 0.03 * unload));
+  const shFront = add(neck, v3.mul(across, shW), v3.mul(torsoDir, -0.04 - 0.1 * windup + 0.03 * unload));
 
   // Hands: out for balance by default; in a big turn the inside hand drags
   // toward the water and the other rises.
@@ -262,6 +284,12 @@ export function surferObjects(pose, rider, info, dt) {
     handBack = add(handBack, v3.mul(bodyUp, swing));
     handFront = add(handFront, v3.mul(bodyUp, swing));
   }
+  // On the nose (after the turning poses, so it wins): arms out wide for balance, a little raised (the reference photo).
+  if (nr > 0.01) {
+    const w = Math.max(onNose, 0.5 * Math.sin(Math.PI * nr));
+    handBack = lerp3(handBack, add(shBack, v3.mul(across, -0.55), v3.mul(bodyUp, 0.05), v3.mul(chest, 0.05)), w);
+    handFront = lerp3(handFront, add(shFront, v3.mul(across, 0.55), v3.mul(bodyUp, 0.12), v3.mul(chest, 0.05)), w);
+  }
   if (tuck > 0) {
     // arms wrapped round the shins
     handBack = lerp3(handBack, add(lerp3(legB.joint, backFoot, 0.4), v3.mul(chest, 0.08)), tuck);
@@ -275,9 +303,18 @@ export function surferObjects(pose, rider, info, dt) {
   const objs = [];
   // Board (banked onto its rail). Going over the falls you've come off it:
   // it's drawn on its own where the wave has taken it (rider.fallsBoard).
-  if (!rider.falls) objs.push(...boardObjects(f, ub, Lb, add(p, v3.mul(u, 0.04 + railLift))));
+  if (!rider.falls) objs.push(...boardObjects(bf, ub, Lb, add(p, v3.mul(u, 0.04 + railLift))));
   // Legs: boardshorts to just above the knee, then bare legs and feet.
   for (const [hp, leg, foot, logo] of [[hipBack, legB, backFoot, false], [hipFront, legF, frontFoot, true]]) {
+    if (girl) {
+      // bare legs, slimmer
+      objs.push(ball(hp, 0.095, C.skin));
+      objs.push(cyl(hp, leg.joint, 0.078, 0.082, f, C.skin));
+      objs.push(ball(leg.joint, 0.058, C.skin));
+      objs.push(cyl(leg.joint, foot, 0.048, 0.05, f, C.skin));
+      objs.push(ball(add(foot, v3.mul(ub, 0.03), v3.mul(chest, 0.04)), 0.065, C.skin, f, ub, Lb, 0.45));
+      continue;
+    }
     const shortsEnd = lerp3(hp, leg.joint, 0.78);
     objs.push(ball(hp, 0.105, COL.shorts)); // hip joint, so the thigh meets the hips cleanly
     objs.push(cyl(hp, shortsEnd, 0.1, 0.105, f, COL.shorts));
@@ -289,6 +326,19 @@ export function surferObjects(pose, rider, info, dt) {
   }
   // Hips (shorts) and the waistband.
   // Pelvis: a rounded block of boardshorts joining both thighs.
+  if (girl) {
+    // Bikini bottoms, a slim waist and torso, narrower shoulders, a bikini top,
+    // and long blonde hair down her back.
+    objs.push(ball(add(hip, v3.mul(torsoDir, 0.02)), 0.14, C.shorts, across, torsoDir, chest, 0.7));
+    objs.push(cyl(add(hip, v3.mul(torsoDir, 0.08)), add(neck, v3.mul(torsoDir, -0.12)), 0.115, 0.09, across, C.skin));
+    objs.push({ mesh: 'sphere', model: basis(across, torsoDir, chest, 0.36, 0.32, 0.21, add(neck, v3.mul(torsoDir, -0.17))), color: C.skin });
+    objs.push({ mesh: 'sphere', model: basis(across, torsoDir, chest, 0.3, 0.11, 0.2, add(neck, v3.mul(torsoDir, -0.22), v3.mul(chest, 0.025))), color: C.shorts });
+    objs.push(cyl(neck, add(neck, v3.mul(torsoDir, 0.1)), 0.04, 0.04, across, C.skin));
+    objs.push(ball(head, 0.11, C.skin, across, torsoDir, chest, 1.12));
+    objs.push(ball(add(head, v3.mul(torsoDir, 0.05), v3.mul(chest, -0.03)), 0.12, C.hair, across, torsoDir, chest, 0.8));
+    objs.push(ball(add(head, v3.mul(torsoDir, -0.1), v3.mul(chest, -0.09)), 0.1, C.hair, across, torsoDir, chest, 1.3));
+    objs.push(ball(add(head, v3.mul(torsoDir, -0.28), v3.mul(chest, -0.1)), 0.085, C.hair, across, torsoDir, chest, 1.5));
+  } else {
   objs.push(ball(add(hip, v3.mul(torsoDir, 0.02)), 0.16, COL.shorts, across, torsoDir, chest, 0.85));
   // Waistband: just a black band of the shorts, flush with the body (same
   // size as the bottom of the torso), no outline.
@@ -303,13 +353,15 @@ export function surferObjects(pose, rider, info, dt) {
   objs.push(ball(head, 0.12, COL.skin, across, torsoDir, chest, 1.12));
   objs.push(ball(add(head, v3.mul(torsoDir, 0.06), v3.mul(chest, -0.02)), 0.125, COL.hair, across, torsoDir, chest, 0.72));
   objs.push(ball(add(head, v3.mul(torsoDir, 0.09), v3.mul(chest, 0.07)), 0.07, COL.hair, across, torsoDir, chest, 0.55));
+  }
   // Arms: shoulders, upper arm, elbow, forearm, hand (all bare).
   for (const [sh, arm] of [[shBack, armB], [shFront, armF]]) {
-    objs.push(ball(sh, 0.06, COL.skin));
-    objs.push(cyl(sh, arm.joint, 0.043, 0.043, chest, COL.skin));
-    objs.push(ball(arm.joint, 0.04, COL.skin));
-    objs.push(cyl(arm.joint, arm.end, 0.036, 0.036, chest, COL.skin));
-    objs.push(ball(arm.end, 0.048, COL.skin, across, torsoDir, chest, 1.2));
+    const k = girl ? 0.85 : 1;
+    objs.push(ball(sh, 0.06 * k, C.skin));
+    objs.push(cyl(sh, arm.joint, 0.043 * k, 0.043 * k, chest, C.skin));
+    objs.push(ball(arm.joint, 0.04 * k, C.skin));
+    objs.push(cyl(arm.joint, arm.end, 0.036 * k, 0.036 * k, chest, C.skin));
+    objs.push(ball(arm.end, 0.048 * k, C.skin, across, torsoDir, chest, 1.2));
   }
 
   if (rider.mode === 'wipe') {

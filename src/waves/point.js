@@ -12,7 +12,7 @@ const whitewater = (s, t) => sstep(0.8, 1.4, s) * sstep(3.5, 5.0, t);
 
 export default {
   id: 'point',
-  name: 'Mellow Point',
+  name: 'Raglan',
   kind: 'crumble', // no tube
   keyframes: KF_CRUMBLE,
   scale: 1.25,
