@@ -53,6 +53,7 @@ export function createBody(model) {
   const PLACED = new Set(['Root', 'pelvis', 'spine_01', 'spine_02', 'spine_03', 'clavicle_l', 'clavicle_r', 'neck_01', 'head',
     ...['thigh', 'calf', 'foot', 'ball', 'upperarm', 'lowerarm', 'hand'].flatMap((b) => [b + '_l', b + '_r'])]);
   const riders = model.boneNames.filter((b) => !PLACED.has(b)); // fingers and thumbs
+  const lastBend = { f: null, b: null }; // each arm's last elbow side (see the arms below)
   const REST = frame([1, 0, 0], [0, 1, 0], [0, 0, 1]); // left, up, forward
   const bodyFrame = (up, fwd) => { const u = norm(up), f = norm(rej(fwd, u)); return frame(cross(u, f), u, f); };
 
@@ -94,11 +95,22 @@ export function createBody(model) {
       S['ball_' + side] = S['foot_' + side];
     }
     // arms: shoulders ride with the chest, IK to our hands, elbows toward our elbows
-    for (const [side, arm, sh] of [[front, J.armF, J.shFront], [back, J.armB, J.shBack]]) {
+    for (const [side, arm, poleW, key] of [[front, J.armF, J.poleF, 'f'], [back, J.armB, J.poleB, 'b']]) {
       const shP = at('spine_03', H('upperarm_' + side));
-      const pole = norm(J.elbowPole); // (the pose's steady elbow direction: one worked out from a nearly straight arm flips about)
-      const s = ik(shP, arm.end, L.upper, L.fore, pole);
-      const inside = mul(pole, -1); // (rest: the elbows point back, the inside of the bend forward)
+      // The bend: the elbow goes toward this arm's own pole (back, out to its side, a little down), rejected from
+      // the shoulder-to-hand line. If the arm lines up with the pole that side is undefined, so it holds the last
+      // good side instead of flipping (elbows used to spin about, the upper arm twisting up to 180 deg a frame).
+      // (and the side eases over ~0.06 s, kept in the body's frame so turning doesn't make it lag)
+      const dirSH = norm(sub(arm.end, shP));
+      const bl = cross(J.bodyUp, J.chest), toB = (v) => [dot(v, bl), dot(v, J.bodyUp), dot(v, J.chest)], fromB = (c) => add(mul(bl, c[0]), mul(J.bodyUp, c[1]), mul(J.chest, c[2]));
+      let pr = rej(poleW, dirSH);
+      const k = Math.min(1, len(pr) / 0.35);
+      const last = lastBend[key] ? fromB(lastBend[key]) : null;
+      if (last) pr = lerp(rej(last, dirSH), norm(pr), k * (1 - Math.exp(-(J.dt || 1 / 60) / 0.06)));
+      pr = len(pr) > 1e-4 ? norm(pr) : norm(rej(J.chest, dirSH));
+      lastBend[key] = toB(pr);
+      const s = ik(shP, arm.end, L.upper, L.fore, pr);
+      const inside = mul(pr, -1); // (the twist follows the bend: rest elbows point back, the inside of the bend forward)
       put('upperarm_' + side, mulRT(aimFrame(sub(s.joint, shP), inside), aimFrame(sub(H('lowerarm_' + side), H('upperarm_' + side)), [0, 0, 1])), shP);
       put('lowerarm_' + side, mulRT(aimFrame(sub(s.end, s.joint), inside), aimFrame(sub(H('hand_' + side), H('lowerarm_' + side)), [0, 0, 1])), s.joint);
       put('hand_' + side, mulRT(aimFrame(sub(s.end, s.joint), inside), aimFrame(sub(H('middle_01_' + side), H('hand_' + side)), [0, 0, 1])), s.end);

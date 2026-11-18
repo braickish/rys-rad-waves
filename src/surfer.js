@@ -17,13 +17,13 @@ import { BOARDS } from './mesh.js';
 // red logo, an off-white board (with a soft teal nose so the front reads).
 const COL = {
   board: [0.95, 0.93, 0.86], nose: [0.55, 0.84, 0.8], stringer: [0.72, 0.7, 0.66], fin: [0.15, 0.16, 0.2],
-  skin: [0.86, 0.6, 0.42], hair: [0.42, 0.29, 0.17], shorts: [0.42, 0.48, 0.6], shortsDark: [0.3, 0.35, 0.46],
+  skin: [0.8, 0.52, 0.34], hair: [0.42, 0.29, 0.17], shorts: [0.42, 0.48, 0.6], shortsDark: [0.3, 0.35, 0.46],
   band: [0.08, 0.08, 0.1], logo: [0.85, 0.2, 0.25],
 };
 // The girl on the longboard wave (WAVE.surfer === 'girl'): fair, tanned skin,
 // long light brown hair with slight sun-lightened highlights (the user's pick; was blonde), a long-sleeve teal
 // rash guard and floral bikini bottoms (the user's pick; was a light blue bikini; fuller bottoms read as shorts).
-const GIRL = { rash: [0.1, 0.6, 0.6], rashCuff: [0.06, 0.42, 0.44], floral: [0.93, 0.42, 0.5], flowers: [[1, 0.97, 0.9], [1, 0.84, 0.3]], skin: [0.93, 0.7, 0.52], hair: [0.45, 0.3, 0.18], hairMid: [0.51, 0.35, 0.21], hairHi: [0.64, 0.47, 0.3], bikini: [0.6, 0.84, 0.95] };
+const GIRL = { rash: [0.1, 0.6, 0.6], rashCuff: [0.06, 0.42, 0.44], floral: [0.93, 0.42, 0.5], flowers: [[1, 0.97, 0.9], [1, 0.84, 0.3]], skin: [0.86, 0.6, 0.41], hair: [0.45, 0.3, 0.18], hairMid: [0.51, 0.35, 0.21], hairHi: [0.64, 0.47, 0.3], bikini: [0.6, 0.84, 0.95] };
 // The real look (Step 1 toward a realistic body, 2026-11-18; ?look=real or V in the game, main.js): shaped limbs
 // and torso (mesh.js LIMB_PROFILES), hands and feet shaped like hands and feet, board and shorts graphics, and
 // materials for the smooth shading (spec: shine). Off, the illustrated look is exactly as it was.
@@ -272,10 +272,12 @@ export function surferObjects(pose, rider, info, dt) {
     st = [STANCE[0] + (NS[0] - STANCE[0]) * a, STANCE[1] + (NS[1] - STANCE[1]) * b];
     lift = [0.12 * Math.sin(Math.PI * Math.min(1, nr / 0.55)) * (nr < 0.55 ? 1 : 0), 0.12 * Math.sin(Math.PI * Math.max(0, Math.min(1, (nr - 0.4) / 0.6)))];
   }
-  // Shortboard feet (rider.shuf, rider.js): a subtle shuffle, both feet sliding back or forward along the board
-  // (~10 cm back, ~9 cm forward), in two little steps: the leading foot lifts first, then the other.
+  // Shortboard feet (rider.shuf, rider.js): a subtle shuffle, both feet sliding along the board in two little
+  // steps (the leading foot lifts first, then the other), 15 cm between spots: back 10 cm behind the board's
+  // stance, the middle 5 cm ahead of it, forward 20 cm ahead (2026-11-18, the user: middle +5, forward +10 cm).
+  // Where you stand doesn't change the riding (rider.js keeps its back / middle / forward effects).
   if (WAVE.shuffle && !WAVE.noseride && rider.mode === 'surf') {
-    const sh = rider.shuf || 0, off = sh * (sh < 0 ? 0.1 : 0.09);
+    const sh = rider.shuf || 0, off = 0.05 + 0.15 * sh;
     const fr = Math.abs(sh) % 1, moving = Math.abs(sh - (pose.shufPrev ?? sh)) > 1e-6 && fr > 0;
     pose.shufPrev = sh;
     const goingBack = sh < (rider.shufGoal ?? sh) ? false : true;
@@ -405,6 +407,9 @@ export function surferObjects(pose, rider, info, dt) {
   const elbowPole = add(v3.mul(bodyUp, -0.6), v3.mul(chest, -0.2), v3.mul(across, 0.2));
   const armB = ik(shBack, handBack, UPPER, FORE, elbowPole);
   const armF = ik(shFront, handFront, UPPER, FORE, elbowPole);
+  // (the skinned body's elbows, body.js: each points back, out to its own side and a little down. The shared
+  // elbowPole above points mostly down, so an arm hanging down lined up with it and its elbow flipped about.)
+  const elbowOut = (s) => v3.norm(add(v3.mul(across, 0.55 * s), v3.mul(chest, -0.6), v3.mul(bodyUp, -0.25)));
 
   // A foot (real look): long, low and narrow, toes toward the toe side, the front foot angled a little toward
   // the nose, the back foot a little toward the tail.
@@ -416,7 +421,7 @@ export function surferObjects(pose, rider, info, dt) {
   // The joints, for the skinned body (body.js), which is posed from them instead of drawing the parts.
   pose.J = { ss, bodyUp, torsoDir, chest, hip, headDir, hChest, ub, f, T,
     legF: { root: hipFront, ...legF }, legB: { root: hipBack, ...legB }, frontFoot, backFoot,
-    armF, armB, shFront, shBack, elbowPole, tumble: null };
+    armF, armB, shFront, shBack, poleF: elbowOut(1), poleB: elbowOut(-1), dt, tumble: null };
 
   // --- meshes ---
   const objs = [];

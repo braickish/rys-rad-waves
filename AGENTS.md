@@ -31,7 +31,8 @@ up to 0.8 s and fails at `SIM=1 SIZE=1.75`; from 1.4 s it slashes).
 `walkKeys`, so Up/Down (and up/down swipes) move the feet and only Left/Right turn. On Queens they walk the longboard
 (tail / middle / nose, below). On the shortboards (Raglan, Pipe: `shuffle`) they shuffle the feet one spot, subtly,
 in `shuffleTime` 0.2 s: back (-1), middle (0, the normal stance; where you start) and forward (1) (rider.js `r.shuf`;
-drawn as both feet sliding ~10 cm in two little lifted steps). Back: sharper turns (`backRadius` 0.9, `backTurn` 1.1),
+drawn as both feet sliding along the board in two little lifted steps; spots 15 cm apart since 2026-11-18, the user:
+back 10 cm behind the board's stance, middle 5 cm ahead of it, forward 20 cm ahead; the riding effects unchanged). Back: sharper turns (`backRadius` 0.9, `backTurn` 1.1),
 slightly more pivot (`backPivot` 0.05 of the turn rate stops depending on speed; turning scrubs `backScrub` 0.03 per
 radian), slightly slower (`backSpeed` 0.95). Forward: helps you accelerate (`fwdFeed` 1.25, `fwdAccel` 1.15,
 `fwdSpeed` 1.04) and turns more rail to rail (`fwdRadius` 1.15, `fwdTurn` 0.9). `node test/shuffle.mjs` measures it:
@@ -505,7 +506,11 @@ button).
   the camera's side in `skinnedWGSL` and lighter skin tones. Arms smoothed (the user: jerky): surfer.js eases each
   hand toward its pose spot (~0.07 s, measured from its shoulder in the body frame, for both surfers), and the
   skinned elbows use the pose's steady `elbowPole`; test/arms.mjs: worst riding jump per frame 21 -> 4.6 cm
-  (Raglan), 91 -> 15 cm (Pipe), 12 -> 4.4 cm (Queens). With the body on, everything uses the real look. Cost
+  (Raglan), 91 -> 15 cm (Pipe), 12 -> 4.4 cm (Queens). Elbow glitches (the user, same day): the skinned arms
+  bent toward one shared, mostly-downward pole, so a hanging arm lined up with it and the elbow spun round (the
+  upper arm twisting up to 180 deg in a frame). Now each arm has its own pole (back, out to its side, a little
+  down: `poleF`/`poleB`), and body.js holds and eases the bend side in the body frame (~0.06 s) when the arm lines
+  up with it; test/elbows.mjs: worst twist 180 -> 28 deg/frame (Raglan), 177 -> 53 (Pipe). Both surfers tanned. With the body on, everything uses the real look. Cost
   (test/profile.mjs, retina): no measurable change (GPU about the same as the parts; JS +0.01 ms).
   Future (saved, not built): a skin texture and eyes from the system pack, Step 3 motion detail (spine bend,
   weight shift, arm and hair follow-through), proper hair and clothing meshes.
@@ -538,6 +543,7 @@ node test/moves.mjs    # audit every move: peak acceleration, speed before/after
 node test/controls.mjs # human-style inputs on both waves: no glitches, Up/Down never flips you
 node test/pocket.mjs   # where different riding styles spend their time vs. the curl
 node test/shuffle.mjs  # shortboard feet: back / middle / forward, turn and speed effects on Raglan and Pipe
+node test/elbows.mjs   # skinned-body elbows: jump per frame and upper-arm twist flips (lower is smoother)
 node test/arms.mjs     # how jerkily the hands move against the shoulders while riding (lower is smoother)
 node test/slash.mjs    # the slash: when it fires (and doesn't), climb, speed scrub, slide, turn; point, reef, barrel
 node test/plot-slices.mjs out.svg [crumble|barrel]   # draw the wave cross-sections

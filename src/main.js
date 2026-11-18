@@ -48,8 +48,8 @@ function headStats(m, dom) {
   return { top, front, capY, capZ: (zMin + zMax) / 2, capRx: xMax + 0.016, capRz: (zMax - zMin) / 2 + 0.003 };
 }
 const BODY_LOOKS = {
-  guy: { skin: [0.92, 0.68, 0.52, 0.35], hair: [0.3, 0.2, 0.12, 0.25] }, // (skin a little lighter: the user found the bodies dark)
-  girl: { skin: [0.97, 0.77, 0.62, 0.35], hair: [0.45, 0.3, 0.18, 0.25], hairMid: [0.51, 0.35, 0.21], hairHi: [0.64, 0.47, 0.3] },
+  guy: { skin: [0.85, 0.56, 0.37, 0.35], hair: [0.3, 0.2, 0.12, 0.25] }, // (tanned, 2026-11-18, the user; the fill light keeps them easy to see)
+  girl: { skin: [0.9, 0.62, 0.43, 0.35], hair: [0.45, 0.3, 0.18, 0.25], hairMid: [0.51, 0.35, 0.21], hairHi: [0.64, 0.47, 0.3] },
 };
 function bodyColors(m, which) {
   const L = BODY_LOOKS[which], dom = dominantBones(m), hs = headStats(m, dom);
