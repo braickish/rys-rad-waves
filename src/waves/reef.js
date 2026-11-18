@@ -60,7 +60,7 @@ const reef = {
   // In the barrel once you're `enterIn` m in under the lip (so it's over you); near the opening
   // (phase below `outBefore`) out once you're less than `exitIn` m in (0.2 m nearer the lip: a gap so
   // it doesn't flick in and out at one spot).
-  tubeReal: USE_SIM ? { top: 0.92, fall: 0.8, enterIn: 0.5, exitIn: 0.3, outBefore: 0.45 } : null,
+  tubeReal: USE_SIM ? { top: 0.92, fall: 0.9, enterIn: 0.5, exitIn: 0.3, outBefore: 0.45 } : null,
   tube: true,
   // Spray blowing back off the crest: along the tall wall ahead and over the barrel.
   plume: (s) => sstep(-1.3, -0.5, s) * (1 - sstep(1.1, 1.7, s)),
@@ -86,6 +86,9 @@ const reef = {
     // Slashes turn less here than on the point (the user, 2026-11-17): the board swings round less far
     // and more slowly, and your own carve turns you less while it slides; in the barrel likewise.
     slashSlideMax: 0.6, slashSpin: 4, slashCarve: 0.3,
+    // Snaps only right at the lip and out of the pocket toward the shoulder (the user, 2026-11-17);
+    // elsewhere turning Right up high is a check turn (rider.js snapAllowed / startCheckTurn).
+    snapShoulder: 4.0, snapNear: 0.8,
     slashTube: { slashSlideMax: 0.26, slashCarve: 0.22 }, // (merged over the rider's slashTube, rider.js useWave)
     tubeDrive: 5.2, // in the barrel, trimming flat or down the line adds this much acceleration (m/s^2) (+15%, the user) ...
     tubeLeanOver: 0.45, tubeLeanDrive: 1.1, // really deep, leaning onto the front foot: up to this much faster (m/s, ~1 mph) and more push (the user: halved from 0.6/1.5, then up a bit to here, 2026-11-17)
@@ -113,7 +116,7 @@ function sized(w, k) {
     phase: { ...p, ahead: p.ahead * k, behind: p.behind * k, behindFar: p.behindFar && p.behindFar * k },
     foamVisual: (s, t, xs) => fv(s, t, xs / k),
     pocket: (xs) => pk(xs / k),
-    tune: { ...T, curlZone: T.curlZone.map((x) => x * k), startXs: T.startXs * k },
+    tune: { ...T, curlZone: T.curlZone.map((x) => x * k), startXs: T.startXs * k, snapShoulder: T.snapShoulder * k },
   };
 }
 

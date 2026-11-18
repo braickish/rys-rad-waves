@@ -147,6 +147,7 @@ function handleEvents() {
         bottomTurn: ['Bottom turn', 100, 0],
         topTurn: ['Top turn', 150, 0.15],
         snap: ['SNAP!', 500, 0.35],
+        check: ['CHECK TURN', 200, 0.25],
         reentry: ['RE-ENTRY!', 700, 0.4],
         floater: ['FLOATER!', 600, 0.3],
         revert: ['Revert', 150, 0.35],

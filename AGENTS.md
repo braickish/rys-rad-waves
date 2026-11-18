@@ -209,6 +209,15 @@ button).
     `slashSpin` 4, `slashCarve` 0.3, and in the barrel `slashTube` 0.26 / 0.22 (merged over the rider's
     `slashTube` in `useWave`): a reef slash turns ~69 deg on a short hold, ~88 on a long one (was 83 / 120).
     Barrel trim on the reef is 15% stronger (`tubeDrive` 5.2, `tubeTrimOver` 0.29, `tubeTrimOverHigh` 1.32).
+    **Snaps only at the lip, out on the shoulder; check turns elsewhere** (2026-11-17, the user): on the reef
+    (`snapShoulder` 4 m x size, `snapNear` 0.8) a snap needs you right at the lip and that far ahead of the
+    curl (`snapAllowed`); where a snap used to fire otherwise (the early snap anywhere in the top `snapZone`, or
+    turning away at the lip in the pocket) it's a **check turn** (`startCheckTurn`, move 'check', "CHECK
+    TURN" 200 pts, scrub 0.05): a brief assist of up to `checkTurn` 1.3 rad ending no steeper than `checkExit`
+    0.35 rad down, at `checkRate` 4.5 rad/s (a snap ends 70 deg down at 13). The point keeps its snaps.
+    **No roof deflection** (removed the same day): in the barrel, riding up into the roof is over the falls
+    (it used to pivot you back down at snap speed). The lip moves don't happen in the tube at all. The
+    'too high' line is at 90% of the tube's height (`tubeReal.fall`, was 80%), so you go over right by the roof.
     **Turn damping in the barrel** (2026-11-17, the user's request, then more): turn rate is scaled by
     `1 - tubeTurnDamp * r.tubeDamp`; `r.tubeDamp` eases toward depth (full by ~50%) and back out, so
     turns get gradually subtler the deeper you are (`tubeTurnDamp` 0.6 on the reef; was 0.45, full by 70%).
@@ -220,7 +229,7 @@ button).
     suck you into the roof (holding a turn up deep in: +0.2 m in 1 s instead of +3.2 m). The open face is
     unaffected.
     In the tube: past `tubeCollapse` = pinched; driving straight into the
-    roof (steeper than `roofCrash`) = over the falls. On the reef the water rushes up the face
+    roof = over the falls (it used to deflect you back down unless steeper than `roofCrash`; removed). On the reef the water rushes up the face
     (`faceFlow`, scaled by steepness and pocket power): riding level drifts you up, you hold your line
     pointing about 23 degrees down. The point has 2/3 of the reef's flow (3.8 vs 5.7 m/s): you hold
     your line about 12 degrees down there. In the tube, trimming flat or pointing down the

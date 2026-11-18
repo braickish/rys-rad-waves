@@ -38,8 +38,9 @@ const RIDER_TUNE = {
   hardRate: 1.25, // ... a faster top turn rate ...
   hardRadius: 0.7, // ... and a tighter arc
   snapRate: 13,
+  checkTurn: 1.3, checkExit: 0.35, checkRate: 4.5, // check turn (where a wave doesn't allow snaps): up to ~75 deg, ending <= ~20 deg down, about a third of a snap's speed
   moveCalm: 0.95,
-  moveScrub: { roundhouse: 0.03, slash: 0.25, snap: 0.08, reentry: 0.08, topTurn: 0.04, lip180: 0.1, floater: 0.05, rebound: 0.1, rebound180: 0.1, revert: 0.05, land: 0.05 }, // speed each move costs // no speeding up for this long after a move (s); 0 = off (?moveaccel)
+  moveScrub: { roundhouse: 0.03, slash: 0.25, snap: 0.08, check: 0.05, reentry: 0.08, topTurn: 0.04, lip180: 0.1, floater: 0.05, rebound: 0.1, rebound180: 0.1, revert: 0.05, land: 0.05 }, // speed each move costs // no speeding up for this long after a move (s); 0 = off (?moveaccel)
   fakieTime: 0.7, // after landing backwards, ride it this long (s) ...
   fakieSpinRate: 18, // ... then the board spins back round this fast (rad/s)
   lip180Rate: 14, // the quick 180 off the top when you turn toward the whitewater (rad/s) // how fast the board pivots back down in a snap (rad/s): quick, not instant
@@ -393,6 +394,25 @@ export function stepRider(r, input, dt) {
 // Snap / off the lip / re-entry: the board swings round on the face just
 // under the lip. Your line runs along the wave (phi 0) while the board keeps
 // pointing where it was (heading = phi - slide) and then spins to the right.
+// Snaps: on waves with `snapShoulder` (the reef) only right at the lip
+// (`snapNear` below the top) and out of the pocket toward the shoulder
+// (`snapShoulder` m ahead of the curl). Elsewhere it's a check turn.
+function snapAllowed(r, top) {
+  const T = TUNE;
+  if (T.snapShoulder == null) return true;
+  return r.xs >= T.snapShoulder && r.t <= top + T.snapNear;
+}
+// Check turn: a quick, modest turn back down (about as much as a slash:
+// `checkTurn` rad at most, ending no steeper than `checkExit` down), at
+// `checkRate`, then the board's yours again.
+function startCheckTurn(r, combo) {
+  const T = TUNE;
+  r.assist = { dir: -1, target: Math.max(r.phi - T.checkTurn, -T.checkExit), rate: T.checkRate };
+  lockInput(r);
+  r.roundhouse = null; r.slash = null;
+  r.events.push({ type: 'move', move: 'check', speed: r.speed, combo, xs: r.xs });
+}
+
 function startLipSnap(r, top, target) {
   r.lipSnap = { t: Math.max(r.t, top + TUNE.snapLine), target, time: 0, standing: true };
   lockInput(r);
@@ -767,14 +787,11 @@ function stepSurf(r, input, dt) {
       r.moveCooldown = T.moveGap;
     }
   }
-  if (r.tube && r.t <= top && sinp > 0 && !r.assist && !r.lipSnap) {
-    // In the tube the top of the face is the roof: brush it and you're
-    // deflected back down; drive hard straight into it and you go over.
-    if (sinp > TUNE.roofCrash) return wipe(r, 'Over the falls! (up into the lip)');
-    r.t = top;
-    r.assist = { dir: -1, target: -0.5, rate: TUNE.snapRate };
-    lockInput(r);
-  }
+  // In the tube the top of the face is the roof: ride up into it and the lip
+  // takes you over the falls. (It used to deflect you back down with a quick
+  // pivot unless you drove in steeply; removed 2026-11-17, the user: no
+  // automatic turns in the barrel.)
+  if (r.tube && r.t <= top && sinp > 0 && !r.assist && !r.lipSnap) return wipe(r, 'Over the falls! (up into the lip)');
   // Snap from just under the lip: climbing with the nose well up the face,
   // turn Right near the top and the snap starts right there, on the face
   // (not up on top of the crest), so the board stands up with its deck
@@ -783,12 +800,14 @@ function stepSurf(r, input, dt) {
     && r.t > top && r.t <= top + T.snapZone && sinp > T.snapUp
     && r.time - (r.lastTurnTime ?? -9) < T.turnWindow && r.lastTurnDir < 0
     && r.xs >= T.curlZone[0] && foamAt(r.xs, r.t + 0.6) <= 0.3) {
-    startLipSnap(r, top, -T.lipExit);
     const combo = r.time - (r.lastBottomTurn ?? -9) < T.comboWindow;
-    r.events.push({ type: 'move', move: 'snap', speed: r.speed, combo, xs: r.xs });
+    if (snapAllowed(r, top)) {
+      startLipSnap(r, top, -T.lipExit);
+      r.events.push({ type: 'move', move: 'snap', speed: r.speed, combo, xs: r.xs });
+    } else startCheckTurn(r, combo);
     r.moveCooldown = T.moveGap;
   }
-  if (!r.floater && !r.assist && !r.lipSnap && r.t <= top && sinp > 0) {
+  if (!r.tube && !r.floater && !r.assist && !r.lipSnap && r.t <= top && sinp > 0) {
     r.t = top;
     const ph = phaseAt(r.xs);
     const inWhitewater = r.xs < T.curlZone[0] || foamAt(r.xs, r.t + 0.6) > 0.3;
@@ -812,6 +831,7 @@ function stepSurf(r, input, dt) {
       //  - Turning toward the whitewater: only a quick 180, carrying on round
       //    to point straight back down the wave.
       const towardWhitewater = (r.lastTurnDir || -1) > 0;
+      let checkTurned = false;
       // The 180 off the top only comes up out of a bottom turn, right by the
       // curl, or straight out of a roundhouse (then it's a rebound). Anywhere
       // else turning toward the whitewater at the top is just your own turn
@@ -824,6 +844,10 @@ function stepSurf(r, input, dt) {
       } else if (towardWhitewater) {
         r.assist = { dir: 1, target: -Math.PI / 2, rate: T.lip180Rate };
         lockInput(r);
+      } else if (r.rideDir >= 0 && !inWhitewater && !snapAllowed(r, top)) {
+        // (waves with `snapShoulder`: in the pocket near the curl it's a check turn, not a snap)
+        checkTurned = true;
+        if (ready) { startCheckTurn(r, combo); r.moveCooldown = T.moveGap; }
       } else if (r.rideDir >= 0) {
         // Stay on the lip: your line runs along it and the board swings round
         // in place (it keeps pointing where it was, heading = phi - slide).
@@ -834,7 +858,7 @@ function stepSurf(r, input, dt) {
         lockInput(r);
         if (inWhitewater) r.boost = 1.0;
       }
-      if (ready && !(towardWhitewater && !can180)) {
+      if (ready && !checkTurned && !(towardWhitewater && !can180)) {
         const inCurl = !inWhitewater && r.xs <= T.curlZone[1];
         let move;
         if (towardWhitewater) move = fromRoundhouse ? 'rebound' : 'lip180';
