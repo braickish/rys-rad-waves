@@ -744,7 +744,9 @@ function stepSurf(r, input, dt) {
   // Pivoting on the fin scrubs speed as the board swings (more the faster it swings).
   if (T.pivotRate && r.pivot > 0 && playerD) r.speed *= Math.exp(-T.pivotDrag * r.pivot * Math.abs(playerD)); // (pivotDrag: per radian swung)
   const release = r.driveBank * (1 - Math.exp(-dt / T.driveSmooth));
-  r.speed += release; r.driveBank -= release;
+  // (waves with `driveMaxAccel`: turn drive alone never adds speed faster than this, m/s^2; the rest of the
+  // bank is spent, not saved, so it doesn't carry on pushing after the turn)
+  r.speed += T.driveMaxAccel ? Math.min(release, T.driveMaxAccel * dt) : release; r.driveBank -= release;
   if (playerD) { r.lastTurnTime = r.time; r.lastTurnDir = Math.sign(playerD); }
 
   // Track bottom turns (for moves and combos): down low heading down, then up.

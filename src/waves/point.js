@@ -49,7 +49,12 @@ export default {
   // Settings that belong to this wave (merged over the rider's settings).
   tune: {
     vPocket: 14, vLow: 4.5, vFoam: 3,
-    drop: 12, topDropBoost: 8, highDropAccel: 4, highDropSoftMax: 2.0,
+    drop: 12, topDropBoost: 8, highDropAccel: 1.5, highDropSoftMax: 2.0, // (highDropAccel 4 -> 1.5: pointing down high in the pocket raised the
+    // acceleration cap 5x, so a turn swinging the nose down up there surged +59 mph/s; the user found turns had too much artificial acceleration)
+    // Turn drive (2026-11-18, same reason): turns redirect speed more than make it.
+    bottomDrive: 6.5, bottomCarveDrive: 1.5, topDrive: 1.28, // (were 8, 1.6, 1.6 from the rider's settings; 5 / 1.2 left bottom turns making no speed at all)
+    driveMaxAccel: 7, // turn drive alone adds at most ~16 mph/s (the overall cap is ~22 when slow)
+    roundhouseNoDrive: true, // a roundhouse turns you without making speed (moves don't add speed; was +5 mph)
     curlZone: [-0.5, 2.5],
     foamContact: 0.25, reboundMinHeight: 0.33, rebound180MinHeight: 0.67,
     floaterHeight: 0.55, floaterMax: 1.2, climbFoamDrag: 0.35, foamLimit: 1.0,

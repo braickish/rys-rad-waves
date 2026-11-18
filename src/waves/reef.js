@@ -72,6 +72,8 @@ const reef = {
 
   tune: {
     ...point.tune,
+    // (Raglan's 2026-11-18 turn-drive changes are kept off Pipe for now: these are the values Pipe had)
+    bottomDrive: 8, bottomCarveDrive: 1.6, topDrive: 1.6, driveMaxAccel: 0, highDropAccel: 4, roundhouseNoDrive: false,
     curlZone: [-16, 2.5], // behind the curl is the tube, not whitewater
     airs: false,
     shoulderReach: 6, // the pocket's speed carries this much further out toward the shoulder (m, x size; was 0: the user found the speed died too soon going out)

@@ -405,6 +405,15 @@ button).
   tube, trough (`tBottom`) to roof, per phase: the roof line (`topOfFace`) at 92% and over the falls above 80%.
   The t-based ones (`faceTop` 11.9, `tubeFallHeight` 0.62) assume the normal reef's point layout; on the sim
   layout they put the roof half way down the back wall and caught you at ~20% of the tube's height.
+- **Raglan turn drive** (2026-11-18, the user: some turns had too much artificial acceleration coming out of them).
+  Found: turn drive made most of a bottom turn's speed (27 -> 38 mph; 13 without drive), released as a steady push at
+  the acceleration cap; `highDropAccel` 4 raised the cap 5x whenever the nose pointed down high in the pocket, so a turn
+  swinging down up there surged +59 mph/s; the roundhouse added ~5 mph. Changed on Raglan only (point.js; Pipe copies
+  point's tune, so reef.js pins its old values): `bottomDrive` 6.5 / `bottomCarveDrive` 1.5 / `topDrive` 1.28 (were
+  8 / 1.6 / 1.6), new `driveMaxAccel` 7 (turn drive alone adds at most ~16 mph/s; excess is spent, not saved, rider.js),
+  `highDropAccel` 1.5, `roundhouseNoDrive`. Now a bottom turn 27 -> 30 mph, on the flats 25 -> 26 (still builds a
+  little: the user's rule), worst spike +32 mph/s (was +47), pocket rider avg 20 mph (was 23), max 30 (was 34). A first
+  try at 5 / 1.2 / cap 5 made bottom turns add nothing and the pocket bot got buried.
 - **Ripple size** (`rippleK`, Frame `misc.y`): Queens and Raglan both use 2x finer ripples than the base (Raglan
   since 2026-11-17: the user thought its texture looked slightly off next to Queens; at 1x it read as coarse,
   blotchy streaks). Real ripples come from the wind, so they shouldn't grow with the wave. Pipe uses 1.5x (2x made the distant flats grainy seen from inside the barrel).
