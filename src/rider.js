@@ -536,6 +536,9 @@ function stepSurf(r, input, dt) {
   if (!swing) r.pivotDir = 0;
   else if (swing !== r.pivotDir) { r.pivotDir = swing; r.pivotUp = Math.sin(r.phi + swing * 0.44) > Math.sin(r.phi); }
   if (swing && r.pivotUp && T.wallTurn) rate *= 1 - (1 - T.wallTurn) * Math.max(0, -r.foot); // (tail turns only)
+  // In the pocket, tail turns are slower still (Queens `pocketTurn`, the user, 2026-11-18), more so toward the wall
+  // (`pocketWallTurn` on top), fading out with the pocket's power toward the shoulder and the whitewater.
+  if (swing && T.pocketTurn) rate *= 1 - Math.max(0, -r.foot) * pk * (T.pocketTurn + (r.pivotUp ? T.pocketWallTurn || 0 : 0));
   let d = 0;
   if (steer) d = steer * rate * dt;
   else if (input.aim && (input.aim[0] || input.aim[1])) {

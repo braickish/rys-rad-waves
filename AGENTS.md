@@ -111,6 +111,9 @@ button).
   On top of that, from the tail a turn toward the wall is `wallTurn` 0.85 as fast, on the face or anywhere (the
   user, same day: always a bit slower): up on the face from the tail, 41 deg toward vs 58 away in 0.3 s (was 48 /
   58). From the middle and the nose turns are the same both ways.
+  In the pocket tail turns are slower still (`pocketTurn` 0.15, plus `pocketWallTurn` 0.2 toward the wall, scaled by
+  pocket power): from mid-face in the pocket, 27 deg toward the wall vs 49 away in 0.3 s (was 41 / 58); out on the
+  shoulder unchanged. (A tail turn toward the wall that reaches the lip sets off the check turn, which spins fast.)
   Pivots also work the first few feet out onto the flats, easing off further out (`pivotFlats` [0.33, 0.5] surface
   units past `tBottom`: full to ~1.2 m, rail turns by ~2.3 m; the user's idea, after a hard cutoff at the bottom
   made turns facing the whitewater slow). A pivot started within that lasts until you let go of the turn
