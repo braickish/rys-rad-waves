@@ -448,6 +448,12 @@ button).
   curl; now 0.63 s and 2.8 m ahead), which the user had asked for. More speed into the shoulder: `shoulderReach` 3.5
   (was 2), new `shoulderFade` 1.6 (the pocket's speed fades over 1.6x its length), `bleed` 0.65 (0.9): racing out it's
   32 mph 12 m ahead of the curl (was 23). Pipe pins its own values for all of these in reef.js and is unchanged.
+- **Color and the surfer's light** (2026-11-18, the user): every color goes through `vibrance` in `tonemap`
+  (shaders.js, `VIBRANCE` 0.45: muted colors pushed most, greys and whites like foam untouched), so the whole game
+  is more saturated. The surfer (skinned body, and the parts surfer in the real look) is lit by its own key light
+  (`keyLight`: the sun pulled round toward the camera and up), since from the riding camera we see the side away
+  from the sun and the user liked her colors seen from behind / in the barrel; plus `camGlow`, a little fill and a
+  warm rim. Water and sky keep the real sun.
 - **Ripple size** (`rippleK`, Frame `misc.y`): Queens and Raglan both use 2x finer ripples than the base (Raglan
   since 2026-11-17: the user thought its texture looked slightly off next to Queens; at 1x it read as coarse,
   blotchy streaks). Real ripples come from the wind, so they shouldn't grow with the wave. Pipe uses 1.5x (2x made the distant flats grainy seen from inside the barrel).

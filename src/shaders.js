@@ -46,7 +46,16 @@ fn fogMix(col: vec3f, wpos: vec3f) -> vec3f {
   return mix(col, HORIZON, 1.0 - exp(-d * 0.0045));
 }
 fn tonemap(c: vec3f) -> vec3f {
-  return c / (1.0 + max(vec3f(0.0), c - 0.8) * 0.6);
+  return vibrance(c / (1.0 + max(vec3f(0.0), c - 0.8) * 0.6));
+}
+// More saturated, vibrant colors (2026-11-18, the user): muted colors are pushed the most, already-strong ones
+// less, and greys and whites (foam, spray, clouds) not at all.
+const VIBRANCE = 0.45;
+fn vibrance(c: vec3f) -> vec3f {
+  let lum = dot(c, vec3f(0.2126, 0.7152, 0.0722));
+  let sat = max(c.r, max(c.g, c.b)) - min(c.r, min(c.g, c.b));
+  let k = 1.0 + VIBRANCE * (1.0 - clamp(sat * 1.6, 0.0, 1.0)) * smoothstep(0.0, 0.08, sat);
+  return max(vec3f(lum) + (c - vec3f(lum)) * k, vec3f(0.0));
 }
 `;
 
@@ -239,8 +248,13 @@ const realShadeWGSL = /* wgsl */ `
 // terminator, a hint of light through skin), sky light from above and light bounced off the water from below
 // and in front, a soft sheen by material (mat.x: cloth ~0.08, skin ~0.35, a glassed board ~0.7) and a faint rim
 // so the figure still separates from the water.
+// The surfer's own key light (2026-11-18, the user liked her colors seen from behind / in the barrel, where we see
+// the side the sun lights; from the riding camera we look at her shaded side, the sun being behind the wave): the
+// sun's direction pulled round toward the camera and up a little, so she always looks sunlit. Water and sky keep
+// the real sun.
+fn keyLight(v: vec3f) -> vec3f { return normalize(F.sunDir.xyz * 0.45 + v * 0.75 + vec3f(0.0, 0.35, 0.0)); }
 fn realShade(n: vec3f, v: vec3f, wpos: vec3f, base: vec3f, shine: f32) -> vec3f {
-  let sun = F.sunDir.xyz;
+  let sun = keyLight(v);
   let ndl = dot(n, sun);
   let wrap = clamp((ndl + 0.4) / 1.4, 0.0, 1.0);
   let skyL = mix(vec3f(0.2, 0.33, 0.36), vec3f(0.62, 0.74, 0.88), n.y * 0.5 + 0.5); // (water-tinted from below)
@@ -255,7 +269,16 @@ fn realShade(n: vec3f, v: vec3f, wpos: vec3f, base: vec3f, shine: f32) -> vec3f 
 }
 `;
 
-export const solidWGSL = common + realShadeWGSL + /* wgsl */ `
+const camGlowWGSL = /* wgsl */ `
+// Light from the camera's side on the surfer (2026-11-18, the user: more camera glow): a fill on the faces turned
+// toward us and a soft, warm rim round the edges, so the figure glows a little against the water.
+fn camGlow(n: vec3f, v: vec3f, base: vec3f) -> vec3f {
+  let ndv = max(dot(n, v), 0.0);
+  return base * (0.2 * ndv + 0.06) + vec3f(1.0, 0.94, 0.84) * pow(1.0 - ndv, 2.5) * 0.2; // (the key light now does most of it)
+}
+`;
+
+export const solidWGSL = common + realShadeWGSL + camGlowWGSL + /* wgsl */ `
 struct Obj { model: mat4x4f, color: vec4f, mat: vec4f }; // mat.x: shine (the real look)
 @group(1) @binding(0) var<uniform> O: Obj;
 struct VO { @builtin(position) pos: vec4f, @location(0) wpos: vec3f, @location(1) n: vec3f };
@@ -285,7 +308,7 @@ fn inkK(base: vec3f) -> f32 { return clamp(length(base - F.camPos.xyz) / 14.0, 0
   let sky = mix(vec3f(0.55, 0.62, 0.72), vec3f(0.85, 0.92, 1.0), smoothstep(-0.2, 0.2, n.y));
   let rim = smoothstep(0.62, 0.7, 1.0 - max(dot(n, v), 0.0)) * 0.18;
   var col = O.color.rgb * mix(sky * 0.55, vec3f(1.05, 0.97, 0.88), band) + rim;
-  if (F.misc.w > 0.5) { col = realShade(n, v, i.wpos, O.color.rgb, O.mat.x); }
+  if (F.misc.w > 0.5) { col = realShade(n, v, i.wpos, O.color.rgb, O.mat.x) + camGlow(n, v, O.color.rgb); }
   col = fogMix(col, i.wpos);
   return vec4f(tonemap(col), 1.0);
 }
@@ -506,7 +529,7 @@ struct VO { @builtin(position) pos: vec4f, @location(0) uv: vec2f, @location(1) 
 
 // The skinned body (body.js): each vertex blends up to four bones' skinning matrices (already in the world), lit
 // with the real look. Vertex color: rgb the material color (skin, boardshorts), a its shine.
-export const skinnedWGSL = common + realShadeWGSL + /* wgsl */ `
+export const skinnedWGSL = common + realShadeWGSL + camGlowWGSL + /* wgsl */ `
 @group(1) @binding(0) var<storage, read> bones: array<mat4x4f>;
 struct VO { @builtin(position) pos: vec4f, @location(0) wpos: vec3f, @location(1) n: vec3f, @location(2) col: vec4f };
 @vertex fn vs(@location(0) p: vec3f, @location(1) n: vec3f, @location(2) j: vec4u, @location(3) w: vec4f, @location(4) c: vec4f) -> VO {
@@ -525,7 +548,7 @@ struct VO { @builtin(position) pos: vec4f, @location(0) wpos: vec3f, @location(1
   var col = realShade(n, v, i.wpos, i.col.rgb, i.col.a);
   // a soft fill light from the camera's side (2026-11-18, the user: the body read too dark; with the sun behind
   // the wave we mostly see its shaded side), so the figure stays easy to see against the water
-  col += i.col.rgb * (0.3 * max(dot(n, v), 0.0) + 0.07);
+  col += camGlow(n, v, i.col.rgb);
   col = fogMix(col, i.wpos);
   return vec4f(tonemap(col), 1.0);
 }
