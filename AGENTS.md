@@ -59,7 +59,10 @@ button).
   4), ~12 mph in the pocket (`vPocket` 5.2). Peel 4.8 m/s and wave speed 3.9 m/s (2026-11-17: the user found the wave
   felt slow; it had peeled at 3.0, and the surfer's speed had been cut to 4.0 m/s because she outran that slow peel).
   Water ripples are `rippleK` 2x finer than on the big waves (Frame `misc.y` in shaders.js), so the small wave doesn't
-  read as a big wave in slow motion; no airs, snaps or slashes (turning off the top is a check turn).
+  read as a big wave in slow motion; no airs, snaps or slashes (turning off the top is a check turn). **No floaters**
+  (the user's call, 2026-11-17: `floaters: false` with `softFoam`): climbing the whitewater just slows you (no
+  pop-up, no wipeout), turning off its top is a re-entry, and hitting its top without turning knocks you off
+  ("Knocked off by the whitewater!"). Heavy waves without floaters still go over the falls; rebounds stay.
   **Walking the board** (2026-11-17, the user's design; `WAVE.noseride`, rider.js `r.foot`/`r.footGoal`): three spots,
   -1 the tail, 0 the middle (where you start), 1 the nose. WALK UP / WALK BACK buttons (`#walk-up`, `#walk-back`; each
   hides at its end) move one spot per press, and so do **Up / Down** (and up / down swipes) on Queens (`walkKeys`, the

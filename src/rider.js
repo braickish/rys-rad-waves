@@ -867,8 +867,8 @@ function stepSurf(r, input, dt) {
   const highOnFoam = !r.floater && !r.assist && !r.lipSnap && r.t > top && sinp > 0.2 && cosp > -0.15
     && (r.xs < T.curlZone[0] || foamAt(r.xs, r.t) > 0.3) && waveHeightFrac(r.pos[1]) > T.floaterHeight
     && !(turningNow && sinp > 0.55);
-  if (highOnFoam && !T.floaters) return wipe(r, 'Over the falls! (too heavy to float)');
-  if (highOnFoam) {
+  if (highOnFoam && !T.floaters && !T.softFoam) return wipe(r, 'Over the falls! (too heavy to float)');
+  if (highOnFoam && T.floaters) { // (softFoam waves without floaters: you just climb the foam, which slows you)
     r.floater = { time: 0, t: r.t };
     if (ready) {
       r.events.push({ type: 'move', move: 'floater', speed: r.speed, combo: r.time - (r.lastBottomTurn ?? -9) < T.comboWindow, xs: r.xs });
@@ -901,8 +901,10 @@ function stepSurf(r, input, dt) {
     const inWhitewater = r.xs < T.curlZone[0] || foamAt(r.xs, r.t + 0.6) > 0.3;
     const turning = r.time - (r.lastTurnTime ?? -9) < T.turnWindow;
     const combo = r.time - (r.lastBottomTurn ?? -9) < T.comboWindow;
-    if (inWhitewater && !T.floaters) return wipe(r, 'Over the falls!');
-    if (inWhitewater && cosp > -0.15 && !(turning && sinp > 0.55)) {
+    if (inWhitewater && !T.floaters && !T.softFoam) return wipe(r, 'Over the falls!');
+    // (soft whitewater without floaters, the longboard: turn off it for a re-entry, or it knocks you off)
+    if (inWhitewater && !T.floaters && T.softFoam && !turning) return wipe(r, 'Knocked off by the whitewater! (turn off the top of it)');
+    if (inWhitewater && T.floaters && cosp > -0.15 && !(turning && sinp > 0.55)) {
       // Into the whitewater heading down the line: ride along the top of it.
       r.floater = { time: 0, t: r.t };
       if (ready) {
