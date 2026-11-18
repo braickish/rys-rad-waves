@@ -15,7 +15,7 @@ export default {
   name: 'Raglan',
   kind: 'crumble', // no tube
   keyframes: KF_CRUMBLE,
-  scale: 1.25,
+  scale: 1.25, rippleK: 2.0, // (ripples 2x finer than the base, like Queens: real ripples are set by the wind, not the wave's size; at 1 they read as coarse blotches; the user asked)
   peelSpeed: 6.0, // m/s the breaking point runs along the beach
   waveSpeed: 5.0, // m/s the wave moves toward shore
   phase: { ahead: 10, behind: 8.5 }, // metres per unit of phase ahead of / behind the curl
