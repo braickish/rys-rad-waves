@@ -176,7 +176,7 @@ export const BOARDS = {
     thick: (u) => 0.07 * (1 - 0.45 * u * u),
     noseFrom: 0.88,
     stance: [-0.28, 0.26], // the middle spot: feet either side of the middle of the board
-    tailStance: [-1.1, -0.62], // the tail spot (pivots): back foot just ahead of the fin, front foot close behind it
+    tailStance: [-1.0, -0.52], // the tail spot (pivots): back foot a little ahead of the fin, front foot close behind it (moved forward 0.1 m: the user felt she was slightly too far back)
     noseStance: [0.74, 1.23], // on the nose: back foot behind, front toes over the nose (hang five)
     fins: [[-1.18, 0, 0.23, 0.26]], // single fin
     stringer: [2.55, 0],

@@ -83,6 +83,10 @@ button).
   speed from them) `pivotRate` is 3.5 rad/s (was 4.2; 120 deg in 0.67 s, was 0.57), `pivotDrag` 0 (was 0.2 of her speed
   per radian) and a pivot gives `pivotDriveK` 0.25 of a rail carve's drive (was none): a pivot down the face now gains
   a little (10.1 -> 10.7 mph, was -> 8.1), a cutback up the face keeps more (-> 7.8 mph, was -> 4.8).
+  Then (same day; the user: still too easy, as if slightly too far back, and not crediting the little drive a
+  pivot makes) the tail spot moved 0.1 m forward (`tailStance` [-1.0, -0.52]), a turn there is 70% pivot / 30% rail
+  (`pivotMax` 0.7), `pivotRate` 3.2 and `pivotDriveK` 0.5: 120 deg from the tail in ~0.84 s (was 0.67), a cutback
+  10.1 -> 8.2 mph.
   Pivots also work the first few feet out onto the flats, easing off further out (`pivotFlats` [0.33, 0.5] surface
   units past `tBottom`: full to ~1.2 m, rail turns by ~2.3 m; the user's idea, after a hard cutoff at the bottom
   made turns facing the whitewater slow). A pivot started within that lasts until you let go of the turn
@@ -91,7 +95,7 @@ button).
   turns stay on the rail, and from the tail a cutback is a
   pivot rather than a dropknee turn. A tail cutback: 150 deg in ~0.5 s, ~11 -> 6 mph (from the middle 0.83 s, ~11 -> 9.6).
   Feet (mesh.js): the middle spot is `stance` [-0.28, 0.26], either side of the board's middle (the user's call; it
-  used to be the back half); the tail spot `tailStance` [-1.1, -0.62] (moved slightly forward, the user's call).
+  used to be the back half); the tail spot `tailStance` [-1.0, -0.52] (moved forward twice, the user's call).
   Drawn (surfer.js `tl`, `pv`): feet stepped back close together just ahead of the fin, more upright, arms half out; the nose
   lifts a little standing there and up to ~29 deg swinging round in a pivot (`pose.tip`, about a point ahead of the
   back foot so the tail sinks), with less rail roll and lean. (A first version stepped back automatically when you

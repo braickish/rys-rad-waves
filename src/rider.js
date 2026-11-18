@@ -544,7 +544,7 @@ function stepSurf(r, input, dt) {
     const allow = r.tube ? 0 : 1 - sstep(T.pivotFlats[0], T.pivotFlats[1], r.t - T.tBottom);
     if (!d) r.pivotHeld = false;
     else if (allow > 0.5 && r.foot < -0.5) r.pivotHeld = true;
-    const pv = (r.pivotHeld && !r.tube ? 1 : allow) * Math.max(0, -r.foot);
+    const pv = (r.pivotHeld && !r.tube ? 1 : allow) * Math.max(0, -r.foot) * (T.pivotMax ?? 1); // (pivotMax: the tail spot is just ahead of the very tail, so it's part pivot, part rail)
     r.pivot += (pv - r.pivot) * (1 - Math.exp(-dt / 0.08));
   }
   // --- slash: a Right turn started low on the way up (also in the barrel) ---
