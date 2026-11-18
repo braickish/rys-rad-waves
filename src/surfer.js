@@ -154,7 +154,7 @@ export function surferObjects(pose, rider, info, dt) {
   // Pearling (noseriding out on the shoulder): the nose dips under.
   let bf = f;
   const dip = rider.mode === 'surf' ? 0.32 * (rider.noseRisk || 0) : 0;
-  if (dip > 0) { bf = v3.norm(rotateAbout(f, Lb, -dip)); ub = v3.norm(rotateAbout(ub, Lb, -dip)); }
+  if (dip > 0) { bf = v3.norm(rotateAbout(f, Lb, dip)); ub = v3.norm(rotateAbout(ub, Lb, dip)); } // (+: nose down, tail up)
 
   // --- pose drivers ---
   const speed = v3.len(rider.vel);
@@ -215,13 +215,15 @@ export function surferObjects(pose, rider, info, dt) {
     st = [STANCE[0] + (NS[0] - STANCE[0]) * a, STANCE[1] + (NS[1] - STANCE[1]) * b];
     lift = [0.12 * Math.sin(Math.PI * Math.min(1, nr / 0.55)) * (nr < 0.55 ? 1 : 0), 0.12 * Math.sin(Math.PI * Math.max(0, Math.min(1, (nr - 0.4) / 0.6)))];
   }
-  let backFoot = add(B, v3.mul(f, st[0]), v3.mul(u, bs.rocker(st[0] / bs.half) + lift[0]));
-  let frontFoot = add(B, v3.mul(f, st[1]), v3.mul(u, bs.rocker(st[1] / bs.half) + lift[1]));
+  // (along the board as drawn: when the nose dips the feet go down with it)
+  const du = dip > 0 ? v3.norm(rotateAbout(u, Lb, dip)) : u;
+  let backFoot = add(B, v3.mul(bf, st[0]), v3.mul(du, bs.rocker(st[0] / bs.half) + lift[0]));
+  let frontFoot = add(B, v3.mul(bf, st[1]), v3.mul(du, bs.rocker(st[1] / bs.half) + lift[1]));
   const mid = (st[0] + st[1]) / 2;
   // Hips drop and slide back over the heels as the knees bend.
   // (deep in the barrel the hips sink further, and leaning onto the front foot moves them forward)
   const hipH = (0.92 - 0.44 * knee - 0.1 * deep) * (1 - 0.4 * tuck);
-  const hip = add(B, v3.mul(f, mid + 0.1 * fl), v3.mul(bodyUp, hipH), v3.mul(chest, -0.12 * knee));
+  const hip = add(B, v3.mul(bf, mid + 0.1 * fl), v3.mul(bodyUp, hipH), v3.mul(chest, -0.12 * knee));
   const hipBack = add(hip, v3.mul(f, -0.12)), hipFront = add(hip, v3.mul(f, 0.12));
   // (deep in the barrel the back knee drops in toward the deck, pointing at the front foot)
   const kneePole = (s) => add(chest, v3.mul(f, 0.15 * s + (s < 0 ? 0.55 * deep : 0)), v3.mul(bodyUp, 0.2 - (s < 0 ? 0.35 * deep : 0)));

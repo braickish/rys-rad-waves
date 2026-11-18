@@ -46,14 +46,14 @@ export default {
 
   // A longboard: slower, wider turns and it glides, carrying its speed.
   tune: {
-    vPocket: 4.8, vLow: 2.6, vFoam: 1.8, // a small wave: ~11 mph in the pocket
-    drop: 4, topDropBoost: 1.5, highDropAccel: 1.0, highDropSoftMax: 0.5,
-    softMax: 6.5, maxSpeed: 8, minSpeed: 1.2,
-    bleed: 0.4, // glides: extra speed fades slowly (rider default 0.9)
+    vPocket: 4.0, vLow: 2.1, vFoam: 1.6, // a small wave: ~9 mph in the pocket (was 4.8: the user found it ran too fast into the shoulder)
+    drop: 3.2, topDropBoost: 1.0, highDropAccel: 0.8, highDropSoftMax: 0.4,
+    softMax: 5.4, maxSpeed: 6.8, minSpeed: 1.2,
+    bleed: 0.55, // glides: extra speed fades slower than a shortboard (rider default 0.9)
     climb: 4.0, // and it carries up the face (6)
     // slower, drawn-out turns than the shortboard (turn rate 2.4 vs 5.2 rad/s), sized to a small wave
     turn: 2.4, minTurn: 0.8, rTop: 1.0, rBottom: 3.0, hardRate: 1.1, hardRadius: 0.85,
-    bottomDrive: 2.5, topDrive: 0.6, maxAccel: 4, accelTaper: [4, 7],
+    bottomDrive: 1.8, topDrive: 0.4, maxAccel: 3.5, accelTaper: [3.5, 6],
     checkTurn: 2.0, checkRate: 7, // the check turn off the top has to bring you back down on a wave this small
     curlZone: [-0.5, 2.0],
     foamContact: 0.25, reboundMinHeight: 0.33, rebound180MinHeight: 0.67,

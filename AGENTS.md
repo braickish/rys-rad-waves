@@ -53,12 +53,12 @@ button).
   by a girl in a light blue bikini with long blonde hair (`surfer: 'girl'`, surfer.js) on a 9'6" yellow noserider
   (`BOARDS.longboard`: wide round nose, single fin, `noseStance` for the hang five). Longboard feel in its `tune`:
   slower turns (turn rate 2.4 vs 5.2 rad/s) sized to the small wave, glides and carries speed (`bleed` 0.4, `climb`
-  4), ~11 mph in the pocket; no airs, snaps or slashes (turning off the top is a check turn). **Noseriding**
+  4; slowed 2026-11-17: the user found it ran too fast into the shoulder), ~9 mph in the pocket; no airs, snaps or slashes (turning off the top is a check turn). **Noseriding**
   (`WAVE.noseride`, rider.js): Space (desktop, while riding; otherwise Space drops in) or the HANG 5 / WALK BACK
   button (`#nose-btn`) walks to the nose (`noseWalkUp` 1.1 s) and back (0.8 s); the feet shuffle up the board and the
   arms go out wide (surfer.js `nr`). On the nose you can barely steer (`noseTurnDamp` 0.8); in the pocket the nose
   trims you to just under the curl's speed (`noseHold`, `noseUnder`), so you stay there; out on the shoulder (pocket
-  power below `nosePocket`) it drags and the nose dips under (`r.noseRisk`, drawn as the board pitching down) until
+  power below `nosePocket`) it drags and the nose dips under (`r.noseRisk`, drawn as the board pitching nose-down, the feet going with it) until
   you pearl (wipeout). Scores: HANG FIVE! on reaching the nose, then a noseride bonus by time when you walk back.
   Spray and mist scale with the wave (`misc.x` particle scale in the frame uniform; rail spray amount). A nose press
   counts once per frame (main.js clears `input.nose` after the first physics step: two steps toggled it back).
