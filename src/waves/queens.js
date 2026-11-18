@@ -51,16 +51,17 @@ export default {
   tune: {
     vPocket: 5.2, vLow: 2.7, vFoam: 2.1, // ~12 mph in the pocket. (It was cut to 4.0 when she outran the curl on the old 3.0 m/s peel; the peel was the real problem.)
     drop: 3.2, topDropBoost: 1.0, highDropAccel: 0.8, highDropSoftMax: 0.4,
-    softMax: 7.0, maxSpeed: 8.8, minSpeed: 1.5,
+    softMax: 8.6, maxSpeed: 10.5, minSpeed: 1.5, // (raised with middleSpeed so the middle's trim isn't capped)
     bleed: 0.55, // glides: extra speed fades slower than a shortboard (rider default 0.9)
     climb: 4.0, // and it carries up the face (6)
     // slower, drawn-out turns than the shortboard (turn rate 2.4 vs 5.2 rad/s), sized to a small wave
     turn: 2.4, minTurn: 0.8, rTop: 1.0, rBottom: 3.0, hardRate: 1.1, hardRadius: 0.85,
-    bottomDrive: 1.8, topDrive: 0.4, maxAccel: 3.5, accelTaper: [3.5, 6],
+    bottomDrive: 1.8, topDrive: 0.4, maxAccel: 4.5, accelTaper: [3.5, 6],
     // Walking the board (rider.js): tail / middle / nose. From the tail every turn up on the wave pivots
     // round the fin at `pivotRate` whatever her speed, scrubbing `pivotDrag` of her speed per radian, and
     // the tail drags (cruising speed x `tailSpeed`); the middle trims fastest with rail turns.
     pivotRate: 4.2, pivotMinHeight: 0.05, pivotDrag: 0.2, tailSpeed: 0.8, tailWalk: 0.4,
+    middleSpeed: 1.35, middleFeed: 1.8, // the middle is the fast spot: 35% higher cruising speed, picked up 1.8x quicker (the user: 'a lot more speed')
     checkTurn: 2.0, checkRate: 7, // the check turn off the top has to bring you back down on a wave this small
     curlZone: [-0.5, 2.0],
     foamContact: 0.25, reboundMinHeight: 0.33, rebound180MinHeight: 0.67,

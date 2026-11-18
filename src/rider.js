@@ -749,6 +749,10 @@ function stepSurf(r, input, dt) {
   const pkSpeed = r.xs > 0 ? pocketPower(Math.max(0, r.xs - T.shoulderReach)) : pk;
   let target = T.vLow + (T.vPocket - T.vLow) * pkSpeed * steep * (0.45 + 0.75 * height);
   if (r.foot < 0) target *= 1 - (1 - (T.tailSpeed ?? 1)) * -r.foot; // (standing on the tail the board drags: slower than from the middle)
+  // Trimming from the middle is the fast line: a higher cruising speed that it picks up quicker (`middleSpeed`, `middleFeed`).
+  const mid = T.middleSpeed ? 1 - Math.min(1, Math.abs(r.foot)) : 0;
+  target *= 1 + ((T.middleSpeed || 1) - 1) * mid;
+  const feedK = 1 + ((T.middleFeed || 1) - 1) * mid;
   r.boost = Math.max(0, (r.boost || 0) - dt);
   if (r.boost > 0 && r.boost < 0.85 && foam < 0.2) r.boost = 0; // cleared the foam you bounced off
   if (r.boost > 0) { /* just rebounded: the foam can't slow you for a moment */ }
@@ -757,7 +761,7 @@ function stepSurf(r, input, dt) {
   // The pocket only feeds you while you're not climbing: point up the face
   // and you slow down for real.
   const climbing = sstep(0.15, 0.6, Math.sin(r.phi));
-  r.speed += (target - r.speed) * (r.speed < target ? T.feed * (1 - climbing) : T.bleed) * dt;
+  r.speed += (target - r.speed) * (r.speed < target ? T.feed * feedK * (1 - climbing) : T.bleed) * dt;
   const sinp = Math.sin(r.phi);
   // Pointing down pays, and pays most from the top third of the wave: that's
   // where the drop has the most height to turn into speed.

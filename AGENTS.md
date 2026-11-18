@@ -64,7 +64,10 @@ button).
   -1 the tail, 0 the middle (where you start), 1 the nose. WALK UP / WALK BACK buttons (`#walk-up`, `#walk-back`; each
   hides at its end) move one spot per press; Space walks back -> middle -> front -> middle -> back (`walk: 'cycle'`,
   turning round at each end; otherwise Space drops in). Tail <-> middle takes `tailWalk` 0.4 s, middle -> nose
-  `noseWalkUp` 1.1 s, back 0.8 s; the feet shuffle along the board. The middle trims fastest with rail turns.
+  `noseWalkUp` 1.1 s, back 0.8 s; the feet shuffle along the board. The middle trims fastest with rail turns
+  (`middleSpeed` 1.35x cruising speed, picked up `middleFeed` 1.8x quicker; `softMax` 8.6 / `maxSpeed` 10.5 / `maxAccel`
+  4.5 raised with it; the user asked for 'a lot more speed' there). A pocket bot from the middle tops out ~14 mph and
+  now runs ahead onto the shoulder (in the pocket 38% of the time, was 78%): walk up to the nose to stall, or cut back.
   **The tail** is slower (cruising speed x `tailSpeed` 0.8) and every turn up on the wave is a **fin pivot**
   (`r.pivot`, the user: on a small wave a longboard turns by pivoting round the fin, not on the rail; reference
   pivot-turn.jpg): the board swings at `pivotRate` 4.2 rad/s whatever her speed, either way along the wave (also
