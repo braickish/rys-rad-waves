@@ -1,7 +1,7 @@
 // WebGPU setup and drawing: sky, water mesh, solid objects (surfer), and GPU
 // particles (simulated in a compute shader, drawn as soft billboards).
 
-import { skyWGSL, waterWGSL, solidWGSL, particleComputeWGSL, particleRenderWGSL } from './shaders.js';
+import { skyWGSL, waterWGSL, solidWGSL, particleComputeWGSL, particleRenderWGSL, skinnedWGSL } from './shaders.js';
 import { buildWaterTable, buildWaterIndices, slicePhases, WATER_XS, COLS, TABLE, buildLipTable, LIP, boxMesh, sphereMesh, boardMesh, cylinderMesh, BOARDS, latheMesh, LIMB_PROFILES } from './mesh.js';
 import { SCALE, WAVE } from './wave.js';
 
@@ -225,7 +225,7 @@ export async function createRenderer(canvas) {
     frameData.set([...f.riderVel, f.dt], 44);
     frameData.set([...f.sprayDir, f.frame], 48);
     frameData.set([LIP.x0, LIP.step, LIP.count, f.burst], 52);
-    frameData.set([Math.min(1, Math.max(0.3, WAVE.scale / 1.25)), WAVE.rippleK || 1, WAVE.dir < 0 ? -1 : 1, opts.look ? 1 : 0], 56); // (w: the real look) // particle scale: smaller spray on small waves (Queens); ripple scale (finer on Queens)
+    frameData.set([Math.min(1, Math.max(0.3, WAVE.scale / 1.25)), WAVE.rippleK || 1, WAVE.dir < 0 ? -1 : 1, opts.look ? (opts.shadow === false ? 0.75 : 1) : 0], 56); // (w: the real look; 1 with the surfer's shadow, 0.75 without) // particle scale: smaller spray on small waves (Queens); ripple scale (finer on Queens)
     device.queue.writeBuffer(frameBuf, 0, frameData);
     device.queue.writeBuffer(camBuf, 0, new Float32Array([...f.camRight, 0, ...f.camUp, 0]));
     const n = Math.min(objects.length, MAX_OBJECTS);
@@ -275,6 +275,16 @@ export async function createRenderer(canvas) {
       pass.draw(m.count);
     }
 
+    if (opts.body && skinned) {
+      device.queue.writeBuffer(skinned.bones, 0, opts.body);
+      pass.setPipeline(skinned.pipe);
+      pass.setBindGroup(0, frameBG);
+      pass.setBindGroup(1, skinned.bg);
+      skinned.vbs.forEach((b, i) => pass.setVertexBuffer(i, b));
+      pass.setIndexBuffer(skinned.ib, skinned.indexFormat);
+      pass.drawIndexed(skinned.count);
+    }
+
     if (opts.particles !== false) {
       pass.setPipeline(prPipe);
       pass.setBindGroup(0, prBG);
@@ -284,6 +294,37 @@ export async function createRenderer(canvas) {
     device.queue.submit([enc.finish()]);
   }
 
+  // The skinned body (body.js, ?body=mh): set once its model has loaded; drawn when render() gets opts.body.
+  let skinned = null;
+  const skinMod = mod(skinnedWGSL);
+  const bonesLayout = device.createBindGroupLayout({ entries: [{ binding: 0, visibility: GPUShaderStage.VERTEX, buffer: { type: 'read-only-storage' } }] });
+  function setBody(model, colors) {
+    const pad4 = (a) => { const bytes = a.byteLength, out = new Uint8Array(Math.ceil(bytes / 4) * 4); out.set(new Uint8Array(a.buffer, a.byteOffset, bytes)); return out; };
+    const mk = (a, usage) => { const d = pad4(a); const b = device.createBuffer({ size: d.byteLength, usage: usage | GPUBufferUsage.COPY_DST }); device.queue.writeBuffer(b, 0, d); return b; };
+    const V = GPUBufferUsage.VERTEX;
+    const j8 = model.jointFormat === 'uint8x4';
+    const pipe = device.createRenderPipeline({
+      layout: device.createPipelineLayout({ bindGroupLayouts: [frameLayout, bonesLayout] }),
+      vertex: { module: skinMod, entryPoint: 'vs', buffers: [
+        { arrayStride: 12, attributes: [{ shaderLocation: 0, offset: 0, format: 'float32x3' }] },
+        { arrayStride: 12, attributes: [{ shaderLocation: 1, offset: 0, format: 'float32x3' }] },
+        { arrayStride: j8 ? 4 : 8, attributes: [{ shaderLocation: 2, offset: 0, format: model.jointFormat }] },
+        { arrayStride: 16, attributes: [{ shaderLocation: 3, offset: 0, format: 'float32x4' }] },
+        { arrayStride: 16, attributes: [{ shaderLocation: 4, offset: 0, format: 'float32x4' }] },
+      ] },
+      fragment: { module: skinMod, entryPoint: 'fs', targets: [{ format }] },
+      primitive: { topology: 'triangle-list', cullMode: 'none' },
+      depthStencil: depth,
+      multisample: ms,
+    });
+    const bones = device.createBuffer({ size: model.boneNames.length * 64, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
+    skinned?.bufs.forEach((b) => b.destroy());
+    const bufs = [mk(model.pos, V), mk(model.nrm, V), mk(model.joints, V), mk(model.weights, V), mk(colors, V)];
+    const ib = mk(model.index, GPUBufferUsage.INDEX);
+    skinned = { pipe, bufs: [...bufs, ib, bones], vbs: bufs, ib, bones, count: model.index.length, indexFormat: model.indexFormat,
+      bg: device.createBindGroup({ layout: bonesLayout, entries: [{ binding: 0, resource: { buffer: bones } }] }) };
+  }
+
   // Rebuild everything that depends on the active wave (after useWave()).
   function rebuildWave() {
     waterTable.destroy();
@@ -291,5 +332,5 @@ export async function createRenderer(canvas) {
     waterBG = makeWaterBG();
   }
 
-  return { render, device, rebuildWave };
+  return { render, device, rebuildWave, setBody };
 }

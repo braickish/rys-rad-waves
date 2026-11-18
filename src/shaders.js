@@ -176,7 +176,7 @@ fn coarseTex(q: vec2f, t: f32) -> f32 {
   // seen along the sunlight; points behind it (away from the sun) within ~0.3 m of it are shaded.
   var shade = 1.0;
   let lit = smoothstep(0.0, 0.25, dot(normalize(i.n), F.sunDir.xyz)); // (only on water the sun lights: with the sun behind the wave, the face is already in its shade)
-  if (F.misc.w > 0.5 && lit > 0.0) {
+  if (F.misc.w > 0.9 && lit > 0.0) { // (0.75: real look, but no one to cast a shadow)
     let rw = dirX(F.rider.xyz);
     let sd = F.sunDir.xyz;
     let d = i.wpos - rw;
@@ -234,7 +234,28 @@ fn coarseTex(q: vec2f, t: f32) -> f32 {
 }
 `;
 
-export const solidWGSL = common + /* wgsl */ `
+const realShadeWGSL = /* wgsl */ `
+// The real look (F.misc.w, ?look=real / V): smooth light instead of toon bands and ink. Wrapped sunlight (soft
+// terminator, a hint of light through skin), sky light from above and light bounced off the water from below
+// and in front, a soft sheen by material (mat.x: cloth ~0.08, skin ~0.35, a glassed board ~0.7) and a faint rim
+// so the figure still separates from the water.
+fn realShade(n: vec3f, v: vec3f, wpos: vec3f, base: vec3f, shine: f32) -> vec3f {
+  let sun = F.sunDir.xyz;
+  let ndl = dot(n, sun);
+  let wrap = clamp((ndl + 0.4) / 1.4, 0.0, 1.0);
+  let skyL = mix(vec3f(0.2, 0.33, 0.36), vec3f(0.62, 0.74, 0.88), n.y * 0.5 + 0.5); // (water-tinted from below)
+  let bounce = vec3f(0.3, 0.42, 0.42) * max(dot(n, normalize(vec3f(0.0, -0.35, 1.0))), 0.0) * 0.5;
+  var col = base * (skyL * 0.62 + bounce + vec3f(1.0, 0.93, 0.82) * wrap * 0.85);
+  let h = normalize(sun + v);
+  let spec = pow(max(dot(n, h), 0.0), mix(10.0, 70.0, shine)) * shine * smoothstep(-0.1, 0.2, ndl);
+  col += vec3f(1.0, 0.95, 0.88) * spec * 0.7;
+  let fres = pow(1.0 - max(dot(n, v), 0.0), 3.0);
+  col += skyL * fres * 0.22;
+  return col;
+}
+`;
+
+export const solidWGSL = common + realShadeWGSL + /* wgsl */ `
 struct Obj { model: mat4x4f, color: vec4f, mat: vec4f }; // mat.x: shine (the real look)
 @group(1) @binding(0) var<uniform> O: Obj;
 struct VO { @builtin(position) pos: vec4f, @location(0) wpos: vec3f, @location(1) n: vec3f };
@@ -264,28 +285,9 @@ fn inkK(base: vec3f) -> f32 { return clamp(length(base - F.camPos.xyz) / 14.0, 0
   let sky = mix(vec3f(0.55, 0.62, 0.72), vec3f(0.85, 0.92, 1.0), smoothstep(-0.2, 0.2, n.y));
   let rim = smoothstep(0.62, 0.7, 1.0 - max(dot(n, v), 0.0)) * 0.18;
   var col = O.color.rgb * mix(sky * 0.55, vec3f(1.05, 0.97, 0.88), band) + rim;
-  if (F.misc.w > 0.5) { col = realShade(n, v, i.wpos); }
+  if (F.misc.w > 0.5) { col = realShade(n, v, i.wpos, O.color.rgb, O.mat.x); }
   col = fogMix(col, i.wpos);
   return vec4f(tonemap(col), 1.0);
-}
-// The real look (F.misc.w, ?look=real / V): smooth light instead of toon bands and ink. Wrapped sunlight (soft
-// terminator, a hint of light through skin), sky light from above and light bounced off the water from below
-// and in front, a soft sheen by material (mat.x: cloth ~0.08, skin ~0.35, a glassed board ~0.7) and a faint rim
-// so the figure still separates from the water.
-fn realShade(n: vec3f, v: vec3f, wpos: vec3f) -> vec3f {
-  let sun = F.sunDir.xyz;
-  let shine = O.mat.x;
-  let ndl = dot(n, sun);
-  let wrap = clamp((ndl + 0.4) / 1.4, 0.0, 1.0);
-  let skyL = mix(vec3f(0.2, 0.33, 0.36), vec3f(0.62, 0.74, 0.88), n.y * 0.5 + 0.5); // (water-tinted from below)
-  let bounce = vec3f(0.3, 0.42, 0.42) * max(dot(n, normalize(vec3f(0.0, -0.35, 1.0))), 0.0) * 0.5;
-  var col = O.color.rgb * (skyL * 0.62 + bounce + vec3f(1.0, 0.93, 0.82) * wrap * 0.85);
-  let h = normalize(sun + v);
-  let spec = pow(max(dot(n, h), 0.0), mix(10.0, 70.0, shine)) * shine * smoothstep(-0.1, 0.2, ndl);
-  col += vec3f(1.0, 0.95, 0.88) * spec * 0.7;
-  let fres = pow(1.0 - max(dot(n, v), 0.0), 3.0);
-  col += skyL * fres * 0.22;
-  return col;
 }
 
 // Ink outline: the back faces of each part, pushed out along the normal.
@@ -499,5 +501,29 @@ struct VO { @builtin(position) pos: vec4f, @location(0) uv: vec2f, @location(1) 
   col = fogMix(col, i.wpos);
   let a = i.a * soft;
   return vec4f(tonemap(col) * a, a);
+}
+`;
+
+// The skinned body (body.js): each vertex blends up to four bones' skinning matrices (already in the world), lit
+// with the real look. Vertex color: rgb the material color (skin, boardshorts), a its shine.
+export const skinnedWGSL = common + realShadeWGSL + /* wgsl */ `
+@group(1) @binding(0) var<storage, read> bones: array<mat4x4f>;
+struct VO { @builtin(position) pos: vec4f, @location(0) wpos: vec3f, @location(1) n: vec3f, @location(2) col: vec4f };
+@vertex fn vs(@location(0) p: vec3f, @location(1) n: vec3f, @location(2) j: vec4u, @location(3) w: vec4f, @location(4) c: vec4f) -> VO {
+  var o: VO;
+  let m = bones[j.x] * w.x + bones[j.y] * w.y + bones[j.z] * w.z + bones[j.w] * w.w;
+  let wp = m * vec4f(p, 1.0);
+  o.pos = F.viewProj * wp;
+  o.wpos = wp.xyz;
+  o.n = (m * vec4f(n, 0.0)).xyz;
+  o.col = c;
+  return o;
+}
+@fragment fn fs(i: VO) -> @location(0) vec4f {
+  var n = normalize(i.n);
+  let v = normalize(F.camPos.xyz - i.wpos);
+  var col = realShade(n, v, i.wpos, i.col.rgb, i.col.a);
+  col = fogMix(col, i.wpos);
+  return vec4f(tonemap(col), 1.0);
 }
 `;

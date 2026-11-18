@@ -486,6 +486,24 @@ button).
   boardshorts hem and side stripe, and the surfer's shadow on water the sun lights (not on the face, which is in
   the wave's own shade with the sun behind it). Saved for later (not built): Step 2, one continuous skinned body
   driven by the pose skeleton; Step 3, motion detail (spine bend, weight shifts, arm follow-through).
+- **Skinned body** (2026-11-18, Step 2 toward a realistic surfer; `?body=mh` / `?body=parts` or **B** in the game,
+  remembered; the parts surfer stays the default). `assets/body/guy.glb` and `girl.glb` (~0.95 MB each, 13.7-13.9k
+  quads, MakeHuman's 53-bone `game_engine` skeleton) are built from MakeHuman's **CC0 core assets only** (MPFB2's
+  bundled base mesh, targets and skeleton, plus the official system asset pack's `male_generic` / `female_generic`
+  body meshes); no community assets (some are CC-BY: the user's rule; we make clothes and hair ourselves). Built by
+  `~/workspace/research/body/scripts/build_surfer.py` in Blender 4.5 LTS with the MPFB extension (body settings
+  there; `feet_on_ground=False`, or MPFB fits the skeleton 0.86 m off the mesh). Game side, no dependencies:
+  `src/glb.js` reads the .glb; `src/body.js` poses it from the same procedural pose as the parts surfer
+  (`pose.J` from surfer.js): torso, neck and head by mapping the rest body frame onto ours (the head kept up and
+  looking down the line), arms and legs re-solved with the body's own bone lengths to our hands and feet (the
+  hips lowered by the leg-length ratio so crouches survive), fingers and toes riding along; tumbles in wipeouts.
+  The renderer skins it on the GPU (`skinnedWGSL`, the real-look lighting, one draw). Clothes and hair are ours,
+  painted per vertex in main.js `bodyColors` (by bone and rest position: boardshorts and waistband; the girl's
+  rash guard with cuffs and floral bottoms; scalp hair and eyebrows from each head's measured top and face) plus
+  hair volume riding the head bone (`hairObjects`). With the body on, everything uses the real look. Cost
+  (test/profile.mjs, retina): no measurable change (GPU about the same as the parts; JS +0.01 ms).
+  Future (saved, not built): a skin texture and eyes from the system pack, Step 3 motion detail (spine bend,
+  weight shift, arm and hair follow-through), proper hair and clothing meshes.
 - **Round body parts** (surfer.js): spheres on the axes across / along the torso / toward the chest shear as the
   torso leans; the shear is capped at `SHEAR_MAX` 0.6 (ordinary riding reaches ~0.57, so riding is unchanged; the deep
   barrel stance squashed the chest and head). The neck, head and hair follow `headDir` (in the barrel stance the head

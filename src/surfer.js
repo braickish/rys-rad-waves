@@ -27,7 +27,7 @@ const GIRL = { rash: [0.1, 0.6, 0.6], rashCuff: [0.06, 0.42, 0.44], floral: [0.9
 // The real look (Step 1 toward a realistic body, 2026-11-18; ?look=real or V in the game, main.js): shaped limbs
 // and torso (mesh.js LIMB_PROFILES), hands and feet shaped like hands and feet, board and shorts graphics, and
 // materials for the smooth shading (spec: shine). Off, the illustrated look is exactly as it was.
-export const LOOK = { real: false };
+export const LOOK = { real: false, mh: false }; // (mh: the skinned MakeHuman body, body.js, instead of the parts)
 const shaped = (o, kind) => (LOOK.real ? { ...o, mesh: kind } : o);
 const jr = (r, real) => (LOOK.real ? real : r); // (joint spheres sized to meet the shaped limbs, not bulge past them)
 const THIGH = 0.46, SHIN = 0.46, UPPER = 0.3, FORE = 0.3;
@@ -127,6 +127,7 @@ const sstepS = (a, b, x) => { const u = Math.min(1, Math.max(0, (x - a) / (b - a
 export function surferObjects(pose, rider, info, dt) {
   // Gone under once the tumble's started (riding the lip over the falls you
   // stay in view the whole way down).
+  pose.J = null; // (set below once the pose is worked out; stays null while the figure is hidden)
   if (rider.mode === 'wipe' && !rider.falls && rider.wipeAge > 0.3) return [];
   const p = rider.pos;
   const f = rider.heading;
@@ -398,11 +399,17 @@ export function surferObjects(pose, rider, info, dt) {
     return { mesh: 'sphere', model: basis(fl, ub, fw, 0.25 * k, 0.07 * k, 0.1 * k, add(foot, v3.mul(ub, 0.035), v3.mul(fl, 0.04))), color };
   };
 
+  // The joints, for the skinned body (body.js), which is posed from them instead of drawing the parts.
+  pose.J = { ss, bodyUp, torsoDir, chest, hip, headDir, hChest, ub, f, T,
+    legF: { root: hipFront, ...legF }, legB: { root: hipBack, ...legB }, frontFoot, backFoot,
+    armF, armB, shFront, shBack, tumble: null };
+
   // --- meshes ---
   const objs = [];
   // Board (banked onto its rail). Going over the falls you've come off it:
   // it's drawn on its own where the wave has taken it (rider.fallsBoard).
   if (!rider.falls) objs.push(...boardObjects(bf, ub, Lb, add(p, v3.mul(u, 0.04 + railLift), tipUp)));
+  const boardCount = objs.length; // (with the skinned body only the board is drawn from here)
   // Legs: boardshorts to just above the knee, then bare legs and feet.
   for (const [hp, leg, foot, logo] of [[hipBack, legB, backFoot, false], [hipFront, legF, frontFoot, true]]) {
     if (girl) {
@@ -500,6 +507,7 @@ export function surferObjects(pose, rider, info, dt) {
     const spin = rider.falls ? rider.falls.time * 6 : rider.wipeAge * 12; // slower going over the falls
     const axis = v3.norm(L);
     const c = rider.falls ? add(hip, v3.mul(torsoDir, 0.12), v3.mul(chest, 0.1)) : p;
+    pose.J.tumble = { axis, spin, c };
     for (const o of objs) {
       const m = o.model;
       for (let col = 0; col < 3; col++) {
@@ -510,6 +518,7 @@ export function surferObjects(pose, rider, info, dt) {
       m[12] = c[0] + t[0]; m[13] = c[1] + t[1]; m[14] = c[2] + t[2];
     }
   }
+  if (LOOK.mh) objs.length = boardCount; // (the body is the skinned one: body.js)
   // The board you came off, on its own in the water.
   const fb = rider.fallsBoard;
   if (rider.falls && fb) {

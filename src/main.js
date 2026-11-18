@@ -5,6 +5,8 @@ import { WAVES } from './waves/index.js';
 import { SEA, nextWave, stepSea, waveHeightFt, seedSea } from './sea.js';
 import { perspective, lookAt, mul, invert } from './math.js';
 import { createPose, surferObjects, LOOK } from './surfer.js';
+import { loadSkinnedGLB } from './glb.js';
+import { createBody } from './body.js';
 
 const params = new URLSearchParams(location.search);
 // Crumbling wave by default; ?wave=barrel for the barreling one. Must be set
@@ -16,6 +18,107 @@ useWave(params.get('wave') || savedWave || 'point');
 // or V in the game; remembered.
 try { LOOK.real = localStorage.getItem('rys-rad-waves-look') === 'real'; } catch {}
 if (params.has('look')) LOOK.real = params.get('look') === 'real';
+// The skinned body (Step 2 toward a realistic surfer, body.js): ?body=mh|parts, or B in the game; remembered.
+try { LOOK.mh = localStorage.getItem('rys-rad-waves-body') === 'mh'; } catch {}
+if (params.has('body')) LOOK.mh = params.get('body') === 'mh';
+const BODY_FILES = { guy: 'assets/body/guy.glb', girl: 'assets/body/girl.glb' };
+const bodies = {}; // which -> { body, loading }
+// Colors per vertex (rgb + shine), painted from the bone each vertex follows and its rest-pose position: skin, and
+// our own clothes and hair (no clothing or hair assets: the user's call to keep to MakeHuman's core assets and make
+// the rest). The guy: boardshorts with a dark waistband, a short haircut. The girl: a teal long-sleeve rash guard
+// with darker cuffs, floral bikini bottoms, long light-brown hair. The hairline and eyebrows go by each head's
+// measured top and face (headStats).
+function dominantBones(m) {
+  const out = new Array(m.vertexCount);
+  for (let v = 0; v < m.vertexCount; v++) {
+    let best = 0, bw = -1;
+    for (let k = 0; k < 4; k++) if (m.weights[v * 4 + k] > bw) { bw = m.weights[v * 4 + k]; best = m.joints[v * 4 + k]; }
+    out[v] = m.boneNames[best];
+  }
+  return out;
+}
+function headStats(m, dom) {
+  let top = -1e9, front = -1e9;
+  for (let v = 0; v < m.vertexCount; v++) if (dom[v] === 'head') { top = Math.max(top, m.pos[v * 3 + 1]); front = Math.max(front, m.pos[v * 3 + 2]); }
+  const capY = top - 0.065;
+  let zMin = 1e9, zMax = -1e9, xMax = 0;
+  for (let v = 0; v < m.vertexCount; v++) if (dom[v] === 'head' && Math.abs(m.pos[v * 3 + 1] - capY) < 0.015) {
+    zMin = Math.min(zMin, m.pos[v * 3 + 2]); zMax = Math.max(zMax, m.pos[v * 3 + 2]); xMax = Math.max(xMax, Math.abs(m.pos[v * 3]));
+  }
+  return { top, front, capY, capZ: (zMin + zMax) / 2, capRx: xMax + 0.016, capRz: (zMax - zMin) / 2 + 0.003 };
+}
+const BODY_LOOKS = {
+  guy: { skin: [0.86, 0.6, 0.45, 0.35], hair: [0.3, 0.2, 0.12, 0.25] },
+  girl: { skin: [0.93, 0.7, 0.54, 0.35], hair: [0.45, 0.3, 0.18, 0.25], hairMid: [0.51, 0.35, 0.21], hairHi: [0.64, 0.47, 0.3] },
+};
+function bodyColors(m, which) {
+  const L = BODY_LOOKS[which], dom = dominantBones(m), hs = headStats(m, dom);
+  const shorts = [0.22, 0.33, 0.5, 0.08], band = [0.08, 0.08, 0.1, 0.08];
+  const rash = [0.1, 0.6, 0.6, 0.15], cuff = [0.06, 0.42, 0.44, 0.15], floral = [0.93, 0.42, 0.5, 0.1], flowers = [[1, 0.97, 0.9, 0.1], [1, 0.84, 0.3, 0.1]];
+  const c = new Float32Array(m.vertexCount * 4);
+  const kneeY = m.rest.calf_l.head[1], waistY = m.rest.spine_01.head[1] + 0.02, neckY = m.rest.neck_01.head[1];
+  const hipY = m.rest.thigh_l.head[1];
+  for (let v = 0; v < m.vertexCount; v++) {
+    const bone = dom[v], x = m.pos[v * 3], y = m.pos[v * 3 + 1], z = m.pos[v * 3 + 2];
+    let col = L.skin;
+    const hipBone = /^(pelvis|spine_01|thigh_[lr]|Root)$/.test(bone) || (bone.startsWith('calf') && y > kneeY + 0.06);
+    if (which === 'guy') {
+      if (hipBone && y < waistY && y > kneeY + 0.07) col = y > waistY - 0.035 ? band : shorts;
+    } else {
+      // rash guard: the torso from the waist to the base of the neck, and the arms to the wrists (darker cuffs)
+      const torso = /^(spine_0[123]|clavicle_[lr]|pelvis|Root)$/.test(bone) && y > waistY - 0.03;
+      const neckBase = bone === 'neck_01' && y < neckY + 0.025;
+      const arm = /^(upperarm|lowerarm)_[lr]$/.test(bone);
+      if (torso || neckBase || arm) col = rash;
+      if (bone.startsWith('lowerarm')) {
+        const hand = m.rest['hand_' + bone.slice(-1)].head, d = Math.hypot(x - hand[0], y - hand[1], z - hand[2]);
+        if (d < 0.035) col = cuff;
+      }
+      // bikini bottoms: from just under the rash guard down over the hips, higher at the sides; little flowers
+      if (hipBone && y <= waistY - 0.03 && y > hipY - 0.06 - 0.04 * (1 - Math.min(1, Math.abs(x) / 0.12))) {
+        col = floral;
+        const f = Math.sin(x * 140) * Math.sin(y * 150) * Math.sin(z * 130);
+        if (f > 0.55) col = flowers[(Math.floor((x + y + z) * 60) & 1)];
+      }
+    }
+    // hair painted on the scalp: the hairline high at the forehead, above the ears at the sides, low at the nape
+    if (bone === 'head' || bone === 'neck_01') {
+      const zf = z - (hs.front - 0.177); // (positions relative to the measured face, like the guy's head it was tuned on)
+      const t = hs.top - 0.98;
+      const line = t + (zf > 0.08 ? 0.915 : zf > 0 ? 0.86 + (0.915 - 0.86) * (zf / 0.08) : Math.max(which === 'girl' ? 0.74 : 0.79, 0.86 + zf * 1.4));
+      if (y > line) col = L.hair;
+      if (y > t + 0.872 && y < t + 0.886 && zf > 0.135 && Math.abs(x) > 0.014 && Math.abs(x) < 0.056) col = L.hair; // eyebrows
+    }
+    c.set(col, v * 4);
+  }
+  return { colors: c, head: hs };
+}
+// A little volume of hair over the painted scalp, riding on the head bone (our own: a flattened cap); for the girl
+// long hair falling down her back, lighter toward the ends (like the parts surfer's).
+function hairObjects(b, mats) {
+  const h = b.body.model.rest.head.index, M = Array.from(mats.subarray(h * 16, h * 16 + 16)), hs = b.head, L = BODY_LOOKS[b.which];
+  const ell = (cx, cy, cz, rx, ry, rz) => [rx * 2, 0, 0, 0, 0, ry * 2, 0, 0, 0, 0, rz * 2, 0, cx, cy, cz, 1];
+  const out = [{ mesh: 'sphere', model: mul(M, ell(0, hs.capY, hs.capZ, hs.capRx, 0.085, hs.capRz)), color: L.hair.slice(0, 3), spec: 0.25, outline: 0 }];
+  if (b.which === 'girl') {
+    const back = hs.capZ - hs.capRz; // the back of the head
+    out.push({ mesh: 'sphere', model: mul(M, ell(0, hs.capY - 0.09, back + 0.035, hs.capRx * 0.95, 0.12, 0.06)), color: L.hair.slice(0, 3), spec: 0.25, outline: 0 });
+    out.push({ mesh: 'sphere', model: mul(M, ell(0, hs.capY - 0.2, back + 0.02, hs.capRx * 0.85, 0.11, 0.045)), color: L.hairMid, spec: 0.25, outline: 0 });
+    out.push({ mesh: 'sphere', model: mul(M, ell(0, hs.capY - 0.3, back + 0.01, hs.capRx * 0.7, 0.08, 0.035)), color: L.hairHi, spec: 0.25, outline: 0 });
+  }
+  return out;
+}
+function wantBody() {
+  if (!LOOK.mh || !renderer) return null;
+  const which = WAVE.surfer === 'girl' ? 'girl' : 'guy';
+  if (!BODY_FILES[which]) return null; // (not built yet: the parts surfer)
+  const b = bodies[which] ||= { body: null, loading: false };
+  if (!b.body && !b.loading) {
+    b.loading = true;
+    loadSkinnedGLB(BODY_FILES[which]).then((m) => { const bc = bodyColors(m, which); Object.assign(b, { body: createBody(m), colors: bc.colors, head: bc.head, which }); }).catch((e) => console.error('body', e));
+  }
+  if (b.body && renderer.bodyShown !== which) { renderer.setBody(b.body.model, b.colors); renderer.bodyShown = which; }
+  return b.body ? b : null;
+}
 
 const $ = (id) => document.getElementById(id);
 const canvas = $('gfx');
@@ -29,6 +132,7 @@ addEventListener('keydown', (e) => {
   if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) e.preventDefault();
   keys.add(e.code);
   if (e.code === 'KeyC') camMode = (camMode + 1) % 2;
+  if (e.code === 'KeyB') { LOOK.mh = !LOOK.mh; try { localStorage.setItem('rys-rad-waves-body', LOOK.mh ? 'mh' : 'parts'); } catch {} }
   if (e.code === 'KeyV') { LOOK.real = !LOOK.real; try { localStorage.setItem('rys-rad-waves-look', LOOK.real ? 'real' : 'toon'); } catch {} }
   // On the longboard wave Space walks the board while riding (back -> middle -> front -> middle -> back); otherwise it drops in.
   if (e.code === 'Space' && state === 'play' && WAVE.noseride) { if (!e.repeat) walkPress = 'cycle'; }
@@ -494,14 +598,21 @@ async function main() {
     const sprayDir = v3.norm(v3.add(v3.mul(side, turnSigned > 0 ? -1 : 1), v3.mul(rider.heading, -0.4)));
     burst = Math.max(0, burst - dt);
 
+    const body = wantBody(); // (the skinned body, once loaded; until then, and for a body not built yet, the parts)
+    const drawMh = LOOK.mh && body;
+    LOOK.mh = !!LOOK.mh; const mhWanted = LOOK.mh; LOOK.mh = !!drawMh; // (surferObjects only drops the parts if the body can be drawn)
+    const objs = surferObjects(pose, worldRider(), {
+      n: toWorld(n), e2: toWorld(v3.norm(v3.cross(n, v3.norm(v3.rej([1, 0, 0], n))))), turn: turnSigned * waveDir(), // (turning left along the wave is turning right in the world on a right)
+      pump: false,
+    }, dt);
+    const bodyMats = drawMh && pose.J ? body.body.update(pose.J) : null;
+    if (bodyMats) objs.push(...hairObjects(body, bodyMats));
     renderer.render({
       viewProj: vp, invViewProj: invert(vp), camPos: camW, time, sunDir: SUN, peel: PEEL_SPEED,
       rider: rider.pos, spray: sprayAmt, riderVel: rider.vel, dt, sprayDir, frame,
       burst: burst > 0 ? 1 : 0, camRight, camUp,
-    }, surferObjects(pose, worldRider(), {
-      n: toWorld(n), e2: toWorld(v3.norm(v3.cross(n, v3.norm(v3.rej([1, 0, 0], n))))), turn: turnSigned * waveDir(), // (turning left along the wave is turning right in the world on a right)
-      pump: false,
-    }, dt), { particles: !params.has('noparticles'), outlines: !params.has('nooutline'), look: LOOK.real });
+    }, objs, { particles: !params.has('noparticles'), outlines: !params.has('nooutline'), look: LOOK.real || !!drawMh, body: bodyMats, shadow: objs.length > 0 });
+    LOOK.mh = mhWanted;
 
     frameMs = frameMs * 0.95 + (dt * 1000) * 0.05; // smoothed frame time
     window.__dbg = { view: tubeView, cam: camPos.map((x) => +x.toFixed(2)), pos: rider.pos.map((x) => +x.toFixed(2)), rt: +rider.t.toFixed(2), tube: !!rider.tube, wave: WAVE.id, wind: +(pose.windup || 0).toFixed(2), unl: +(pose.unload || 0).toFixed(2), ms: +frameMs.toFixed(1), phi: +(rider.phi * 57.3).toFixed(0), turn: touch.turn, tilt: touch.tilt, depth: rider.tube ? +tubeDepth(rider).toFixed(2) : null, state, mode: rider.mode, xs: +rider.xs.toFixed(1), y: +rider.pos[1].toFixed(1), score: Math.round(score), reason: rider.wipeReason, slash: !!rider.slash, slide: +(rider.slide * 57.3).toFixed(0), shuf: +(rider.shuf || 0).toFixed(2) };
