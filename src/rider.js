@@ -762,7 +762,7 @@ function stepSurf(r, input, dt) {
   // --- speed ---
   // Cruising speed climbs with height: up near the top of the pocket is fastest.
   // (speed fades a little further out than the pocket itself: shoulderReach)
-  const pkSpeed = r.xs > 0 ? pocketPower(Math.max(0, r.xs - T.shoulderReach)) : pk;
+  const pkSpeed = r.xs > 0 ? pocketPower(Math.max(0, r.xs - T.shoulderReach) / (T.shoulderFade || 1)) : pk; // (shoulderFade: fades over this many times the pocket's own length)
   let target = T.vLow + (T.vPocket - T.vLow) * pkSpeed * steep * (0.45 + 0.75 * height);
   if (r.foot < 0) target *= 1 - (1 - (T.tailSpeed ?? 1)) * -r.foot; // (standing on the tail the board drags: slower than from the middle)
   // Trimming from the middle is the fast line: a higher cruising speed that it picks up quicker (`middleSpeed`, `middleFeed`).

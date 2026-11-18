@@ -414,6 +414,14 @@ button).
   `highDropAccel` 1.5, `roundhouseNoDrive`. Now a bottom turn 27 -> 30 mph, on the flats 25 -> 26 (still builds a
   little: the user's rule), worst spike +32 mph/s (was +47), pocket rider avg 20 mph (was 23), max 30 (was 34). A first
   try at 5 / 1.2 / cap 5 made bottom turns add nothing and the pocket bot got buried.
+  Then (same day, the user): `bottomDrive` back up to 7. Snaps and slashes dropped too much speed and held you after:
+  on Raglan `lipSnapDrag` 0.7 (was 1.4), `slashDrag` 2.2 (3.2), `moveScrub` snap 0.06 / slash 0.15 (0.08 / 0.25), and
+  `moveCalm` 0.25 s (was 0.95: after a snap she sat pointing down the face at a frozen speed for ~0.5 s). Snap now 27 ->
+  19-22 mph and the drop off the lip picks up at once (was 27 -> 14, held); a slash 28 -> 19 / 15 (was 26 -> 14 / 8). The
+  short pause also gets rebounds out of the whitewater (a slow rebound spent 1.27 s in the foam and slid back behind the
+  curl; now 0.63 s and 2.8 m ahead), which the user had asked for. More speed into the shoulder: `shoulderReach` 3.5
+  (was 2), new `shoulderFade` 1.6 (the pocket's speed fades over 1.6x its length), `bleed` 0.65 (0.9): racing out it's
+  32 mph 12 m ahead of the curl (was 23). Pipe pins its own values for all of these in reef.js and is unchanged.
 - **Ripple size** (`rippleK`, Frame `misc.y`): Queens and Raglan both use 2x finer ripples than the base (Raglan
   since 2026-11-17: the user thought its texture looked slightly off next to Queens; at 1x it read as coarse,
   blotchy streaks). Real ripples come from the wind, so they shouldn't grow with the wave. Pipe uses 1.5x (2x made the distant flats grainy seen from inside the barrel).

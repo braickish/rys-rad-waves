@@ -52,15 +52,21 @@ export default {
     drop: 12, topDropBoost: 8, highDropAccel: 1.5, highDropSoftMax: 2.0, // (highDropAccel 4 -> 1.5: pointing down high in the pocket raised the
     // acceleration cap 5x, so a turn swinging the nose down up there surged +59 mph/s; the user found turns had too much artificial acceleration)
     // Turn drive (2026-11-18, same reason): turns redirect speed more than make it.
-    bottomDrive: 6.5, bottomCarveDrive: 1.5, topDrive: 1.28, // (were 8, 1.6, 1.6 from the rider's settings; 5 / 1.2 left bottom turns making no speed at all)
+    bottomDrive: 7, bottomCarveDrive: 1.5, topDrive: 1.28, // (bottomDrive 6.5 -> 7, the user) // (were 8, 1.6, 1.6 from the rider's settings; 5 / 1.2 left bottom turns making no speed at all)
     driveMaxAccel: 7, // turn drive alone adds at most ~16 mph/s (the overall cap is ~22 when slow)
     roundhouseNoDrive: true, // a roundhouse turns you without making speed (moves don't add speed; was +5 mph)
+    // Snaps and slashes (2026-11-18, the user: they dropped too much speed and held you for a moment after): the snap
+    // scrubs half as much on the lip, the slash less, and the no-speeding-up pause after a move is 0.25 s (was 0.95),
+    // so the drop off the lip takes over straight away.
+    lipSnapDrag: 0.7, slashDrag: 2.2, moveCalm: 0.25,
+    moveScrub: { roundhouse: 0.03, slash: 0.15, snap: 0.06, check: 0.05, reentry: 0.08, topTurn: 0.04, lip180: 0.1, floater: 0.05, rebound: 0.1, rebound180: 0.1, revert: 0.05, land: 0.05 },
+    bleed: 0.65, // extra speed fades a little slower (rider default 0.9)
     curlZone: [-0.5, 2.5],
     foamContact: 0.25, reboundMinHeight: 0.33, rebound180MinHeight: 0.67,
     floaterHeight: 0.55, floaterMax: 1.2, climbFoamDrag: 0.35, foamLimit: 1.0,
     airs: true, floaters: true, rebounds: true, airSpeed: 11.5, airMinSpeed: 6, airCurlZone: 2.5, airBoostZone: 0.6, airBoostUp: 3.0,
     tTop: 5.3, tBottom: 13.9, tFlats: 14.6,
-    shoulderReach: 2.0, // speed carries ~2 m further out toward the shoulder before it fades
+    shoulderReach: 3.5, shoulderFade: 1.6, // speed carries ~3.5 m further out toward the shoulder before it fades, and fades over a longer stretch (was 2 m and the pocket's own length; the user asked for more speed into the shoulder)
     faceFlow: 3.8, // water flowing up the face (m/s), 2/3 of the reef's: riding level drifts you up
   },
 };
