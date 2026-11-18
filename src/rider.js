@@ -596,6 +596,7 @@ function stepSurf(r, input, dt) {
       rh.time += dt;
       d *= T.roundhouseStart + (1 - T.roundhouseStart) * sstep(T.roundhouseHold, T.roundhouseHold + T.roundhouseRamp, rh.time);
       d *= 1 + (T.roundhouseDeep - 1) * rh.depth; // deeper in, it comes round faster
+      d *= T.roundhouseRate || 1; // (a longboard's dropknee turn comes round faster than its normal turns)
       d = clampTurn(d, T.roundhouseMaxRate * dt);
       rh.turned += Math.abs(d);
       rh.depth = sstep(T.roundhouseDepth[0], T.roundhouseDepth[1], rh.turned);
@@ -701,8 +702,9 @@ function stepSurf(r, input, dt) {
   // (turning so the nose swings up the face, toward the wave, not further down)
   r.carvingUp = d !== 0 && Math.sign(d) === (Math.cos(r.phi - d) >= 0 ? 1 : -1);
   const driving = r.bottomCarve ? r.carvingUp : Math.sin(r.phi) > sinBefore;
-  if (driveLow > 0 && driving && d === playerD && !(r.slash && r.slash.released) && !r.slide) r.driveBank += T.bottomDrive * carveDrive * Math.abs(d) * driveLow * (0.4 + 0.6 * pk);
-  if (high > 0 && d === playerD && !(r.slash && r.slash.released) && !r.slide) r.driveBank += T.topDrive * Math.abs(d) * high * pk;
+  const turnDrives = !(r.roundhouse && T.roundhouseNoDrive); // (a dropknee turn turns you, it doesn't make speed)
+  if (turnDrives && driveLow > 0 && driving && d === playerD && !(r.slash && r.slash.released) && !r.slide) r.driveBank += T.bottomDrive * carveDrive * Math.abs(d) * driveLow * (0.4 + 0.6 * pk);
+  if (turnDrives && high > 0 && d === playerD && !(r.slash && r.slash.released) && !r.slide) r.driveBank += T.topDrive * Math.abs(d) * high * pk;
   const release = r.driveBank * (1 - Math.exp(-dt / T.driveSmooth));
   r.speed += release; r.driveBank -= release;
   if (playerD) { r.lastTurnTime = r.time; r.lastTurnDir = Math.sign(playerD); }

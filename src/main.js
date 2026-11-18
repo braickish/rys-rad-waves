@@ -175,6 +175,7 @@ function handleEvents() {
       // Bottom and top turns aren't called out as moves: they just add points.
       const quiet = e.move === 'bottomTurn' || e.move === 'topTurn';
       let [name, base, spray] = MOVES[e.move] || ['Nice', 100, 0];
+      if (WAVE.moveNames && WAVE.moveNames[e.move]) name = WAVE.moveNames[e.move]; // (e.g. the longboard's dropknee turn)
       if (e.move === 'slash' && e.tube) { name = 'BARREL SLASH!'; base = 650; }
       // Repeating the same move back to back pays less; linking a bottom
       // turn into a move pays more.

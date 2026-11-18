@@ -135,6 +135,8 @@ export function surferObjects(pose, rider, info, dt) {
   const fl = rider.mode === 'surf' ? rider.frontLean || 0 : 0;
   // Noseriding (rider.js): nr walks 0 (normal stance) -> 1 (on the nose).
   const nr = rider.mode === 'surf' ? rider.nose || 0 : 0;
+  // Dropknee turn (the longboard's roundhouse): the back knee drops toward the deck.
+  const dk = WAVE.dropknee ? rh : 0;
   const onNose = sstepS(0.6, 1, nr);
   const girl = WAVE.surfer === 'girl';
   const C = girl ? { ...COL, skin: GIRL.skin, hair: GIRL.hair, shorts: GIRL.bikini } : COL;
@@ -209,7 +211,7 @@ export function surferObjects(pose, rider, info, dt) {
   const bs = boardShape(); // (feet sit on the deck, which rises with the rocker)
   // Walking to the nose: the feet shuffle up the board one after the other
   // (back foot first), each lifting as it steps, to the hang-five stance.
-  let st = STANCE, lift = [0, 0];
+  let st = dk > 0.01 ? [STANCE[0] + 0.22 * dk, STANCE[1]] : STANCE, lift = [0, 0]; // (dropknee: the back foot comes up behind the front)
   if (nr > 0.001 && bs.noseStance) {
     const NS = bs.noseStance, a = sstepS(0, 0.55, nr), b = sstepS(0.4, 1, nr);
     st = [STANCE[0] + (NS[0] - STANCE[0]) * a, STANCE[1] + (NS[1] - STANCE[1]) * b];
@@ -222,11 +224,12 @@ export function surferObjects(pose, rider, info, dt) {
   const mid = (st[0] + st[1]) / 2;
   // Hips drop and slide back over the heels as the knees bend.
   // (deep in the barrel the hips sink further, and leaning onto the front foot moves them forward)
-  const hipH = (0.92 - 0.44 * knee - 0.1 * deep) * (1 - 0.4 * tuck);
+  const hipH = (0.92 - 0.44 * knee - 0.1 * deep - 0.12 * dk) * (1 - 0.4 * tuck);
   const hip = add(B, v3.mul(bf, mid + 0.1 * fl), v3.mul(bodyUp, hipH), v3.mul(chest, -0.12 * knee));
   const hipBack = add(hip, v3.mul(f, -0.12)), hipFront = add(hip, v3.mul(f, 0.12));
   // (deep in the barrel the back knee drops in toward the deck, pointing at the front foot)
-  const kneePole = (s) => add(chest, v3.mul(f, 0.15 * s + (s < 0 ? 0.55 * deep : 0)), v3.mul(bodyUp, 0.2 - (s < 0 ? 0.35 * deep : 0)));
+  const kd = Math.max(deep, dk); // (barrel stance or dropknee: the back knee drops toward the deck)
+  const kneePole = (s) => add(chest, v3.mul(f, 0.15 * s + (s < 0 ? 0.55 * kd : 0)), v3.mul(bodyUp, 0.2 - (s < 0 ? 0.35 * kd : 0)));
   if (tuck > 0) {
     // feet pulled in under the hips, in front, heels to the backside
     const tf = (sgn) => add(hip, v3.mul(bodyUp, -0.18), v3.mul(chest, 0.22), v3.mul(f, 0.1 * sgn));

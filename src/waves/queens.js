@@ -25,6 +25,8 @@ export default {
   board: 'longboard',
   surfer: 'girl',
   noseride: true,
+  dropknee: true, // (surfer.js: the roundhouse is drawn as a dropknee turn)
+  moveNames: { roundhouse: 'DROPKNEE TURN!' },
   turquoise: 0.7, // clear, shallow, sunlit water (shaders.js)
   peelSpeed: 3.0, // a slow, even peel
   waveSpeed: 3.0,
@@ -61,6 +63,10 @@ export default {
     airs: false, floaters: true, rebounds: true,
     snapShoulder: 1e9, snapNear: 0, // no snaps on a log: turning off the top is a check turn
     slashLow: -1, // no slashes
+    // The longboard's roundhouse is a dropknee turn: back knee down, it comes round faster than a
+    // normal turn, straight away (no slow, wide start), but it doesn't make speed.
+    roundhouseStart: 1, roundhouseHold: 0, roundhouseRamp: 0.05, roundhouseRate: 1.4, roundhouseDeep: 1.5,
+    roundhouseMaxRate: 4.0, roundhouseNoDrive: true, roundhouseZone: 3.0, roundhousePocket: 0.65,
     tTop: 5.3, tBottom: 13.9, tFlats: 14.6,
     shoulderReach: 2.0,
     faceFlow: 0.8,

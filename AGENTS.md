@@ -60,6 +60,10 @@ button).
   trims you to just under the curl's speed (`noseHold`, `noseUnder`), so you stay there; out on the shoulder (pocket
   power below `nosePocket`) it drags and the nose dips under (`r.noseRisk`, drawn as the board pitching nose-down, the feet going with it) until
   you pearl (wipeout). Scores: HANG FIVE! on reaching the nose, then a noseride bonus by time when you walk back.
+  **Dropknee turn** (the user: a longboard's roundhouse): on Queens the roundhouse is a dropknee turn (`WAVE.dropknee`,
+  `moveNames`: "DROPKNEE TURN!"): no slow start, `roundhouseRate` 1.4x a normal longboard turn (up to 4 rad/s), and
+  `roundhouseNoDrive`: it turns you without making speed (150 deg in ~0.95 s instead of ~1.6 s, no speed gain where
+  the old roundhouse added ~3 mph); the back knee drops toward the deck (surfer.js `dk`). Zone 3 m out (small wave).
   Spray and mist scale with the wave (`misc.x` particle scale in the frame uniform; rail spray amount). A nose press
   counts once per frame (main.js clears `input.nose` after the first physics step: two steps toggled it back).
 - `src/wave.js`: the wave model. Two wave types share one 16-point layout: **crumble** (default, the
