@@ -87,6 +87,10 @@ button).
   pivot makes) the tail spot moved 0.1 m forward (`tailStance` [-1.0, -0.52]), a turn there is 70% pivot / 30% rail
   (`pivotMax` 0.7), `pivotRate` 3.2 and `pivotDriveK` 0.5: 120 deg from the tail in ~0.84 s (was 0.67), a cutback
   10.1 -> 8.2 mph.
+  **By direction** (same day, the user's idea): turning away from the lip (nose swinging down the face, `r.pivotUp`
+  false) is 85% pivot (`pivotMax`) at 1.15x the rate (`pivotDownRate`, ~3.7 rad/s): 70 deg in 0.38 s (was 0.43).
+  Turning toward the lip (nose up the face) is 50% pivot (`pivotMaxUp`) with a full rail carve's drive
+  (`pivotDriveUp` 1.0): it holds her speed through the climb (10.1 -> 10.1 mph, was -> 9.6).
   Pivots also work the first few feet out onto the flats, easing off further out (`pivotFlats` [0.33, 0.5] surface
   units past `tBottom`: full to ~1.2 m, rail turns by ~2.3 m; the user's idea, after a hard cutoff at the bottom
   made turns facing the whitewater slow). A pivot started within that lasts until you let go of the turn

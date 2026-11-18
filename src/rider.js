@@ -284,7 +284,7 @@ export function createRider() {
     airSpin: 0, airTime: 0, spinArmed: false,
     moveCooldown: 0, lastBottomTurn: -9, bottomArmed: false,
     tube: null, fakie: null, driveBank: 0, lastTurnTime: -9, lastTurnDir: 0, overTheBack: false,
-    rideDir: 1, lock: null, inDir: 0, lipSnap: null, snapGrip: false, roundhouse: null, crouchDepth: 0, barrelCrouch: 0, frontLean: 0, tubeDamp: 0, pivot: 0, foot: 0, footGoal: 0, walkDir: 1, pivotHeld: false, nose: 0, noseTime: 0, noseRisk: 0, onNose: false, slash: null, slide: 0, rightHeld: 0, turnDir: 0, turnDirAge: 9, turnHeld: 0, hard: 0, assist: null, bottomCarve: false, floater: null,
+    rideDir: 1, lock: null, inDir: 0, lipSnap: null, snapGrip: false, roundhouse: null, crouchDepth: 0, barrelCrouch: 0, frontLean: 0, tubeDamp: 0, pivot: 0, foot: 0, footGoal: 0, walkDir: 1, pivotHeld: false, pivotUp: false, nose: 0, noseTime: 0, noseRisk: 0, onNose: false, slash: null, slide: 0, rightHeld: 0, turnDir: 0, turnDirAge: 9, turnHeld: 0, hard: 0, assist: null, bottomCarve: false, floater: null,
     wipeReason: '', wipeTimer: 0, wipeAge: 0, washing: false, falls: null, fallsBoard: null,
     events: [],
     time: 0,
@@ -500,7 +500,8 @@ function stepSurf(r, input, dt) {
   let rate = (1 - (T.tubeTurnDamp || 0) * r.tubeDamp) * (1 - (T.noseTurnDamp || 0) * r.nose) * clamp(r.speed / radius, T.minTurn, T.turn * (1 + (T.hardRate - 1) * hard)); // (damped in the barrel: subtler turns the deeper you are)
   // Fin pivot (longboard, `pivotRate`): stepped back on the tail, the board swings round
   // the fin at its own rate, however slow you're going, instead of carving an arc on the rail.
-  if (T.pivotRate && r.pivot > 0) rate += (T.pivotRate - rate) * r.pivot;
+  // (turning away from the lip, nose swinging down the face, it pivots quicker: `pivotDownRate`)
+  if (T.pivotRate && r.pivot > 0) rate += (T.pivotRate * (r.pivotUp ? 1 : (T.pivotDownRate ?? 1)) - rate) * r.pivot;
   // Which way you're riding along the wave, with hysteresis: it only flips
   // once you're clearly heading the other way, so Up/Down can't swap
   // direction while the nose is near vertical (e.g. coming off a snap).
@@ -544,7 +545,12 @@ function stepSurf(r, input, dt) {
     const allow = r.tube ? 0 : 1 - sstep(T.pivotFlats[0], T.pivotFlats[1], r.t - T.tBottom);
     if (!d) r.pivotHeld = false;
     else if (allow > 0.5 && r.foot < -0.5) r.pivotHeld = true;
-    const pv = (r.pivotHeld && !r.tube ? 1 : allow) * Math.max(0, -r.foot) * (T.pivotMax ?? 1); // (pivotMax: the tail spot is just ahead of the very tail, so it's part pivot, part rail)
+    // Which way: nose swinging up the face toward the lip, or down away from it. Toward the lip it's more of
+    // a rail turn that drives (`pivotMaxUp`, `pivotDriveUp`); away from it more of a quick pivot (`pivotMax`,
+    // `pivotDownRate`, `pivotDriveK`).
+    if (d) r.pivotUp = Math.sign(d) === (Math.cos(r.phi) >= 0 ? 1 : -1);
+    const pmax = r.pivotUp ? (T.pivotMaxUp ?? T.pivotMax ?? 1) : (T.pivotMax ?? 1);
+    const pv = (r.pivotHeld && !r.tube ? 1 : allow) * Math.max(0, -r.foot) * pmax; // (the tail spot is just ahead of the very tail, so it's part pivot, part rail)
     r.pivot += (pv - r.pivot) * (1 - Math.exp(-dt / 0.08));
   }
   // --- slash: a Right turn started low on the way up (also in the barrel) ---
@@ -723,7 +729,7 @@ function stepSurf(r, input, dt) {
   const driveLow = 1 - sstep(0.35, 0.9, height); // starts higher up the face, and works out on the flats too
   const high = sstep(0.55, 0.95, height);
   // (Only your own carving drives you, not the quick assisted pivots.)
-  const pivotK = 1 - (r.pivot || 0) * (1 - (T.pivotDriveK || 0)); // (a fin pivot isn't on the rail: only `pivotDriveK` of a carve's drive)
+  const pivotK = 1 - (r.pivot || 0) * (1 - ((r.pivotUp ? T.pivotDriveUp : null) ?? T.pivotDriveK ?? 0)); // (a fin pivot isn't on the rail: only `pivotDriveK` of a carve's drive, `pivotDriveUp` turning toward the lip)
   const carveDrive = (r.bottomCarve ? T.bottomCarveDrive : 1 + 0.35 * hard) * pivotK;
   // Turn drive goes into a buffer that releases smoothly, so speed builds
   // through the turn instead of jumping.
