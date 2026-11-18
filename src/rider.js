@@ -955,7 +955,11 @@ function stepSurf(r, input, dt) {
     const turning = r.time - (r.lastTurnTime ?? -9) < T.turnWindow;
     // Turning as you meet the lip right where it's breaking is still a snap (Raglan `snapIntoLip`, the user,
     // 2026-11-18: those turns were giving floaters): up to that far behind the curl's edge, with a little more foam.
-    const lipEdge = turning && T.snapIntoLip > 0 && r.xs >= T.curlZone[0] - T.snapIntoLip && foamAt(r.xs, r.t + 0.6) <= 0.65;
+    const onLip = T.snapIntoLip > 0 && r.rideDir >= 0 && r.xs >= T.curlZone[0] - T.snapIntoLip && r.xs <= T.curlZone[0] + 0.5 && foamAt(r.xs, r.t + 0.6) <= 0.65;
+    // ... and right at the lip or barely on it, pointing straight up or angled toward the shoulder at all, it's a snap
+    // even without a turn (the user's rule, 2026-11-18); angled back toward the whitewater it's the usual moves.
+    const autoSnap = onLip && cosp >= -0.1;
+    const lipEdge = onLip && (turning || autoSnap);
     const inWhitewater = (r.xs < T.curlZone[0] || foamAt(r.xs, r.t + 0.6) > 0.3) && !lipEdge;
     const combo = r.time - (r.lastBottomTurn ?? -9) < T.comboWindow;
     if (inWhitewater && !T.floaters && !T.softFoam) return wipe(r, 'Over the falls!');
@@ -968,7 +972,7 @@ function stepSurf(r, input, dt) {
         r.events.push({ type: 'move', move: 'floater', speed: r.speed, combo, xs: r.xs });
         r.moveCooldown = T.moveGap;
       }
-    } else if (turning) {
+    } else if (turning || autoSnap) {
       // Turning at the lip: the fins release and the board pivots quickly in
       // the direction you're turning, then gravity takes over. Inside the gap
       // after another move it's just a plain turn off the top.
@@ -977,7 +981,7 @@ function stepSurf(r, input, dt) {
       //    pointed down the face and forward, away from the whitewater.
       //  - Turning toward the whitewater: only a quick 180, carrying on round
       //    to point straight back down the wave.
-      const towardWhitewater = (r.lastTurnDir || -1) > 0;
+      const towardWhitewater = !autoSnap && (r.lastTurnDir || -1) > 0;
       let checkTurned = false;
       // The 180 off the top only comes up out of a bottom turn, right by the
       // curl, or straight out of a roundhouse (then it's a rebound). Anywhere
