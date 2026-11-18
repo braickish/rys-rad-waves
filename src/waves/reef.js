@@ -21,6 +21,7 @@ const SIZE_K = (() => {
 const reef = {
   id: 'reef',
   name: 'Pipe',
+  walkKeys: true, shuffle: true, // (Up/Down and up/down swipes shuffle the feet back / middle / forward, rider.js; only Left/Right turn)
   kind: 'barrel',
   keyframes: USE_SIM ? KF_SIM : KF_PIPE,
   board: 'shortboard', // a 6'6" thruster with plenty of rocker for the steep, hollow face (mesh.js BOARDS)

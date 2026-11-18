@@ -271,6 +271,18 @@ export function surferObjects(pose, rider, info, dt) {
     st = [STANCE[0] + (NS[0] - STANCE[0]) * a, STANCE[1] + (NS[1] - STANCE[1]) * b];
     lift = [0.12 * Math.sin(Math.PI * Math.min(1, nr / 0.55)) * (nr < 0.55 ? 1 : 0), 0.12 * Math.sin(Math.PI * Math.max(0, Math.min(1, (nr - 0.4) / 0.6)))];
   }
+  // Shortboard feet (rider.shuf, rider.js): a subtle shuffle, both feet sliding back or forward along the board
+  // (~10 cm back, ~9 cm forward), in two little steps: the leading foot lifts first, then the other.
+  if (WAVE.shuffle && !WAVE.noseride && rider.mode === 'surf') {
+    const sh = rider.shuf || 0, off = sh * (sh < 0 ? 0.1 : 0.09);
+    const fr = Math.abs(sh) % 1, moving = Math.abs(sh - (pose.shufPrev ?? sh)) > 1e-6 && fr > 0;
+    pose.shufPrev = sh;
+    const goingBack = sh < (rider.shufGoal ?? sh) ? false : true;
+    const first = Math.sin(Math.PI * Math.min(1, fr * 2)) * (fr < 0.5 ? 1 : 0), second = Math.sin(Math.PI * Math.max(0, fr * 2 - 1));
+    const lead = moving ? 0.025 * first : 0, trail = moving ? 0.025 * second : 0;
+    st = [st[0] + off, st[1] + off];
+    lift = goingBack ? [lift[0] + lead, lift[1] + trail] : [lift[0] + trail, lift[1] + lead]; // (back: the back foot leads; forward: the front foot)
+  }
   // (along the board as drawn: when the nose dips the feet go down with it)
   const du = dip > 0 || tip > 0 ? v3.norm(rotateAbout(u, Lb, dip - tip)) : u;
   let backFoot = add(B, v3.mul(bf, st[0]), v3.mul(du, bs.rocker(st[0] / bs.half) + lift[0]));

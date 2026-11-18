@@ -32,7 +32,7 @@ addEventListener('keydown', (e) => {
   if (e.code === 'KeyV') { LOOK.real = !LOOK.real; try { localStorage.setItem('rys-rad-waves-look', LOOK.real ? 'real' : 'toon'); } catch {} }
   // On the longboard wave Space walks the board while riding (back -> middle -> front -> middle -> back); otherwise it drops in.
   if (e.code === 'Space' && state === 'play' && WAVE.noseride) { if (!e.repeat) walkPress = 'cycle'; }
-  // On waves with `walkKeys` (Queens, the user's trial) Up/Down walk the board instead of steering; Left/Right turn.
+  // On waves with `walkKeys` (all of them since 2026-11-18) Up/Down walk the board (Queens) or shuffle the feet (shortboards) instead of steering; Left/Right turn.
   else if (WAVE.walkKeys && state === 'play' && ['ArrowUp', 'KeyW', 'ArrowDown', 'KeyS'].includes(e.code)) { if (!e.repeat) walkPress = e.code === 'ArrowUp' || e.code === 'KeyW' ? 1 : -1; }
   else if (e.code === 'Space' || e.code === 'Enter') startOrRestart();
 });
@@ -504,7 +504,7 @@ async function main() {
     }, dt), { particles: !params.has('noparticles'), outlines: !params.has('nooutline'), look: LOOK.real });
 
     frameMs = frameMs * 0.95 + (dt * 1000) * 0.05; // smoothed frame time
-    window.__dbg = { view: tubeView, cam: camPos.map((x) => +x.toFixed(2)), pos: rider.pos.map((x) => +x.toFixed(2)), rt: +rider.t.toFixed(2), tube: !!rider.tube, wave: WAVE.id, wind: +(pose.windup || 0).toFixed(2), unl: +(pose.unload || 0).toFixed(2), ms: +frameMs.toFixed(1), phi: +(rider.phi * 57.3).toFixed(0), turn: touch.turn, tilt: touch.tilt, depth: rider.tube ? +tubeDepth(rider).toFixed(2) : null, state, mode: rider.mode, xs: +rider.xs.toFixed(1), y: +rider.pos[1].toFixed(1), score: Math.round(score), reason: rider.wipeReason, slash: !!rider.slash, slide: +(rider.slide * 57.3).toFixed(0) };
+    window.__dbg = { view: tubeView, cam: camPos.map((x) => +x.toFixed(2)), pos: rider.pos.map((x) => +x.toFixed(2)), rt: +rider.t.toFixed(2), tube: !!rider.tube, wave: WAVE.id, wind: +(pose.windup || 0).toFixed(2), unl: +(pose.unload || 0).toFixed(2), ms: +frameMs.toFixed(1), phi: +(rider.phi * 57.3).toFixed(0), turn: touch.turn, tilt: touch.tilt, depth: rider.tube ? +tubeDepth(rider).toFixed(2) : null, state, mode: rider.mode, xs: +rider.xs.toFixed(1), y: +rider.pos[1].toFixed(1), score: Math.round(score), reason: rider.wipeReason, slash: !!rider.slash, slide: +(rider.slide * 57.3).toFixed(0), shuf: +(rider.shuf || 0).toFixed(2) };
     // HUD.
     msgTimer -= dt;
     if (msgTimer <= 0) $('msg').classList.remove('pop');
@@ -515,6 +515,8 @@ async function main() {
     $('hint-nose').hidden = !WAVE.noseride;
     for (const el of document.querySelectorAll('.hint-std')) el.hidden = !!WAVE.walkKeys;
     for (const el of document.querySelectorAll('.hint-walk')) el.hidden = !WAVE.walkKeys;
+    for (const el of document.querySelectorAll('.hint-lb')) el.hidden = !WAVE.noseride; // (longboard: walk; shortboard: shuffle the feet)
+    for (const el of document.querySelectorAll('.hint-sb')) el.hidden = !!WAVE.noseride;
     $('score').textContent = Math.round(score);
     $('speed').textContent = Math.round(groundSpeed(rider) * 2.237);
     const tube = $('tube');

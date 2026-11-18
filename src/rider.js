@@ -34,6 +34,15 @@ const RIDER_TUNE = {
   climb: 6, // speed lost per second pointing straight up it (m/s^2)
   pump: 4, // m/s^2 while pumping on the face (full on the drop, less otherwise)
   turn: 5.2, // fastest turn rate (rad/s)
+  // Shuffling the feet on a shortboard (waves with `shuffle`, 2026-11-18, the user's design): Up/Down move the
+  // feet one spot between back (-1), the middle (0, the normal stance) and forward (1), subtly, in `shuffleTime`.
+  // Back: sharper turns (radius x`backRadius`, turn limit x`backTurn`), slightly more pivot (`backPivot` of the
+  // turn rate stops depending on speed, and turning scrubs `backScrub` of your speed per radian), slightly slower
+  // (cruising x`backSpeed`). Forward: helps you accelerate (picks up speed x`fwdFeed`, acceleration cap x`fwdAccel`,
+  // cruising x`fwdSpeed`) and turns more rail to rail (radius x`fwdRadius`, turn limit x`fwdTurn`).
+  shuffleTime: 0.2,
+  backRadius: 0.9, backTurn: 1.1, backPivot: 0.05, backScrub: 0.03, backSpeed: 0.95,
+  fwdFeed: 1.25, fwdAccel: 1.15, fwdSpeed: 1.04, fwdRadius: 1.15, fwdTurn: 0.9,
   hardAfter: [0.25, 0.6], // hold a turn this long (s) and you lean into it harder ...
   hardRate: 1.25, // ... a faster top turn rate ...
   hardRadius: 0.7, // ... and a tighter arc
@@ -284,7 +293,7 @@ export function createRider() {
     airSpin: 0, airTime: 0, spinArmed: false,
     moveCooldown: 0, lastBottomTurn: -9, bottomArmed: false,
     tube: null, fakie: null, driveBank: 0, lastTurnTime: -9, lastTurnDir: 0, overTheBack: false,
-    rideDir: 1, lock: null, inDir: 0, lipSnap: null, snapGrip: false, roundhouse: null, crouchDepth: 0, barrelCrouch: 0, frontLean: 0, tubeDamp: 0, pivot: 0, foot: 0, footGoal: 0, walkDir: 1, pivotHeld: false, pivotUp: false, nose: 0, noseTime: 0, noseRisk: 0, onNose: false, slash: null, slide: 0, rightHeld: 0, turnDir: 0, turnDirAge: 9, turnHeld: 0, hard: 0, assist: null, bottomCarve: false, floater: null,
+    rideDir: 1, lock: null, inDir: 0, lipSnap: null, snapGrip: false, roundhouse: null, crouchDepth: 0, barrelCrouch: 0, frontLean: 0, tubeDamp: 0, pivot: 0, foot: 0, footGoal: 0, shuf: 0, shufGoal: 0, walkDir: 1, pivotHeld: false, pivotUp: false, nose: 0, noseTime: 0, noseRisk: 0, onNose: false, slash: null, slide: 0, rightHeld: 0, turnDir: 0, turnDirAge: 9, turnHeld: 0, hard: 0, assist: null, bottomCarve: false, floater: null,
     wipeReason: '', wipeTimer: 0, wipeAge: 0, washing: false, falls: null, fallsBoard: null,
     events: [],
     time: 0,
@@ -496,8 +505,13 @@ function stepSurf(r, input, dt) {
   if (!wantsTurn || Math.sin(r.phi) > 0.5) r.bottomCarve = false;
   else if (r.turnHeld === 0 && !r.turnDir && Math.sin(r.phi) < -0.3 && height < 0.6) r.bottomCarve = true;
   const hard = r.bottomCarve ? 1 : r.hard;
-  const radius = (T.rTop + (T.rBottom - T.rTop) * low) * (r.bottomCarve ? T.bottomCarveRadius : 1 - (1 - T.hardRadius) * hard);
-  let rate = (1 - (T.tubeTurnDamp || 0) * r.tubeDamp) * (1 - (T.noseTurnDamp || 0) * r.nose) * clamp(r.speed / radius, T.minTurn, T.turn * (1 + (T.hardRate - 1) * hard)); // (damped in the barrel: subtler turns the deeper you are)
+  // (shortboard feet: back = sharper, forward = more rail to rail)
+  const sBack = Math.max(0, -r.shuf), sFwd = Math.max(0, r.shuf);
+  const shufR = 1 + (T.backRadius - 1) * sBack + (T.fwdRadius - 1) * sFwd, shufT = 1 + (T.backTurn - 1) * sBack + (T.fwdTurn - 1) * sFwd;
+  const radius = (T.rTop + (T.rBottom - T.rTop) * low) * (r.bottomCarve ? T.bottomCarveRadius : 1 - (1 - T.hardRadius) * hard) * shufR;
+  const rateCap = T.turn * (1 + (T.hardRate - 1) * hard) * shufT;
+  let rate = (1 - (T.tubeTurnDamp || 0) * r.tubeDamp) * (1 - (T.noseTurnDamp || 0) * r.nose) * clamp(r.speed / radius, T.minTurn, rateCap); // (damped in the barrel: subtler turns the deeper you are)
+  if (sBack > 0) rate += (rateCap * (1 - (T.tubeTurnDamp || 0) * r.tubeDamp) - rate) * T.backPivot * sBack; // (back foot: a little more pivot, less tied to speed)
   // Fin pivot (longboard, `pivotRate`): stepped back on the tail, the board swings round
   // the fin at its own rate, however slow you're going, instead of carving an arc on the rail.
   // (turning away from the lip, nose swinging down the face, it pivots quicker: `pivotDownRate`)
@@ -646,6 +660,12 @@ function stepSurf(r, input, dt) {
   // nose trims you to the curl's speed, so you slow down and stay there; out
   // on the shoulder (pocket power below nosePocket) it drags and starts going
   // under, and stay out there too long and you pearl.
+  if (WAVE.shuffle && !WAVE.noseride) {
+    // shortboard: shuffle the feet back / middle / forward (see `shuffleTime` in RIDER_TUNE)
+    if (input.walk && input.walk !== 'cycle') r.shufGoal = clamp(r.shufGoal + Math.sign(input.walk), -1, 1);
+    const st = dt / T.shuffleTime;
+    r.shuf = r.shuf < r.shufGoal ? Math.min(r.shufGoal, r.shuf + st) : Math.max(r.shufGoal, r.shuf - st);
+  }
   if (WAVE.noseride) {
     // (Space: 'cycle' walks back -> middle -> front -> middle -> back, turning round at each end)
     if (input.walk === 'cycle') {
@@ -765,10 +785,11 @@ function stepSurf(r, input, dt) {
   const pkSpeed = r.xs > 0 ? pocketPower(Math.max(0, r.xs - T.shoulderReach) / (T.shoulderFade || 1)) : pk; // (shoulderFade: fades over this many times the pocket's own length)
   let target = T.vLow + (T.vPocket - T.vLow) * pkSpeed * steep * (0.45 + 0.75 * height);
   if (r.foot < 0) target *= 1 - (1 - (T.tailSpeed ?? 1)) * -r.foot; // (standing on the tail the board drags: slower than from the middle)
+  target *= 1 + (T.backSpeed - 1) * sBack + (T.fwdSpeed - 1) * sFwd; // (shortboard feet: back a little slower, forward a little faster)
   // Trimming from the middle is the fast line: a higher cruising speed that it picks up quicker (`middleSpeed`, `middleFeed`).
   const mid = T.middleSpeed ? 1 - Math.min(1, Math.abs(r.foot)) : 0;
   target *= 1 + ((T.middleSpeed || 1) - 1) * mid;
-  const feedK = 1 + ((T.middleFeed || 1) - 1) * mid;
+  const feedK = (1 + ((T.middleFeed || 1) - 1) * mid) * (1 + (T.fwdFeed - 1) * sFwd); // (front foot: picks up speed quicker)
   r.boost = Math.max(0, (r.boost || 0) - dt);
   if (r.boost > 0 && r.boost < 0.85 && foam < 0.2) r.boost = 0; // cleared the foam you bounced off
   if (r.boost > 0) { /* just rebounded: the foam can't slow you for a moment */ }
@@ -811,7 +832,7 @@ function stepSurf(r, input, dt) {
   // drive, pump), it never surges: speed builds at most maxAccel.
   // Pointing down high on the wave is allowed to build speed faster.
   const highDrop = highDropNow;
-  const accelCap = T.maxAccel * (1 - (1 - T.maxAccelFast) * sstep(T.accelTaper[0], T.accelTaper[1], speedAtStart)) * (1 + T.highDropAccel * highDrop);
+  const accelCap = T.maxAccel * (1 - (1 - T.maxAccelFast) * sstep(T.accelTaper[0], T.accelTaper[1], speedAtStart)) * (1 + T.highDropAccel * highDrop) * (1 + (T.fwdAccel - 1) * sFwd);
   r.speed = Math.min(r.speed, speedAtStart + accelCap * dt);
   // During a move, and for a moment after it, you don't speed up at all:
   // the move is a turn of the board, not a boost. (Bottom turns excluded.)
@@ -822,6 +843,7 @@ function stepSurf(r, input, dt) {
   if ((r.lipSnap && !r.lipSnap.standing) || r.snapGrip) r.speed = Math.min(r.speed, speedAtStart) * (1 - T.lipSnapDrag * dt);
   // Sliding sideways in a slash scrubs speed, and nothing builds it meanwhile.
   else if (r.slide > 0) r.speed = Math.min(r.speed, speedAtStart) * (1 - (r.tube ? T.slashTube.slashDrag : T.slashDrag) * Math.sin(Math.min(r.slide, Math.PI / 2)) * dt);
+  if (sBack > 0) r.speed *= 1 - T.backScrub * sBack * r.turnRate * dt; // (back foot: turning scrubs a little speed)
   r.speed = clamp(r.speed, T.minSpeed, T.maxSpeed);
 
   // --- move ---

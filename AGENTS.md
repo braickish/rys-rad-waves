@@ -27,7 +27,17 @@ catch rules go by place along the curve, phase and real height in the tube, so t
 drop takes longer, so a slash needs a later bottom turn (test/slash.mjs's player-timing check only tries
 up to 0.8 s and fails at `SIM=1 SIZE=1.75`; from 1.4 s it slashes).
 
-Controls (Queens is the exception: see `walkKeys` below): one control, from the surfer's point of view. Left (or Up) turns the board to the surfer's
+**Feet on every wave** (2026-11-18, the user: carry Queens's Up/Down walking to the other waves): all waves have
+`walkKeys`, so Up/Down (and up/down swipes) move the feet and only Left/Right turn. On Queens they walk the longboard
+(tail / middle / nose, below). On the shortboards (Raglan, Pipe: `shuffle`) they shuffle the feet one spot, subtly,
+in `shuffleTime` 0.2 s: back (-1), middle (0, the normal stance; where you start) and forward (1) (rider.js `r.shuf`;
+drawn as both feet sliding ~10 cm in two little lifted steps). Back: sharper turns (`backRadius` 0.9, `backTurn` 1.1),
+slightly more pivot (`backPivot` 0.05 of the turn rate stops depending on speed; turning scrubs `backScrub` 0.03 per
+radian), slightly slower (`backSpeed` 0.95). Forward: helps you accelerate (`fwdFeed` 1.25, `fwdAccel` 1.15,
+`fwdSpeed` 1.04) and turns more rail to rail (`fwdRadius` 1.15, `fwdTurn` 0.9). `node test/shuffle.mjs` measures it:
+back turns ~17-24% sharper and runs ~1 mph slower, forward turns ~12-17% wider; the middle is unchanged.
+The Up = Left / Down = Right steering below still exists in the rider (`tilt`, tested) but no wave's keys use it now.
+Controls (before 2026-11-18; Queens was the exception: see `walkKeys` below): one control, from the surfer's point of view. Left (or Up) turns the board to the surfer's
 left, Right (or Down) to their right; Up is exactly Left and Down exactly Right in every situation
 (tested). Riding right along the wave, the surfer's left is up the face. Air spins turn the same way
 (about the face normal at takeoff). Holding a turn progressively leans you into it harder (`hardAfter`: tighter arc,
@@ -504,6 +514,7 @@ node test/tube.mjs     # barrel riding: balance and speed choices and their outc
 node test/moves.mjs    # audit every move: peak acceleration, speed before/after, bogged in foam
 node test/controls.mjs # human-style inputs on both waves: no glitches, Up/Down never flips you
 node test/pocket.mjs   # where different riding styles spend their time vs. the curl
+node test/shuffle.mjs  # shortboard feet: back / middle / forward, turn and speed effects on Raglan and Pipe
 node test/slash.mjs    # the slash: when it fires (and doesn't), climb, speed scrub, slide, turn; point, reef, barrel
 node test/plot-slices.mjs out.svg [crumble|barrel]   # draw the wave cross-sections
 node test/steepness.mjs  # reef face angle at fixed heights from the tube out to the shoulder

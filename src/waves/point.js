@@ -13,6 +13,7 @@ const whitewater = (s, t) => sstep(0.8, 1.4, s) * sstep(3.5, 5.0, t);
 export default {
   id: 'point',
   name: 'Raglan',
+  walkKeys: true, shuffle: true, // (Up/Down and up/down swipes shuffle the feet back / middle / forward, rider.js; only Left/Right turn)
   kind: 'crumble', // no tube
   keyframes: KF_CRUMBLE,
   scale: 1.25, rippleK: 2.0, // (ripples 2x finer than the base, like Queens: real ripples are set by the wind, not the wave's size; at 1 they read as coarse blotches; the user asked)
