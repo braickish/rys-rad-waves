@@ -290,6 +290,8 @@ function startOrRestart() {
   nextWave(); // the next wave of the set (its own size)
   resetRider(rider);
   if (params.has('xs')) { rider.xs = Number(params.get('xs')); rider.t = 13.0; rider.pos = frameAt(rider.xs, rider.t).P; }
+  // (testing airs: ?air=<xs> starts heading straight up into the lip that far from the curl, fast enough for an air)
+  if (params.has('air')) { rider.xs = Number(params.get('air')) || 0.5; rider.t = 7.5; rider.phi = 1.35; rider.speed = 13; rider.pos = frameAt(rider.xs, rider.t).P; }
   score = 0; rideTime = 0;
   $('title').hidden = true;
   $('over').hidden = true;

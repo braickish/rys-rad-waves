@@ -139,6 +139,16 @@ export function surferObjects(pose, rider, info, dt) {
   const ss = WAVE.stance === 'regular' ? -1 : 1;
   const T = v3.mul(L, ss);
 
+  // Air phases (see the air pose below).
+  const flying = rider.mode === 'air' && !rider.overTheBack;
+  if (flying && !pose.airVy0) pose.airVy0 = Math.max(1, rider.vel[1]);
+  if (!flying && pose.airVy0) { pose.airVy0 = 0; if (rider.mode === 'surf') pose.landAge = 0; }
+  pose.landAge = (pose.landAge ?? 9) + dt;
+  const sAir = flying ? rider.vel[1] / pose.airVy0 : 0;
+  const aStretch = flying ? sstepS(0.4, 0.8, sAir) : 0;
+  const aTuck = flying ? sstepS(0.75, 0.3, sAir) * (1 - sstepS(-0.1, -0.5, sAir)) : 0;
+  const aReach = flying ? sstepS(-0.1, -0.5, sAir) : 0;
+  const aLand = rider.mode === 'surf' ? 1 - sstepS(0.12, 0.5, pose.landAge) : 0;
   // Rail roll: in a hard turn the board banks onto its inside rail. Harder
   // and faster turns roll it further; holding a turn (leaning harder) more still.
   const speed0 = v3.len(rider.vel);
@@ -184,7 +194,11 @@ export function surferObjects(pose, rider, info, dt) {
   let Lb = v3.norm(v3.cross(ub, f));
   // Pearling (noseriding out on the shoulder): the nose dips under.
   let bf = f;
-  const dip = rider.mode === 'surf' ? 0.32 * (rider.noseRisk || 0) : 0;
+  const dip0 = rider.mode === 'surf' ? 0.32 * (rider.noseRisk || 0) : 0;
+  // Coming down from an air the nose drops toward the water (air-4/5 in the references), smoothed so it eases
+  // back level through the landing.
+  pose.airPitch = (pose.airPitch || 0) + (0.2 * aReach - (pose.airPitch || 0)) * (1 - Math.exp(-dt * 8));
+  const dip = dip0 + pose.airPitch;
   if (dip > 0) { bf = v3.norm(rotateAbout(f, Lb, dip)); ub = v3.norm(rotateAbout(ub, Lb, dip)); } // (+: nose down, tail up)
   // Pivoting (pivot-turn.jpg in braickish/reference-images): her weight right back sinks the
   // tail into the water and the nose stands well up out of it; the board tips about a point just
@@ -212,13 +226,24 @@ export function surferObjects(pose, rider, info, dt) {
   const upr = WAVE.noseride && rider.mode === 'surf' ? 1 - sstepS(0.5, 1, tl) : 0;
   kneeT *= 1 - 0.4 * upr;
   if (rider.mode === 'air') kneeT = 0.7;
+  // Airs (air-1..air-7.jpg in braickish/reference-images, 2026-11-18): a pose sequence through the flight, timed by
+  // the vertical speed (s = 1 leaving the lip, 0 at the top, below 0 coming down), so short and big airs both play
+  // it through. Stretch: tall off the lip, legs extended. Tuck: knees up, folded over them at the top. Reach: coming
+  // down, the hips sit back and the front leg reaches for the dropping nose. Absorb: a quick deep crouch on landing.
+  if (flying) {
+    kneeT = 0.6;
+    kneeT += (1 - kneeT) * aTuck;
+    kneeT += (0.75 - kneeT) * aReach;
+    kneeT += (0.22 - kneeT) * aStretch;
+  }
+  if (aLand > 0.01) kneeT += (0.95 - kneeT) * aLand;
   // Going over the falls (off the board): curled up in a ball, knees to chest.
   const tuck = rider.falls ? clamp(rider.falls.time / 0.3, 0, 1) : 0;
   if (tuck > 0) kneeT = 1;
   // Roundhouse: lower and lower as it comes round, right down at full depth.
   if (rh > 0.01) kneeT = Math.max(kneeT, 0.45 + 0.65 * rh);
   if (tl > 0.01) kneeT = kneeT * (1 - 0.6 * tl) + 0.3 * 0.6 * tl; // (on the tail: fairly upright, knees softly bent)
-  pose.knee += (clamp(kneeT, 0, 1) - pose.knee) * (1 - Math.exp(-dt * 9));
+  pose.knee += (clamp(kneeT, 0, 1) - pose.knee) * (1 - Math.exp(-dt * (flying || aLand > 0.01 ? 16 : 9))); // (quicker through an air and its landing)
   let leanT = clamp(info.turn * 0.2 * clamp(speed / 4, 0.8, 1.25) * (1 + 0.3 * committed), -0.85, 0.85); // + = toward L (the rider's left, whatever the stance)
   if (committed > 0.5 && Math.abs(info.turn) > 0.3) leanT = Math.sign(leanT) * Math.max(Math.abs(leanT), (rider.bottomCarve ? 0.65 : 0.5) * committed);
   if (rh > 0.01 && Math.abs(info.turn) > 0.3) leanT = Math.sign(leanT) * Math.max(Math.abs(leanT), 0.5 + 0.35 * rh); // deeper into the roundhouse
@@ -311,8 +336,8 @@ export function surferObjects(pose, rider, info, dt) {
   const mid = (st[0] + st[1]) / 2;
   // Hips drop and slide back over the heels as the knees bend.
   // (deep in the barrel the hips sink further, and leaning onto the front foot moves them forward)
-  const hipH = (0.92 - 0.44 * knee - 0.1 * deep - 0.12 * dk) * (1 - 0.4 * tuck);
-  const hip = add(B, v3.mul(bf, mid + 0.1 * fl), v3.mul(bodyUp, hipH), v3.mul(chest, -0.12 * knee));
+  const hipH = (0.92 - 0.44 * knee - 0.1 * deep - 0.12 * dk) * (1 - 0.4 * tuck) * (1 - 0.22 * aTuck); // (an air's tuck: knees up toward the chest)
+  const hip = add(B, v3.mul(bf, mid + 0.1 * fl - 0.08 * aReach), v3.mul(bodyUp, hipH), v3.mul(chest, -0.12 * knee)); // (an air's reach: hips back over the tail, the front leg straightens)
   const hipAx = ten > 0.001 ? v3.norm(lerp3(f, v3.mul(T, -1), ten)) : f; // (hips square to the nose in a hang ten)
   const hipBack = add(hip, v3.mul(hipAx, -0.12)), hipFront = add(hip, v3.mul(hipAx, 0.12));
   // (deep in the barrel the back knee drops in toward the deck, pointing at the front foot)
@@ -329,7 +354,8 @@ export function surferObjects(pose, rider, info, dt) {
 
   // Torso leans forward (toward the chest side) as you crouch.
   const torsoDir0 = v3.norm(add(bodyUp, v3.mul(chest, (0.1 + 0.6 * knee) * (1 - 0.45 * upr) + 0.35 * inB + 0.45 * deep), v3.mul(f, 0.1 * deep + 0.22 * fl))); // leaning into the tube (and onto the front foot)
-  const torsoDir = v3.norm(lerp3(torsoDir0, v3.norm(add(v3.mul(bodyUp, 0.45), chest)), tuck)); // (folded over the knees in a tuck)
+  const torsoDir1 = v3.norm(add(lerp3(torsoDir0, v3.norm(add(v3.mul(bodyUp, 0.45), chest)), 0.65 * aTuck), v3.mul(f, -0.15 * aReach))); // (an air: folded over the knees at the top, upright and back over the tail coming down)
+  const torsoDir = v3.norm(lerp3(torsoDir1, v3.norm(add(v3.mul(bodyUp, 0.45), chest)), tuck)); // (folded over the knees in a tuck)
   const neck = add(hip, v3.mul(torsoDir, 0.58));
   const headDir = v3.norm(lerp3(torsoDir, bodyUp, 0.5 * deep)); // head up, looking down the line, in the barrel stance
   const head = add(neck, v3.mul(headDir, 0.2), v3.mul(chest, 0.03), v3.mul(across, 0.03));
@@ -430,6 +456,20 @@ export function surferObjects(pose, rider, info, dt) {
     const w = Math.max(0.5 * tl, 0.85 * pv);
     handBack = lerp3(handBack, add(shBack, v3.mul(across, -0.45), v3.mul(bodyUp, -0.05), v3.mul(chest, 0.15)), w);
     handFront = lerp3(handFront, add(shFront, v3.mul(across, 0.5), v3.mul(bodyUp, -0.12), v3.mul(chest, 0.2)), w);
+  }
+  // Airs (the references): stretching off the lip the back arm goes up high and the front arm out low; tucked at the
+  // top the front arm reaches out toward the nose and the back hand drops to the rail by the knees; coming down both
+  // arms go out wide, the back one high; landing, crouched, the back arm up and the front one forward.
+  if (flying || aLand > 0.01) {
+    const at = (sh, a, u, c) => add(sh, v3.mul(across, a), v3.mul(bodyUp, u), v3.mul(chest, c));
+    handBack = lerp3(handBack, at(shBack, -0.3, 0.45, -0.1), aReach);
+    handFront = lerp3(handFront, at(shFront, 0.5, 0.05, 0.1), aReach);
+    handBack = lerp3(handBack, add(lerp3(legB.joint, backFoot, 0.5), v3.mul(chest, 0.12)), aTuck);
+    handFront = lerp3(handFront, at(shFront, 0.55, 0.08, 0.1), aTuck);
+    handBack = lerp3(handBack, at(shBack, -0.38, 0.42, -0.08), aStretch);
+    handFront = lerp3(handFront, at(shFront, 0.3, -0.4, 0.2), aStretch);
+    handBack = lerp3(handBack, at(shBack, -0.25, 0.4, 0), aLand);
+    handFront = lerp3(handFront, at(shFront, 0.35, -0.2, 0.3), aLand);
   }
   if (tuck > 0) {
     // arms wrapped round the shins
