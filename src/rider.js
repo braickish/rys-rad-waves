@@ -1315,12 +1315,21 @@ export function airSpeedAt(xs) {
   return T.airSpeedCurl + (T.airSpeed - T.airSpeedCurl) * sstep(0, T.airCurlZone, xs - T.curlZone[0]);
 }
 // Upward pop (m/s) for an air at xs at this speed, and the speed from which it's a BIG AIR there (for the HUD).
+// With `airPopTopSpeed` the pop eases out from `airPopBase` at the threshold to `airPopMax` at that speed (the same
+// top speed wherever you are), `airPopEase` setting how fast it rises early on: it keeps building all the way up
+// instead of capping early (the user, 2026-11-18: the max should come at ~30 mph). Otherwise it's linear (capped).
+const popU = (xs, speed) => clamp((speed - airSpeedAt(xs)) / (TUNE.airPopTopSpeed - airSpeedAt(xs)), 0, 1);
 export function airPopFor(xs, speed) {
   const T = TUNE;
+  if (T.airPopTopSpeed) return T.airPopBase + (T.airPopMax - T.airPopBase) * (1 - (1 - popU(xs, speed)) ** T.airPopEase);
   return Math.min(T.airPopMax || Infinity, T.airPopBase + T.airPopPerSpeed * Math.max(0, speed - airSpeedAt(xs)));
 }
 export function bigAirSpeedAt(xs) {
   const T = TUNE;
+  if (T.airPopTopSpeed) {
+    const f = clamp((T.bigAirPop - T.airPopBase) / (T.airPopMax - T.airPopBase), 0, 1);
+    return airSpeedAt(xs) + (1 - (1 - f) ** (1 / T.airPopEase)) * (T.airPopTopSpeed - airSpeedAt(xs));
+  }
   return airSpeedAt(xs) + (T.bigAirPop - T.airPopBase) / T.airPopPerSpeed;
 }
 
