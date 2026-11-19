@@ -238,8 +238,8 @@ button).
       rider.js): the threshold is `airSpeedCurl` (19 mph) at the curl's edge easing up to `airSpeed` (21 mph) by
       `airCurlZone` out. (Physics: the board leaves the water over the 3-5 m crest once v^2/R > g, ~12-15 mph; a
       usable ~0.5 m pop needs ~16-18.) The pop is `airPopBase` + `airPopPerSpeed` x (speed over the threshold there),
-      eased out (`airPopTopSpeed` 30 mph, `airPopEase` 1.6) to `airPopMax` (~4.5 m): ~2 m above the lip at 22 mph,
-      ~2.6-3 m at 24-25, ~3.5 m at 27, ~4.1 m at 29, the max at ~30 (a bit higher near the curl, where the threshold is
+      eased out (`airPopTopSpeed` 30 mph, `airPopEase` 1.6) to `airPopMax` (capped at 3.5 m above the lip, the user): ~2 m at 22-23 mph,
+      ~2.5 m at 25, ~3 m at 27, ~3.3 m at 29, 3.5 m from ~30 (a bit higher near the curl, where the threshold is
       lower; the ease-out, 2026-11-18, the user: keep building through to ~30 instead of capping at ~25-27; `airPopBase` 5.7 since 2026-11-18, the user: 28-30 mph was hard to reach,
       so heights start scaling ~4 mph earlier). BIG AIR (1.5x points) = a pop of at least `bigAirPop` (~2 m up),
       from ~20 mph at the curl / ~22 mph out on the face; the HUD speed glows pink when your
