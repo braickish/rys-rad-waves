@@ -594,11 +594,12 @@ async function main() {
   drawPicker();
   if (params.has('play')) startOrRestart();
   if (params.has('cam')) camMode = Number(params.get('cam')) || 0;
-  let last = performance.now(), acc = 0, frame = 0, time = 0;
+  let last = performance.now(), acc = 0, frame = 0, time = 0, flow = 0;
   function tick(now) {
     const dt = Math.min(0.05, (now - last) / 1000);
     last = now;
     time += dt;
+    flow += PEEL_SPEED * dt; // (the water texture flows with the peel; added up so a change of speed doesn't jump it)
     frame++;
 
     if (state === 'play') {
@@ -666,7 +667,7 @@ async function main() {
     const bodyMats = body && pose.J ? body.body.update(pose.J) : null;
     if (bodyMats) { body.dt = dt; objs.push(...hairObjects(body, bodyMats)); }
     renderer.render({
-      viewProj: vp, invViewProj: invert(vp), camPos: camW, time, sunDir: SUN, peel: PEEL_SPEED,
+      viewProj: vp, invViewProj: invert(vp), camPos: camW, time, sunDir: SUN, peel: PEEL_SPEED, flow,
       rider: rider.pos, spray: sprayAmt, riderVel: rider.vel, dt, sprayDir, frame,
       burst: burst > 0 ? 1 : 0, camRight, camUp,
     }, objs, { particles: !params.has('noparticles'), outlines: !params.has('nooutline'), look: true, body: bodyMats, shadow: !!bodyMats });

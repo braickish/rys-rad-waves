@@ -14,6 +14,8 @@ struct Frame {
                     // z: which way the wave peels in the world (WAVE.dir: 1 toward +x, -1 toward -x, a right seen from the beach), -
   // (The wave, its peel frame and the particle sim work along the wave: +x is ahead of the curl. dirX() places
   // that in the world; rider/riderVel/spray stay in the peel frame, camPos and everything drawn is in the world.)
+  flow: vec4f,      // x: how far the water texture has flowed along the wave (m): the peel speed added up frame by frame
+                    // (not time x peel speed: on Trestles the speed changes, and that made the whole texture lurch)
 };
 @group(0) @binding(0) var<uniform> F: Frame;
 fn dirX(p: vec3f) -> vec3f { return vec3f(p.x * F.misc.z, p.y, p.z); } // peel frame <-> world (its own inverse)
@@ -159,7 +161,7 @@ fn coarseTex(q: vec2f, t: f32) -> f32 {
   // up the face (the wave moves through it).
   let rk = F.misc.y; // (ripples sized to the wave: finer on a small one)
   let ax = i.wpos.x * F.misc.z; // (along the wave, ahead of the curl: the texture flows with the peel whichever way it runs)
-  let q = vec2f(ax + t * peel, i.wpos.z * 0.9 + i.wpos.y * 0.9 - t * 1.5) * 1.8 * rk;
+  let q = vec2f(ax + F.flow.x, i.wpos.z * 0.9 + i.wpos.y * 0.9 - t * 1.5) * 1.8 * rk;
   let e = 0.06;
   let h0 = ripple(q, t);
   let gx = (ripple(q + vec2f(e, 0.0), t) - h0) / e;
@@ -178,7 +180,7 @@ fn coarseTex(q: vec2f, t: f32) -> f32 {
   // drawn up the face (stretched along the flow), plus broad lumps. Up close
   // the fine ripples above carry it, so this fades in with distance.
   // (slanted a little, the way the water draws up and along the wall)
-  let fx = ax + t * peel;
+  let fx = ax + F.flow.x;
   let fy = i.wpos.z * 0.9 + i.wpos.y * 0.9 - t * 1.5;
   let qc = vec2f((fx + fy * 0.35) * 1.3, fy * 0.6) * rk;
   let rib = coarseTex(qc, t);
@@ -238,10 +240,10 @@ fn coarseTex(q: vec2f, t: f32) -> f32 {
   col += vec3f(1.0, 0.95, 0.85) * pow(max(dot(n, hv), 0.0), 500.0) * 4.0 * (1.0 - 0.85 * flatness);
 
   // Foam: broken up with noise, plus faint streaks on the face.
-  let fq = vec2f(ax + t * peel * 0.9, i.wpos.y * 1.3 + i.wpos.z * 0.6 - t * 0.8) * F.misc.y;
+  let fq = vec2f(ax + F.flow.x * 0.9, i.wpos.y * 1.3 + i.wpos.z * 0.6 - t * 0.8) * F.misc.y;
   let fn1 = noise(fq * 1.4) * 0.6 + noise(fq * 3.9 + vec2f(t, 0.0)) * 0.4;
   var foam = clamp(foamAmt * 1.6 - (1.0 - fn1) * 0.9, 0.0, 1.0);
-  let streak = smoothstep(0.78, 0.95, noise(vec2f((ax + t * peel) * 0.6, (i.wpos.y + i.wpos.z) * 4.0)));
+  let streak = smoothstep(0.78, 0.95, noise(vec2f((ax + F.flow.x) * 0.6, (i.wpos.y + i.wpos.z) * 4.0)));
   let onFace = smoothstep(-1.5, -0.3, phase) * (1.0 - smoothstep(1.0, 1.4, phase)) * smoothstep(0.3, 1.5, i.wpos.y);
   foam = max(foam, streak * onFace * 0.18);
   let foamCol = vec3f(0.93, 0.97, 1.0) * (0.72 + 0.28 * diff + 0.1);
