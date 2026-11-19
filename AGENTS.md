@@ -491,6 +491,18 @@ button).
   curl; now 0.63 s and 2.8 m ahead), which the user had asked for. More speed into the shoulder: `shoulderReach` 3.5
   (was 2), new `shoulderFade` 1.6 (the pocket's speed fades over 1.6x its length), `bleed` 0.65 (0.9): racing out it's
   32 mph 12 m ahead of the curl (was 23). Pipe pins its own values for all of these in reef.js and is unchanged.
+- **Raglan speed, second pass** (2026-11-18, the user: still too much acceleration out of top turns, bottom turns and
+  snaps, and speed building on speed). Traced per move (where each mph comes from): after snaps, rebounds, the 180 and the
+  roundhouse almost all the gain was the drop (`drop`, x`topDropBoost` 8 high in the pocket), switching on at full in one
+  frame as the snap's fins gripped (-13 -> +21 mph/s); bottom turns were pinned at the turn-drive cap. Raglan only (Pipe
+  pins its old values in reef.js, the user: don't change Pipe; Queens unaffected; both checked identical):
+  `topDropBoost` 2 (was 8), `highDropAccel` 0, `bottomDrive` 5 / `topDrive` 0.3 / `driveMaxAccel` 4 (were 7 / 1.28 / 7),
+  `postMoveDrop` 0 (the drop off a move adds nothing until you're below mid-face: the wave's own feed brings speed back),
+  `moveEase` 0.4 s (speed eases back in after a move instead of switching on), and against speed building on speed:
+  `driveRefSpeed` 9 m/s (above ~20 mph a radian of turn pays less, since turns come round faster when fast) and
+  `dropTerminal` 17 m/s (a drop adds less the faster you go, nothing by ~38 mph). Now: snap 27 -> 18 at the grip -> 21 mph
+  0.5 s later (was -> 26); bottom turn +2 mph at 20 mph, ~0 at 27 (was +6 / +3); on the flats at 25 mph it now loses ~1;
+  top turn makes ~0 in the turn; pocket rider avg 23 mph, max 28 (was 26 / 30), still riding all 30 s.
 - **Color and the surfer's light** (2026-11-18, the user): every color goes through `vibrance` in `tonemap`
   (shaders.js, `VIBRANCE` 0.45: muted colors pushed most, greys and whites like foam untouched), so the whole game
   is more saturated. The surfer (skinned body, and the parts surfer in the real look) is lit by its own key light
