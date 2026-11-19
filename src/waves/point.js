@@ -102,7 +102,8 @@ export default {
     // capped at airPopMax: ~0.5 m above the lip at the threshold, ~3 m at 28 mph on the open face (higher at the curl,
     // where the threshold is lower). BIG AIR (1.5x points) pops at least bigAirPop (~2 m up); the HUD speed glows pink
     // when your speed would give one where you are. The old next-to-the-whitewater boost no longer applies.
-    airPopBase: 3.2, airPopPerSpeed: 1.4, airPopMax: 9.5, bigAirPop: 6.5,
+    airPopBase: 5.7, airPopPerSpeed: 1.4, airPopMax: 9.5, bigAirPop: 6.5, // (airPopBase 3.2 -> 5.7: heights start scaling ~4 mph earlier, 22 mph ~1.5-2 m, 24 ~2.2-3 m; the user, 2026-11-18: 28-30 mph was hard to reach)
+    airLandDown: [15, 70], // an air landing with the nose pointing down the face always lands: 15 deg back toward the whitewater to 70 deg out toward the shoulder (the user, 2026-11-18)
     airMinSpeed: 6, airCurlZone: 2.5, airBoostZone: 2.5, airIntoCurl: 0.6, airBoostUp: 3.0, // (airIntoCurl: airs reach 0.6 m into the breaking curl, the user, 2026-11-18) // (boost zone 0.6 -> 2.5 m, the same as airCurlZone: the user, 2026-11-18, wanted a bigger zone for the boosted air; 0.6 m was a ~0.1 s window at the curl)
     tTop: 5.3, tBottom: 13.9, tFlats: 14.6,
     shoulderReach: 3.5, shoulderFade: 1.6, // speed carries ~3.5 m further out toward the shoulder before it fades, and fades over a longer stretch (was 2 m and the pocket's own length; the user asked for more speed into the shoulder)

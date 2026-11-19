@@ -238,9 +238,10 @@ button).
       rider.js): the threshold is `airSpeedCurl` (19 mph) at the curl's edge easing up to `airSpeed` (21 mph) by
       `airCurlZone` out. (Physics: the board leaves the water over the 3-5 m crest once v^2/R > g, ~12-15 mph; a
       usable ~0.5 m pop needs ~16-18.) The pop is `airPopBase` + `airPopPerSpeed` x (speed over the threshold there),
-      capped at `airPopMax`: ~0.7 m above the lip at the threshold, ~1.5-2 m at 26 mph, ~2.2-3 m at 28, ~3.3-4.3 m
-      at 30 (higher near the curl, where the threshold is lower). BIG AIR (1.5x points) = a pop of at least
-      `bigAirPop` (~2 m up), from ~24 mph at the curl / ~26 mph out on the face; the HUD speed glows pink when your
+      capped at `airPopMax` (~4.5 m): ~1.5-2 m above the lip at 22 mph, ~2.2-3 m at 24, ~3.2-4.2 m at 26 (higher near
+      the curl, where the threshold is lower; `airPopBase` 5.7 since 2026-11-18, the user: 28-30 mph was hard to reach,
+      so heights start scaling ~4 mph earlier). BIG AIR (1.5x points) = a pop of at least `bigAirPop` (~2 m up),
+      from ~20 mph at the curl / ~22 mph out on the face; the HUD speed glows pink when your
       speed would give one where you are. No separate next-to-the-whitewater boost. (Before: 24 mph on the open face
       and ~13 near the curl, where every air was big, so near the curl was the only place airs happened in play.)
       `test/lipspeed.mjs`: bottom turn up into the lip at different spots, speed at the top and what you get.
@@ -291,7 +292,11 @@ button).
     in), no foam or climb drag while floating, can't climb above where you got on, and steer down to come off it at
     once; after `floaterSink` s the foam gives way (`floaterSinkSpeed`). It ends once you're clear, `floaterDrop` below
     where you got on, or turned back. `test/floater.mjs`.
-  - **Air landings:** you land when the board crosses the water moving into it. Wipeouts: touching down on the back
+  - **Air landings:** you land when the board crosses the water moving into it. On Raglan a touchdown with the
+    nose pointing down the face always lands (`airLandDown` [15, 70]: from 15 deg back toward the whitewater to 70 deg out
+    toward the shoulder of straight down; the user, 2026-11-18), whatever the spin, and you ride off the way you point.
+    In the air the nose settles toward along the line turned by however far you've spun (so a ~90 deg spin toward the
+    beach stays pointing down to land; the old pull toward along the line undid part spins). Wipeouts: touching down on the back
     of the wave, a spin more than `airLandSpin` (Raglan 1.1 rad, ~63 deg; default 0.9) off a whole half-turn, or
     falling 2 m below still water. (A steep descent could slip between two frames' cross-sections and fall through the face, ~3% of
     airs; stepAir now also tests the last spot's cross-section and lands you if you end up just under the face.) Landing in the whitewater gives `airLandFoamGrace` (Raglan 1.5 s) before the foam

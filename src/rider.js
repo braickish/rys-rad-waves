@@ -1082,6 +1082,7 @@ function stepSurf(r, input, dt) {
       f = frameAt(r.xs, r.t);
       r.mode = 'air'; r.airSpin = 0; r.airTime = 0; r.spinArmed = false; r.overTheBack = false;
       r.airAxis = f.n; // spins in the air turn the same way as on the face
+      r.airAlong = cosp >= 0 ? 1 : -1; // (which way along the line the board settles, before any spin)
       r.pos = f.P;
       // Near the curl you always get an air (if you're moving); out on the
       // open face you need the speed for it, or you go over the back.
@@ -1153,7 +1154,11 @@ function stepAir(r, input, dt) {
   r.airSpin += spin;
   // The nose rotates over gradually as you come down (no snap to a new angle).
   const along = r.heading[0] >= 0 ? 1 : -1;
-  const want = v3.norm([along * Math.hypot(r.heading[0], r.heading[2]), r.vel[1] < 0 ? -0.35 : 0.25, r.heading[2]]);
+  let want = v3.norm([along * Math.hypot(r.heading[0], r.heading[2]), r.vel[1] < 0 ? -0.35 : 0.25, r.heading[2]]);
+  // (waves with `airLandDown`, Raglan: it settles toward along the line turned by however far you've spun, so a
+  // part spin stays where you put it: spin ~90 deg toward the beach and the nose stays pointing down the wave to
+  // land. The plain pull toward along the line undid part spins before touchdown.)
+  if (TUNE.airLandDown) want = v3.norm(rotate(v3.norm([r.airAlong || 1, r.vel[1] < 0 ? -0.35 : 0.25, 0]), r.airAxis || [0, 0, 1], r.airSpin));
   const kh = 1 - Math.exp(-dt * 3);
   r.heading = v3.norm(v3.add(r.heading, v3.mul(v3.sub(want, r.heading), kh)));
 
@@ -1171,24 +1176,33 @@ function stepAir(r, input, dt) {
     r.mode = 'surf';
     r.t = clamp(hit.t, TUNE.tTop, TUNE.tBottom);
     if (hit.nz < -0.05 || r.overTheBack) return wipe(r, r.overTheBack ? 'Went over the back! (turn at the lip)' : 'Landed over the back!');
-    if (spinErr > (TUNE.airLandSpin || 0.9)) return wipe(r, 'Bad landing! (finish the spin)'); // (how far off a whole half-turn you can land: `airLandSpin` rad, 0.9 = ~52 deg)
+    const fl = frameAt(r.xs, r.t);
+    // Pointing down the wave always lands (`airLandDown` = [deg back toward the whitewater, deg out toward the
+    // shoulder] around straight down the face; Raglan [15, 70], the user, 2026-11-18), whatever the spin; you ride
+    // off the way the nose points. (Board angle on the face: 0 = along the line toward the shoulder, -90 = straight
+    // down, +-180 = back toward the whitewater.)
+    const boardAng = Math.atan2(v3.dot(r.heading, fl.e2), v3.dot(r.heading, fl.e1));
+    const LD = TUNE.airLandDown;
+    const downOK = !!LD && boardAng >= -(Math.PI / 2 + LD[0] / 57.3) && boardAng <= -(Math.PI / 2 - LD[1] / 57.3);
+    if (!downOK && spinErr > (TUNE.airLandSpin || 0.9)) return wipe(r, 'Bad landing! (finish the spin)'); // (how far off a whole half-turn you can land: `airLandSpin` rad, 0.9 = ~52 deg)
     // Land travelling the way you were going (along the line, nose... or tail
     // ... down the face). If the board came round backwards, ride it
     // backwards for a moment, then it spins back round to forwards.
-    const fl = frameAt(r.xs, r.t);
     const vt = v3.rej(v3.add(r.vel, [PEEL_SPEED, 0, 0]), fl.n);
     const ph1 = Math.atan2(v3.dot(vt, fl.e2), v3.dot(vt, fl.e1));
-    r.phi = Math.cos(ph1) >= 0 ? -0.35 : Math.PI + 0.35;
+    r.phi = downOK ? boardAng : Math.cos(ph1) >= 0 ? -0.35 : Math.PI + 0.35;
     // Backwards = the nose points back along the line, against your travel.
     const noseAlong = v3.dot(r.heading, fl.e1), travelAlong = Math.cos(r.phi);
-    r.fakie = noseAlong * travelAlong < 0 && Math.abs(noseAlong) > 0.2 ? { time: 0, spin: 0 } : null;
+    r.fakie = !downOK && noseAlong * travelAlong < 0 && Math.abs(noseAlong) > 0.2 ? { time: 0, spin: 0 } : null;
     r.speed = clamp((r.launchSpeed || r.speed) * 0.92, TUNE.minSpeed, TUNE.maxSpeed); // keep most of your takeoff speed
     // Landing in the whitewater (a big air off the curl drifts back ~2-3 m into it): the foam can't slow you or catch
     // you for `airLandFoamGrace` s while you ride out of it (gone once you're clear). (2026-11-18, the user: loosen up
     // landing in the whitewater; at ~20 mph those landings were caught by the foam 1.0 s after touching down.)
     if (TUNE.airLandFoamGrace > 0 && foamAt(r.xs, r.t) > 0.3) r.boost = Math.max(r.boost || 0, TUNE.airLandFoamGrace);
     syncPose(r, frameAt(r.xs, r.t));
-    r.events.push({ type: 'land', spins: Math.abs(half) * 180, airTime: r.airTime, big: !!r.bigAir, backwards: !!r.fakie });
+    // (a landing pointing down only scores the half-turns you've really done: 135 deg or more counts as a 180)
+    const spins = downOK ? Math.floor(Math.abs(r.airSpin) / Math.PI + 0.25) * 180 : Math.abs(half) * 180;
+    r.events.push({ type: 'land', spins, airTime: r.airTime, big: !!r.bigAir, backwards: !!r.fakie });
     r.bigAir = false;
     return;
   }
