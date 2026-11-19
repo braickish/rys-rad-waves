@@ -68,6 +68,10 @@ export default {
   // Settings that belong to this wave (merged over the rider's settings).
   tune: {
     vPocket: 14, vLow: 4.5, vFoam: 3,
+    // Smoother pocket speed (2026-11-19, the user: the speed boost high in the pocket felt unrealistic): the cruising
+    // speed depends less on height (was 0.45 + 0.75 x height: ~21 mph low, ~26 at 60% up), the pocket pulls you up to
+    // it more gently (feed 2.0 -> 1.0), and speed builds at most ~13 mph/s instead of ~22 (maxAccel 10 -> 6).
+    heightSpeed: [0.7, 0.35], feed: 1.0, maxAccel: 6,
     drop: 12, topDropBoost: 2, highDropAccel: 0, highDropSoftMax: 2.0, // (highDropAccel 4 -> 1.5 -> 0, topDropBoost 8 -> 2: pointing down high in
     // the pocket used to multiply the drop 8x and raise the acceleration cap, so a turn off the top surged; the user found turns had too much
     // artificial acceleration and wants the speed down the wave to come from the wave itself)
