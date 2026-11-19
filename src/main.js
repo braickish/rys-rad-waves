@@ -1,6 +1,6 @@
 import { createRenderer } from './renderer.js';
 import { createRider, resetRider, stepRider, groundSpeed, frameAt, v3, TUNE, useWave, tubeDepth, airSpeedAt, bigAirSpeedAt } from './rider.js';
-import { PEEL_SPEED, slice, verticalHits, WAVE, phaseAt, toWorld, waveDir } from './wave.js';
+import { PEEL_SPEED, slice, verticalHits, WAVE, phaseAt, toWorld, waveDir, stepRide } from './wave.js';
 import { WAVES } from './waves/index.js';
 import { SEA, nextWave, stepSea, seedSea } from './sea.js';
 import { perspective, lookAt, mul, invert } from './math.js';
@@ -293,6 +293,8 @@ function startOrRestart() {
   if (params.has('xs')) { rider.xs = Number(params.get('xs')); rider.t = 13.0; rider.pos = frameAt(rider.xs, rider.t).P; }
   // (testing airs: ?air=<xs> starts heading straight up into the lip that far from the curl, fast enough for an air)
   if (params.has('air')) { rider.xs = Number(params.get('air')) || 0.5; rider.t = 7.5; rider.phi = 1.35; rider.speed = 13; rider.pos = frameAt(rider.xs, rider.t).P; }
+  // (testing a wave with a bar: ?ridet=<s> runs the wave on that long before you drop in, e.g. to see its closeout)
+  if (params.has('ridet') && WAVE.bar) { for (let i = 0; i < Number(params.get('ridet')) * 120; i++) stepRide(1 / 120); resetRider(rider); }
   score = 0; rideTime = 0;
   $('title').hidden = true;
   $('over').hidden = true;
@@ -369,7 +371,7 @@ function handleEvents() {
 }
 
 // ---------- camera ----------
-let camPos = [-6, 4, 12], camTarget = [0, 1, 0], aspectNow = 1.6;
+let camPos = [-6, 4, 12], camTarget = [0, 1, 0], aspectNow = 1.6, camPeel = PEEL_SPEED; // (camPeel: the smoothed peel speed the camera eases in)
 // Is there open air all the way from a to b? (no water surface crossed)
 function clearView(a, b) {
   for (let k = 1; k < 16; k++) {
@@ -526,6 +528,11 @@ function updateCamera(dt) {
     camPos = want.slice(); camTarget = look.slice();
   }
   lastShot = shot;
+  // (The camera eases toward its shot in a frame moving at a smoothed peel speed: the peel frame itself jumps speed on
+  // Trestles (the curl stalls and runs), and easing in it turned each jump into a lurch of the whole view sideways. With
+  // a steady peel, the other waves, it's the same as before.)
+  camPeel += (PEEL_SPEED - camPeel) * (1 - Math.exp(-dt / 1.5));
+  camPos[0] -= (PEEL_SPEED - camPeel) * dt; camTarget[0] -= (PEEL_SPEED - camPeel) * dt;
   const k = 1 - Math.exp(-dt * (rider.falls ? 4 : rider.mode === 'wipe' ? 1.5 : shot === 'tube' ? 9 : 5)); // close behind in the barrel view
   for (let i = 0; i < 3; i++) { camPos[i] += (want[i] - camPos[i]) * k; camTarget[i] += (look[i] - camTarget[i]) * k; }
   // Smoothing must never carry the camera into the water.

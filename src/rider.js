@@ -331,7 +331,7 @@ export function createRider() {
     moveCooldown: 0, lastBottomTurn: -9, bottomArmed: false,
     tube: null, fakie: null, driveBank: 0, lastTurnTime: -9, lastTurnDir: 0, overTheBack: false,
     rideDir: 1, lock: null, inDir: 0, lipSnap: null, snapGrip: false, roundhouse: null, crouchDepth: 0, barrelCrouch: 0, frontLean: 0, tubeDamp: 0, pivot: 0, foot: 0, footGoal: 0, shuf: 0, shufGoal: 0, walkDir: 1, pivotHeld: false, pivotUp: false, pivotDir: 0, nose: 0, noseTime: 0, noseRisk: 0, onNose: false, ten: 0, tenGoal: 0, tenWait: 0, tenTime: 0, tenDone: false, slash: null, slide: 0, rightHeld: 0, turnDir: 0, turnDirAge: 9, turnHeld: 0, hard: 0, assist: null, bottomCarve: false, floater: null,
-    wipeReason: '', wipeTimer: 0, wipeAge: 0, washing: false, falls: null, fallsBoard: null,
+    wipeReason: '', wipeTimer: 0, wipeAge: 0, washing: false, falls: null, fallsBoard: null, stepOff: null,
     events: [],
     time: 0,
   };
@@ -360,7 +360,7 @@ function wipe(r, reason, ended = false) { // (ended: the ride ended without a fa
   // machine": a longer hold-down (the foam ball screen in main.js).
   r.washing = !!r.tube || reason.includes('caught up in the lip');
   // (a wave with a bar, Trestles: once the inside has closed out, that's the end of the wave whatever got you)
-  if (WAVE.bar && RIDE.closed && !ended) reason = 'The inside closed out! (end of the wave)';
+  if (WAVE.bar && (RIDE.closed || RIDE.closing) && !ended) reason = 'The inside closed out! (end of the wave)';
   r.mode = 'wipe';
   r.wipeReason = reason;
   r.wipeTimer = 2.2;
@@ -371,6 +371,58 @@ function wipe(r, reason, ended = false) { // (ended: the ride ended without a fa
   // Caught up top in the barrel: the lip takes you with it, up and over the
   // falls, before the washing machine.
   if (r.washing && reason.startsWith('Over the falls')) startFalls(r);
+}
+
+// Stepping off as the inside closes out (Trestles; the user, 2026-11-19, references closeout-exit-1..4): down in the face
+// when it closes out, you stand tall, lift the front foot and step off the side of the board, forward and toward the
+// beach, and drop in feet first, upright, to your chest, with a splash. The board carries on beside you, slows and
+// drifts (drawn on its own, like going over the falls: r.fallsBoard). The ride ends there, without a wipeout.
+const STEP_OFF = { stand: 0.22, step: 0.35 }; // s: standing tall and lifting the front foot; stepping off; then the drop
+function startStepOff(r, reason) {
+  const fr = frameAt(r.xs, r.t);
+  const along = v3.norm([r.heading[0], 0, r.heading[2]]);
+  r.stepOff = { time: 0, P: r.pos.slice(), dir: v3.norm(v3.add(v3.mul(along, 0.55), [0, 0, 0.85])), vy: 0, splashed: false };
+  r.fallsBoard = {
+    xs: r.xs, t: r.t, vxs: r.speed * Math.cos(r.phi), vt: 0,
+    yaw: Math.atan2(v3.dot(r.heading, fr.e2), v3.dot(r.heading, fr.e1)), flip: 0, stall: true,
+  };
+  r.crouch = false;
+  const board = r.fallsBoard;
+  wipe(r, reason, true);
+  r.fallsBoard = board; // (wipe() clears it)
+  r.wipeTimer = 2.8;
+}
+function stepStepOff(r, dt) {
+  const so = r.stepOff, b = r.fallsBoard;
+  so.time += dt;
+  // the board: on along the wave, slowing, drifting round a little and slipping down the face
+  if (b) { b.vxs *= Math.exp(-dt * 1.3); b.xs += (b.vxs - PEEL_SPEED) * dt; b.vt += 0.6 * dt; b.t = Math.min(NP - 2.2, b.t + b.vt * dt); b.yaw += dt * 0.5; }
+  const prev = r.pos;
+  if (so.time < STEP_OFF.stand) {
+    // still on it, standing up tall as it glides on
+    const fr = frameAt(b.xs, b.t);
+    r.pos = fr.P.slice(); so.P = r.pos.slice();
+  } else if (so.time < STEP_OFF.stand + STEP_OFF.step) {
+    // the step: forward and toward the beach, a little up and over
+    const u = (so.time - STEP_OFF.stand) / STEP_OFF.step;
+    r.pos = v3.add(so.P, v3.add(v3.mul(so.dir, 0.75 * u), [0, 0.18 * Math.sin(Math.PI * u), 0]));
+    so.P1 = r.pos.slice();
+  } else {
+    // the drop: straight down, feet first, to chest deep (slowing hard once in the water)
+    const sl = slice(r.xs);
+    const hits = verticalHits(sl, r.pos[2]);
+    const water = hits.length ? Math.max(...hits.filter((h) => h.ny > 0).map((h) => h.y), -9) : 0;
+    const inWater = r.pos[1] < water;
+    so.vy += (inWater ? 0 : -9.8) * dt;
+    if (inWater) {
+      so.vy *= Math.exp(-dt * 6);
+      if (!so.splashed) { so.splashed = true; r.events.push({ type: 'fallsLand' }); } // (the splash)
+    }
+    const floor = water - 1.15;
+    r.pos = v3.add(r.pos, [so.dir[0] * 0.4 * dt, so.vy * dt, so.dir[2] * 0.4 * dt]);
+    if (r.pos[1] < floor) { r.pos[1] = floor; so.vy = 0; }
+  }
+  r.vel = v3.mul(v3.sub(r.pos, prev), 1 / Math.max(dt, 1e-3));
 }
 
 // Over the falls: sucked up the face, round under the roof and out to the
@@ -442,6 +494,7 @@ export function stepRider(r, input, dt) {
   if (r.mode === 'wipe') {
     r.wipeTimer -= dt; r.wipeAge += dt;
     if (r.falls) stepFalls(r, dt);
+    if (r.stepOff) stepStepOff(r, dt);
     return;
   }
   if (r.mode === 'surf') stepSurf(r, input, dt);
@@ -1117,6 +1170,9 @@ function stepSurf(r, input, dt) {
     } else {
       // Not turning: you keep going, up and off the top. Fast enough (and out
       // of the whitewater) it's an air; otherwise over the back you go.
+      // (Trestles, a `bar` wave: its top line sits ~88% up the face (the real-height lines), so leave from the crest itself,
+      // as on Raglan, where the top is the crest: from below it the pop started under the lip.)
+      if (WAVE.bar) { let tc = r.t, yc = -1e9; for (let t = 2; t <= r.t; t += 0.02) { const y = surface(r.xs, t)[1]; if (y > yc) { yc = y; tc = t; } } r.t = tc; }
       f = frameAt(r.xs, r.t);
       r.mode = 'air'; r.airSpin = 0; r.airTime = 0; r.spinArmed = false; r.overTheBack = false;
       r.airAxis = f.n; // spins in the air turn the same way as on the face
@@ -1274,9 +1330,12 @@ function checkHazards(r, dt) {
   if (r.xs < -25) return wipe(r, 'Caught by the whitewater!');
   // (a wave with a bar, Trestles: the inside has closed out. Once it breaks where you are, it gets you; out past it,
   // the wave is done `end` s later)
-  if (WAVE.bar && RIDE.closed) {
+  if (WAVE.bar && (RIDE.closed || RIDE.closing)) {
+    // (down in the face as it closes out, you step off: the user, 2026-11-19; up high, it gets you. Closing: the inside
+    // has broken on its own ahead and is coming to meet the curl.)
+    if (!r.tube && r.height < 0.5) return startStepOff(r, 'Stepped off as the inside closed out');
     if (phaseAt(r.xs) > 1.1) return wipe(r, 'The inside closed out! (end of the wave)');
-    if (RIDE.time - RIDE.closed.time > WAVE.bar.end) return wipe(r, 'You rode it to the end of the wave!', true);
+    if (RIDE.closed && RIDE.time - RIDE.closed.time > WAVE.bar.end) return startStepOff(r, 'You rode it to the end of the wave!');
   }
 
   if (!WAVE.tube) { r.inBarrel = false; return; }

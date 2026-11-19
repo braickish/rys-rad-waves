@@ -4,7 +4,8 @@
 // you land (how much foam), and what happens in the 2.5 s after landing with
 // no input (still riding, or which wipeout).
 // usage: node test/airs.mjs [speed m/s] [phi deg]
-import { createRider, stepRider, foamAt, TUNE } from '../src/rider.js';
+import { createRider, stepRider, foamAt, TUNE, useWave } from '../src/rider.js';
+if (process.env.W) useWave(process.env.W); // (W=trestles etc.: another wave)
 const dt = 1 / 120, speed = +(process.argv[2] || 13), phi = (+(process.argv[3] || 77)) / 57.3;
 console.log(`speed ${(speed * 2.237).toFixed(0)} mph, heading ${(phi * 57.3).toFixed(0)} deg, whitewater from xs ${TUNE.curlZone?.[0]}, boost zone ${TUNE.airBoostZone} m`);
 let landed = 0, kept = 0;

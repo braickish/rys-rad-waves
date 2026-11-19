@@ -120,7 +120,7 @@ export function surferObjects(pose, rider, info, dt) {
   // Gone under once the tumble's started (riding the lip over the falls you
   // stay in view the whole way down).
   pose.J = null; // (set below once the pose is worked out; stays null while the figure is hidden)
-  if (rider.mode === 'wipe' && !rider.falls && rider.wipeAge > 0.3) return [];
+  if (rider.mode === 'wipe' && !rider.falls && !rider.stepOff && rider.wipeAge > 0.3) return [];
   const p = rider.pos;
   const f = rider.heading;
   const k = 1 - Math.exp(-dt * 12);
@@ -243,12 +243,16 @@ export function surferObjects(pose, rider, info, dt) {
   // Roundhouse: lower and lower as it comes round, right down at full depth.
   if (rh > 0.01) kneeT = Math.max(kneeT, 0.45 + 0.65 * rh);
   if (tl > 0.01) kneeT = kneeT * (1 - 0.6 * tl) + 0.3 * 0.6 * tl; // (on the tail: fairly upright, knees softly bent)
+  // Stepping off at the closeout (closeout-exit-1..4): standing tall, knees nearly straight.
+  const so = rider.stepOff ? rider.stepOff.time : -1;
+  if (so >= 0) kneeT = 0.1;
   pose.knee += (clamp(kneeT, 0, 1) - pose.knee) * (1 - Math.exp(-dt * (flying || aLand > 0.01 ? 16 : 9))); // (quicker through an air and its landing)
   let leanT = clamp(info.turn * 0.2 * clamp(speed / 4, 0.8, 1.25) * (1 + 0.3 * committed), -0.85, 0.85); // + = toward L (the rider's left, whatever the stance)
   if (committed > 0.5 && Math.abs(info.turn) > 0.3) leanT = Math.sign(leanT) * Math.max(Math.abs(leanT), (rider.bottomCarve ? 0.65 : 0.5) * committed);
   if (rh > 0.01 && Math.abs(info.turn) > 0.3) leanT = Math.sign(leanT) * Math.max(Math.abs(leanT), 0.5 + 0.35 * rh); // deeper into the roundhouse
   leanT *= 1 - 0.5 * pv; // (pivoting: standing over the tail, not laid over on a rail)
   leanT *= 1 - 0.6 * ten; // (hang ten: feet side by side, she stays upright over them rather than leaning out)
+  if (so >= 0) leanT = 0;
   pose.lean += (leanT - pose.lean) * (1 - Math.exp(-dt * 8));
   const knee = pose.knee, lean = pose.lean;
   const reach = clamp((Math.abs(lean) - 0.25) / 0.35, 0, 1);
@@ -258,7 +262,7 @@ export function surferObjects(pose, rider, info, dt) {
   const railLift = 0.12 * Math.abs(Math.sin(pose.roll));
   const B = add(p, v3.mul(u, 0.06 + railLift), tipUp); // top of the board
   // Body axis: between board-normal and world-up, leaned into the turn.
-  const up0 = v3.norm(add(v3.mul(u, 0.5), [0, 0.5, 0]));
+  const up0 = so >= 0 ? [0, 1, 0] : v3.norm(add(v3.mul(u, 0.5), [0, 0.5, 0])); // (stepping off: upright)
   const bodyUp = v3.norm(rotateAbout(up0, f, -lean));
   // Facing: toward the wave (toe side), opened up toward the nose a bit, so
   // the surfer looks where they're going.
@@ -348,6 +352,15 @@ export function surferObjects(pose, rider, info, dt) {
     const tf = (sgn) => add(hip, v3.mul(bodyUp, -0.18), v3.mul(chest, 0.22), v3.mul(f, 0.1 * sgn));
     backFoot = lerp3(backFoot, tf(-1), tuck);
     frontFoot = lerp3(frontFoot, tf(1), tuck);
+  }
+  if (so >= 0) {
+    // Stepping off: the front foot lifts as you stand tall, then both feet come together under the hips for the drop,
+    // feet first (the references: legs straight down, together).
+    frontFoot = add(frontFoot, v3.mul(bodyUp, 0.22 * sstepS(0.04, 0.22, so)), v3.mul(f, 0.15 * sstepS(0.04, 0.22, so)));
+    const k = sstepS(0.22, 0.5, so);
+    const tf = (sgn) => add(hip, v3.mul(bodyUp, -0.86), v3.mul(f, 0.06 * sgn));
+    backFoot = lerp3(backFoot, tf(-1), k);
+    frontFoot = lerp3(frontFoot, tf(1), k);
   }
   const legB = ik(hipBack, backFoot, THIGH, SHIN, kneePole(-1));
   const legF = ik(hipFront, frontFoot, THIGH, SHIN, kneePole(1));
@@ -507,8 +520,8 @@ export function surferObjects(pose, rider, info, dt) {
   const objs = [];
   // Board (banked onto its rail). Going over the falls you've come off it:
   // it's drawn on its own where the wave has taken it (rider.fallsBoard).
-  if (!rider.falls) objs.push(...boardObjects(bf, ub, Lb, add(p, v3.mul(u, 0.04 + railLift), tipUp)));
-  if (rider.mode === 'wipe') {
+  if (!rider.falls && !rider.stepOff) objs.push(...boardObjects(bf, ub, Lb, add(p, v3.mul(u, 0.04 + railLift), tipUp)));
+  if (rider.mode === 'wipe' && !rider.stepOff) {
     // Tumble the whole figure (curled up going over the falls: round its middle).
     const spin = rider.falls ? rider.falls.time * 6 : rider.wipeAge * 12; // slower going over the falls
     const axis = v3.norm(L);
@@ -526,7 +539,7 @@ export function surferObjects(pose, rider, info, dt) {
   }
   // The board you came off, on its own in the water.
   const fb = rider.fallsBoard;
-  if (rider.falls && fb) {
+  if ((rider.falls || rider.stepOff) && fb) {
     const fr = frameAt(fb.xs, fb.t);
     const bf0 = v3.norm(add(v3.mul(fr.e1, Math.cos(fb.yaw)), v3.mul(fr.e2, Math.sin(fb.yaw))));
     const bL0 = v3.norm(v3.cross(fr.n, bf0));

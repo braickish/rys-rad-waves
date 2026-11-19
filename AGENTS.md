@@ -85,6 +85,19 @@ Trestles wave any way we can"). Research, simulations and the pipeline for new r
   it used to start at -0.4, reading the shoulder off the wrong shape), the lip's tip is looked for on the lip only
   (t 7.5-8.5: the pitching face bulged further forward), and the snap band is the top line down to `snapBand` 0.25 of
   the face (by curve place it reached a quarter of the way up at the curl). Pipe keeps its old lines (the user: Pipe unchanged).
+- **Second round (2026-11-19, the user):** only wave 545 in rotation (`bar.use`; 1139 closed out too quickly, `?map=1139`).
+  The closeout starts once water ahead of the curl (within 80 m) has broken on its own (`RIDE.closing`, the inside coming
+  to meet you), and the curl stops where it meets it (`RIDE.closed`). Down in the face (height < 0.5) when it does, the
+  surfer steps off (closeout-exit-1..4: stands tall, lifts the front foot, steps off forward toward the beach, drops in
+  feet first to the chest; the board carries on and drifts: rider.js `startStepOff`, surfer.js `so`), ending the ride
+  without a wipeout; up high it's "The inside closed out!". `?ridet=<s>` runs the wave on before you drop in (testing).
+  Fixes: the lower face behind the curl got its own keyframe point (it was a straight ramp ~0.4 m proud of the sim's
+  concave face: a bump pushing into the flats); the whitewater's height follows FUNWAVE's broken-wave decay (~100% for
+  6 s, ~80% at 12 s, ~50% at 21 s; was a generic mound at ~25% by 8 s); the lip's aqua glow narrowed and dimmed; the
+  camera eases in a frame moving at a smoothed peel speed (main.js `camPeel`: the peel frame's speed jumps made the
+  view lurch sideways); the playable map is capped again after smoothing (smoothing had let stretches run at ~40 m/s);
+  airs use Raglan's curl zone (`curlZone` was Pipe's -6, moving every air rule 6 m behind the curl) and leave from the
+  crest (the top line is ~88% up the face). test/airs.mjs takes W=<wave>.
 - Raglan's shortboard tuning with Pipe's tube settings; a 5'11" performance shortboard (`perf511`, shape inspired by a
   known high-performance board, no branding), black full wetsuit, grey-green water (`green` 0.55), regular foot, `dir: -1`,
   scale 0.8 (takeoff face ~3.6 m). No catching the wave yet (pop-up/paddling is still a planned idea).

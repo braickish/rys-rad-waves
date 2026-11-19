@@ -76,12 +76,14 @@ function setShape(a, b, w) {
 // map list (each set wave is a different simulated wave); `?literal` (LITERAL=1 in node) uses the sim's own times
 // instead of the playable version (the same layout at a playable pace: trestles_breaks.py).
 const LITERAL = typeof location !== 'undefined' ? /[?&]literal(&|=|$)/.test(location.search) : !!(globalThis.process && process.env.LITERAL);
-export const RIDE = { time: 0, c: 0, front: 0, closed: null, map: null, k: -1 };
+export const RIDE = { time: 0, c: 0, front: 0, closed: null, closing: false, map: null, k: -1 };
 export function startRide() {
-  RIDE.time = 0; RIDE.c = 0; RIDE.front = 0; RIDE.closed = null;
+  RIDE.time = 0; RIDE.c = 0; RIDE.front = 0; RIDE.closed = null; RIDE.closing = false;
   if (!WAVE.bar) return;
   RIDE.time = -(WAVE.bar.lead || 0); // (you drop in as the peak stands up, `lead` s before it breaks)
-  const maps = WAVE.bar.maps;
+  // (which simulated waves: `bar.use` (the user kept 545, 2026-11-19: 1139 closed out too quickly), or ?map=<wave>)
+  const want = typeof location !== 'undefined' ? Number(new URLSearchParams(location.search).get('map')) : Number(globalThis.process && process.env.MAP);
+  const all = WAVE.bar.maps, maps = all.filter((m) => (want ? m.wave === want : !WAVE.bar.use || WAVE.bar.use.includes(m.wave)));
   RIDE.k = (RIDE.k + 1) % maps.length;
   const m = maps[RIDE.k];
   RIDE.map = { d0: m.d0, step: m.step, tb: LITERAL ? m.literal : m.play, wave: m.wave };
@@ -119,7 +121,8 @@ export function stepRide(dt) {
     const m = RIDE.map, t = RIDE.time;
     let f = RIDE.front;
     for (let n = 0; n < 4000 && breaksAt(f + m.step) <= t; n++) {
-      if (breaksAt(f + m.step) < t - 0.6 && breaksAt(f + m.step) < breaksAt(f) - 0.3) { RIDE.closed = { time: t, c: f }; break; }
+      // (water just ahead that broke before the curl got here: a section that broke on its own and peeled back to meet it)
+      if (breaksAt(f + m.step) < breaksAt(f) - 0.02 && breaksAt(f + m.step) < t - 0.2) { RIDE.closed = { time: t, c: f }; break; }
       f += m.step;
     }
     if (!RIDE.closed) {
@@ -127,6 +130,8 @@ export function stepRide(dt) {
       if (b > a && t > a) f += m.step * Math.min(1, (t - a) / (b - a));
     }
     RIDE.front = Math.max(RIDE.front, f);
+    // (closing: water within 80 m ahead of the curl has already broken: the inside, broken on its own, coming to meet it)
+    if (!RIDE.closing) for (let d = 2 * m.step; d <= 80; d += m.step) if (breaksAt(RIDE.front + d) < t) { RIDE.closing = true; break; }
   }
   // The frame follows the curl (at most `frameMax` m/s, so a stretch that goes at once (?literal) is caught up
   // with smoothly); it stops when the inside closes out.

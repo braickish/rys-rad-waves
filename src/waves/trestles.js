@@ -43,6 +43,7 @@ export default {
   // peak, shape = a position in `shapes` below, 1.5 = half way from the 2nd to the 3rd).
   bar: {
     maps: BREAKS,
+    use: [545], // (1139 is in the data too, ?map=1139: the user found it closed out too quickly)
     shapeRows: [
       { x: 0, shape: 0 }, // the takeoff peak
       { x: 40, shape: 0 },
@@ -67,19 +68,21 @@ export default {
 
   // Whitewater under you: the broken wave behind the tube, and the lower face where the lip lands on it.
   // (the lower face where the lip has landed is only a little foamy: staying low ahead of it is a way round a tube too small to ride)
-  foam: (s, t) => Math.max(sstep(1.3, 1.6, s) * sstep(8.5, 9.5, t), sstep(0.9, 1.2, s) * sstep(13.1, 13.5, t) * 0.4),
+  foam: (s, t) => Math.max(sstep(1.3, 1.6, s) * sstep(8.5, 9.5, t), sstep(0.9, 1.2, s) * sstep(12.1, 12.5, t) * 0.4),
   foamVisual: (s, t, xs) => {
     const front = sstep(3.5, 5.5, t);
     return Math.max(
       sstep(1.3, 1.9, s) * front * (1 - sstep(10, 40, -xs) * 0.5), // whitewater behind the tube
-      Math.exp(-(((t - 13.1) / 0.6) ** 2)) * sstep(0.6, 0.85, s) * (1 - sstep(2.0, 2.8, s)) * 0.95, // where the lip lands on the face
+      Math.exp(-(((t - 12.1) / 0.6) ** 2)) * sstep(0.6, 0.85, s) * (1 - sstep(2.0, 2.8, s)) * 0.95, // where the lip lands on the face
       sstep(4.5, 5.5, t) * (1 - sstep(8.6, 9.3, t)) * sstep(0.2, 0.45, s) * (1 - sstep(1.4, 1.8, s)) * 0.85, // the thrown lip, white and frothy
       Math.exp(-(((t - 4.7) / 0.6) ** 2)) * sstep(-0.9, -0.4, s) * (1 - sstep(0.3, 0.6, s)) * 0.35, // feathering along the crest ahead
     );
   },
+  // Light through thin water: a narrow band right round the lip as it pitches, and a faint one just under the crest
+  // along the wall ahead (2026-11-19, the user: the first, wide bands made a thick aqua slab of the lip).
   thin: (s, t) => Math.min(1,
-    Math.exp(-(((t - 7.5) / 2.0) ** 2)) * sstep(-0.6, 0.1, s) * (1 - sstep(0.2, 0.6, s)) * 1.0 // the lip as it pitches
-    + Math.exp(-(((t - 7.0) / 1.4) ** 2)) * sstep(-1.5, -0.3, s) * (1 - sstep(0.3, 0.7, s)) * 0.6), // the wall ahead, under the crest
+    Math.exp(-(((t - 7.8) / 0.8) ** 2)) * sstep(-0.5, 0.0, s) * (1 - sstep(0.15, 0.45, s)) * 0.6
+    + Math.exp(-(((t - 6.6) / 0.6) ** 2)) * sstep(-1.2, -0.3, s) * (1 - sstep(0.0, 0.4, s)) * 0.3),
   lipT: 8,
   white: (s) => sstep(1.0, 1.4, s) * (1 - sstep(2.2, 3.0, s)),
   pocket: (xs) => (xs >= 0 ? Math.exp(-((xs / 6) ** 2)) : sstep(-8, -4, xs)),
@@ -90,7 +93,7 @@ export default {
   // The tube is only rideable when it's tall enough to fit in (the user: it may be too small, and then you go around it):
   // ~1.4 m on the takeoff and middle sections (rideable), ~1.1 m on the inside (not), ~1.35 m on a set wave's inside.
   tubeMinHeight: 1.3,
-  tubeFloor: { from: 0.75, t: 13.05 },
+  tubeFloor: { from: 0.75, t: 12.05 }, // (point 12: where the lip lands, sim-trestles.js)
   snapBand: 0.25, // (a Right turn counts as a snap from the top line down to a quarter of the face below it, by real height: rider.js snapZoneT) // (once the lip has landed on the face, below it = the lip lands on you)
   tube: true,
   plume: (s) => sstep(-1.0, -0.4, s) * (1 - sstep(1.1, 1.7, s)) * 0.7,
@@ -105,7 +108,9 @@ export default {
       'tubeClimbDamp', 'tubeTrimOver', 'tubeTrimOverHigh', 'tubeEnterLow', 'tubeFallHeight', 'tubeTooHigh', 'roofCrash', 'slashTube']
       .map((k) => [k, reef.tune[k]])),
     tubeLow: 0.6,
-    curlZone: [-6, 2.5], // behind the curl is the tube, not whitewater
+    curlZone: [-0.5, 2.5], // (as Raglan: the airs, snaps-into-the-lip and whitewater edge measure from here; at Pipe's -6 every air
+    // rule sat 6 m behind the curl, so the pocket got the open face's higher threshold and smaller pop: the user, 2026-11-19.
+    // The tube doesn't use it: you're in by the tube rules, rider.js stepTube.)
     startXs: 4, // drop in just ahead of the peak
   },
 };
