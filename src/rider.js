@@ -21,7 +21,7 @@
 //  - Turning back into the whitewater, high, turning as you hit: rebound.
 //    Sit in the foam too long and it takes you.
 
-import { surface, slice, phaseAt, verticalHits, segmentHit, PEEL_SPEED, WAVE_SPEED, NP, WAVE, setWave, SCALE, controlPoints, crPoint } from './wave.js';
+import { surface, slice, phaseAt, verticalHits, segmentHit, PEEL_SPEED, WAVE_SPEED, NP, WAVE, setWave, SCALE, controlPoints, crPoint, SHAPE, withShape, RIDE } from './wave.js';
 
 export const G = 9.8;
 // The rider's and board's settings. Wave-specific settings (pocket speeds,
@@ -216,7 +216,7 @@ export function frameAt(xs, t) {
 // How high you are as a fraction of the full open wave (trough to crest at
 // the curl), measured in real height, not position along the surface.
 function waveHeightFrac(y) {
-  if (!waveRef || waveRef.scale !== SCALE) waveRef = { lo: surface(0.5, TUNE.tBottom)[1], hi: surface(0.5, 4)[1], scale: SCALE };
+  if (!waveRef || waveRef.scale !== SCALE || waveRef.ver !== SHAPE.ver) waveRef = { lo: surface(0.5, TUNE.tBottom)[1], hi: surface(0.5, 4)[1], scale: SCALE, ver: SHAPE.ver };
   return clamp((y - waveRef.lo) / (waveRef.hi - waveRef.lo), 0, 1);
 }
 
@@ -241,21 +241,31 @@ function topOfFace(xs) {
 // The place along the curve (t) on the open face at `frac` of the way from the
 // trough (at tBottom) up to the crest (the highest point), for phase s.
 // Tabled per wave at size 1, like tubeLineT.
-let faceTable = null;
-function faceLineT(s, frac) {
-  if (!faceTable || faceTable.wave !== WAVE || faceTable.frac !== frac) {
-    faceTable = { wave: WAVE, frac, row: [] };
-    const cp = new Float64Array(NP * 2), o = [0, 0];
-    for (let i = 0; i <= 160; i++) {
-      controlPoints(-0.4 + i * 0.02, cp, 1);
-      let crestT = 4, crestY = -1e9;
-      for (let t = 2; t <= 6.5; t += 0.01) { const y = crPoint(cp, t, o)[1]; if (y > crestY) { crestY = y; crestT = t; } }
-      const lo = crPoint(cp, TUNE.tBottom, o)[1], want = lo + frac * (crestY - lo);
-      let line = crestT; for (let t = crestT; t <= TUNE.tBottom; t += 0.01) if (crPoint(cp, t, o)[1] <= want) { line = t; break; }
-      faceTable.row.push(line);
-    }
+// (A wave with shape sets, Trestles: tabled per set and blended like the shape itself.)
+const blendShapes = (f) => (SHAPE.w > 0 && SHAPE.b !== SHAPE.a ? f(SHAPE.a) + (f(SHAPE.b) - f(SHAPE.a)) * SHAPE.w : f(SHAPE.a));
+let faceTables = null;
+function faceLineT(s, frac) { return blendShapes((i) => faceLineSet(i, s, frac)); }
+function faceLineSet(set, s, frac) {
+  if (!faceTables || faceTables.wave !== WAVE) faceTables = { wave: WAVE, rows: new Map() };
+  const key = set + ':' + frac;
+  let row = faceTables.rows.get(key);
+  if (!row) {
+    row = withShape(set, () => {
+      const out = [];
+      const cp = new Float64Array(NP * 2), o = [0, 0];
+      for (let i = 0; i <= 160; i++) {
+        controlPoints(-0.4 + i * 0.02, cp, 1);
+        let crestT = 4, crestY = -1e9;
+        for (let t = 2; t <= 6.5; t += 0.01) { const y = crPoint(cp, t, o)[1]; if (y > crestY) { crestY = y; crestT = t; } }
+        const lo = crPoint(cp, TUNE.tBottom, o)[1], want = lo + frac * (crestY - lo);
+        let line = crestT; for (let t = crestT; t <= TUNE.tBottom; t += 0.01) if (crPoint(cp, t, o)[1] <= want) { line = t; break; }
+        out.push(line);
+      }
+      return out;
+    });
+    faceTables.rows.set(key, row);
   }
-  const u = clamp((s + 0.4) / 0.02, 0, 160), i = Math.min(159, Math.floor(u)), row = faceTable.row;
+  const u = clamp((s + 0.4) / 0.02, 0, 160), i = Math.min(159, Math.floor(u));
   return s < -0.4 ? row[0] : row[i] + (row[i + 1] - row[i]) * (u - i);
 }
 
@@ -263,22 +273,27 @@ function faceLineT(s, frac) {
 // tube's real height (trough at tBottom to the roof), for phase s. Tabled per
 // wave, at size 1 (the shape doesn't depend on the wave's size).
 let lineTable = null;
-function tubeLineT(s, frac) {
+function tubeLineT(s, frac) { return blendShapes((i) => tubeLineSet(i, s, frac)); }
+function tubeLineSet(set, s, frac) {
   if (!lineTable || lineTable.wave !== WAVE) lineTable = { wave: WAVE, rows: new Map() };
-  let row = lineTable.rows.get(frac);
+  const key = set + ':' + frac;
+  let row = lineTable.rows.get(key);
   if (!row) {
-    row = [];
-    const cp = new Float64Array(NP * 2), o = [0, 0];
-    const yAt = (t) => crPoint(cp, t, o)[1];
-    for (let i = 0; i <= 160; i++) {
-      controlPoints(-0.4 + i * 0.02, cp, 1);
-      let tip = 7, zt = -1e9; for (let t = 6; t <= 10.5; t += 0.01) { const z = crPoint(cp, t, o)[0]; if (z > zt) { zt = z; tip = t; } }
-      let roofT = tip, roofY = -1e9; for (let t = tip; t <= TUNE.tBottom; t += 0.01) { const y = yAt(t); if (y > roofY) { roofY = y; roofT = t; } }
-      const want = yAt(TUNE.tBottom) + frac * (roofY - yAt(TUNE.tBottom));
-      let line = TUNE.tBottom; for (let t = roofT; t <= TUNE.tBottom; t += 0.01) if (yAt(t) <= want) { line = t; break; }
-      row.push(line);
-    }
-    lineTable.rows.set(frac, row);
+    row = withShape(set, () => {
+      const out = [];
+      const cp = new Float64Array(NP * 2), o = [0, 0];
+      const yAt = (t) => crPoint(cp, t, o)[1];
+      for (let i = 0; i <= 160; i++) {
+        controlPoints(-0.4 + i * 0.02, cp, 1);
+        let tip = 7, zt = -1e9; for (let t = 6; t <= 10.5; t += 0.01) { const z = crPoint(cp, t, o)[0]; if (z > zt) { zt = z; tip = t; } }
+        let roofT = tip, roofY = -1e9; for (let t = tip; t <= TUNE.tBottom; t += 0.01) { const y = yAt(t); if (y > roofY) { roofY = y; roofT = t; } }
+        const want = yAt(TUNE.tBottom) + frac * (roofY - yAt(TUNE.tBottom));
+        let line = TUNE.tBottom; for (let t = roofT; t <= TUNE.tBottom; t += 0.01) if (yAt(t) <= want) { line = t; break; }
+        out.push(line);
+      }
+      return out;
+    });
+    lineTable.rows.set(key, row);
   }
   const u = clamp((s + 0.4) / 0.02, 0, 160), i = Math.min(159, Math.floor(u));
   return row[i] + (row[i + 1] - row[i]) * (u - i);
@@ -324,6 +339,8 @@ function wipe(r, reason) {
   // Wiping out in the barrel (or caught in the lip) throws you in the "washing
   // machine": a longer hold-down (the foam ball screen in main.js).
   r.washing = !!r.tube || reason.includes('caught up in the lip');
+  // (a wave with a bar, Trestles: once the inside has closed out, that's the end of the wave whatever got you)
+  if (WAVE.bar && WAVE.bar.closeout != null && RIDE.c > WAVE.bar.closeout) reason = 'The inside closed out! (end of the wave)';
   r.mode = 'wipe';
   r.wipeReason = reason;
   r.wipeTimer = 2.2;
@@ -1242,6 +1259,16 @@ function checkHazards(r, dt) {
   // the falls; way down past the bottom = the lip lands on you; forward out
   // of it = out.
   const T = TUNE;
+  // (`tubeMinHeight` waves, Trestles: the tube is only there to ride when it's tall enough to fit in (the user, 2026-11-19:
+  // it may be too small to ride, and then you have to go around it). Too small, and getting caught in under the lip,
+  // above where it lands, means it hits you; low on the face ahead of where it lands, or out ahead, you're clear.)
+  if (!r.tube && WAVE.tubeMinHeight && tubeHeight() < WAVE.tubeMinHeight) {
+    if (ph > T.tubeEnter + 0.2 && ph < T.tubeCollapse && (!WAVE.tubeFloor || r.t < WAVE.tubeFloor.t) && r.t > topOfFace(r.xs) - 0.5
+      && r.pos[2] <= lipTipZ(r.xs) - WAVE.tubeReal.enterIn) {
+      return wipe(r, 'Clipped by the lip! (the tube was too small to fit in: go around it)');
+    }
+    return;
+  }
   if (!r.tube) {
     // Only once you're up on the face (at or above its base), not out on the flats.
     // ... and only once you've come round to face along or up the face, not
@@ -1269,6 +1296,8 @@ function checkHazards(r, dt) {
   const tooHigh = WAVE.tubeReal ? r.t < tubeLineT(ph, WAVE.tubeReal.fall) : r.height > T.tubeFallHeight;
   if (tooHigh) { wipe(r, 'Over the falls! (too high in the barrel)'); r.tube = null; return; }
   if (r.t > T.tBottom + T.tubeLow) { wipe(r, 'The lip landed on you! (too low)'); r.tube = null; return; }
+  // (`tubeFloor` waves, Trestles: the lip lands half way down the face, so once it has, below where it lands it lands on you)
+  if (WAVE.tubeFloor && ph > WAVE.tubeFloor.from && r.t > WAVE.tubeFloor.t) { wipe(r, 'The lip landed on you! (too low)'); r.tube = null; return; }
   // (`tubeReal` waves: near the opening, you're out once you're less than `exitIn` m in under the
   // lip: 0.2 m nearer the lip than where you come in (`enterIn`), so it can't flick in and out right
   // at one spot. Deeper in, a low turn out in front of the curtain doesn't end the barrel.)
@@ -1287,6 +1316,17 @@ function enterTube(r) {
   r.events.push({ type: 'barrelEnter' });
 }
 
+
+// The tube's real height (m) once the lip has landed: from where it lands up to the roof, for the wave's current
+// shape and size (Trestles changes from section to section; a set wave's tube is bigger).
+let _tubeH = { ver: -1, scale: 0, h: 0 };
+export function tubeHeight() {
+  if (_tubeH.ver !== SHAPE.ver || _tubeH.scale !== SCALE) {
+    controlPoints(0.8, _lipCp);
+    _tubeH = { ver: SHAPE.ver, scale: SCALE, h: _lipCp[11 * 2 + 1] - _lipCp[8 * 2 + 1] };
+  }
+  return _tubeH.h;
+}
 
 // How far toward the beach the lip reaches at xs (world z of its tip).
 const _lipCp = new Float64Array(NP * 2), _lipO = [0, 0];

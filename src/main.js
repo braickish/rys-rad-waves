@@ -201,9 +201,10 @@ addEventListener('blur', () => keys.clear());
 let autoUp = false;
 function autopilot() {
   if (rider.tube) { // S-turns, staying off the roof
-    if (autoUp && rider.height > 0.3) autoUp = false;
-    if (!autoUp && rider.height < 0.08) autoUp = true;
-    const a = autoUp ? 0.05 : -0.6; // (angles from level) the water pulls you up: climb gently, point well down to drop
+    const [lo, hi] = WAVE.tubeFloor ? [0.5, 0.68] : [0.08, 0.3]; // (Trestles: the tube is up on the face, above where the lip lands)
+    if (autoUp && rider.height > hi) autoUp = false;
+    if (!autoUp && rider.height < lo) autoUp = true;
+    const a = autoUp ? 0.05 : WAVE.tubeFloor ? -0.2 : -0.6; // (angles from level; a gentle drop in Trestles' small tube) the water pulls you up: climb gently, point well down to drop
     return { aim: [Math.cos(a), Math.sin(a)] };
   }
 

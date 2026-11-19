@@ -4,7 +4,7 @@
 // `sea` (see src/waves/). Deterministic for a given seed, so tests are
 // repeatable.
 
-import { WAVE, SECTIONS, stepSections, setWaveSize, surface } from './wave.js';
+import { WAVE, SECTIONS, stepSections, setWaveSize, surface, startRide, stepRide } from './wave.js';
 
 let rnd = mulberry(1);
 let setIndex = -1, timer = 0;
@@ -26,6 +26,7 @@ export function seedSea(seed) { rnd = mulberry(seed); setIndex = -1; }
 export function nextWave() {
   const cfg = WAVE.sea;
   SECTIONS.length = 0;
+  startRide(); // (a wave with a bar starts again from its peak)
   if (!SEA.enabled || !cfg) { setWaveSize(1); SEA.size = 1; return; }
   setIndex = (setIndex + 1) % cfg.set.length;
   SEA.waveInSet = setIndex + 1;
@@ -42,6 +43,7 @@ export function waveHeightFt() {
 
 export function stepSea(dt) {
   SEA.events.length = 0;
+  stepRide(dt); // (a wave with a bar: the curl runs on along it)
   stepSections(dt);
   const cfg = WAVE.sea;
   if (!SEA.enabled || !cfg || !cfg.sections) return;

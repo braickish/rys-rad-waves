@@ -3,7 +3,7 @@
 
 import { skyWGSL, waterWGSL, solidWGSL, particleComputeWGSL, particleRenderWGSL, skinnedWGSL } from './shaders.js';
 import { buildWaterTable, buildWaterIndices, slicePhases, WATER_XS, COLS, TABLE, buildLipTable, LIP, boxMesh, sphereMesh, boardMesh, cylinderMesh, BOARDS } from './mesh.js';
-import { SCALE, WAVE } from './wave.js';
+import { SCALE, WAVE, SHAPE } from './wave.js';
 
 export const PARTICLES = 40960;
 // Cap the render resolution: a Retina laptop at full 2x is ~5M pixels (x4 MSAA);
@@ -60,7 +60,7 @@ export async function createRenderer(canvas) {
   const waterInfoBuf = device.createBuffer({ size: 48, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
   const writeWaterInfo = () => {
     const b = new ArrayBuffer(48), u = new Uint32Array(b), f = new Float32Array(b);
-    u[0] = COLS; u[1] = WATER_XS.length; u[2] = TABLE.rows;
+    u[0] = COLS; u[1] = WATER_XS.length; u[2] = TABLE.rows; u[3] = SHAPE.a; u[10] = SHAPE.b; f[9] = SHAPE.w; // (shape sets: wave.js SHAPE)
     f[4] = TABLE.sMin; f[5] = TABLE.sMax; f[6] = SCALE; f[7] = WAVE.turquoise || 0; // (clear, shallow water: Queens)
     f[8] = WAVE.green || 0; // (cold, green water: Raglan)
     device.queue.writeBuffer(waterInfoBuf, 0, b);

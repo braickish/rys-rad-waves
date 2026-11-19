@@ -84,16 +84,23 @@ struct VO {
   @location(2) attr: vec3f,
 };
 // The water surface, built from the cross-section table (see mesh.js).
-struct WaterInfo { cols: u32, nx: u32, rows: u32, pad: u32, sMin: f32, sMax: f32, scale: f32, turquoise: f32, green: f32, pad1: f32, pad2: f32, pad3: f32 };
+struct WaterInfo { cols: u32, nx: u32, rows: u32, setA: u32, sMin: f32, sMax: f32, scale: f32, turquoise: f32, green: f32, blend: f32, setB: u32, pad3: f32 };
 @group(0) @binding(1) var<uniform> W: WaterInfo;
 @group(0) @binding(2) var<storage, read> table: array<vec4f>;   // [z, y, foam, thin] per (row, col)
 @group(0) @binding(3) var<storage, read> slices: array<vec2f>;  // [xs, phase] per slice
 
-fn tableAt(s: f32, j: u32) -> vec4f {
+fn tableSet(si: u32, s: f32, j: u32) -> vec4f {
   let f = clamp((s - W.sMin) / (W.sMax - W.sMin), 0.0, 1.0) * f32(W.rows - 1u);
   let r0 = u32(floor(f));
   let r1 = min(r0 + 1u, W.rows - 1u);
-  return mix(table[r0 * W.cols + j], table[r1 * W.cols + j], f - floor(f));
+  let base = si * W.rows * W.cols;
+  return mix(table[base + r0 * W.cols + j], table[base + r1 * W.cols + j], f - floor(f));
+}
+// (a wave with shape sets, Trestles: set A blended toward set B, as wave.js controlPoints does)
+fn tableAt(s: f32, j: u32) -> vec4f {
+  let a = tableSet(W.setA, s, j);
+  if (W.blend <= 0.0 || W.setB == W.setA) { return a; }
+  return mix(a, tableSet(W.setB, s, j), W.blend);
 }
 // Surface point for slice i, column j.
 fn surfacePoint(i: u32, j: u32) -> vec3f {

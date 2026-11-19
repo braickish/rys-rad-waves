@@ -1,7 +1,7 @@
 // Geometry: the water's cross-section table, a lip lookup table for the GPU
 // particle emitters, and simple primitives for the surfer and board.
 
-import { NP, FAR, phaseAt, surface, WAVE, controlPoints, crPoint } from './wave.js';
+import { NP, FAR, phaseAt, surface, WAVE, controlPoints, crPoint, SHAPES, withShape } from './wave.js';
 
 const sstep = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 
@@ -24,8 +24,16 @@ export const PER_SEG = 10;
 export const COLS = (NP - 1) * PER_SEG + 1 + 2; // plus far-flat ocean at each end
 export const TABLE = { rows: 512, sMin: -15, sMax: 15 };
 
-// vec4 per (row, column): [z, y, foam, thin] at scale 1.
+// vec4 per (row, column): [z, y, foam, thin] at scale 1. A wave with shape sets (Trestles) gets one table per
+// set, one after the other; the shader blends the two it's between (W.setA, W.setB, W.blend).
 export function buildWaterTable() {
+  const n = SHAPES.length, one = TABLE.rows * COLS * 4;
+  if (n === 1) return buildWaterTableSet();
+  const data = new Float32Array(n * one);
+  for (let i = 0; i < n; i++) data.set(withShape(i, buildWaterTableSet), i * one);
+  return data;
+}
+function buildWaterTableSet() {
   const { rows, sMin, sMax } = TABLE;
   const data = new Float32Array(rows * COLS * 4);
   const cp = new Float64Array(NP * 2), o = [0, 0];
