@@ -1014,7 +1014,7 @@ function stepSurf(r, input, dt) {
     // Airs reach a little way into the curl too (`airIntoCurl`, Raglan; the user, 2026-11-18: you can often hit an air
     // right off the whitewater): heading up the face without turning, fast enough, up to that far into the breaking
     // part it's an air (a big one, right by the whitewater) instead of an automatic snap or a floater.
-    const airEdge = T.airs && T.airIntoCurl > 0 && !turning && sinp > 0.4 && r.speed > T.airMinSpeed
+    const airEdge = T.airs && T.airIntoCurl > 0 && !turning && sinp > 0.4 && r.speed > (T.airPopPerSpeed > 0 ? airSpeedAt(r.xs) : T.airMinSpeed)
       && r.xs >= T.curlZone[0] - T.airIntoCurl && r.xs < T.curlZone[0] + 0.5;
     const autoSnap = onLip && r.xs < T.curlZone[0] && cosp >= -0.1 && !airEdge; // (only into the breaking lip: right at the curl, not turning is an air)
     const lipEdge = onLip && (turning || autoSnap);
@@ -1086,15 +1086,22 @@ function stepSurf(r, input, dt) {
       // Near the curl you always get an air (if you're moving); out on the
       // open face you need the speed for it, or you go over the back.
       const nearCurl = r.xs - T.curlZone[0] < T.airCurlZone;
+      // Speed-scaled airs (waves with `airPopPerSpeed`, Raglan; the user's design, 2026-11-18): the pop grows with your
+      // speed over the threshold where you are (airSpeedAt), so height builds roughly with the square of the extra
+      // speed, and a BIG AIR is one that pops at least `bigAirPop` up (no separate next-to-the-whitewater boost).
+      const scaled = T.airPopPerSpeed > 0;
       const air = T.airs && !inWhitewater && sinp > 0.4
-        && (r.speed > T.airSpeed || (nearCurl && r.speed > T.airMinSpeed));
+        && (scaled ? r.speed > airSpeedAt(r.xs) : r.speed > T.airSpeed || (nearCurl && r.speed > T.airMinSpeed));
       // Right next to the whitewater (within ~2 ft) it throws you higher.
       const nearWhitewater = r.xs - T.airBoostZone < T.curlZone[0] || foamAt(r.xs - T.airBoostZone, r.t + 0.6) > 0.3;
       r.launchSpeed = r.speed;
       if (air) {
-        r.vel = [r.speed * cosp - PEEL_SPEED, T.airPop + Math.max(0, r.speed - T.airSpeed) * 0.3 + (nearWhitewater ? T.airBoostUp : 0), 1.2];
-        r.events.push({ type: 'launch', big: nearWhitewater });
-        r.bigAir = nearWhitewater;
+        const up = scaled ? airPopFor(r.xs, r.speed)
+          : T.airPop + Math.max(0, r.speed - T.airSpeed) * 0.3 + (nearWhitewater ? T.airBoostUp : 0);
+        const big = scaled ? up >= T.bigAirPop : nearWhitewater;
+        r.vel = [r.speed * cosp - PEEL_SPEED, up, 1.2];
+        r.events.push({ type: 'launch', big });
+        r.bigAir = big;
         r.moveCooldown = T.moveGap;
       } else {
         r.vel = [r.speed * cosp - PEEL_SPEED, 1.5 + sinp * 1.5, -2.5]; // up and over, out the back
@@ -1283,6 +1290,26 @@ export function tubeDepth(r) {
 }
 
 // Speed for the HUD: board speed while surfing, ground speed in the air.
+// Speed-scaled airs (waves with `airPopPerSpeed`): the air threshold where you are. `airSpeedCurl` at the curl's edge
+// (and in the breaking part), easing up to `airSpeed` by `airCurlZone` out: the breaking lip helps throw you, the
+// rounder shoulder doesn't. (Physics: the board leaves the water over a crest of radius R once v^2/R > g, ~12-15 mph
+// on Raglan's 3-5 m crest; a usable ~0.5 m pop needs ~16-18 mph. 19 at the curl / 21 out on the face: the user's
+// call, 2026-11-18.)
+export function airSpeedAt(xs) {
+  const T = TUNE;
+  if (!(T.airSpeedCurl > 0)) return T.airSpeed;
+  return T.airSpeedCurl + (T.airSpeed - T.airSpeedCurl) * sstep(0, T.airCurlZone, xs - T.curlZone[0]);
+}
+// Upward pop (m/s) for an air at xs at this speed, and the speed from which it's a BIG AIR there (for the HUD).
+export function airPopFor(xs, speed) {
+  const T = TUNE;
+  return Math.min(T.airPopMax || Infinity, T.airPopBase + T.airPopPerSpeed * Math.max(0, speed - airSpeedAt(xs)));
+}
+export function bigAirSpeedAt(xs) {
+  const T = TUNE;
+  return airSpeedAt(xs) + (T.bigAirPop - T.airPopBase) / T.airPopPerSpeed;
+}
+
 export function groundSpeed(r) {
   if (r.mode === 'surf') return r.speed;
   return v3.len(v3.add(r.vel, [PEEL_SPEED, 0, WAVE_SPEED]));

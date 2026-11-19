@@ -229,12 +229,23 @@ button).
     bottom turn (`comboWindow`) right by the curl (`curlZone[1]`), or straight out of a roundhouse
     (then it scores as a **rebound**). Anywhere else turning toward the whitewater at the top is
     just your own turn carrying you round over the top (a cutback off the top). Not turning, you go
-    up and over the back (wipeout), or launch an air if fast enough (`airSpeed`, Raglan 24 mph since 2026-11-18, was ~26; the HUD speed glows pink from it) and out of
-    the whitewater. Within `airCurlZone` of the whitewater it's always an air (above `airMinSpeed`),
-    never over the back. Airs pop up at `airPop`, and the wave carries you along in the air
-    (`airDrift`) so you don't drift back into the whitewater; within `airBoostZone` (2.5 m, ~8 ft, on Raglan; was 0.6 m) of the whitewater it launches higher (`airBoostUp`,
-    "BIG AIR"). On Raglan airs also reach `airIntoCurl` (0.6 m) into the breaking curl: heading up without turning,
-    fast enough, that's a big air rather than the automatic snap or a floater (2026-11-18, the user). In the air the
+    up and over the back (wipeout), or launch an air if fast enough and out of the whitewater. The wave carries you
+    along in the air (`airDrift`) so you don't drift back into the whitewater.
+    - Default rule (waves without `airPopPerSpeed`): an air above `airSpeed`, or within `airCurlZone` of the
+      whitewater above `airMinSpeed`; pop `airPop` (+ a little with speed), and within `airBoostZone` of the whitewater
+      it launches higher (`airBoostUp`, "BIG AIR").
+    - Raglan, speed-scaled airs (the user's design, 2026-11-18; `airSpeedAt` / `airPopFor` / `bigAirSpeedAt` in
+      rider.js): the threshold is `airSpeedCurl` (19 mph) at the curl's edge easing up to `airSpeed` (21 mph) by
+      `airCurlZone` out. (Physics: the board leaves the water over the 3-5 m crest once v^2/R > g, ~12-15 mph; a
+      usable ~0.5 m pop needs ~16-18.) The pop is `airPopBase` + `airPopPerSpeed` x (speed over the threshold there),
+      capped at `airPopMax`: ~0.7 m above the lip at the threshold, ~1.5-2 m at 26 mph, ~2.2-3 m at 28, ~3.3-4.3 m
+      at 30 (higher near the curl, where the threshold is lower). BIG AIR (1.5x points) = a pop of at least
+      `bigAirPop` (~2 m up), from ~24 mph at the curl / ~26 mph out on the face; the HUD speed glows pink when your
+      speed would give one where you are. No separate next-to-the-whitewater boost. (Before: 24 mph on the open face
+      and ~13 near the curl, where every air was big, so near the curl was the only place airs happened in play.)
+      `test/lipspeed.mjs`: bottom turn up into the lip at different spots, speed at the top and what you get.
+    On Raglan airs also reach `airIntoCurl` (0.6 m) into the breaking curl: heading up without turning,
+    fast enough, that's an air rather than the automatic snap or a floater (2026-11-18, the user). In the air the
     surfer plays a pose sequence after air-1..7.jpg (surfer.js: stretch, tuck, nose-down reach, landing absorb, timed by
     the vertical speed); `?air=<xs>` starts a test air. `test/airs.mjs` sweeps launch distance from the curl.
   - Moves are decided by where you hit the top and how steep: in the whitewater (behind `curlZone`)
@@ -531,7 +542,7 @@ button).
   waves; the glow band, the smooth bend and the flats texture were then re-applied one at a time. The water
   still flows the original way (up the face, drifting with the peel).
 - **HUD** (2026-11-18, the user): score, speed and best. The speed readout was dropped and then brought back the same
-  day; it glows neon pink, pulsing, while your board speed is over the wave's `airSpeed` (air territory). And "Drop in!" no longer says which wave of the set or the face size (sets still vary the waves).
+  day; it glows neon pink, pulsing, while your speed would give a BIG AIR where you are (`bigAirSpeedAt`; shows whole mph rounded down). And "Drop in!" no longer says which wave of the set or the face size (sets still vary the waves).
 - `src/sea.js`: **sets and sections**, from the wave's `sea` settings. Each ride is the next wave of the
   set (`setWaveSize`: bigger waves peel a bit faster). Sections (`SECTIONS` in wave.js) are stretches
   ahead that break early for a while (fixed to the reef, so in the peel frame they move back toward

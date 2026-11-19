@@ -88,9 +88,9 @@ for (const [label, phi] of [['started pointing down', -1.0], ['started level', 0
   run(r, (r) => { vMax = Math.max(vMax, r.speed); return { turn: 1 }; }, 0.8);
   out.push(`bottom turn out on the flats: ${mph(v0)} -> peak ${mph(vMax)} mph`); }
 // 6g. Up into the lip without turning: over the back (slow) or an air (fast).
-for (const [label, speed] of [['slow', 10], ['fast', 16]]) {
+for (const [label, speed] of [['slow', 8.5], ['fast', 16]]) { // (slow: under Raglan's 21 mph open-face air threshold)
   const r = start({ xs: 4, t: 7.5, phi: 1.3, speed }); const evs = [];
-  run(r, () => ({}), 2, (e) => evs.push(e.type === 'move' ? e.move : e.type));
+  run(r, () => ({}), 3, (e) => evs.push(e.type === 'move' ? e.move : e.type));
   out.push(`straight up into the lip, no turn, ${label}: ${evs.join(' -> ')}${r.mode === 'wipe' ? ' (' + r.wipeReason + ')' : ''}`);
 }
 // 6b. Top turn, then let go: you should keep heading down (no automatic turn).

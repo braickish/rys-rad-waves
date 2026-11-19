@@ -1,5 +1,5 @@
 import { createRenderer } from './renderer.js';
-import { createRider, resetRider, stepRider, groundSpeed, frameAt, v3, TUNE, useWave, tubeDepth } from './rider.js';
+import { createRider, resetRider, stepRider, groundSpeed, frameAt, v3, TUNE, useWave, tubeDepth, airSpeedAt, bigAirSpeedAt } from './rider.js';
 import { PEEL_SPEED, slice, verticalHits, WAVE, phaseAt, toWorld, waveDir } from './wave.js';
 import { WAVES } from './waves/index.js';
 import { SEA, nextWave, stepSea, seedSea } from './sea.js';
@@ -686,10 +686,10 @@ async function main() {
     for (const el of document.querySelectorAll('.hint-sb')) el.hidden = !!WAVE.noseride;
     $('score').textContent = Math.round(score);
     window.__speedMph = Math.round(groundSpeed(rider) * 2.237);
-    // Speed readout (back on screen, the user, 2026-11-18): it glows neon pink while you're riding fast enough to
-    // air off the lip anywhere (board speed over the wave's airSpeed; near the curl airs need less).
-    $('speed').textContent = Math.floor(groundSpeed(rider) * 2.237); // (whole mph rounded down, so it reads 24 exactly when it starts to glow at 24.0)
-    $('speed').classList.toggle('air', !!TUNE.airs && rider.mode === 'surf' && rider.speed > TUNE.airSpeed);
+    // Speed readout (back on screen, the user, 2026-11-18): it glows neon pink while your speed would give a BIG AIR
+    // right where you are (with speed-scaled airs; otherwise once you're fast enough to air there at all).
+    $('speed').textContent = Math.floor(groundSpeed(rider) * 2.237); // (whole mph rounded down, so the number never reads past the point the glow starts)
+    $('speed').classList.toggle('air', !!TUNE.airs && rider.mode === 'surf' && rider.speed >= (TUNE.airPopPerSpeed > 0 ? bigAirSpeedAt(rider.xs) : airSpeedAt(rider.xs)));
     const tube = $('tube');
     tube.style.width = `${Math.min(100, rider.barrelTime * 25)}%`;
     tube.parentElement.classList.toggle('on', rider.inBarrel);
