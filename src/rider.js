@@ -226,7 +226,7 @@ function climbingFoam(r) {
 }
 
 // Where the rideable face tops out at xs (the barrel's roof starts earlier).
-function topOfFace(xs) {
+export function topOfFace(xs) {
   const s = phaseAt(xs);
   if (!WAVE.tubeReal) return WAVE.faceTop(s);
   // Waves with `tubeReal` (the sim reef) set both lines by real height instead
@@ -236,6 +236,15 @@ function topOfFace(xs) {
   // barrel the roof line is `top` of the way up the tube.
   const open = faceLineT(s, WAVE.tubeReal.faceTop);
   return open + (tubeLineT(s, WAVE.tubeReal.top) - open) * sstep(-0.3, 0.2, s);
+}
+
+// How far down the face a Right turn still counts as a snap (t). `snapBand` waves (Trestles) by real height: the top
+// line down to `snapBand` of the face below it (the same top ~quarter as Raglan's snapZone gives there). By place along
+// the curve, Trestles' shapes made the zone reach down to a quarter of the way up the face at the curl, so most
+// turns up the face were snaps (the user, 2026-11-19).
+export function snapZoneT(xs, top) {
+  if (!WAVE.snapBand) return top + TUNE.snapZone;
+  return Math.max(top, faceLineT(phaseAt(xs), WAVE.tubeReal.faceTop - WAVE.snapBand));
 }
 
 // The place along the curve (t) on the open face at `frac` of the way from the
@@ -253,8 +262,11 @@ function faceLineSet(set, s, frac) {
     row = withShape(set, () => {
       const out = [];
       const cp = new Float64Array(NP * 2), o = [0, 0];
-      for (let i = 0; i <= 160; i++) {
-        controlPoints(-0.4 + i * 0.02, cp, 1);
+      // (rows: s -15 to -0.4 every 0.1, the shoulder (it used to start at -0.4, so out on the shoulder the line was
+      // read off the wrong shape: on Trestles' gentler shoulder that put the "top" half way up the face, and turns
+      // there became snaps and airs), then -0.4 to 2.8 every 0.02)
+      for (let i = -146; i <= 160; i++) {
+        controlPoints(i < 0 ? -0.4 + i * 0.1 : -0.4 + i * 0.02, cp, 1);
         let crestT = 4, crestY = -1e9;
         for (let t = 2; t <= 6.5; t += 0.01) { const y = crPoint(cp, t, o)[1]; if (y > crestY) { crestY = y; crestT = t; } }
         const lo = crPoint(cp, TUNE.tBottom, o)[1], want = lo + frac * (crestY - lo);
@@ -265,8 +277,12 @@ function faceLineSet(set, s, frac) {
     });
     faceTables.rows.set(key, row);
   }
-  const u = clamp((s + 0.4) / 0.02, 0, 160), i = Math.min(159, Math.floor(u));
-  return s < -0.4 ? row[0] : row[i] + (row[i + 1] - row[i]) * (u - i);
+  if (s < -0.4) {
+    if (!WAVE.bar) return row[146]; // (Pipe keeps reading its line at s -0.4 out on the shoulder, as it always has: the user wants Pipe unchanged)
+    const u = clamp((s + 15) / 0.1, 0, 146), i = Math.min(145, Math.floor(u)); return row[i] + (row[i + 1] - row[i]) * (u - i);
+  }
+  const u = clamp((s + 0.4) / 0.02, 0, 160), i = Math.min(159, Math.floor(u)) + 146;
+  return row[i] + (row[i + 1] - row[i]) * (u - (i - 146));
 }
 
 // The place along the curve (t) on the back wall of the tube at `frac` of the
@@ -285,7 +301,11 @@ function tubeLineSet(set, s, frac) {
       const yAt = (t) => crPoint(cp, t, o)[1];
       for (let i = 0; i <= 160; i++) {
         controlPoints(-0.4 + i * 0.02, cp, 1);
-        let tip = 7, zt = -1e9; for (let t = 6; t <= 10.5; t += 0.01) { const z = crPoint(cp, t, o)[0]; if (z > zt) { zt = z; tip = t; } }
+        // (the lip's tip: the most forward point round the lip. On Trestles only on the lip itself (t 7.5-8.5): while its
+        // lip is just pitching the face below bulges further forward, and taking that as the tip put the roof, and so
+        // the "top" for snaps and airs, half way down the face. Pipe keeps its wider search.)
+        const [t0, t1] = WAVE.bar ? [7.5, 8.5] : [6, 10.5];
+        let tip = 7, zt = -1e9; for (let t = t0; t <= t1; t += 0.01) { const z = crPoint(cp, t, o)[0]; if (z > zt) { zt = z; tip = t; } }
         let roofT = tip, roofY = -1e9; for (let t = tip; t <= TUNE.tBottom; t += 0.01) { const y = yAt(t); if (y > roofY) { roofY = y; roofT = t; } }
         const want = yAt(TUNE.tBottom) + frac * (roofY - yAt(TUNE.tBottom));
         let line = TUNE.tBottom; for (let t = roofT; t <= TUNE.tBottom; t += 0.01) if (yAt(t) <= want) { line = t; break; }
@@ -1008,7 +1028,7 @@ function stepSurf(r, input, dt) {
   // (not up on top of the crest), so the board stands up with its deck
   // showing and spins round to the right.
   if (ready && !r.tube && !r.floater && !r.assist && !r.lipSnap && !r.slash && r.rideDir >= 0
-    && r.t > top && r.t <= top + T.snapZone && sinp > T.snapUp
+    && r.t > top && r.t <= snapZoneT(r.xs, top) && sinp > T.snapUp
     && r.time - (r.lastTurnTime ?? -9) < T.turnWindow && r.lastTurnDir < 0
     && (r.xs >= T.curlZone[0] && foamAt(r.xs, r.t + 0.6) <= 0.3
       || T.snapIntoLip > 0 && r.xs >= T.curlZone[0] - T.snapIntoLip && foamAt(r.xs, r.t + 0.6) <= 0.65)) { // (snapIntoLip: a bit further into the breaking lip)
@@ -1256,7 +1276,7 @@ function checkHazards(r, dt) {
   // the wave is done `end` s later)
   if (WAVE.bar && RIDE.closed) {
     if (phaseAt(r.xs) > 1.1) return wipe(r, 'The inside closed out! (end of the wave)');
-    if (RIDE.time - RIDE.closed.time > WAVE.bar.closeout.end) return wipe(r, 'You rode it to the end of the wave!', true);
+    if (RIDE.time - RIDE.closed.time > WAVE.bar.end) return wipe(r, 'You rode it to the end of the wave!', true);
   }
 
   if (!WAVE.tube) { r.inBarrel = false; return; }

@@ -66,33 +66,44 @@ function setShape(a, b, w) {
   SHAPE.a = a; SHAPE.b = b; SHAPE.w = w; SHAPE.ver++;
 }
 
-// The ride along the bar (waves with a `bar`, Trestles): the wave starts as a peak and the curl runs along the
-// bar at the speed the bar sets at each place (sections that go almost at once are just places where it runs
-// very fast), and the shape changes from section to section. RIDE.c is how far the curl has run from the peak
-// (m), RIDE.time the time since the peak broke. Behind the curl a spot's phase comes from how long ago the curl
-// passed it (`phaseTime` s per unit of phase), so a fast section leaves a long stretch breaking almost together
-// and nothing already broken stretches when the speed changes; the left side of the peak (behind where it
-// started) breaks later, peeling away the other way. Ahead of the curl it goes by distance, as on every wave.
-// The ride ends with a closeout (`bar.closeout`): once the curl reaches `at` it stops there (RIDE.closed) and the
-// `length` m ahead of it breaks in place, sweeping along at `speed` m/s (almost together). (It used to be the curl
-// running on at 30 m/s for ever: the view travels with the curl, so the water rushed past, even on the score screen.)
-export const RIDE = { time: 0, c: 0, n: 0, ts: new Float64Array(8192), cs: new Float64Array(8192), closed: null };
+// The ride along the bar (waves with a `bar`, Trestles). The bar is a break map from FUNWAVE (src/waves/trestles-breaks.js):
+// for every spot along the wave (m from the peak, + along the right we ride), when it breaks (s after the peak). A
+// spot's phase is simply the time since it broke there (`phaseTime` s per unit; before it breaks, minus the time until
+// it does), so the whole wave is the simulated one: the peak, the left peeling away, the right peeling through its
+// sections, the inside peak breaking ahead and peeling back to meet you. The curl (the frame the game rides in) is the
+// edge of broken water running down the right from the peak (RIDE.front); it stops (RIDE.closed) where it runs into
+// water that broke before it got there, which is the inside closing out on you. Each ride takes the next wave of the
+// map list (each set wave is a different simulated wave); `?literal` (LITERAL=1 in node) uses the sim's own times
+// instead of the playable version (the same layout at a playable pace: trestles_breaks.py).
+const LITERAL = typeof location !== 'undefined' ? /[?&]literal(&|=|$)/.test(location.search) : !!(globalThis.process && process.env.LITERAL);
+export const RIDE = { time: 0, c: 0, front: 0, closed: null, map: null, k: -1 };
 export function startRide() {
-  RIDE.time = 0; RIDE.c = 0; RIDE.n = 1; RIDE.ts[0] = 0; RIDE.cs[0] = 0; RIDE.closed = null;
-  if (WAVE.bar) { applyBar(); }
+  RIDE.time = 0; RIDE.c = 0; RIDE.front = 0; RIDE.closed = null;
+  if (!WAVE.bar) return;
+  RIDE.time = -(WAVE.bar.lead || 0); // (you drop in as the peak stands up, `lead` s before it breaks)
+  const maps = WAVE.bar.maps;
+  RIDE.k = (RIDE.k + 1) % maps.length;
+  const m = maps[RIDE.k];
+  RIDE.map = { d0: m.d0, step: m.step, tb: LITERAL ? m.literal : m.play, wave: m.wave };
+  applyBar();
 }
-// The bar's setting at c (m from the peak): the bar's rows interpolated (peel speed and shape mix).
-function barAt(c) {
-  const rows = WAVE.bar.rows;
-  let k = 0; while (k < rows.length - 2 && c > rows[k + 1].x) k++;
-  const A = rows[k], B = rows[k + 1], f = Math.min(1, Math.max(0, (c - A.x) / (B.x - A.x)));
-  return { peel: A.peel + (B.peel - A.peel) * f, shape: A.shape + (B.shape - A.shape) * f };
+// When the spot `d` m from the peak breaks (s after the peak). Past either end of the map it keeps breaking later
+// outward at `edgePeel` m/s.
+export function breaksAt(d) {
+  const m = RIDE.map; if (!m) return 0;
+  const n = m.tb.length, u = (d - m.d0) / m.step;
+  if (u <= 0) return m.tb[0] - u * m.step / WAVE.bar.edgePeel;
+  if (u >= n - 1) return m.tb[n - 1] + (u - n + 1) * m.step / WAVE.bar.edgePeel;
+  const i = Math.floor(u), f = u - i;
+  return m.tb[i] + (m.tb[i + 1] - m.tb[i]) * f;
 }
+// The section's shape where the curl is: a position along the bar's shape list by `shapeRows` (1.5 = half way from the
+// 2nd set to the 3rd); a set wave swaps in `setShapes` (the bigger set wave's own inside).
 function applyBar() {
-  const { peel, shape } = barAt(RIDE.c);
-  PEEL_SPEED = RIDE.closed ? 0 : peel * Math.sqrt(SIZE); // (closed out: the curl stops; the stretch ahead breaks in place)
-  // shape: a position along the bar's shape list (1.5 = half way from the 2nd set to the 3rd); a set wave
-  // swaps in the bar's `setShapes` (the bigger set wave's own inside, say)
+  const rows = WAVE.bar.shapeRows, c = RIDE.c;
+  let k = 0; while (k < rows.length - 2 && c > rows[k + 1].x) k++;
+  const A = rows[k], B = rows[k + 1], f0 = Math.min(1, Math.max(0, (c - A.x) / (B.x - A.x)));
+  const shape = A.shape + (B.shape - A.shape) * f0;
   const sets = SIZE > (WAVE.bar.setSize || 9) && WAVE.bar.setShapes ? WAVE.bar.setShapes : WAVE.bar.shapes;
   const i = Math.min(sets.length - 2, Math.floor(shape)), f = shape - i;
   if (sets.length === 1) setShape(sets[0], sets[0], 0);
@@ -102,26 +113,31 @@ function applyBar() {
 export function stepRide(dt) {
   if (!WAVE.bar) return;
   RIDE.time += dt;
-  RIDE.c += PEEL_SPEED * dt;
-  const co = WAVE.bar.closeout;
-  if (co && !RIDE.closed && RIDE.c >= co.at) RIDE.closed = { time: RIDE.time, c: RIDE.c };
-  if (RIDE.n === RIDE.ts.length) { // (grow the history)
-    const g = (a) => { const b = new Float64Array(a.length * 2); b.set(a); return b; };
-    RIDE.ts = g(RIDE.ts); RIDE.cs = g(RIDE.cs);
+  // The curl: from where it is, on along the right while the water there has broken (to the exact spot between map
+  // points). Running into water that broke well before the curl got there = it met a section that broke ahead: closed.
+  if (!RIDE.closed) {
+    const m = RIDE.map, t = RIDE.time;
+    let f = RIDE.front;
+    for (let n = 0; n < 4000 && breaksAt(f + m.step) <= t; n++) {
+      if (breaksAt(f + m.step) < t - 0.6 && breaksAt(f + m.step) < breaksAt(f) - 0.3) { RIDE.closed = { time: t, c: f }; break; }
+      f += m.step;
+    }
+    if (!RIDE.closed) {
+      const a = breaksAt(f), b = breaksAt(f + m.step);
+      if (b > a && t > a) f += m.step * Math.min(1, (t - a) / (b - a));
+    }
+    RIDE.front = Math.max(RIDE.front, f);
   }
-  RIDE.ts[RIDE.n] = RIDE.time; RIDE.cs[RIDE.n] = RIDE.c; RIDE.n++;
+  // The frame follows the curl (at most `frameMax` m/s, so a stretch that goes at once (?literal) is caught up
+  // with smoothly); it stops when the inside closes out.
+  const goal = RIDE.closed ? RIDE.c : RIDE.front;
+  const v = Math.min(WAVE.bar.frameMax, Math.max(0, (goal - RIDE.c) / dt));
+  RIDE.c += v * dt;
+  PEEL_SPEED = v;
   applyBar();
 }
-// When the curl passed the spot `back` m behind it now (binary search of the history); before the peak broke
-// for spots behind where it started (the left side of the peak breaks later, peeling away at `leftPeel`).
-function brokeAt(back) {
-  const c = RIDE.c - back;
-  if (c <= 0) return -c / WAVE.bar.leftPeel;
-  let lo = 0, hi = RIDE.n - 1;
-  while (hi - lo > 1) { const m = (lo + hi) >> 1; if (RIDE.cs[m] < c) lo = m; else hi = m; }
-  const c0 = RIDE.cs[lo], c1 = RIDE.cs[hi];
-  return RIDE.ts[lo] + (RIDE.ts[hi] - RIDE.ts[lo]) * (c1 > c0 ? (c - c0) / (c1 - c0) : 0);
-}
+// (the time since the spot `xs` m ahead of the frame broke, in units of phase)
+function barPhase(xs) { return (RIDE.time - breaksAt(RIDE.c + xs)) / WAVE.phaseTime; }
 
 // Which way the wave peels in the world (`dir` in the wave definition): 1 toward +x (screen right from the
 // beach: a left, for the surfer), -1 toward -x (a right). Everything about riding works along the wave, in the
@@ -138,7 +154,7 @@ export function setWaveSize(k) {
   SCALE = WAVE.scale * k;
   PEEL_SPEED = WAVE.peelSpeed * Math.sqrt(k);
   WAVE_SPEED = WAVE.waveSpeed * Math.sqrt(k);
-  if (WAVE.bar) applyBar(); // (the bar sets the peel speed and shape; a set wave may have its own shapes)
+  if (WAVE.bar) { PEEL_SPEED = 0; applyBar(); } // (the bar's map moves the curl; a set wave may have its own shapes)
 }
 
 // Sections: places along the wave that break differently for a while (a
@@ -159,17 +175,7 @@ export function phaseAt(xs) {
   const k = smooth(Math.min(1, Math.max(0, (xs + 4) / 8)));
   let s;
   if (WAVE.bar) {
-    // (a wave with a bar: behind the curl, by how long ago it broke there; ahead by distance; blended through
-    // the curl the same way)
-    let ahead = -xs / WAVE.phase.ahead;
-    // (closed out: the stretch ahead breaks too, `speed` m/s along from the curl, easing off past `length`)
-    const co = RIDE.closed && WAVE.bar.closeout;
-    if (co && xs > 0) {
-      const sc = (RIDE.time - RIDE.closed.time - xs / co.speed) / WAVE.phaseTime - Math.max(0, xs - co.length) / WAVE.phase.ahead;
-      ahead = Math.max(ahead, sc);
-    }
-    const behind = xs < 0 ? (RIDE.time - brokeAt(-xs)) / WAVE.phaseTime : -xs / (Math.max(0.5, PEEL_SPEED) * WAVE.phaseTime); // (floored: the curl stops at a closeout)
-    s = behind + (ahead - behind) * k;
+    s = barPhase(xs); // (a wave with a bar: the time since it broke there, from the simulation's break map)
   } else s = -xs / (WAVE.phase.behind + (WAVE.phase.ahead - WAVE.phase.behind) * k);
   // Optionally the broken wave behind lasts longer: past phase `farFrom` it
   // changes `behindFar` m per phase instead of `behind`, eased in smoothly

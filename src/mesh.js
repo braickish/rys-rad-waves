@@ -176,6 +176,20 @@ export const BOARDS = {
     fins: [[-0.72, 0.15, 0.11, 0.13], [-0.72, -0.15, 0.11, 0.13], [-0.88, 0, 0.11, 0.13]], // thruster
     stringer: [1.7, -0.05],
   },
+  // Trestles: a 5'11" x 19" performance shortboard (the user, 2026-11-19; the shape inspired by a well-known high-
+  // performance shortboard, no branding): a moderately pulled-in nose, a rounded squash tail, lower, more continuous
+  // rocker than the 6'6" barrel board, a thruster. Plain white.
+  perf511: {
+    half: 0.90,
+    width: planform(0.243, 0.58, 0.3, -0.955), // 19" wide, widest just behind the middle; the tail cut off wider than a pin (squash)
+    notch: 0,
+    rocker: (u) => 0.035 * u * u + 0.1 * Math.max(0, u - 0.45) ** 2 / 0.3025 + 0.03 * Math.max(0, -u - 0.45) ** 2 / 0.3025,
+    thick: (u) => 0.03 * (1 - 0.6 * u * u),
+    noseFrom: 0.72,
+    stance: [-0.58, -0.06], // back foot over the fins
+    fins: [[-0.65, 0.14, 0.1, 0.12], [-0.65, -0.14, 0.1, 0.12], [-0.8, 0, 0.1, 0.12]], // thruster
+    stringer: [1.55, -0.05],
+  },
   // A 9'0" noserider (Queens; was 9'6", the user had it shortened): 23" wide, a wide round nose
   // (for standing on it) and a squared tail, thick and flat with only a little nose kick (less than
   // before: a noserider wants a flat nose) and a little tail kick, one big fin. Seafoam with a turquoise rail (the user's pick).
