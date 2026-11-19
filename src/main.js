@@ -363,7 +363,7 @@ function handleEvents() {
     if (e.type === 'fallsLand') burst = 0.3; // the lip lands with you in it
     if (e.type === 'wipe') {
       burst = 0.3;
-      flash('WIPEOUT!', e.reason);
+      flash(e.ended ? 'END OF THE WAVE!' : 'WIPEOUT!', e.reason);
     }
   }
 }
@@ -631,7 +631,7 @@ async function main() {
       // Attract mode: the autopilot surfs behind the title card.
       acc += dt;
       while (acc >= STEP) { stepSea(STEP); lastInput = autopilot(); stepRider(rider, lastInput, STEP); acc -= STEP; }
-      if (rider.mode === 'wipe' && rider.wipeTimer <= 0) resetRider(rider);
+      if (rider.mode === 'wipe' && rider.wipeTimer <= 0) { if (WAVE.bar) nextWave(); resetRider(rider); } // (Trestles: the demo starts again from the peak)
     }
 
     // Turning direction (for lean and spray).

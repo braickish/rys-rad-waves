@@ -335,19 +335,19 @@ function syncPose(r, f) {
     : r.slide ? v3.norm(rotate(travel, f.n, -r.slide)) : travel;
 }
 
-function wipe(r, reason) {
+function wipe(r, reason, ended = false) { // (ended: the ride ended without a fall: the end of the wave)
   // Wiping out in the barrel (or caught in the lip) throws you in the "washing
   // machine": a longer hold-down (the foam ball screen in main.js).
   r.washing = !!r.tube || reason.includes('caught up in the lip');
   // (a wave with a bar, Trestles: once the inside has closed out, that's the end of the wave whatever got you)
-  if (WAVE.bar && WAVE.bar.closeout != null && RIDE.c > WAVE.bar.closeout) reason = 'The inside closed out! (end of the wave)';
+  if (WAVE.bar && RIDE.closed && !ended) reason = 'The inside closed out! (end of the wave)';
   r.mode = 'wipe';
   r.wipeReason = reason;
   r.wipeTimer = 2.2;
   r.wipeAge = 0;
   r.inBarrel = false;
   r.fallsBoard = null;
-  r.events.push({ type: 'wipe', reason });
+  r.events.push({ type: 'wipe', reason, ended });
   // Caught up top in the barrel: the lip takes you with it, up and over the
   // falls, before the washing machine.
   if (r.washing && reason.startsWith('Over the falls')) startFalls(r);
@@ -1252,6 +1252,12 @@ function checkHazards(r, dt) {
     return wipe(r, 'Caught by the whitewater! (it rolls out across the flats)');
   }
   if (r.xs < -25) return wipe(r, 'Caught by the whitewater!');
+  // (a wave with a bar, Trestles: the inside has closed out. Once it breaks where you are, it gets you; out past it,
+  // the wave is done `end` s later)
+  if (WAVE.bar && RIDE.closed) {
+    if (phaseAt(r.xs) > 1.1) return wipe(r, 'The inside closed out! (end of the wave)');
+    if (RIDE.time - RIDE.closed.time > WAVE.bar.closeout.end) return wipe(r, 'You rode it to the end of the wave!', true);
+  }
 
   if (!WAVE.tube) { r.inBarrel = false; return; }
   // The barrel: once the curl has passed you, you're in the tube, surfing

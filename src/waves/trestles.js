@@ -49,13 +49,14 @@ export default {
       { x: 160, peel: 7.0, shape: 1 },
       { x: 205, peel: 5.5, shape: 2 }, // the inside: smaller, slower, a narrow tube
       { x: 255, peel: 5.0, shape: 2 },
-      { x: 265, peel: 30.0, shape: 2 }, // ... and it closes out
-      { x: 2000, peel: 30.0, shape: 2 },
+      { x: 2000, peel: 5.0, shape: 2 },
     ],
     shapes: [0, 1, 2], // takeoff, middle, inside
     setShapes: [0, 1, 3], // the biggest wave of a set has its own, heavier inside
     setSize: 1.1,
-    closeout: 262, // (from here a wipeout is the inside closing out: the end of the wave)
+    // ... and the inside closes out: at 262 m the curl stops and the 70 m ahead of it breaks in place, sweeping along
+    // at 60 m/s (all within ~1 s). Caught in it = "The inside closed out!"; past it, the ride ends `end` s later.
+    closeout: { at: 262, length: 70, speed: 60, end: 4 },
     leftPeel: 5.0, // the left side of the peak peels away at this speed (m/s)
   },
   // Behind the curl a spot's phase goes by how long ago it broke: `phaseTime` s per unit of phase (the sims take

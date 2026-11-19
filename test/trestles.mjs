@@ -26,6 +26,15 @@ for (const k of WAVE.sea.set) {
   console.log(`size ${k}: tubes`, [...new Set([...seen].filter((x) => !x.includes('->')))].filter((_, i, a) => true).slice(0, 1).join(''), '...', [...seen].pop());
 }
 
+// The closeout: the curl stops at bar.closeout.at, and the stretch ahead breaks within ~1 s.
+{
+  setWaveSize(1); startRide();
+  let i = 0; for (; i < 60 / dt && !RIDE.closed; i++) stepRide(dt);
+  const c0 = RIDE.c, t0 = RIDE.time;
+  for (let k = 0; k < 1.5 / dt; k++) stepRide(dt);
+  console.log(`-- closeout at ${t0.toFixed(1)} s, curl ${c0.toFixed(0)} m; 1.5 s later the curl is at ${RIDE.c.toFixed(0)} m (peel ${PEEL_SPEED}), phase 20 / 50 / 69 / 100 m ahead: ${[20, 50, 69, 100].map((x) => phaseAt(x).toFixed(2)).join(' / ')}`);
+}
+
 // 2. The phase along the wave: no jumps (a jump is a crease or a step in the water), no NaNs.
 {
   setWaveSize(1); startRide();

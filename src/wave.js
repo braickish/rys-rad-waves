@@ -73,9 +73,12 @@ function setShape(a, b, w) {
 // passed it (`phaseTime` s per unit of phase), so a fast section leaves a long stretch breaking almost together
 // and nothing already broken stretches when the speed changes; the left side of the peak (behind where it
 // started) breaks later, peeling away the other way. Ahead of the curl it goes by distance, as on every wave.
-export const RIDE = { time: 0, c: 0, n: 0, ts: new Float64Array(8192), cs: new Float64Array(8192) };
+// The ride ends with a closeout (`bar.closeout`): once the curl reaches `at` it stops there (RIDE.closed) and the
+// `length` m ahead of it breaks in place, sweeping along at `speed` m/s (almost together). (It used to be the curl
+// running on at 30 m/s for ever: the view travels with the curl, so the water rushed past, even on the score screen.)
+export const RIDE = { time: 0, c: 0, n: 0, ts: new Float64Array(8192), cs: new Float64Array(8192), closed: null };
 export function startRide() {
-  RIDE.time = 0; RIDE.c = 0; RIDE.n = 1; RIDE.ts[0] = 0; RIDE.cs[0] = 0;
+  RIDE.time = 0; RIDE.c = 0; RIDE.n = 1; RIDE.ts[0] = 0; RIDE.cs[0] = 0; RIDE.closed = null;
   if (WAVE.bar) { applyBar(); }
 }
 // The bar's setting at c (m from the peak): the bar's rows interpolated (peel speed and shape mix).
@@ -87,7 +90,7 @@ function barAt(c) {
 }
 function applyBar() {
   const { peel, shape } = barAt(RIDE.c);
-  PEEL_SPEED = peel * Math.sqrt(SIZE);
+  PEEL_SPEED = RIDE.closed ? 0 : peel * Math.sqrt(SIZE); // (closed out: the curl stops; the stretch ahead breaks in place)
   // shape: a position along the bar's shape list (1.5 = half way from the 2nd set to the 3rd); a set wave
   // swaps in the bar's `setShapes` (the bigger set wave's own inside, say)
   const sets = SIZE > (WAVE.bar.setSize || 9) && WAVE.bar.setShapes ? WAVE.bar.setShapes : WAVE.bar.shapes;
@@ -100,6 +103,8 @@ export function stepRide(dt) {
   if (!WAVE.bar) return;
   RIDE.time += dt;
   RIDE.c += PEEL_SPEED * dt;
+  const co = WAVE.bar.closeout;
+  if (co && !RIDE.closed && RIDE.c >= co.at) RIDE.closed = { time: RIDE.time, c: RIDE.c };
   if (RIDE.n === RIDE.ts.length) { // (grow the history)
     const g = (a) => { const b = new Float64Array(a.length * 2); b.set(a); return b; };
     RIDE.ts = g(RIDE.ts); RIDE.cs = g(RIDE.cs);
@@ -156,8 +161,14 @@ export function phaseAt(xs) {
   if (WAVE.bar) {
     // (a wave with a bar: behind the curl, by how long ago it broke there; ahead by distance; blended through
     // the curl the same way)
-    const ahead = -xs / WAVE.phase.ahead;
-    const behind = xs < 0 ? (RIDE.time - brokeAt(-xs)) / WAVE.phaseTime : -xs / (PEEL_SPEED * WAVE.phaseTime);
+    let ahead = -xs / WAVE.phase.ahead;
+    // (closed out: the stretch ahead breaks too, `speed` m/s along from the curl, easing off past `length`)
+    const co = RIDE.closed && WAVE.bar.closeout;
+    if (co && xs > 0) {
+      const sc = (RIDE.time - RIDE.closed.time - xs / co.speed) / WAVE.phaseTime - Math.max(0, xs - co.length) / WAVE.phase.ahead;
+      ahead = Math.max(ahead, sc);
+    }
+    const behind = xs < 0 ? (RIDE.time - brokeAt(-xs)) / WAVE.phaseTime : -xs / (Math.max(0.5, PEEL_SPEED) * WAVE.phaseTime); // (floored: the curl stops at a closeout)
     s = behind + (ahead - behind) * k;
   } else s = -xs / (WAVE.phase.behind + (WAVE.phase.ahead - WAVE.phase.behind) * k);
   // Optionally the broken wave behind lasts longer: past phase `farFrom` it
