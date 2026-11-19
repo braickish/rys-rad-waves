@@ -95,7 +95,7 @@ export default {
     // Hang ten (rider.js): from hang five, in the pocket mid-way up the wall, the back foot steps up beside the front.
     tenPocket: 0.7, // pocket power at least this (right in the pocket) ...
     tenLow: 0.35, tenHigh: 0.75, // ... and this far up the face (0 bottom .. 1 top) ...
-    tenSettle: 0.3, // ... for this long (s) and she steps up
+    tenSettle: 1.0, // ... for this long (s) in hang five and she steps up (was 0.3; the user: at least 1 s of hang five first)
     tenMargin: 0.08, // once there, it holds this far beyond the spot
     tenStep: 0.35, // s for the step up (back down 40% quicker walking back)
   },

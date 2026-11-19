@@ -139,7 +139,7 @@ button).
   so stepping into a hang ten is a short move).
   **Hang ten** (2026-11-18, the user's idea; hang-ten-position.jpg in braickish/reference-images): automatic, no key. On the
   nose in the pocket (pocket power >= `tenPocket` 0.7) about mid-way up the wall (height `tenLow` 0.35 .. `tenHigh` 0.75) for
-  `tenSettle` 0.3 s, she steps the back foot up beside the front (`r.ten`, `tenStep` 0.35 s); out of that spot (with
+  `tenSettle` 1 s (was 0.3; the user wants at least 1 s of hang five first), she steps the back foot up beside the front (`r.ten`, `tenStep` 0.35 s); out of that spot (with
   `tenMargin` 0.08 of slack) or walking back she steps back to hang five. Drawn: `tenStance` [1.17, 1.21] with the feet
   side by side across the board (`tenSide` 0.09 m each side), toes toward the nose (body.js), facing the nose
   (`TEN_OPEN` 1.3 rad), tall, arms out wide, less lean and rail roll (so the legs still reach the deck in turns).
