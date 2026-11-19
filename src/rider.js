@@ -293,7 +293,7 @@ export function createRider() {
     airSpin: 0, airTime: 0, spinArmed: false,
     moveCooldown: 0, lastBottomTurn: -9, bottomArmed: false,
     tube: null, fakie: null, driveBank: 0, lastTurnTime: -9, lastTurnDir: 0, overTheBack: false,
-    rideDir: 1, lock: null, inDir: 0, lipSnap: null, snapGrip: false, roundhouse: null, crouchDepth: 0, barrelCrouch: 0, frontLean: 0, tubeDamp: 0, pivot: 0, foot: 0, footGoal: 0, shuf: 0, shufGoal: 0, walkDir: 1, pivotHeld: false, pivotUp: false, pivotDir: 0, nose: 0, noseTime: 0, noseRisk: 0, onNose: false, slash: null, slide: 0, rightHeld: 0, turnDir: 0, turnDirAge: 9, turnHeld: 0, hard: 0, assist: null, bottomCarve: false, floater: null,
+    rideDir: 1, lock: null, inDir: 0, lipSnap: null, snapGrip: false, roundhouse: null, crouchDepth: 0, barrelCrouch: 0, frontLean: 0, tubeDamp: 0, pivot: 0, foot: 0, footGoal: 0, shuf: 0, shufGoal: 0, walkDir: 1, pivotHeld: false, pivotUp: false, pivotDir: 0, nose: 0, noseTime: 0, noseRisk: 0, onNose: false, ten: 0, tenGoal: 0, tenWait: 0, tenTime: 0, tenDone: false, slash: null, slide: 0, rightHeld: 0, turnDir: 0, turnDirAge: 9, turnHeld: 0, hard: 0, assist: null, bottomCarve: false, floater: null,
     wipeReason: '', wipeTimer: 0, wipeAge: 0, washing: false, falls: null, fallsBoard: null,
     events: [],
     time: 0,
@@ -699,9 +699,22 @@ function stepSurf(r, input, dt) {
     const n = sstep(0.3, 1, r.nose);
     if (r.nose >= 1 && !r.onNose) { r.onNose = true; r.events.push({ type: 'move', move: 'hang5', speed: r.speed, xs: r.xs }); }
     if (r.onNose) r.noseTime += dt;
+    // Hang ten (hang-ten-position.jpg in braickish/reference-images, 2026-11-18, the user's idea): on the nose in
+    // the pocket, about mid-way up the wall, she steps the back foot up beside the front one by herself (both feet
+    // over the nose, facing it); out of that spot she steps it back to hang five. It has to hold for `tenSettle` s
+    // to step up, and stays a little beyond the spot once there (`tenMargin`), so it doesn't flicker at the edges.
+    if (T.tenPocket !== undefined) {
+      const m = r.tenGoal ? T.tenMargin : 0;
+      const spot = r.onNose && r.footGoal >= 1 && r.nose >= 1 && pk >= T.tenPocket - m && height >= T.tenLow - m && height <= T.tenHigh + m;
+      r.tenWait = spot ? r.tenWait + dt : 0;
+      r.tenGoal = spot && (r.tenGoal || r.tenWait >= T.tenSettle) ? 1 : 0;
+      r.ten = r.ten < r.tenGoal ? Math.min(1, r.ten + dt / T.tenStep) : Math.max(0, r.ten - dt / (r.footGoal < 1 ? T.tenStep * 0.6 : T.tenStep));
+      if (r.ten >= 1 && !r.tenDone) { r.tenDone = true; r.events.push({ type: 'move', move: 'hang10', speed: r.speed, xs: r.xs }); }
+      if (r.ten >= 1) r.tenTime += dt;
+    }
     if (r.onNose && r.nose < 0.6) { // walked back
-      r.events.push({ type: 'noseride', time: r.noseTime });
-      r.onNose = false; r.noseTime = 0;
+      r.events.push({ type: 'noseride', time: r.noseTime, tenTime: r.tenTime });
+      r.onNose = false; r.noseTime = 0; r.tenTime = 0; r.tenDone = false;
     }
     if (n > 0) {
       r.speed += (PEEL_SPEED - (T.noseUnder || 0) - r.speed) * (1 - Math.exp(-dt * T.noseHold * pk * n)); // (a touch under the curl's speed: the wave adds a little back)

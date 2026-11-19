@@ -182,6 +182,7 @@ export const BOARDS = {
     stance: [-0.19, 0.17], // the middle spot: feet either side of the middle of the board, close together (36 cm; was 54: the user, 2026-11-18, a longboarder stands narrower)
     tailStance: [-1.0, -0.52], // the tail spot (pivots): back foot a little ahead of the fin, front foot close behind it (moved forward 0.1 m: the user felt she was slightly too far back)
     noseStance: [0.9, 1.23], // on the nose: back foot close behind, front toes over the nose (hang five; 33 cm apart, was 49)
+    tenStance: [1.17, 1.21], tenSide: 0.09, // hang ten: both feet up at the nose, side by side 18 cm apart, toes over
     fins: [[-1.18, 0, 0.23, 0.26]], // single fin
     stringer: [2.55, 0],
     faceTilt: 0.35,

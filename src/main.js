@@ -292,9 +292,9 @@ function flash(text, sub = '') {
 function handleEvents() {
   for (const e of rider.events) {
     if (e.type === 'noseride' && e.time > 0.3) {
-      const pts = Math.round(150 + e.time * 250);
+      const pts = Math.round(150 + e.time * 250 + (e.tenTime || 0) * 250); // (time on hang ten counts double)
       score += pts;
-      flash(e.time > 3 ? 'LONG NOSERIDE!' : 'Noseride', `${e.time.toFixed(1)}s on the nose  +${pts}`);
+      flash(e.time > 3 ? 'LONG NOSERIDE!' : 'Noseride', `${e.time.toFixed(1)}s on the nose${e.tenTime > 0.3 ? `, ${e.tenTime.toFixed(1)}s hang ten` : ''}  +${pts}`);
     }
     if (e.type === 'barrelEnter') flash('In the barrel!', 'drop from high to drive forward · stay off the roof');
     if (e.type === 'barrelExit' && e.time > 0.4) {
@@ -317,6 +317,7 @@ function handleEvents() {
         topTurn: ['Top turn', 150, 0.15],
         snap: ['SNAP!', 500, 0.35],
         hang5: ['HANG FIVE!', 250, 0],
+        hang10: ['HANG TEN!', 500, 0],
         check: ['CHECK TURN', 200, 0.25],
         reentry: ['RE-ENTRY!', 700, 0.4],
         floater: ['FLOATER!', 600, 0.3],
@@ -653,7 +654,7 @@ async function main() {
     }, objs, { particles: !params.has('noparticles'), outlines: !params.has('nooutline'), look: true, body: bodyMats, shadow: !!bodyMats });
 
     frameMs = frameMs * 0.95 + (dt * 1000) * 0.05; // smoothed frame time
-    window.__dbg = { view: tubeView, cam: camPos.map((x) => +x.toFixed(2)), pos: rider.pos.map((x) => +x.toFixed(2)), rt: +rider.t.toFixed(2), tube: !!rider.tube, wave: WAVE.id, wind: +(pose.windup || 0).toFixed(2), unl: +(pose.unload || 0).toFixed(2), ms: +frameMs.toFixed(1), phi: +(rider.phi * 57.3).toFixed(0), turn: touch.turn, tilt: touch.tilt, depth: rider.tube ? +tubeDepth(rider).toFixed(2) : null, state, mode: rider.mode, xs: +rider.xs.toFixed(1), y: +rider.pos[1].toFixed(1), score: Math.round(score), reason: rider.wipeReason, slash: !!rider.slash, slide: +(rider.slide * 57.3).toFixed(0), shuf: +(rider.shuf || 0).toFixed(2), pivot: +(rider.pivot || 0).toFixed(2), pivotUp: !!rider.pivotUp, foot: rider.foot, h: +(rider.height || 0).toFixed(2) };
+    window.__dbg = { view: tubeView, cam: camPos.map((x) => +x.toFixed(2)), pos: rider.pos.map((x) => +x.toFixed(2)), rt: +rider.t.toFixed(2), tube: !!rider.tube, wave: WAVE.id, wind: +(pose.windup || 0).toFixed(2), unl: +(pose.unload || 0).toFixed(2), ms: +frameMs.toFixed(1), phi: +(rider.phi * 57.3).toFixed(0), turn: touch.turn, tilt: touch.tilt, depth: rider.tube ? +tubeDepth(rider).toFixed(2) : null, state, mode: rider.mode, xs: +rider.xs.toFixed(1), y: +rider.pos[1].toFixed(1), score: Math.round(score), reason: rider.wipeReason, slash: !!rider.slash, slide: +(rider.slide * 57.3).toFixed(0), shuf: +(rider.shuf || 0).toFixed(2), pivot: +(rider.pivot || 0).toFixed(2), pivotUp: !!rider.pivotUp, foot: rider.foot, h: +(rider.height || 0).toFixed(2), ten: +(rider.ten || 0).toFixed(2), pk: +(rider.pocket || 0).toFixed(2) };
     // HUD.
     msgTimer -= dt;
     if (msgTimer <= 0) $('msg').classList.remove('pop');

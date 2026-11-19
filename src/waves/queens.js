@@ -92,5 +92,11 @@ export default {
     nosePocket: 0.35, // below this pocket power (out on the shoulder) ...
     nosePearl: 1.1, // ... the nose starts going under; it's gone after about this long (s)
     noseDrag: 0.6, // ... and it drags you (1/s)
+    // Hang ten (rider.js): from hang five, in the pocket mid-way up the wall, the back foot steps up beside the front.
+    tenPocket: 0.7, // pocket power at least this (right in the pocket) ...
+    tenLow: 0.35, tenHigh: 0.75, // ... and this far up the face (0 bottom .. 1 top) ...
+    tenSettle: 0.3, // ... for this long (s) and she steps up
+    tenMargin: 0.08, // once there, it holds this far beyond the spot
+    tenStep: 0.35, // s for the step up (back down 40% quicker walking back)
   },
 };

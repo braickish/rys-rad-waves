@@ -127,13 +127,24 @@ button).
   Feet (mesh.js): the middle spot is `stance` [-0.28, 0.26], either side of the board's middle (the user's call; it
   used to be the back half); the tail spot `tailStance` [-1.0, -0.52] (moved forward twice, the user's call).
   Drawn (surfer.js `tl`, `pv`): feet stepped back close together just ahead of the fin, more upright, arms half out; the nose
-  lifts a little standing there and up to ~29 deg swinging round in a pivot (`pose.tip`, about a point ahead of the
+  lifts a little standing there and up to ~15 deg swinging round in a pivot away from the wave, ~9 deg toward it (was ~27 / ~15; 2026-11-18, the user: too much lift) (`pose.tip`, about a point ahead of the
   back foot so the tail sinks), with less rail roll and lean. (A first version stepped back automatically when you
   held a turn; replaced by walking the same day.)
   **On the nose** you steer a little (`noseTurnDamp` 0.55, was 0.8); in the pocket the nose
   trims you to just under the curl's speed (`noseHold`, `noseUnder` 0.8 m/s under; was 0.45, the user wanted it slower), so you stay there; out on the shoulder (pocket
   power below `nosePocket`) it drags and the nose dips under (`r.noseRisk`, drawn as the board pitching nose-down, the feet going with it) until
-  you pearl (wipeout). Scores: HANG FIVE! on reaching the nose, then a noseride bonus by time when you walk back.
+  you pearl (wipeout). Scores: HANG FIVE! on reaching the nose, then a noseride bonus by time when you walk back
+  (hang ten time counts double).
+  On the nose her hips and chest turn further toward the nose (`NOSE_OPEN` 0.8 rad, was the normal 0.45; the user, 2026-11-18,
+  so stepping into a hang ten is a short move).
+  **Hang ten** (2026-11-18, the user's idea; hang-ten-position.jpg in braickish/reference-images): automatic, no key. On the
+  nose in the pocket (pocket power >= `tenPocket` 0.7) about mid-way up the wall (height `tenLow` 0.35 .. `tenHigh` 0.75) for
+  `tenSettle` 0.3 s, she steps the back foot up beside the front (`r.ten`, `tenStep` 0.35 s); out of that spot (with
+  `tenMargin` 0.08 of slack) or walking back she steps back to hang five. Drawn: `tenStance` [1.17, 1.21] with the feet
+  side by side across the board (`tenSide` 0.09 m each side), toes toward the nose (body.js), facing the nose
+  (`TEN_OPEN` 1.3 rad), tall, arms out wide, less lean and rail roll (so the legs still reach the deck in turns).
+  Scores HANG TEN! (500). `node test/hang10.mjs`: mid-face in the pocket hangs ten; low or up by the lip stays hang five.
+  (Known, not from this: climbing steeply with weight on the nose, the nose goes under the face and she looks to float.)
   **Dropknee turn** (the user: a longboard's roundhouse): on Queens the roundhouse is a dropknee turn (`WAVE.dropknee`,
   `moveNames`: "DROPKNEE TURN!"): no slow start, `roundhouseRate` 1.4x a normal longboard turn (up to 4 rad/s), and
   `roundhouseNoDrive`: it turns you without making speed (150 deg in ~0.95 s instead of ~1.6 s, no speed gain where

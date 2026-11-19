@@ -91,7 +91,8 @@ export function createBody(model) {
       put('thigh_' + side, mulRT(aimFrame(sub(s.joint, hipP), kneeDir), aimFrame(sub(H('calf_' + side), H('thigh_' + side)), [0, 0, 1])), hipP);
       put('calf_' + side, mulRT(aimFrame(sub(s.end, s.joint), kneeDir), aimFrame(sub(H('foot_' + side), H('calf_' + side)), [0, 0, 1])), s.joint);
       // foot flat on the deck, toes toward the toe side (front foot angled a little toward the nose)
-      const toe = norm(rej(add(J.T, mul(J.f, 0.35 * sgn)), J.ub));
+      // (hang ten: both feet turn to point at the nose, toes over it)
+      const toe = norm(rej(lerp(add(J.T, mul(J.f, 0.35 * sgn)), mul(J.f, 1.4), J.ten || 0), J.ub));
       put('foot_' + side, mulRT(bodyFrame(J.ub, toe), REST), s.end);
       S['ball_' + side] = S['foot_' + side];
     }
