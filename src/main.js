@@ -48,7 +48,8 @@ const BODY_LOOKS = {
   girl: { skin: [0.84, 0.55, 0.36, 0.35], // (more tan, 2026-11-18, the user)
     hair: [0.43, 0.29, 0.17, 0.25], hairMid: [0.48, 0.33, 0.2], hairHi: [0.56, 0.39, 0.24] }, // (long brown hair: hana-likeness.jpg, 2026-11-18)
 };
-function bodyColors(m, which) {
+const WETSUIT = [0.045, 0.047, 0.055, 0.4];
+function bodyColors(m, which, outfit) {
   const L = BODY_LOOKS[which], dom = dominantBones(m), hs = headStats(m, dom);
   const shorts = [0.22, 0.33, 0.5, 0.08], band = [0.08, 0.08, 0.1, 0.08];
   const topBlue = [0.6, 0.72, 0.93, 0.12], topLilac = [0.74, 0.68, 0.92, 0.12], topWhite = [0.94, 0.95, 0.98, 0.12];
@@ -62,7 +63,16 @@ function bodyColors(m, which) {
     const bone = dom[v], x = m.pos[v * 3], y = m.pos[v * 3 + 1], z = m.pos[v * 3 + 2];
     let col = L.skin;
     const hipBone = /^(pelvis|spine_01|thigh_[lr]|Root)$/.test(bone) || (bone.startsWith('calf') && y > kneeY + 0.06);
-    if (which === 'guy') {
+    if (outfit === 'wetsuit') {
+      // A black full wetsuit (WAVE.outfit, Raglan: cold water; the user, 2026-11-18): neck to wrists and ankles,
+      // a little sheen to the neoprene so it still shows its shape; head, hands and feet bare.
+      const suit = /^(Root|pelvis|spine_0[123]|clavicle_[lr]|upperarm_[lr]|lowerarm_[lr]|thigh_[lr]|calf_[lr])$/.test(bone)
+        || (bone === 'neck_01' && y < neckY + 0.045);
+      let bare = false;
+      if (bone.startsWith('lowerarm')) { const h = m.rest['hand_' + bone.slice(-1)].head; bare = Math.hypot(x - h[0], y - h[1], z - h[2]) < 0.025; }
+      if (bone.startsWith('calf')) bare = y < m.rest['foot_' + bone.slice(-1)].head[1] + 0.015;
+      if (suit && !bare) col = WETSUIT;
+    } else if (which === 'guy') {
       if (hipBone && y < waistY && y > kneeY + 0.07) col = y > waistY - 0.035 ? band : shorts;
     } else {
       // After the user's reference (hana-likeness.jpg, 2026-11-18): a light-blue floral bralette top with thin
@@ -147,7 +157,7 @@ function hairObjects(b, mats) {
 // Fetch a body (once): both are fetched at start-up (~1 MB each), the current wave's first.
 function loadBody(which) {
   const b = bodies[which] ||= { body: null, loading: null };
-  if (!b.body && !b.loading) b.loading = loadSkinnedGLB(BODY_FILES[which]).then((m) => { const bc = bodyColors(m, which); Object.assign(b, { body: createBody(m), colors: bc.colors, head: bc.head, which }); }).catch((e) => console.error('body', e));
+  if (!b.body && !b.loading) b.loading = loadSkinnedGLB(BODY_FILES[which]).then((m) => { const bc = bodyColors(m, which); Object.assign(b, { body: createBody(m), model: m, colors: bc.colors, outfits: { '': bc.colors }, head: bc.head, which }); }).catch((e) => console.error('body', e));
   return b;
 }
 function wantBody() {
@@ -155,7 +165,12 @@ function wantBody() {
   const which = WAVE.surfer === 'girl' ? 'girl' : 'guy';
   if (!BODY_FILES[which]) return null; // (not built yet: the parts surfer)
   const b = loadBody(which);
-  if (b.body && renderer.bodyShown !== which) { renderer.setBody(b.body.model, b.colors); renderer.bodyShown = which; }
+  // (the wave's outfit, e.g. Raglan's wetsuit, painted once per body and outfit)
+  const outfit = WAVE.outfit || '', key = which + ':' + outfit;
+  if (b.body && renderer.bodyShown !== key) {
+    b.colors = b.outfits[outfit] ||= bodyColors(b.model, which, outfit).colors;
+    renderer.setBody(b.body.model, b.colors); renderer.bodyShown = key;
+  }
   return b.body ? b : null;
 }
 

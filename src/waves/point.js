@@ -1,7 +1,22 @@
-// Mellow Point: a long, crumbling right. The crest spills foam down the face
+// Raglan (was Mellow Point): a long, crumbling point wave. The crest spills foam down the face
 // instead of throwing a lip, so there's no barrel; speed lives in the pocket,
 // and the moves are snaps, floaters and rebounds off the whitewater.
-import { KF_CRUMBLE, sstep } from './shapes.js';
+import { KF_BARREL, KF_CRUMBLE, sstep } from './shapes.js';
+
+// Raglan's shape (raglan-1/2.png in braickish/reference-images, 2026-11-18, the user): a long, even point wall.
+// Ahead of the curl the face stays steep and nearly full height a long way down the line (the shoulder holds its
+// height), only easing down into swell far out. Behind the curl it crumbles like before (KF_CRUMBLE).
+// Blends of the shared sections, so the curve never overhangs and the points stay in order.
+const mixKF = (a, b, w, s) => ({ s, p: a.p.map((pa, i) => [pa[0] + (b.p[i][0] - pa[0]) * w, pa[1] + (b.p[i][1] - pa[1]) * w]) });
+const SWELL = KF_BARREL[1], BUILD = KF_BARREL[2], STEEP = KF_CRUMBLE[3]; // (a small swell; 2.2 tall and gentle; 2.95 tall and steep, s -0.25)
+const KF_RAGLAN = [
+  KF_BARREL[0], // flat, far ahead (s -14)
+  mixKF(SWELL, BUILD, 0.5, -9), // swell building ~90 m down the line
+  mixKF(BUILD, STEEP, 0.3, -6), // a wall standing up (~2.4 tall)
+  mixKF(BUILD, STEEP, 0.7, -3.5), // ~35 m out: steep and ~2.7 tall
+  mixKF(BUILD, STEEP, 0.9, -1.2), // ~12 m out: nearly the full steep wall
+  ...KF_CRUMBLE.slice(3),
+];
 
 // The spill of foam from the crest down the face (physics and looks share it).
 function spill(s, t) {
@@ -15,7 +30,9 @@ export default {
   name: 'Raglan',
   walkKeys: true, shuffle: true, // (Up/Down and up/down swipes shuffle the feet back / middle / forward, rider.js; only Left/Right turn)
   kind: 'crumble', // no tube
-  keyframes: KF_CRUMBLE,
+  keyframes: KF_RAGLAN,
+  green: 1, // cold, green water (shaders.js)
+  outfit: 'wetsuit', // cold water: a black full wetsuit (main.js)
   scale: 1.25, rippleK: 2.0, // (ripples 2x finer than the base, like Queens: real ripples are set by the wind, not the wave's size; at 1 they read as coarse blotches; the user asked)
   peelSpeed: 6.0, // m/s the breaking point runs along the beach
   waveSpeed: 5.0, // m/s the wave moves toward shore
@@ -31,7 +48,8 @@ export default {
     Math.exp(-(((t - 4.8) / 0.7) ** 2)) * sstep(-0.6, -0.1, s) * 0.35,
   ),
   // Thin water that glows when backlit (top of the steepening face).
-  thin: (s, t) => Math.exp(-(((t - 6.5) / 2.2) ** 2)) * sstep(-1.6, -0.4, s) * (1 - sstep(0.1, 0.6, s)) * 0.7,
+  // (all along the steep wall ahead, not just by the curl: the reference's lit emerald wall)
+  thin: (s, t) => Math.exp(-(((t - 6.5) / 2.2) ** 2)) * sstep(-6.5, -3.0, s) * (1 - sstep(0.1, 0.6, s)) * 0.7,
   // Where spray comes off (surface coordinate), and how active the whitewater is.
   lipT: 5.0,
   white: (s) => sstep(-0.1, 0.3, s) * (1 - sstep(1.6, 3.0, s)),

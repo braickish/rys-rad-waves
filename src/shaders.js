@@ -84,7 +84,7 @@ struct VO {
   @location(2) attr: vec3f,
 };
 // The water surface, built from the cross-section table (see mesh.js).
-struct WaterInfo { cols: u32, nx: u32, rows: u32, pad: u32, sMin: f32, sMax: f32, scale: f32, turquoise: f32 };
+struct WaterInfo { cols: u32, nx: u32, rows: u32, pad: u32, sMin: f32, sMax: f32, scale: f32, turquoise: f32, green: f32, pad1: f32, pad2: f32, pad3: f32 };
 @group(0) @binding(1) var<uniform> W: WaterInfo;
 @group(0) @binding(2) var<storage, read> table: array<vec4f>;   // [z, y, foam, thin] per (row, col)
 @group(0) @binding(3) var<storage, read> slices: array<vec2f>;  // [xs, phase] per slice
@@ -215,13 +215,16 @@ fn coarseTex(q: vec2f, t: f32) -> f32 {
   var body = mix(deep, upper, smoothstep(-0.5, 4.0, i.wpos.y));
   // Clear, shallow, sunlit water (W.turquoise, e.g. Queens): brighter turquoise throughout.
   body = mix(body, mix(vec3f(0.02, 0.36, 0.42), vec3f(0.08, 0.62, 0.6), smoothstep(-0.3, 1.2, i.wpos.y)), W.turquoise);
+  // Cold, green water (W.green, Raglan: raglan-1/2.png in braickish/reference-images): bottle green, the flats a
+  // greyer teal-green, the face a deeper emerald.
+  body = mix(body, mix(vec3f(0.02, 0.105, 0.09), vec3f(0.035, 0.21, 0.14), smoothstep(-0.5, 4.0, i.wpos.y)), W.green);
   let diff = max(dot(n, sun), 0.0);
   body *= 0.6 + 0.4 * diff;
   // The ribs also show as lighter and darker streaks of water up the face.
   body *= 1.0 + (rib - 0.5) * 0.9 * slope * smoothstep(3.0, 12.0, dist);
   // Light shining through thin water (the lip) glows green.
   let toward = max(dot(-v, sun), 0.0);
-  let sss = vec3f(0.10, 0.66, 0.72) * thin * (0.35 + 1.6 * pow(toward, 2.5));
+  let sss = mix(vec3f(0.10, 0.66, 0.72), vec3f(0.15, 0.46, 0.30), W.green) * thin * (0.35 + 1.6 * pow(toward, 2.5));
   var col = body + sss;
   col = mix(col, refl, fres * (1.0 - thin * 0.5));
   let hv = normalize(sun + v);

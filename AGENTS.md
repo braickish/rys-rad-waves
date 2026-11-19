@@ -27,6 +27,15 @@ catch rules go by place along the curve, phase and real height in the tube, so t
 drop takes longer, so a slash needs a later bottom turn (test/slash.mjs's player-timing check only tries
 up to 0.8 s and fails at `SIM=1 SIZE=1.75`; from 1.4 s it slashes).
 
+**Raglan look** (2026-11-18, the user; raglan-1.PNG / raglan-2.PNG in braickish/reference-images): its own keyframes
+(point.js `KF_RAGLAN`, blends of the shared sections): ahead of the curl the face stays steep and nearly full height a long
+way down the line (~2.7 m tall at 35 m out, still ~2.4 at 60 m) before easing into swell; behind the curl it crumbles as
+before (`KF_CRUMBLE`, which Queens still uses). Cold green water (`green: 1`: bottle-green body, greyer teal-green flats,
+a muted emerald glow through the top of the face, which now runs all along the wall, `thin`). The surfer wears a black full
+wetsuit there (`outfit: 'wetsuit'`, main.js `bodyColors`: neck to wrists and ankles, painted per body and outfit).
+The taller shoulder carries speed further out: test/pocket.mjs's pocket bot now averages ~43 m out (was ~9 m), S-turning ~19 m
+(was ~11); the moves' numbers barely changed.
+
 **Feet on every wave** (2026-11-18, the user: carry Queens's Up/Down walking to the other waves): all waves have
 `walkKeys`, so Up/Down (and up/down swipes) move the feet and only Left/Right turn. On Queens they walk the longboard
 (tail / middle / nose, below). On the shortboards (Raglan, Pipe: `shuffle`) they shuffle the feet one spot, subtly,
