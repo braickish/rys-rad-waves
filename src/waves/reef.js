@@ -75,6 +75,7 @@ const reef = {
     ...point.tune,
     // (Raglan's 2026-11-18 turn-drive changes are kept off Pipe for now: these are the values Pipe had)
     bottomDrive: 8, bottomCarveDrive: 1.6, topDrive: 1.6, driveMaxAccel: 0, highDropAccel: 4, roundhouseNoDrive: false,
+    topDropBoost: 8, driveRefSpeed: 0, dropTerminal: 0, postMoveDrop: 1, moveEase: 0, // (Raglan's speed-on-speed changes, 2026-11-18, kept off Pipe: the user)
     lipSnapDrag: 1.4, slashDrag: 3.2, moveCalm: 0.95, bleed: 0.9, shoulderFade: 1,
     moveScrub: { roundhouse: 0.03, slash: 0.25, snap: 0.08, check: 0.05, reentry: 0.08, topTurn: 0.04, lip180: 0.1, floater: 0.05, rebound: 0.1, rebound180: 0.1, revert: 0.05, land: 0.05 },
     curlZone: [-16, 2.5], // behind the curl is the tube, not whitewater

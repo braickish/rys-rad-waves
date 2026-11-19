@@ -49,6 +49,7 @@ const RIDER_TUNE = {
   snapRate: 13,
   checkTurn: 1.3, checkExit: 0.35, checkRate: 4.5, // check turn (where a wave doesn't allow snaps): up to ~75 deg, ending <= ~20 deg down, about a third of a snap's speed
   moveCalm: 0.95,
+  moveEase: 0, // after a move (and its calm), speed can build again gradually over this long (s), not all at once; per wave (Raglan)
   moveScrub: { roundhouse: 0.03, slash: 0.25, snap: 0.08, check: 0.05, reentry: 0.08, topTurn: 0.04, lip180: 0.1, floater: 0.05, rebound: 0.1, rebound180: 0.1, revert: 0.05, land: 0.05 }, // speed each move costs // no speeding up for this long after a move (s); 0 = off (?moveaccel)
   fakieTime: 0.7, // after landing backwards, ride it this long (s) ...
   fakieSpinRate: 18, // ... then the board spins back round this fast (rad/s)
@@ -793,8 +794,11 @@ function stepSurf(r, input, dt) {
   r.carvingUp = d !== 0 && Math.sign(d) === (Math.cos(r.phi - d) >= 0 ? 1 : -1);
   const driving = r.bottomCarve ? r.carvingUp : Math.sin(r.phi) > sinBefore;
   const turnDrives = !(r.roundhouse && T.roundhouseNoDrive); // (a dropknee turn turns you, it doesn't make speed)
-  if (turnDrives && driveLow > 0 && driving && d === playerD && !(r.slash && r.slash.released) && !r.slide) r.driveBank += T.bottomDrive * carveDrive * Math.abs(d) * driveLow * (0.4 + 0.6 * pk);
-  if (turnDrives && high > 0 && d === playerD && !(r.slash && r.slash.released) && !r.slide) r.driveBank += T.topDrive * Math.abs(d) * high * pk * pivotK;
+  // (waves with `driveRefSpeed`: above that speed a radian of turn pays less, so drive per second stops growing with
+  // speed: turns come round faster when you're fast, and paying per radian made speed build on speed; the user, 2026-11-18)
+  const driveK = T.driveRefSpeed ? Math.min(1, T.driveRefSpeed / Math.max(r.speed, 1e-3)) : 1;
+  if (turnDrives && driveLow > 0 && driving && d === playerD && !(r.slash && r.slash.released) && !r.slide) r.driveBank += T.bottomDrive * carveDrive * Math.abs(d) * driveLow * (0.4 + 0.6 * pk) * driveK;
+  if (turnDrives && high > 0 && d === playerD && !(r.slash && r.slash.released) && !r.slide) r.driveBank += T.topDrive * Math.abs(d) * high * pk * pivotK * driveK;
   // Pivoting on the fin scrubs speed as the board swings (more the faster it swings).
   if (T.pivotRate && r.pivot > 0 && playerD) r.speed *= Math.exp(-T.pivotDrag * r.pivot * Math.abs(playerD)); // (pivotDrag: per radian swung)
   const release = r.driveBank * (1 - Math.exp(-dt / T.driveSmooth));
@@ -844,7 +848,10 @@ function stepSurf(r, input, dt) {
   const highDropNow = r.postMove ? 0 : topThird * Math.max(0, -Math.sin(r.phi)); // pointing down, high in the pocket
   const dropSteep = Math.max(steep, 0.9 * topThird); // the rounded crest still counts as a steep drop
   const dropBoost = r.postMove ? 1 : 1 + (T.topDropBoost - 1) * topThird;
-  if (sinp < 0) r.speed += -sinp * T.drop * dropBoost * dropSteep * dt;
+  // (waves with `dropTerminal`: the faster you already go, the less a drop adds, fading to nothing at that speed, like
+  // drag growing with speed; and `postMoveDrop`: dropping back down off a move pays only this much)
+  const dropDrag = T.dropTerminal ? Math.max(0, 1 - (r.speed / T.dropTerminal) ** 2) : 1;
+  if (sinp < 0) r.speed += -sinp * T.drop * dropBoost * dropSteep * dropDrag * (r.postMove ? T.postMoveDrop ?? 1 : 1) * dt;
   else r.speed += -sinp * T.climb * steep * dt;
   // In the barrel, the wave drives you: trimming flat or pointing down the
   // line picks up extra speed (fading out as you point up the face)
@@ -871,7 +878,14 @@ function stepSurf(r, input, dt) {
   // During a move, and for a moment after it, you don't speed up at all:
   // the move is a turn of the board, not a boost. (Bottom turns excluded.)
   r.calm = Math.max(0, (r.calm || 0) - dt);
-  if (r.assist || r.floater || r.calm > 0 || r.lipSnap) r.speed = Math.min(r.speed, speedAtStart);
+  if (r.assist || r.floater || r.calm > 0 || r.lipSnap || r.snapGrip) { r.speed = Math.min(r.speed, speedAtStart); r.sinceHold = 0; }
+  // ... and once the move hands the board back, speed eases back in over `moveEase` instead of switching on at
+  // full in one frame (2026-11-18, the user: unnatural acceleration out of moves; coming off a snap's grip the
+  // speed went from scrubbing -13 mph/s to building +21 mph/s between two frames).
+  else {
+    r.sinceHold = (r.sinceHold ?? 9) + dt;
+    if (T.moveEase > 0 && r.sinceHold < T.moveEase) r.speed = Math.min(r.speed, speedAtStart + accelCap * sstep(0, T.moveEase, r.sinceHold) * dt);
+  }
   // The snap scrubs speed on the lip while the board swings and grips.
   // (not while the board first stands up: just while it spins round and grips)
   if ((r.lipSnap && !r.lipSnap.standing) || r.snapGrip) r.speed = Math.min(r.speed, speedAtStart) * (1 - T.lipSnapDrag * dt);

@@ -68,11 +68,17 @@ export default {
   // Settings that belong to this wave (merged over the rider's settings).
   tune: {
     vPocket: 14, vLow: 4.5, vFoam: 3,
-    drop: 12, topDropBoost: 8, highDropAccel: 1.5, highDropSoftMax: 2.0, // (highDropAccel 4 -> 1.5: pointing down high in the pocket raised the
-    // acceleration cap 5x, so a turn swinging the nose down up there surged +59 mph/s; the user found turns had too much artificial acceleration)
+    drop: 12, topDropBoost: 2, highDropAccel: 0, highDropSoftMax: 2.0, // (highDropAccel 4 -> 1.5 -> 0, topDropBoost 8 -> 2: pointing down high in
+    // the pocket used to multiply the drop 8x and raise the acceleration cap, so a turn off the top surged; the user found turns had too much
+    // artificial acceleration and wants the speed down the wave to come from the wave itself)
     // Turn drive (2026-11-18, same reason): turns redirect speed more than make it.
-    bottomDrive: 7, bottomCarveDrive: 1.5, topDrive: 1.28, // (bottomDrive 6.5 -> 7, the user) // (were 8, 1.6, 1.6 from the rider's settings; 5 / 1.2 left bottom turns making no speed at all)
-    driveMaxAccel: 7, // turn drive alone adds at most ~16 mph/s (the overall cap is ~22 when slow)
+    bottomDrive: 5, bottomCarveDrive: 1.5, topDrive: 0.3, // (2026-11-18 second pass, the user: top and bottom turns still accelerated: bottomDrive 7 -> 5, topDrive 1.28 -> 0.3, driveMaxAccel 7 -> 4; a bottom turn at 20 mph now adds ~2 mph, at 27 about none) // (were 8, 1.6, 1.6 from the rider's settings)
+    // Speed building on speed (2026-11-18, the user: as you go faster it all builds on each other; and the snap sped
+    // back up dropping down): a turn's drive per radian falls off above `driveRefSpeed` (~20 mph), a drop adds less
+    // the faster you go (nothing by `dropTerminal`, ~38 mph), and the drop off a move pays `postMoveDrop` of a normal one.
+    driveRefSpeed: 9, dropTerminal: 17, postMoveDrop: 0, // (off a snap the wave alone brings your speed back: the user)
+    moveEase: 0.4, // and once a move hands the board back, speed eases back in over 0.4 s instead of switching on at once
+    driveMaxAccel: 4, // turn drive alone adds at most ~9 mph/s
     roundhouseNoDrive: true, // a roundhouse turns you without making speed (moves don't add speed; was +5 mph)
     // Snaps and slashes (2026-11-18, the user: they dropped too much speed and held you for a moment after): the snap
     // scrubs half as much on the lip, the slash less, and the no-speeding-up pause after a move is 0.25 s (was 0.95),
