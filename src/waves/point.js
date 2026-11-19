@@ -72,13 +72,13 @@ export default {
     // the pocket used to multiply the drop 8x and raise the acceleration cap, so a turn off the top surged; the user found turns had too much
     // artificial acceleration and wants the speed down the wave to come from the wave itself)
     // Turn drive (2026-11-18, same reason): turns redirect speed more than make it.
-    bottomDrive: 5, bottomCarveDrive: 1.5, topDrive: 0.3, // (2026-11-18 second pass, the user: top and bottom turns still accelerated: bottomDrive 7 -> 5, topDrive 1.28 -> 0.3, driveMaxAccel 7 -> 4; a bottom turn at 20 mph now adds ~2 mph, at 27 about none) // (were 8, 1.6, 1.6 from the rider's settings)
+    bottomDrive: 5.75, bottomCarveDrive: 1.5, topDrive: 0.3, // (bottomDrive 5 -> 5.75 and driveMaxAccel 4 -> 5, 2026-11-18, the user: bottom turns need just a tad more speed; a bottom turn now adds ~1-2 mph at 25-27 mph) (2026-11-18 second pass, the user: top and bottom turns still accelerated: bottomDrive 7 -> 5, topDrive 1.28 -> 0.3, driveMaxAccel 7 -> 4; a bottom turn at 20 mph now adds ~2 mph, at 27 about none) // (were 8, 1.6, 1.6 from the rider's settings)
     // Speed building on speed (2026-11-18, the user: as you go faster it all builds on each other; and the snap sped
     // back up dropping down): a turn's drive per radian falls off above `driveRefSpeed` (~20 mph), a drop adds less
     // the faster you go (nothing by `dropTerminal`, ~38 mph), and the drop off a move pays `postMoveDrop` of a normal one.
     driveRefSpeed: 9, dropTerminal: 17, postMoveDrop: 0, // (off a snap the wave alone brings your speed back: the user)
     moveEase: 0.4, // and once a move hands the board back, speed eases back in over 0.4 s instead of switching on at once
-    driveMaxAccel: 4, // turn drive alone adds at most ~9 mph/s
+    driveMaxAccel: 5, // turn drive alone adds at most ~11 mph/s
     roundhouseNoDrive: true, // a roundhouse turns you without making speed (moves don't add speed; was +5 mph)
     // Snaps and slashes (2026-11-18, the user: they dropped too much speed and held you for a moment after): the snap
     // scrubs half as much on the lip, the slash less, and the no-speeding-up pause after a move is 0.25 s (was 0.95),
@@ -90,7 +90,7 @@ export default {
     snapIntoLip: 1.0, // turning at the lip, a snap reaches 1 m further into the breaking lip before it's a floater (the user, 2026-11-18)
     foamContact: 0.25, reboundMinHeight: 0.33, rebound180MinHeight: 0.67,
     floaterHeight: 0.55, floaterMax: 1.2, climbFoamDrag: 0.35, foamLimit: 1.0,
-    airs: true, floaters: true, rebounds: true, airSpeed: 11.5, airMinSpeed: 6, airCurlZone: 2.5, airBoostZone: 2.5, airBoostUp: 3.0, // (boost zone 0.6 -> 2.5 m, the same as airCurlZone: the user, 2026-11-18, wanted a bigger zone for the boosted air; 0.6 m was a ~0.1 s window at the curl)
+    airs: true, floaters: true, rebounds: true, airSpeed: 11.5, airMinSpeed: 6, airCurlZone: 2.5, airBoostZone: 2.5, airIntoCurl: 0.6, airBoostUp: 3.0, // (airIntoCurl: airs reach 0.6 m into the breaking curl, the user, 2026-11-18) // (boost zone 0.6 -> 2.5 m, the same as airCurlZone: the user, 2026-11-18, wanted a bigger zone for the boosted air; 0.6 m was a ~0.1 s window at the curl)
     tTop: 5.3, tBottom: 13.9, tFlats: 14.6,
     shoulderReach: 3.5, shoulderFade: 1.6, // speed carries ~3.5 m further out toward the shoulder before it fades, and fades over a longer stretch (was 2 m and the pocket's own length; the user asked for more speed into the shoulder)
     faceFlow: 3.8, // water flowing up the face (m/s), 2/3 of the reef's: riding level drifts you up

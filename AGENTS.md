@@ -232,8 +232,11 @@ button).
     up and over the back (wipeout), or launch an air if fast enough (`airSpeed`, ~26 mph) and out of
     the whitewater. Within `airCurlZone` of the whitewater it's always an air (above `airMinSpeed`),
     never over the back. Airs pop up at `airPop`, and the wave carries you along in the air
-    (`airDrift`) so you don't drift back into the whitewater; within `airBoostZone` (~2 ft) of the whitewater it launches higher (`airBoostUp`,
-    "BIG AIR").
+    (`airDrift`) so you don't drift back into the whitewater; within `airBoostZone` (2.5 m, ~8 ft, on Raglan; was 0.6 m) of the whitewater it launches higher (`airBoostUp`,
+    "BIG AIR"). On Raglan airs also reach `airIntoCurl` (0.6 m) into the breaking curl: heading up without turning,
+    fast enough, that's a big air rather than the automatic snap or a floater (2026-11-18, the user). In the air the
+    surfer plays a pose sequence after air-1..7.jpg (surfer.js: stretch, tuck, nose-down reach, landing absorb, timed by
+    the vertical speed); `?air=<xs>` starts a test air. `test/airs.mjs` sweeps launch distance from the curl.
   - Moves are decided by where you hit the top and how steep: in the whitewater (behind `curlZone`)
     → **re-entry**, otherwise → **snap** (shallow hits are a **top turn**). There's no separate
     "off the lip" any more (the user removed it): it's all the snap. Within `comboWindow` of a bottom turn it's a combo. Snap / off the lip / re-entry
@@ -517,8 +520,8 @@ button).
 - 2026-11-17: the project was rolled back to the surfboard commit (a3cc07a) after later reef work broke the
   waves; the glow band, the smooth bend and the flats texture were then re-applied one at a time. The water
   still flows the original way (up the face, drifting with the peel).
-- **HUD** (2026-11-18, the user): score and best only; the speed readout is gone (`window.__speedMph` keeps it for
-  tests), and "Drop in!" no longer says which wave of the set or the face size (sets still vary the waves).
+- **HUD** (2026-11-18, the user): score, speed and best. The speed readout was dropped and then brought back the same
+  day; it glows neon pink, pulsing, while your board speed is over the wave's `airSpeed` (air territory). And "Drop in!" no longer says which wave of the set or the face size (sets still vary the waves).
 - `src/sea.js`: **sets and sections**, from the wave's `sea` settings. Each ride is the next wave of the
   set (`setWaveSize`: bigger waves peel a bit faster). Sections (`SECTIONS` in wave.js) are stretches
   ahead that break early for a while (fixed to the reef, so in the peel frame they move back toward

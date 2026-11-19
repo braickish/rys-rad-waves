@@ -685,7 +685,11 @@ async function main() {
     for (const el of document.querySelectorAll('.hint-lb')) el.hidden = !WAVE.noseride; // (longboard: walk; shortboard: shuffle the feet)
     for (const el of document.querySelectorAll('.hint-sb')) el.hidden = !!WAVE.noseride;
     $('score').textContent = Math.round(score);
-    window.__speedMph = Math.round(groundSpeed(rider) * 2.237); // (the speed readout was dropped from the screen, the user's call; kept for tests)
+    window.__speedMph = Math.round(groundSpeed(rider) * 2.237);
+    // Speed readout (back on screen, the user, 2026-11-18): it glows neon pink while you're riding fast enough to
+    // air off the lip anywhere (board speed over the wave's airSpeed; near the curl airs need less).
+    $('speed').textContent = window.__speedMph;
+    $('speed').classList.toggle('air', !!TUNE.airs && rider.mode === 'surf' && rider.speed > TUNE.airSpeed);
     const tube = $('tube');
     tube.style.width = `${Math.min(100, rider.barrelTime * 25)}%`;
     tube.parentElement.classList.toggle('on', rider.inBarrel);

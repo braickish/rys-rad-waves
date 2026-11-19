@@ -5,7 +5,7 @@
 import { createRider, stepRider, TUNE } from '../src/rider.js';
 const dt = 1 / 120, speed = +(process.argv[2] || 13);
 console.log(`speed ${(speed * 2.237).toFixed(0)} mph, whitewater from xs ${TUNE.curlZone?.[0]}, boost zone ${TUNE.airBoostZone} m`);
-for (const xs of [-0.8, -0.4, 0, 0.3, 0.6, 1, 1.5, 2, 2.5, 3, 3.5, 4, 5, 6, 8]) {
+for (const xs of [-1.2, -1, -0.8, -0.6, -0.4, 0, 0.3, 0.6, 1, 1.5, 2, 2.5, 3, 3.5, 4, 5, 6, 8]) {
   const r = createRider(); Object.assign(r, { xs, t: 7.5, phi: 1.35, speed }); r.events = []; stepRider(r, {}, 0);
   let launch = null, lipY = 0, peak = -1e9, out = 'no air', land = null, xLaunch = 0;
   for (let i = 0; i < 4 / dt; i++) {

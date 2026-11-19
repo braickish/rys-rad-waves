@@ -986,9 +986,14 @@ function stepSurf(r, input, dt) {
     // ... and barely onto the breaking lip, pointing straight up or angled toward the shoulder at all, it's a snap
     // even without a turn (the user's rule, 2026-11-18); angled back toward the whitewater it's the usual moves; right
     // at the curl (not yet on the lip) not turning is still an air.
-    const autoSnap = onLip && r.xs < T.curlZone[0] && cosp >= -0.1; // (only into the breaking lip: right at the curl, not turning is an air)
+    // Airs reach a little way into the curl too (`airIntoCurl`, Raglan; the user, 2026-11-18: you can often hit an air
+    // right off the whitewater): heading up the face without turning, fast enough, up to that far into the breaking
+    // part it's an air (a big one, right by the whitewater) instead of an automatic snap or a floater.
+    const airEdge = T.airs && T.airIntoCurl > 0 && !turning && sinp > 0.4 && r.speed > T.airMinSpeed
+      && r.xs >= T.curlZone[0] - T.airIntoCurl && r.xs < T.curlZone[0] + 0.5;
+    const autoSnap = onLip && r.xs < T.curlZone[0] && cosp >= -0.1 && !airEdge; // (only into the breaking lip: right at the curl, not turning is an air)
     const lipEdge = onLip && (turning || autoSnap);
-    const inWhitewater = (r.xs < T.curlZone[0] || foamAt(r.xs, r.t + 0.6) > 0.3) && !lipEdge;
+    const inWhitewater = (r.xs < T.curlZone[0] || foamAt(r.xs, r.t + 0.6) > 0.3) && !lipEdge && !airEdge;
     const combo = r.time - (r.lastBottomTurn ?? -9) < T.comboWindow;
     if (inWhitewater && !T.floaters && !T.softFoam) return wipe(r, 'Over the falls!');
     // (soft whitewater without floaters, the longboard: turn off it for a re-entry, or it knocks you off)
