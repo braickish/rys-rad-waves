@@ -688,7 +688,7 @@ async function main() {
     window.__speedMph = Math.round(groundSpeed(rider) * 2.237);
     // Speed readout (back on screen, the user, 2026-11-18): it glows neon pink while you're riding fast enough to
     // air off the lip anywhere (board speed over the wave's airSpeed; near the curl airs need less).
-    $('speed').textContent = window.__speedMph;
+    $('speed').textContent = Math.floor(groundSpeed(rider) * 2.237); // (whole mph rounded down, so it reads 24 exactly when it starts to glow at 24.0)
     $('speed').classList.toggle('air', !!TUNE.airs && rider.mode === 'surf' && rider.speed > TUNE.airSpeed);
     const tube = $('tube');
     tube.style.width = `${Math.min(100, rider.barrelTime * 25)}%`;

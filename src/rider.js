@@ -1151,7 +1151,13 @@ function stepAir(r, input, dt) {
   r.heading = v3.norm(v3.add(r.heading, v3.mul(v3.sub(want, r.heading), kh)));
 
   const sl = slice(r.xs, 10);
-  const hit = segmentHit(sl, prev[2], prev[1], r.pos[2], r.pos[1]);
+  let hit = segmentHit(sl, prev[2], prev[1], r.pos[2], r.pos[1]);
+  // (The wave's cross-section changes along the wave, so coming down steeply the step can slip between this frame's
+  // and the last frame's cross-sections and fall through the face ("Bad landing!" with no touchdown; found
+  // 2026-11-18). Also test the step against the last spot's cross-section, and if you've just ended up under the
+  // front face, land there.)
+  if (!hit) hit = segmentHit(slice(prev[0], 10), prev[2], prev[1], r.pos[2], r.pos[1]);
+  if (!hit && r.vel[1] < 0 && !r.overTheBack) hit = segmentHit(sl, r.pos[2], r.pos[1] + 0.5, r.pos[2], r.pos[1]);
   if (hit && r.vel[2] * hit.nz + r.vel[1] * hit.ny < 0) {
     const half = Math.round(r.airSpin / Math.PI);
     const spinErr = Math.abs(r.airSpin - half * Math.PI);

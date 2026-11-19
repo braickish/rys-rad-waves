@@ -229,7 +229,7 @@ button).
     bottom turn (`comboWindow`) right by the curl (`curlZone[1]`), or straight out of a roundhouse
     (then it scores as a **rebound**). Anywhere else turning toward the whitewater at the top is
     just your own turn carrying you round over the top (a cutback off the top). Not turning, you go
-    up and over the back (wipeout), or launch an air if fast enough (`airSpeed`, ~26 mph) and out of
+    up and over the back (wipeout), or launch an air if fast enough (`airSpeed`, Raglan 24 mph since 2026-11-18, was ~26; the HUD speed glows pink from it) and out of
     the whitewater. Within `airCurlZone` of the whitewater it's always an air (above `airMinSpeed`),
     never over the back. Airs pop up at `airPop`, and the wave carries you along in the air
     (`airDrift`) so you don't drift back into the whitewater; within `airBoostZone` (2.5 m, ~8 ft, on Raglan; was 0.6 m) of the whitewater it launches higher (`airBoostUp`,
@@ -282,7 +282,8 @@ button).
     where you got on, or turned back. `test/floater.mjs`.
   - **Air landings:** you land when the board crosses the water moving into it. Wipeouts: touching down on the back
     of the wave, a spin more than `airLandSpin` (Raglan 1.1 rad, ~63 deg; default 0.9) off a whole half-turn, or
-    falling 2 m below still water. Landing in the whitewater gives `airLandFoamGrace` (Raglan 1.5 s) before the foam
+    falling 2 m below still water. (A steep descent could slip between two frames' cross-sections and fall through the face, ~3% of
+    airs; stepAir now also tests the last spot's cross-section and lands you if you end up just under the face.) Landing in the whitewater gives `airLandFoamGrace` (Raglan 1.5 s) before the foam
     can slow or catch you. `test/landing.mjs` (spin timing) and `test/airs.mjs` (where you land, what happens after).
   - **Slash:** out of a real bottom turn (you came off the bottom pointing at least
     `slashDropAngle` down, below `slashDropLow`, within `slashDropRecent`), start the Right turn
