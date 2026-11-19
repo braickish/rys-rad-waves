@@ -275,6 +275,15 @@ button).
     then drop back down. Climbing up the whitewater from the flats behind it, you pop onto it and
     float once you're above `floaterHeight` of the wave (no need to reach the very top), and the foam
     drags less (`climbFoamDrag`) and doesn't count toward catching you while you climb it.
+    On Raglan (`floaterSteer`, 2026-11-18, the user: the old floater grabbed the board and steered it) you keep
+    steering the whole time: no forced heading, no locked assist. You get a little speed (`floaterBoost`, ~2 mph, eased
+    in), no foam or climb drag while floating, can't climb above where you got on, and steer down to come off it at
+    once; after `floaterSink` s the foam gives way (`floaterSinkSpeed`). It ends once you're clear, `floaterDrop` below
+    where you got on, or turned back. `test/floater.mjs`.
+  - **Air landings:** you land when the board crosses the water moving into it. Wipeouts: touching down on the back
+    of the wave, a spin more than `airLandSpin` (Raglan 1.1 rad, ~63 deg; default 0.9) off a whole half-turn, or
+    falling 2 m below still water. Landing in the whitewater gives `airLandFoamGrace` (Raglan 1.5 s) before the foam
+    can slow or catch you. `test/landing.mjs` (spin timing) and `test/airs.mjs` (where you land, what happens after).
   - **Slash:** out of a real bottom turn (you came off the bottom pointing at least
     `slashDropAngle` down, below `slashDropLow`, within `slashDropRecent`), start the Right turn
     early, still at the very bottom (`slashLow`; the reef's is higher because its water lifts you

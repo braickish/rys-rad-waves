@@ -90,6 +90,12 @@ export default {
     snapIntoLip: 1.0, // turning at the lip, a snap reaches 1 m further into the breaking lip before it's a floater (the user, 2026-11-18)
     foamContact: 0.25, reboundMinHeight: 0.33, rebound180MinHeight: 0.67,
     floaterHeight: 0.55, floaterMax: 1.2, climbFoamDrag: 0.35, foamLimit: 1.0,
+    // Free floaters (2026-11-18, the user: the floater grabbed the board and steered it): you keep steering, a little speed
+    // (`floaterBoost` m/s, ~2 mph), after `floaterSink` s the foam gives way at `floaterSinkSpeed` m/s, and it ends once
+    // you're `floaterDrop` (fraction of the wave height) below where you got on. Airs landing in the whitewater get
+    // `airLandFoamGrace` s before the foam can slow or catch you.
+    floaterSteer: true, floaterBoost: 0.9, floaterSink: 0.6, floaterSinkSpeed: 1.2, floaterDrop: 0.15, airLandFoamGrace: 1.5,
+    airLandSpin: 1.1, // airs land up to ~63 deg off a whole half-turn (rider default 0.9, ~52 deg; the user, 2026-11-18: slightly easier to land)
     airs: true, floaters: true, rebounds: true, airSpeed: 11.5, airMinSpeed: 6, airCurlZone: 2.5, airBoostZone: 2.5, airIntoCurl: 0.6, airBoostUp: 3.0, // (airIntoCurl: airs reach 0.6 m into the breaking curl, the user, 2026-11-18) // (boost zone 0.6 -> 2.5 m, the same as airCurlZone: the user, 2026-11-18, wanted a bigger zone for the boosted air; 0.6 m was a ~0.1 s window at the curl)
     tTop: 5.3, tBottom: 13.9, tFlats: 14.6,
     shoulderReach: 3.5, shoulderFade: 1.6, // speed carries ~3.5 m further out toward the shoulder before it fades, and fades over a longer stretch (was 2 m and the pocket's own length; the user asked for more speed into the shoulder)

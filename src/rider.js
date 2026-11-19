@@ -852,7 +852,7 @@ function stepSurf(r, input, dt) {
   // drag growing with speed; and `postMoveDrop`: dropping back down off a move pays only this much)
   const dropDrag = T.dropTerminal ? Math.max(0, 1 - (r.speed / T.dropTerminal) ** 2) : 1;
   if (sinp < 0) r.speed += -sinp * T.drop * dropBoost * dropSteep * dropDrag * (r.postMove ? T.postMoveDrop ?? 1 : 1) * dt;
-  else r.speed += -sinp * T.climb * steep * dt;
+  else if (!(r.floater && T.floaterSteer)) r.speed += -sinp * T.climb * steep * dt; // (floating on top of the foam you aren't climbing: no climb drag)
   // In the barrel, the wave drives you: trimming flat or pointing down the
   // line picks up extra speed (fading out as you point up the face)
   // (it only tops you up to just faster than the wave, not beyond)
@@ -925,7 +925,31 @@ function stepSurf(r, input, dt) {
   const downFromLip = (rate, exit = T.lipExit) => (r.rideDir >= 0
     ? { dir: -1, target: -exit, rate }
     : { dir: 1, target: -(Math.PI - exit), rate });
-  if (r.floater) {
+  if (r.floater && T.floaterSteer) {
+    // Free floater (`floaterSteer`, Raglan; 2026-11-18, the user: the old one grabbed the board and steered it): you
+    // keep steering the whole time and get a little speed (`floaterBoost`, eased in), with no foam drag while you
+    // float. You can't climb above where you got on, but steer down and you come down off the foam straight away;
+    // after `floaterSink` s the foam gives way and you sink gently (the board isn't turned for you). It ends once
+    // you're clear of the foam, down off it, or turned back toward it; then the usual rules (a moment's grace).
+    const fl = r.floater;
+    fl.time += dt;
+    if (fl.bank === undefined) { fl.bank = T.floaterBoost || 0; fl.h0 = waveHeightFrac(r.pos[1]); }
+    const add = fl.bank * (1 - Math.exp(-dt / 0.25));
+    r.speed += add; fl.bank -= add;
+    if (r.t < fl.t) r.t = fl.t; // (no higher than where you got onto the foam)
+    if (fl.time > T.floaterSink) {
+      const fs = frameAt(r.xs, r.t);
+      r.t += (T.floaterSinkSpeed * Math.min(1, (fl.time - T.floaterSink) / 0.3) * dt) / Math.max(0.3, Math.hypot(fs.Pt[1], fs.Pt[2]));
+    }
+    const cleared = r.xs > T.curlZone[0] + 0.3 && foamAt(r.xs, top + 0.6) < 0.2;
+    const down = waveHeightFrac(frameAt(r.xs, r.t).P[1]) < fl.h0 - T.floaterDrop;
+    const back = Math.cos(r.phi) < -0.3;
+    if (cleared || down || back || fl.time > T.floaterMax) {
+      r.floater = null;
+      r.floatCool = 0.6; // (not straight back onto the foam for a moment)
+      r.boost = Math.max(r.boost || 0, back ? 0 : 0.8); // the foam can't slow you while you come off it (gone once you're clear)
+    }
+  } else if (r.floater) {
     r.floater.time += dt;
     r.t = r.floater.t; // ride along at the height you got onto the foam
     if (!r.assist) r.phi += clampTurn(wrap((r.rideDir >= 0 ? 0.05 : Math.PI - 0.05) - r.phi), 4 * dt); // flat along the top of the foam
@@ -937,13 +961,14 @@ function stepSurf(r, input, dt) {
       r.boost = 1.0; // and the foam can't slow you until you're clear of it
     }
   }
+  r.floatCool = Math.max(0, (r.floatCool || 0) - dt);
 
   const ready = r.moveCooldown === 0; // moves need a gap between them
   // --- the top: what happens depends on where you hit it, and whether you're turning ---
   // Climbing up the whitewater from below: once you're high on it you pop
   // up onto it and float, without needing to reach the very top.
   const turningNow = r.time - (r.lastTurnTime ?? -9) < T.turnWindow;
-  const highOnFoam = !r.floater && !r.assist && !r.lipSnap && r.t > top && sinp > 0.2 && cosp > -0.15
+  const highOnFoam = !r.floater && !r.assist && !r.lipSnap && !(r.floatCool > 0) && r.t > top && sinp > 0.2 && cosp > -0.15
     && (r.xs < T.curlZone[0] || foamAt(r.xs, r.t) > 0.3) && waveHeightFrac(r.pos[1]) > T.floaterHeight
     && !(turningNow && sinp > 0.55)
     && !(T.snapIntoLip > 0 && r.xs >= T.curlZone[0] - T.snapIntoLip && foamAt(r.xs, r.t) <= 0.65); // (on the lip's edge wait for the top: a turn there snaps)
@@ -1133,7 +1158,7 @@ function stepAir(r, input, dt) {
     r.mode = 'surf';
     r.t = clamp(hit.t, TUNE.tTop, TUNE.tBottom);
     if (hit.nz < -0.05 || r.overTheBack) return wipe(r, r.overTheBack ? 'Went over the back! (turn at the lip)' : 'Landed over the back!');
-    if (spinErr > 0.9) return wipe(r, 'Bad landing! (finish the spin)');
+    if (spinErr > (TUNE.airLandSpin || 0.9)) return wipe(r, 'Bad landing! (finish the spin)'); // (how far off a whole half-turn you can land: `airLandSpin` rad, 0.9 = ~52 deg)
     // Land travelling the way you were going (along the line, nose... or tail
     // ... down the face). If the board came round backwards, ride it
     // backwards for a moment, then it spins back round to forwards.
@@ -1145,6 +1170,10 @@ function stepAir(r, input, dt) {
     const noseAlong = v3.dot(r.heading, fl.e1), travelAlong = Math.cos(r.phi);
     r.fakie = noseAlong * travelAlong < 0 && Math.abs(noseAlong) > 0.2 ? { time: 0, spin: 0 } : null;
     r.speed = clamp((r.launchSpeed || r.speed) * 0.92, TUNE.minSpeed, TUNE.maxSpeed); // keep most of your takeoff speed
+    // Landing in the whitewater (a big air off the curl drifts back ~2-3 m into it): the foam can't slow you or catch
+    // you for `airLandFoamGrace` s while you ride out of it (gone once you're clear). (2026-11-18, the user: loosen up
+    // landing in the whitewater; at ~20 mph those landings were caught by the foam 1.0 s after touching down.)
+    if (TUNE.airLandFoamGrace > 0 && foamAt(r.xs, r.t) > 0.3) r.boost = Math.max(r.boost || 0, TUNE.airLandFoamGrace);
     syncPose(r, frameAt(r.xs, r.t));
     r.events.push({ type: 'land', spins: Math.abs(half) * 180, airTime: r.airTime, big: !!r.bigAir, backwards: !!r.fakie });
     r.bigAir = false;
