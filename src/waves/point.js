@@ -84,7 +84,7 @@ export default {
     snapIntoLip: 1.0, // turning at the lip, a snap reaches 1 m further into the breaking lip before it's a floater (the user, 2026-11-18)
     foamContact: 0.25, reboundMinHeight: 0.33, rebound180MinHeight: 0.67,
     floaterHeight: 0.55, floaterMax: 1.2, climbFoamDrag: 0.35, foamLimit: 1.0,
-    airs: true, floaters: true, rebounds: true, airSpeed: 11.5, airMinSpeed: 6, airCurlZone: 2.5, airBoostZone: 0.6, airBoostUp: 3.0,
+    airs: true, floaters: true, rebounds: true, airSpeed: 11.5, airMinSpeed: 6, airCurlZone: 2.5, airBoostZone: 2.5, airBoostUp: 3.0, // (boost zone 0.6 -> 2.5 m, the same as airCurlZone: the user, 2026-11-18, wanted a bigger zone for the boosted air; 0.6 m was a ~0.1 s window at the curl)
     tTop: 5.3, tBottom: 13.9, tFlats: 14.6,
     shoulderReach: 3.5, shoulderFade: 1.6, // speed carries ~3.5 m further out toward the shoulder before it fades, and fades over a longer stretch (was 2 m and the pocket's own length; the user asked for more speed into the shoulder)
     faceFlow: 3.8, // water flowing up the face (m/s), 2/3 of the reef's: riding level drifts you up
