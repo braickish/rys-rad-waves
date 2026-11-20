@@ -89,7 +89,7 @@ export function startRide() {
   const all = WAVE.bar.maps, maps = all.filter((m) => (want ? m.wave === want : !WAVE.bar.use || WAVE.bar.use.includes(m.wave)));
   RIDE.k = (RIDE.k + 1) % maps.length;
   const m = maps[RIDE.k];
-  RIDE.map = { d0: m.d0, step: m.step, tb: LITERAL ? m.literal : CAP || !m.nocap ? m.play : m.nocap, wave: m.wave };
+  RIDE.map = { d0: m.d0, step: m.step, tb: LITERAL ? m.literal : CAP || !m.nocap ? m.play : m.nocap, wave: m.wave, swell: m.swell };
   applyBar();
 }
 // When the spot `d` m from the peak breaks (s after the peak). Past either end of the map it keeps breaking later

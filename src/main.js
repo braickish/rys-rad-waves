@@ -1,6 +1,6 @@
 import { createRenderer } from './renderer.js';
 import { createRider, resetRider, stepRider, groundSpeed, frameAt, v3, TUNE, useWave, tubeDepth, airSpeedAt, bigAirSpeedAt } from './rider.js';
-import { PEEL_SPEED, slice, verticalHits, WAVE, phaseAt, toWorld, waveDir, stepRide } from './wave.js';
+import { PEEL_SPEED, slice, verticalHits, WAVE, phaseAt, toWorld, waveDir, stepRide, RIDE } from './wave.js';
 import { WAVES } from './waves/index.js';
 import { SEA, nextWave, stepSea, seedSea } from './sea.js';
 import { perspective, lookAt, mul, invert } from './math.js';
@@ -298,7 +298,10 @@ function startOrRestart() {
   score = 0; rideTime = 0;
   $('title').hidden = true;
   $('over').hidden = true;
-  flash('Drop in!', ''); // (no wave-of-set count or face size: the user, 2026-11-18; sets still vary the waves)
+  // (no wave-of-set count or face size: the user, 2026-11-18; sets still vary the waves. A simulated wave (a bar)
+  // names which one it is and its swell: the user, 2026-11-19, to compare them)
+  const m = WAVE.bar && RIDE.map;
+  flash('Drop in!', m ? `Wave ${m.wave}${m.swell ? ` · ${m.swell}` : ''}` : '');
 }
 
 function flash(text, sub = '') {

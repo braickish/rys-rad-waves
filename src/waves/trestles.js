@@ -43,7 +43,10 @@ export default {
   // peak, shape = a position in `shapes` below, 1.5 = half way from the 2nd to the 3rd).
   bar: {
     maps: BREAKS,
-    use: [747], // (the cleanest right in lowers_s205_t16 by score_waves.py: its longest stretch going at once ~24 m; 545 (a 100 m one), 1139 (closed out quickly) and 1170 are in the data too: ?map=<wave>)
+    // (taking turns, one per ride (the user, 2026-11-19): 747, the cleanest right in lowers_s205_t16 (1.5 m 16 s from
+    // 205°; its longest stretch going at once ~24 m); 336 from s195_t16_sp15_g3 (from 195°: 216 m, ~18 m at once); 420
+    // from s205_t14_sp15_g3 (a 14 s period: slow and long, ~14 m at once). 545, 1139 and 1170 are in the data too: ?map=<wave>)
+    use: [747, 336, 420],
     shapeRows: [
       { x: 0, shape: 0 }, // the takeoff peak
       { x: 40, shape: 0 },
