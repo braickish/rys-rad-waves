@@ -109,6 +109,17 @@ Trestles wave any way we can"). Research, simulations and the pipeline for new r
   section ahead +2.6 mph on average, the fat shoulder +0, the pocket unchanged. Raglan/Pipe/Queens unaffected (no `wallK`).
   Note: on the current maps some stretches peel faster than you can carve (420 at 8 s: 26 mph): those maps come from the
   old breaking detector, which read steep faces as broken (research/trestles README, rounds 7-8).
+- **Pocket speed from physics and real surfers' speeds** (2026-11-19, the user: the pocket's mid-face was ~13 mph against
+  28 up top, from Raglan's steepness gate barely registering Trestles' gentler faces; ground it in real numbers):
+  `physPocket` (rider.js `physCruise`). In the pocket you move along at the peel speed while the wave carries you in at c,
+  so over the ground c / sin(peel angle) = sqrt(c^2 + peel^2), 1.41 c at a 45 deg peel. c ~6.5 m/s at the break
+  (sqrt(g (depth + height))). GPS on surfers: recreational max ~33 km/h (21 mph), pros ~40 (25), record 45 (28). So the
+  cruising speed over the ground is 1.2 / 1.45 / 1.8 c low / mid / high on the face (~17 / 21 / 26 mph) and the board's
+  speed across the face (`speed`, the HUD) sqrt(ground^2 - c^2): ~10 / 15-17 / 20 mph (was 10 / 13 / 28), never below
+  1.03 x the peel (you can hold the pocket). `node test/pocketspeed.mjs` (OLD=1 for the old model): whole rides barely
+  change (riding speed comes mostly from drops and turns): pocket bot ~20 mph board, peaks ~24-25 (the energy ceiling for
+  a drop from the top, sqrt(v^2 + 2 g H), ~25.6); ground peaks 33-36 mph, above GPS's 28, partly GPS sampling (1-10 Hz).
+  `physPocket.gravity` (off): real g sin(slope) both ways; see trestles.js for why it waits (airs).
 - Raglan's shortboard tuning with Pipe's tube settings; a 5'11" performance shortboard (`perf511`, shape inspired by a
   known high-performance board, no branding), black full wetsuit, grey-green water (`green` 0.55), regular foot, `dir: -1`,
   scale 0.8 (takeoff face ~3.6 m). No catching the wave yet (pop-up/paddling is still a planned idea).

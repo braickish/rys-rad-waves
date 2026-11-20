@@ -196,6 +196,27 @@ export function wallPower(xs) {
   return W * sstep(a0, a1, ang) * clamp(here.h / Math.max(0.3, curl.h), 0, 1);
 }
 
+// The wave's cruising speed for you from real wave physics and real surfers' speeds (waves with `physPocket`: Trestles;
+// the user, 2026-11-19: ground the pocket's speed in real physics and real-world numbers).
+// - Staying in the pocket you move along the wave at the peel speed while the wave carries you toward the beach at its
+//   own speed c, so over the ground you go c / sin(peel angle) = sqrt(c^2 + peel^2): 1.41 c at a typical 45 deg peel.
+// - GPS on surfers: recreational riders' fastest ~33 km/h (21 mph), pros ~40 km/h (25 mph), the fastest recorded
+//   45 km/h (28 mph) (Mendez-Villanueva et al. 2006; Farley et al. 2012; the 2024 GNSS review, Sensors 24:3455).
+// - c at the break: sqrt(g (depth + height)) ~ 6.5 m/s at Trestles (3 m of water, a ~3 m face; the FUNWAVE/SWASH
+//   crests ran 7.5-8 m/s further out in 6-7 m).
+// So the pocket's speed over the ground is `ground` x c by height on the face (low, mid, the high line: 1.2 / 1.45 /
+// 1.8 c, ~17 / 21 / 26 mph), and the board's speed across the face (what `speed` is: the wave's own shoreward motion
+// isn't in it) is the rest: sqrt(ground^2 - c^2). Never below what keeps up with the curl (`hold` x the peel speed).
+// Out of the pocket it falls to `vLow` as the pocket's (or a steep wall's) power fades; on the flats too.
+export function physCruise(P, height, power, onFace) {
+  const c = P.c * WAVE_SPEED / WAVE.waveSpeed; // (sets: c grows with the wave as its speed does, sqrt(size))
+  const [g0, g1, g2] = P.ground;
+  const g = height < 0.5 ? g0 + (g1 - g0) * sstep(0, 0.5, height) : g1 + (g2 - g1) * sstep(0.5, 1, height);
+  const across = c * Math.sqrt(Math.max(0, g * g - 1));
+  const pocket = Math.max(across, (P.hold || 1) * PEEL_SPEED);
+  return TUNE.vLow + (pocket - TUNE.vLow) * power * onFace;
+}
+
 // How much foam is under the rider (from the wave; the mesh draws the same foam).
 export function foamAt(xs, t) {
   return WAVE.foam(phaseAt(xs), t);
@@ -590,6 +611,8 @@ function stepSurf(r, input, dt) {
   // (only out of the pocket: there the pocket's own speed is kept as it was, `1 - pk`)
   const wall = T.wallK ? wallPower(r.xs) * (1 - pk) : 0; r.wall = wall;
   const pkDrive = Math.max(pk, wall);
+  // (`physPocket` waves: on the face at all, any real slope; out on the flats, 0)
+  const steepAny = sstep(0.01, 0.06, 1 - f.n[1]);
   // 0 on flat water, 1 on a steep face; the pocket counts as steep even near
   // the rounded crest (and so does a steep wall: on Trestles' 25-30 deg walls the face's own slope only reads ~0.2).
   // (a wall's power sets how much it's worth, in `pkSpeed` below; here a wall face just counts as steep, fading in out of
@@ -939,6 +962,7 @@ function stepSurf(r, input, dt) {
   const pkReach = r.xs > 0 ? pocketPower(Math.max(0, r.xs - T.shoulderReach) / (T.shoulderFade || 1)) : pk; // (shoulderFade: fades over this many times the pocket's own length)
   const pkSpeed = Math.max(pkReach, wall); // (a steep wall anywhere feeds you too: `wallK`)
   let target = T.vLow + (T.vPocket - T.vLow) * pkSpeed * steep * (T.heightSpeed[0] + T.heightSpeed[1] * height);
+  if (T.physPocket) target = physCruise(T.physPocket, height, pkSpeed, steepAny);
   r.cruise = target; // (the wave's cruising speed for you here, before feet and foam: tests)
   if (r.foot < 0) target *= 1 - (1 - (T.tailSpeed ?? 1)) * -r.foot; // (standing on the tail the board drags: slower than from the middle)
   target *= 1 + (T.backSpeed - 1) * sBack + (T.fwdSpeed - 1) * sFwd; // (shortboard feet: back a little slower, forward a little faster)
@@ -969,7 +993,14 @@ function stepSurf(r, input, dt) {
   // (waves with `dropTerminal`: the faster you already go, the less a drop adds, fading to nothing at that speed, like
   // drag growing with speed; and `postMoveDrop`: dropping back down off a move pays only this much)
   const dropDrag = T.dropTerminal ? Math.max(0, 1 - (r.speed / T.dropTerminal) ** 2) : 1;
-  if (sinp < 0) r.speed += -sinp * T.drop * dropBoost * dropSteep * dropDrag * (r.postMove ? T.postMoveDrop ?? 1 : 1) * dt;
+  if (T.physPocket?.gravity) {
+    // (`physPocket.gravity`: real gravity on the slope under the board, both ways: g sin(face angle) x how much you point
+    // down / up it, so a drop gains sqrt(2 g x height) and a climb gives it back; drag above `dropTerminal` as before;
+    // off a move the drop still pays only `postMoveDrop` until you're back below mid-face)
+    const gSlope = 9.81 * Math.sqrt(Math.max(0, 1 - f.n[1] * f.n[1])); // g sin(theta), theta from the face's normal
+    if (sinp < 0) r.speed += -sinp * gSlope * dropDrag * (r.postMove ? T.postMoveDrop ?? 1 : 1) * dt;
+    else if (!(r.floater && T.floaterSteer)) r.speed -= sinp * gSlope * dt;
+  } else if (sinp < 0) r.speed += -sinp * T.drop * dropBoost * dropSteep * dropDrag * (r.postMove ? T.postMoveDrop ?? 1 : 1) * dt;
   else if (!(r.floater && T.floaterSteer)) r.speed += -sinp * T.climb * steep * dt; // (floating on top of the foam you aren't climbing: no climb drag)
   // In the barrel, the wave drives you: trimming flat or pointing down the
   // line picks up extra speed (fading out as you point up the face)

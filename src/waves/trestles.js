@@ -119,5 +119,14 @@ export default {
     // wallPower; the user, 2026-11-19: up-and-down carves on a steep section ahead should make speed, so you can make
     // it). Mid-face angle 17 deg (the fat shoulder) -> 0, 28 deg (a section about to break) -> full.
     wallK: 0.65, wallAngles: [17, 28],
+    // The pocket's cruising speed from wave physics and surfers' GPS speeds (rider.js physCruise): c 6.5 m/s at the break,
+    // over the ground 1.2 / 1.45 / 1.8 c low / mid / high on the face (~17 / 21 / 26 mph; GPS: recreational max ~21,
+    // pros ~25, record 28), and never slower than 1.03 x the peel (you can hold the pocket). The HUD shows the board's
+    // speed across the face (sqrt(ground^2 - c^2): ~10 / 15 / 22 mph), as on every wave.
+    // (`gravity`: real g sin(slope) for drops and climbs instead of the arcade `drop`/`climb`; built, off for now: climbing
+    // then costs real speed (a bottom turn from 20 mph reaches the lip at ~18) and the Raglan air thresholds (19-21 mph)
+    // stop airs. Physics would set those by lift-off over the crest, sqrt(g R): ~7 / 15 / 18 / 20 mph at 1 / 2 / 4 / 8 m
+    // out on wave 747. Waiting on the user, 2026-11-19.)
+    physPocket: { c: 6.5, ground: [1.2, 1.45, 1.8], hold: 1.03, gravity: false },
   },
 };
