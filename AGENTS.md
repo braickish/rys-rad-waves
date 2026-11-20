@@ -66,8 +66,8 @@ Trestles wave any way we can"). Research, simulations and the pipeline for new r
   FUNWAVE): for two clean simulated waves (each ride takes the next), every 2 m along the crest, when it breaks. A
   spot's phase is the time since it broke (`phaseTime` s per unit; before, minus the time until it does), so the whole
   wave is the simulated one: the peak, the left peeling away, the right with its sections, the inside peak breaking on
-  its own ahead and peeling back to meet you (the closeout). `play` (default): the same layout, the clock 2.5x slower,
-  nothing breaking faster along the wave than 8 m/s; `?literal` (LITERAL=1 in node): the sim's own times (~5-9 s rides).
+  its own ahead and peeling back to meet you (the closeout). `play` (default): each stretch's curl speed is the sim's
+  / 2.4 (sections keep their relative speeds: the middle ~60% of the takeoff, as in the sim), at-once stretches capped at 9 m/s; `?literal` (LITERAL=1 in node): the sim's own times (~5-9 s rides).
   `wave.js`: `RIDE` {time, front (the curl: edge of broken water running down the right), c (the frame, chasing the
   curl at up to `frameMax`), closed}, `breaksAt(d)`, `startRide` (rides start `lead` 1.5 s before the peak breaks).
   The curl stops where it runs into water that broke before it (RIDE.closed): caught = "The inside closed out!",
