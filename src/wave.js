@@ -73,15 +73,21 @@ function setShape(a, b, w) {
 // sections, the inside peak breaking ahead and peeling back to meet you. The curl (the frame the game rides in) is the
 // edge of broken water running down the right from the peak (RIDE.front); it stops (RIDE.closed) where it runs into
 // water that broke before it got there, which is the inside closing out on you. Each ride takes the next wave of the
-// map list (each set wave is a different simulated wave); `?literal` (LITERAL=1 in node) uses the sim's own times
-// instead of the playable version (the same layout at a playable pace: trestles_breaks.py).
-const LITERAL = typeof location !== 'undefined' ? /[?&]literal(&|=|$)/.test(location.search) : !!(globalThis.process && process.env.LITERAL);
-// (The default: the sim's curl speeds / 2.4 with no cap: the stretches the sim breaks at once go at once (the user,
-// 2026-11-19: that's the real wave). `?cap` (CAP=1): the same capped at 12 m/s.)
-const CAP = typeof location !== 'undefined' ? /[?&]cap(&|=|$)/.test(location.search) : !!(globalThis.process && process.env.CAP);
-export const RIDE = { time: 0, c: 0, front: 0, closed: null, closing: false, map: null, k: -1 };
+// map list (each set wave is a different simulated wave). The maps are the sim's own times (FUNWAVE's breaking flag,
+// cross-checked with SWASH), with no slowdown or speed cap (the user, 2026-11-20): trestles_breaks.py.
+export const RIDE = { time: 0, c: 0, front: 0, closed: null, closing: false, closeAt: Infinity, sectionT: -Infinity, map: null, k: -1 };
+// Is a section going (the curl running through a stretch that breaks at once, faster than `bar.sectionSpeed`), or did one
+// go within `bar.sectionGrace` s? The whitewater there is forgiving (rider.js; the user, 2026-11-20: easier to ride
+// through, snap over). 0 = no.
+// With `xs` (m ahead of the curl): also when the water there is breaking ahead of the curl, on its own (a section
+// going before the curl gets there).
+export function sectionGrace(xs) {
+  const g = WAVE.bar && WAVE.bar.sectionGrace; if (!g) return false;
+  if (RIDE.time - RIDE.sectionT < g) return true;
+  return xs !== undefined && RIDE.c + xs > RIDE.front + 2 && RIDE.time > breaksAt(RIDE.c + xs) - 0.5;
+}
 export function startRide() {
-  RIDE.time = 0; RIDE.c = 0; RIDE.front = 0; RIDE.closed = null; RIDE.closing = false;
+  RIDE.time = 0; RIDE.c = 0; RIDE.front = 0; RIDE.closed = null; RIDE.closing = false; RIDE.sectionT = -Infinity;
   if (!WAVE.bar) return;
   RIDE.time = -(WAVE.bar.lead || 0); // (you drop in as the peak stands up, `lead` s before it breaks)
   // (which simulated waves: `bar.use` (the user kept 545, 2026-11-19: 1139 closed out too quickly), or ?map=<wave>)
@@ -89,8 +95,23 @@ export function startRide() {
   const all = WAVE.bar.maps, maps = all.filter((m) => (want ? m.wave === want : !WAVE.bar.use || WAVE.bar.use.includes(m.wave)));
   RIDE.k = (RIDE.k + 1) % maps.length;
   const m = maps[RIDE.k];
-  RIDE.map = { d0: m.d0, step: m.step, tb: LITERAL ? m.literal : CAP || !m.nocap ? m.play : m.nocap, wave: m.wave, swell: m.swell };
+  RIDE.map = { d0: m.d0, step: m.step, tb: m.tb, up: m.up, wave: m.wave, swell: m.swell };
+  RIDE.closeAt = closeoutAt();
   applyBar();
+}
+// Where the ride ends: the first spot down the right where the curl runs into water that broke before it got there AND
+// that broken stretch is the inside (longer than `bar.sectionMax` m, or no unbroken wave beyond it). A shorter stretch
+// that breaks ahead and peels back is a section (both FUNWAVE and SWASH have them, 2026-11-20): the curl runs through it
+// at once and the wave carries on beyond it.
+function closeoutAt() {
+  const m = RIDE.map, smax = WAVE.bar.sectionMax ?? 40, end = m.d0 + (m.tb.length - 1) * m.step;
+  for (let d = 0; d < end; d += m.step) {
+    const t0 = breaksAt(d);
+    if (!(breaksAt(d + m.step) < t0 - 0.02)) continue;
+    let e = d + m.step; while (e < end && breaksAt(e) < t0) e += m.step;
+    if (e - d > smax || e >= end) return d;
+  }
+  return Infinity;
 }
 // When the spot `d` m from the peak breaks (s after the peak). Past either end of the map it keeps breaking later
 // outward at `edgePeel` m/s.
@@ -125,7 +146,7 @@ export function stepRide(dt) {
     let f = RIDE.front;
     for (let n = 0; n < 4000 && breaksAt(f + m.step) <= t; n++) {
       // (water just ahead that broke before the curl got here: a section that broke on its own and peeled back to meet it)
-      if (breaksAt(f + m.step) < breaksAt(f) - 0.02 && breaksAt(f + m.step) < t - 0.2) { RIDE.closed = { time: t, c: f }; break; }
+      if (f + m.step > RIDE.closeAt && breaksAt(f + m.step) < breaksAt(f) - 0.02 && breaksAt(f + m.step) < t - 0.2) { RIDE.closed = { time: t, c: f }; break; }
       f += m.step;
     }
     if (!RIDE.closed) {
@@ -133,14 +154,15 @@ export function stepRide(dt) {
       if (b > a && t > a) f += m.step * Math.min(1, (t - a) / (b - a));
     }
     RIDE.front = Math.max(RIDE.front, f);
-    // (closing: water within 80 m ahead of the curl has already broken: the inside, broken on its own, coming to meet it)
-    if (!RIDE.closing) for (let d = 2 * m.step; d <= 80; d += m.step) if (breaksAt(RIDE.front + d) < t) { RIDE.closing = true; break; }
+    // (closing: water within 80 m ahead of the curl, past the closeout spot, has already broken: the inside, broken on its own, coming to meet it)
+    if (!RIDE.closing) for (let d = 2 * m.step; d <= 80; d += m.step) if (RIDE.front + d > RIDE.closeAt && breaksAt(RIDE.front + d) < t) { RIDE.closing = true; break; }
   }
-  // The frame follows the curl (at most `frameMax` m/s, so a stretch that goes at once (?literal) is caught up
+  // The frame follows the curl (at most `frameMax` m/s, so a stretch that goes at once is caught up
   // with smoothly); it stops when the inside closes out.
   const goal = RIDE.closed ? RIDE.c : RIDE.front;
   const v = Math.min(WAVE.bar.frameMax, Math.max(0, (goal - RIDE.c) / dt));
   RIDE.c += v * dt;
+  if (v > (WAVE.bar.sectionSpeed ?? 12)) RIDE.sectionT = RIDE.time;
   PEEL_SPEED = v;
   applyBar();
 }

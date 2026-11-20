@@ -21,7 +21,7 @@
 //  - Turning back into the whitewater, high, turning as you hit: rebound.
 //    Sit in the foam too long and it takes you.
 
-import { surface, slice, phaseAt, verticalHits, segmentHit, PEEL_SPEED, WAVE_SPEED, NP, WAVE, setWave, SCALE, controlPoints, crPoint, SHAPE, withShape, RIDE } from './wave.js';
+import { surface, slice, phaseAt, verticalHits, segmentHit, PEEL_SPEED, WAVE_SPEED, NP, WAVE, setWave, SCALE, controlPoints, crPoint, SHAPE, withShape, RIDE, sectionGrace } from './wave.js';
 
 export const G = 9.8;
 // The rider's and board's settings. Wave-specific settings (pocket speeds,
@@ -1270,9 +1270,14 @@ function stepSurf(r, input, dt) {
   // Inside the gap after another move the whitewater just slows you down.
   if (ready && !r.assist && !r.lipSnap && !r.floater && cosp < -0.15 && foamAt(r.xs, r.t) > T.foamContact) {
     const hNow = waveHeightFrac(r.pos[1]);
+    // (a section's whitewater (Trestles, wave.js sectionGrace): any turn rebounds off it at any height, and hitting
+    // it straight on you ride through it, slowed by the foam, instead of being buried)
+    const sec = sectionGrace(r.xs);
     if (!T.rebounds) return wipe(r, 'Buried by the whitewater! (too heavy to rebound off)');
-    if (!r.turnDir) return wipe(r, 'Hit the whitewater straight on! (turn as you hit it)');
-    if (hNow < T.reboundMinHeight) return wipe(r, 'Buried by the whitewater! (hit it higher)');
+    if (!r.turnDir && sec) { /* ride through it */ }
+    else if (!r.turnDir) return wipe(r, 'Hit the whitewater straight on! (turn as you hit it)');
+    else if (hNow < T.reboundMinHeight && !sec) return wipe(r, 'Buried by the whitewater! (hit it higher)');
+    if (r.turnDir) {
     // Turning Right only spins the 180 from the top third; lower than that
     // it's a plain rebound.
     const left = r.turnDir > 0 || hNow < T.rebound180MinHeight;
@@ -1283,6 +1288,7 @@ function stepSurf(r, input, dt) {
     const combo = r.time - (r.lastBottomTurn ?? -9) < T.comboWindow;
     r.events.push({ type: 'move', move: left ? 'rebound' : 'rebound180', speed: r.speed, combo, xs: r.xs });
     r.moveCooldown = T.moveGap;
+    }
   }
 
   f = frameAt(r.xs, r.t);
@@ -1388,11 +1394,12 @@ function checkHazards(r, dt) {
   if (r.foam > 0.6 && !r.floater && !(r.boost > 0) && !climbingFoam(r)) r.foamTime += dt; // floating on it, carrying out of a move, or climbing it doesn't count
   else r.foamTime = Math.max(0, r.foamTime - dt * 2);
   const midFoam = TUNE.foamPush ? 1 - Math.min(1, Math.abs(r.foot)) : 0; // (riding the whitewater from the middle of a longboard: it takes twice as long to catch you)
-  if (r.foamTime > TUNE.foamLimit * (1 + midFoam)) return wipe(r, 'Caught by the whitewater!');
+  const secFoam = sectionGrace(r.xs) ? WAVE.bar.sectionFoam || 1 : 1; // (a section's whitewater takes longer to catch you)
+  if (r.foamTime > TUNE.foamLimit * (1 + midFoam) * secFoam) return wipe(r, 'Caught by the whitewater!');
   // The whitewater rolling out across the flats knocks you off at once if you
   // ride into it down there (climbing up into it, nose well up, is a floater
   // from the flats; just out of a move you're carried through).
-  if (r.t > TUNE.tBottom - 0.3 && r.foam > 0.5 && !r.floater && !(r.boost > 0) && Math.sin(r.phi) < 0.4) {
+  if (r.t > TUNE.tBottom - 0.3 && r.foam > 0.5 && !r.floater && !(r.boost > 0) && Math.sin(r.phi) < 0.4 && !sectionGrace(r.xs)) {
     return wipe(r, 'Caught by the whitewater! (it rolls out across the flats)');
   }
   if (r.xs < -25) return wipe(r, 'Caught by the whitewater!');
@@ -1407,7 +1414,7 @@ function checkHazards(r, dt) {
   // above where it lands, means it hits you; low on the face ahead of where it lands, or out ahead, you're clear.)
   if (!r.tube && WAVE.tubeMinHeight && tubeHeight() < WAVE.tubeMinHeight) {
     if (ph > T.tubeEnter + 0.2 && ph < T.tubeCollapse && (!WAVE.tubeFloor || r.t < WAVE.tubeFloor.t) && r.t > topOfFace(r.xs) - 0.5
-      && r.pos[2] <= lipTipZ(r.xs) - WAVE.tubeReal.enterIn) {
+      && r.pos[2] <= lipTipZ(r.xs) - WAVE.tubeReal.enterIn && !sectionGrace(r.xs)) {
       return wipe(r, 'Clipped by the lip! (the tube was too small to fit in: go around it)');
     }
     return;

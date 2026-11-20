@@ -6,9 +6,8 @@
 // - When each part breaks: FUNWAVE-TVD runs of a 1.5 m, 16 s south swell over the real cobble fan (USGS CoNED 1 m
 //   DEM). For two clean simulated waves, every 2 m along the crest, the time it breaks (trestles-breaks.js): the
 //   peak, the left peeling away, the right peeling through its sections, and an inside peak that breaks on its own
-//   ahead and peels back to meet the right: that's the closeout that ends the ride. By default at a playable pace
-//   (the same layout, the clock 2.5x slower, nothing going faster than 8 m/s along the wave); `?literal` for the
-//   sim's own times (the right closes out ~6-9 s after the takeoff).
+//   ahead and peels back to meet the right: that's the closeout that ends the ride. From FUNWAVE's own breaking flag
+//   (cross-checked with SWASH on the same sea, 2026-11-20) at the sim's own pace: no slowdown, no speed cap.
 // - The breaking shapes (sim-trestles.js) are 2D breaking-wave simulations (BEM) on shore-normal profiles of the fan:
 //   the takeoff peak, a middle section, the inside, and a bigger set wave's inside, plus the shoulder (the same sims
 //   3-15 s before breaking: lower and gentler, but holding up, as FUNWAVE's heights do along the crest). Each throws
@@ -58,8 +57,14 @@ export default {
     shapes: [0, 1, 2], // takeoff, middle, inside
     setShapes: [0, 1, 3], // the biggest wave of a set has its own, heavier inside
     setSize: 1.1,
+    sectionMax: 40, // a stretch breaking ahead of the curl up to this long (m) is a section it runs through; longer = the inside closeout (wave.js)
+    // Sections are forgiving (the user, 2026-11-20: easier to ride through, snap over): while the curl runs through a
+    // stretch breaking at once (faster than `sectionSpeed` m/s) and `sectionGrace` s after, a too-small lip doesn't
+    // clip you, the whitewater takes `sectionFoam` x as long to catch you (and doesn't knock you off on the flats),
+    // any turn rebounds off it and hitting it straight on rides through (rider.js).
+    sectionSpeed: 12, sectionGrace: 3, sectionFoam: 2.5,
     edgePeel: 6, // past the ends of a map the wave keeps peeling outward at this speed (m/s)
-    frameMax: 25, // the frame chases the curl at up to this speed (a stretch the sim breaks at once, ?literal)
+    frameMax: 25, // the frame chases the curl at up to this speed (a stretch the sim breaks at once)
     lead: 1.5, // a ride starts this many s before the peak breaks: you drop in as it stands up
     end: 12, // (a rider out ahead of the closeout altogether steps off this many s after it, rider.js checkHazards)
   },
