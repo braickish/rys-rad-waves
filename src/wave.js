@@ -76,8 +76,9 @@ function setShape(a, b, w) {
 // map list (each set wave is a different simulated wave); `?literal` (LITERAL=1 in node) uses the sim's own times
 // instead of the playable version (the same layout at a playable pace: trestles_breaks.py).
 const LITERAL = typeof location !== 'undefined' ? /[?&]literal(&|=|$)/.test(location.search) : !!(globalThis.process && process.env.LITERAL);
-// (`?nocap` (NOCAP=1): the playable speeds with no cap, the stretches the sim breaks at once going at the sim's speed / 2.4)
-const NOCAP = typeof location !== 'undefined' ? /[?&]nocap(&|=|$)/.test(location.search) : !!(globalThis.process && process.env.NOCAP);
+// (The default: the sim's curl speeds / 2.4 with no cap: the stretches the sim breaks at once go at once (the user,
+// 2026-11-19: that's the real wave). `?cap` (CAP=1): the same capped at 12 m/s.)
+const CAP = typeof location !== 'undefined' ? /[?&]cap(&|=|$)/.test(location.search) : !!(globalThis.process && process.env.CAP);
 export const RIDE = { time: 0, c: 0, front: 0, closed: null, closing: false, map: null, k: -1 };
 export function startRide() {
   RIDE.time = 0; RIDE.c = 0; RIDE.front = 0; RIDE.closed = null; RIDE.closing = false;
@@ -88,7 +89,7 @@ export function startRide() {
   const all = WAVE.bar.maps, maps = all.filter((m) => (want ? m.wave === want : !WAVE.bar.use || WAVE.bar.use.includes(m.wave)));
   RIDE.k = (RIDE.k + 1) % maps.length;
   const m = maps[RIDE.k];
-  RIDE.map = { d0: m.d0, step: m.step, tb: LITERAL ? m.literal : NOCAP && m.nocap ? m.nocap : m.play, wave: m.wave };
+  RIDE.map = { d0: m.d0, step: m.step, tb: LITERAL ? m.literal : CAP || !m.nocap ? m.play : m.nocap, wave: m.wave };
   applyBar();
 }
 // When the spot `d` m from the peak breaks (s after the peak). Past either end of the map it keeps breaking later

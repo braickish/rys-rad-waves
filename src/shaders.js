@@ -14,7 +14,8 @@ struct Frame {
                     // z: which way the wave peels in the world (WAVE.dir: 1 toward +x, -1 toward -x, a right seen from the beach), -
   // (The wave, its peel frame and the particle sim work along the wave: +x is ahead of the curl. dirX() places
   // that in the world; rider/riderVel/spray stay in the peel frame, camPos and everything drawn is in the world.)
-  flow: vec4f,      // x: how far the water texture has flowed along the wave (m): the peel speed added up frame by frame
+  flow: vec4f,      // x: how far the water texture has flowed along the wave (m): the peel speed added up frame by frame;
+                    // y: the peel speed beyond its smoothed value (m/s; main.js camPeel), for the spray
                     // (not time x peel speed: on Trestles the speed changes, and that made the whole texture lurch)
 };
 @group(0) @binding(0) var<uniform> F: Frame;
@@ -478,7 +479,8 @@ fn cs(@builtin(global_invocation_id) gid: vec3u) {
   var v = p.vel.xyz;
   v.y -= grav * dt;
   v *= max(0.0, 1.0 - drag * dt);
-  p.pos = vec4f(p.pos.xyz + v * dt, p.pos.w);
+  p.pos = vec4f(p.pos.xyz + v * dt - vec3f(F.flow.y * dt, 0.0, 0.0), p.pos.w); // (flow.y: the frame's speed beyond its smoothed speed: a fast
+  // section on Trestles mustn't drag the spray along with the frame; 0 on a steady peel)
   p.vel = vec4f(v, kind);
   if (p.pos.y < -0.7) { p.pos.w = 0.0; }
   parts[id] = p;

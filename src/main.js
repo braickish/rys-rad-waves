@@ -674,7 +674,7 @@ async function main() {
     const bodyMats = body && pose.J ? body.body.update(pose.J) : null;
     if (bodyMats) { body.dt = dt; objs.push(...hairObjects(body, bodyMats)); }
     renderer.render({
-      viewProj: vp, invViewProj: invert(vp), camPos: camW, time, sunDir: SUN, peel: PEEL_SPEED, flow,
+      viewProj: vp, invViewProj: invert(vp), camPos: camW, time, sunDir: SUN, peel: PEEL_SPEED, flow, flowDev: PEEL_SPEED - camPeel,
       rider: rider.pos, spray: sprayAmt, riderVel: rider.vel, dt, sprayDir, frame,
       burst: burst > 0 ? 1 : 0, camRight, camUp,
     }, objs, { particles: !params.has('noparticles'), outlines: !params.has('nooutline'), look: true, body: bodyMats, shadow: !!bodyMats });
