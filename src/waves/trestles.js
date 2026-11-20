@@ -115,5 +115,9 @@ export default {
     // rule sat 6 m behind the curl, so the pocket got the open face's higher threshold and smaller pop: the user, 2026-11-19.
     // The tube doesn't use it: you're in by the tube rules, rider.js stepTube.)
     startXs: 4, // drop in just ahead of the peak
+    // A steep wall standing up anywhere along the wave feeds speed like the pocket does, up to `wallK` of it (rider.js
+    // wallPower; the user, 2026-11-19: up-and-down carves on a steep section ahead should make speed, so you can make
+    // it). Mid-face angle 17 deg (the fat shoulder) -> 0, 28 deg (a section about to break) -> full.
+    wallK: 0.65, wallAngles: [17, 28],
   },
 };

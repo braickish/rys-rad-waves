@@ -181,6 +181,21 @@ export function pocketPower(xs) {
   return WAVE.pocket(xs);
 }
 
+// How much a steep wall is worth at xs, wherever it is along the wave (waves with `wallK`: Trestles, 2026-11-19, the
+// user: in the footage of Uppers and Lowers there are long steep sections standing up ahead of the curl before they
+// break, and up-and-down carves there should make speed, so you can make the section). By the face's angle at mid
+// height (0 at `wallAngles[0]`, full at `[1]`, degrees) and its height against the face at the curl, up to `wallK` of
+// the pocket's power. Out where the wave is still fat swell it's ~0; a section about to break stands at ~25-30 deg.
+export function wallPower(xs) {
+  const W = TUNE.wallK; if (!W) return 0;
+  const [a0, a1] = TUNE.wallAngles || [17, 28];
+  const faceH = (x) => { const top = topOfFace(x); return { top, h: surface(x, top)[1] - surface(x, TUNE.tBottom)[1] }; };
+  const here = faceH(xs), curl = faceH(0);
+  const n = frameAt(xs, here.top + (TUNE.tBottom - here.top) * 0.5).n;
+  const ang = Math.acos(clamp(n[1], -1, 1)) * 180 / Math.PI;
+  return W * sstep(a0, a1, ang) * clamp(here.h / Math.max(0.3, curl.h), 0, 1);
+}
+
 // How much foam is under the rider (from the wave; the mesh draws the same foam).
 export function foamAt(xs, t) {
   return WAVE.foam(phaseAt(xs), t);
@@ -570,9 +585,19 @@ function stepSurf(r, input, dt) {
   const top = topOfFace(r.xs);
   const height = clamp((T.tBottom - r.t) / (T.tBottom - top), 0, 1); // 0 bottom, 1 top
   const low = 1 - sstep(0.15, 0.6, height); // 1 at the bottom of the face, 0 up top
+  // (the wave's power for speed: the pocket, or a steep wall standing up anywhere along it, whichever is more; moves and
+  // zones still go by the pocket alone)
+  // (only out of the pocket: there the pocket's own speed is kept as it was, `1 - pk`)
+  const wall = T.wallK ? wallPower(r.xs) * (1 - pk) : 0; r.wall = wall;
+  const pkDrive = Math.max(pk, wall);
   // 0 on flat water, 1 on a steep face; the pocket counts as steep even near
-  // the rounded crest.
-  const steep = Math.max(clamp((1 - f.n[1]) / 0.55, 0, 1), 0.85 * pk * sstep(0.05, 0.3, 1 - f.n[1]));
+  // the rounded crest (and so does a steep wall: on Trestles' 25-30 deg walls the face's own slope only reads ~0.2).
+  // (a wall's power sets how much it's worth, in `pkSpeed` below; here a wall face just counts as steep, fading in out of
+  // the pocket, or it would count twice: a 0.6 wall came out worth 0.6 x 0.6 of the pocket)
+  // (and the wall by its own angles, `wallAngles`: the pocket's gate, 18-46 deg, lets only ~5% through on a 24 deg wall)
+  const faceAng = wall > 0 ? Math.acos(clamp(f.n[1], -1, 1)) * 180 / Math.PI : 0;
+  const steep = Math.max(clamp((1 - f.n[1]) / 0.55, 0, 1), 0.85 * pk * sstep(0.05, 0.3, 1 - f.n[1]),
+    wall > 0 ? 0.85 * (1 - pk) * sstep(...(T.wallAngles || [17, 28]), faceAng) : 0);
   r.pocket = pk; r.foam = foam; r.height = height;
 
   // --- steering ---
@@ -888,8 +913,8 @@ function stepSurf(r, input, dt) {
   // (waves with `driveRefSpeed`: above that speed a radian of turn pays less, so drive per second stops growing with
   // speed: turns come round faster when you're fast, and paying per radian made speed build on speed; the user, 2026-11-18)
   const driveK = T.driveRefSpeed ? Math.min(1, T.driveRefSpeed / Math.max(r.speed, 1e-3)) : 1;
-  if (turnDrives && driveLow > 0 && driving && d === playerD && !(r.slash && r.slash.released) && !r.slide) r.driveBank += T.bottomDrive * carveDrive * Math.abs(d) * driveLow * (0.4 + 0.6 * pk) * driveK;
-  if (turnDrives && high > 0 && d === playerD && !(r.slash && r.slash.released) && !r.slide) r.driveBank += T.topDrive * Math.abs(d) * high * pk * pivotK * driveK;
+  if (turnDrives && driveLow > 0 && driving && d === playerD && !(r.slash && r.slash.released) && !r.slide) r.driveBank += T.bottomDrive * carveDrive * Math.abs(d) * driveLow * (0.4 + 0.6 * pkDrive) * driveK;
+  if (turnDrives && high > 0 && d === playerD && !(r.slash && r.slash.released) && !r.slide) r.driveBank += T.topDrive * Math.abs(d) * high * pkDrive * pivotK * driveK;
   // Pivoting on the fin scrubs speed as the board swings (more the faster it swings).
   if (T.pivotRate && r.pivot > 0 && playerD) r.speed *= Math.exp(-T.pivotDrag * r.pivot * Math.abs(playerD)); // (pivotDrag: per radian swung)
   const release = r.driveBank * (1 - Math.exp(-dt / T.driveSmooth));
@@ -911,8 +936,10 @@ function stepSurf(r, input, dt) {
   // --- speed ---
   // Cruising speed climbs with height: up near the top of the pocket is fastest.
   // (speed fades a little further out than the pocket itself: shoulderReach)
-  const pkSpeed = r.xs > 0 ? pocketPower(Math.max(0, r.xs - T.shoulderReach) / (T.shoulderFade || 1)) : pk; // (shoulderFade: fades over this many times the pocket's own length)
+  const pkReach = r.xs > 0 ? pocketPower(Math.max(0, r.xs - T.shoulderReach) / (T.shoulderFade || 1)) : pk; // (shoulderFade: fades over this many times the pocket's own length)
+  const pkSpeed = Math.max(pkReach, wall); // (a steep wall anywhere feeds you too: `wallK`)
   let target = T.vLow + (T.vPocket - T.vLow) * pkSpeed * steep * (T.heightSpeed[0] + T.heightSpeed[1] * height);
+  r.cruise = target; // (the wave's cruising speed for you here, before feet and foam: tests)
   if (r.foot < 0) target *= 1 - (1 - (T.tailSpeed ?? 1)) * -r.foot; // (standing on the tail the board drags: slower than from the middle)
   target *= 1 + (T.backSpeed - 1) * sBack + (T.fwdSpeed - 1) * sFwd; // (shortboard feet: back a little slower, forward a little faster)
   // Trimming from the middle is the fast line: a higher cruising speed that it picks up quicker (`middleSpeed`, `middleFeed`).
@@ -998,7 +1025,7 @@ function stepSurf(r, input, dt) {
   }
   // On a heavy wave the water rushes up the face and carries you with it:
   // trimming level drifts you up, so you hold your line pointing a little down.
-  let faceLift = (T.faceFlow || 0) * steep * pkSpeed; // (carries as far out as the pocket's speed)
+  let faceLift = (T.faceFlow || 0) * steep * pkReach; // (carries as far out as the pocket's speed; not the wall's)
   if (r.tube && (r.slide > 0 || (r.slash && r.slash.released))) faceLift *= T.slashTube.lift; // a barrel slash digs in against the water rushing up
   let rise = r.speed * sinp + faceLift;
   // In the barrel, heading up the face is slowed (`tubeClimbDamp`, more the deeper you are) so a turn

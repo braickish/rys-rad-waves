@@ -98,6 +98,17 @@ Trestles wave any way we can"). Research, simulations and the pipeline for new r
   view lurch sideways); the playable map is capped again after smoothing (smoothing had let stretches run at ~40 m/s);
   airs use Raglan's curl zone (`curlZone` was Pipe's -6, moving every air rule 6 m behind the curl) and leave from the
   crest (the top line is ~88% up the face). test/airs.mjs takes W=<wave>.
+- **Speed from steep walls, not just the pocket** (2026-11-19, the user, from footage of Uppers and Lowers: long steep
+  sections stand up ahead of the curl before they break, and up-and-down carves there should make speed so you can make
+  the section; no pump control, the carves pay off by local steepness): `wallK` 0.65 / `wallAngles` [17, 28] (rider.js
+  `wallPower`): a face standing at 28 deg at mid height and as tall as at the curl is worth 0.65 of the pocket for the
+  cruising speed, the high-drop boost and bottom/top-turn drive; 17 deg (still fat swell) is worth nothing. Out of the
+  pocket only (x `1 - pocket`), so the pocket's own speeds are unchanged. On 25-30 deg Trestles faces the old steepness
+  gate (18-46 deg) let ~5% through, so the wall has its own. Mid-face cruising target 10-20 m ahead of the curl on a
+  standing section: 10-14 -> 18-21 mph; the fat shoulder ~10 mph as before. `node test/wallspeed.mjs`: carving on a steep
+  section ahead +2.6 mph on average, the fat shoulder +0, the pocket unchanged. Raglan/Pipe/Queens unaffected (no `wallK`).
+  Note: on the current maps some stretches peel faster than you can carve (420 at 8 s: 26 mph): those maps come from the
+  old breaking detector, which read steep faces as broken (research/trestles README, rounds 7-8).
 - Raglan's shortboard tuning with Pipe's tube settings; a 5'11" performance shortboard (`perf511`, shape inspired by a
   known high-performance board, no branding), black full wetsuit, grey-green water (`green` 0.55), regular foot, `dir: -1`,
   scale 0.8 (takeoff face ~3.6 m). No catching the wave yet (pop-up/paddling is still a planned idea).
