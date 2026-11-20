@@ -360,7 +360,7 @@ function wipe(r, reason, ended = false) { // (ended: the ride ended without a fa
   // machine": a longer hold-down (the foam ball screen in main.js).
   r.washing = !!r.tube || reason.includes('caught up in the lip');
   // (a wave with a bar, Trestles: once the inside has closed out, that's the end of the wave whatever got you)
-  if (WAVE.bar && (RIDE.closed || RIDE.closing) && !ended) reason = 'The inside closed out! (end of the wave)';
+  if (WAVE.bar && RIDE.closed && !ended) reason = 'The inside closed out! (end of the wave)';
   r.mode = 'wipe';
   r.wipeReason = reason;
   r.wipeTimer = 2.2;
@@ -1316,6 +1316,16 @@ function roofClearance(xs, t, pos) {
 
 function checkHazards(r, dt) {
   const ph = phaseAt(r.xs);
+  // (a wave with a bar, Trestles: the end of the wave. Only once the curl has met the inside (RIDE.closed) and the
+  // whitewater reaches you: in front of it, low on the face or out on the flats, you step off; up in it, it gets you
+  // (the user, 2026-11-19: not before the wave has completely broken). A rider out ahead of it all steps off `end` s on.)
+  if (WAVE.bar && RIDE.closed && !r.tube) {
+    if (ph > 1.3) {
+      if (r.height < 0.35 || r.t > TUNE.tBottom - 0.5) return startStepOff(r, 'Stepped off as the inside closed out');
+      return wipe(r, 'The inside closed out! (end of the wave)');
+    }
+    if (RIDE.time - RIDE.closed.time > WAVE.bar.end) return startStepOff(r, 'You rode it to the end of the wave!');
+  }
   // The foam only takes you if you sit in it.
   if (r.foam > 0.6 && !r.floater && !(r.boost > 0) && !climbingFoam(r)) r.foamTime += dt; // floating on it, carrying out of a move, or climbing it doesn't count
   else r.foamTime = Math.max(0, r.foamTime - dt * 2);
@@ -1328,16 +1338,6 @@ function checkHazards(r, dt) {
     return wipe(r, 'Caught by the whitewater! (it rolls out across the flats)');
   }
   if (r.xs < -25) return wipe(r, 'Caught by the whitewater!');
-  // (a wave with a bar, Trestles: the inside has closed out. Once it breaks where you are, it gets you; out past it,
-  // the wave is done `end` s later)
-  if (WAVE.bar && (RIDE.closed || RIDE.closing)) {
-    // (down in the face as it closes out, you step off: the user, 2026-11-19; up high, it gets you. Closing: the inside
-    // has broken on its own ahead and is coming to meet the curl.)
-    if (!r.tube && r.height < 0.5) return startStepOff(r, 'Stepped off as the inside closed out');
-    if (phaseAt(r.xs) > 1.1) return wipe(r, 'The inside closed out! (end of the wave)');
-    if (RIDE.closed && RIDE.time - RIDE.closed.time > WAVE.bar.end) return startStepOff(r, 'You rode it to the end of the wave!');
-  }
-
   if (!WAVE.tube) { r.inBarrel = false; return; }
   // The barrel: once the curl has passed you, you're in the tube, surfing
   // the face inside it as normal. Too deep = pinched; up into the lip = over

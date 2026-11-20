@@ -58,7 +58,7 @@ export default {
     edgePeel: 6, // past the ends of a map the wave keeps peeling outward at this speed (m/s)
     frameMax: 25, // the frame chases the curl at up to this speed (a stretch the sim breaks at once, ?literal)
     lead: 1.5, // a ride starts this many s before the peak breaks: you drop in as it stands up
-    end: 4, // once the inside has closed out, out past it the ride ends this many s later
+    end: 12, // (a rider out ahead of the closeout altogether steps off this many s after it, rider.js checkHazards)
   },
   // A spot's phase is the time since it broke there, `phaseTime` s per unit of phase (the sims take ~0.9 s from the face
   // standing up to the lip landing, ~1 unit); past phase `farFrom` the whitewater lasts `behindFar` times longer

@@ -121,6 +121,7 @@ export function surferObjects(pose, rider, info, dt) {
   // stay in view the whole way down).
   pose.J = null; // (set below once the pose is worked out; stays null while the figure is hidden)
   if (rider.mode === 'wipe' && !rider.falls && !rider.stepOff && rider.wipeAge > 0.3) return [];
+  if (rider.stepOff && rider.stepOff.time > 1.6) return []; // (stepped off: once you've dropped in, you and the board go from view, the user)
   const p = rider.pos;
   const f = rider.heading;
   const k = 1 - Math.exp(-dt * 12);
