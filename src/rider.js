@@ -1046,9 +1046,23 @@ function stepSurf(r, input, dt) {
   if (T.energy) {
     // (pointing down pays only for what goes beyond cancelling the water's lift, so holding a line against it is neutral
     // and trimming in the pocket stays at the peel; climbing costs only your own climb: the lift is the wave's work, free)
-    const gSlope = 9.81 * Math.sqrt(Math.max(0, 1 - f.n[1] * f.n[1]));
+    let gSlope = 9.81 * Math.sqrt(Math.max(0, 1 - f.n[1] * f.n[1]));
     const net = sinp < 0 ? Math.min(0, sinp + (T.faceFlow || 0) * steep * pkReach / Math.max(r.speed, 1)) : sinp;
-    if (net < 0) gDv = -net * gSlope * dropDrag * (r.postMove ? T.postMoveDrop ?? 1 : 1) * dt;
+    // Heading down from the lip or in the whitewater, gravity works at the face's steepest angle, not the nearly level
+    // crest under the board (8 deg at Raglan's lip): the lip is throwing and the face standing up under you, so the wave
+    // drops away beneath you (the user, 2026-11-21: you got stuck on the lip). Going down only (climbing into the lip
+    // still costs what the real slope does: a small gain right at the lip, the wave throwing you), not in the tube.
+    if (net < 0 && !r.tube) {
+      const k = Math.max(sstep(0.6, 0.8, height), clamp(foam / 0.5, 0, 1));
+      if (k > 0) {
+        let m = 0;
+        for (let i = 0; i <= 6; i++) { const ff = frameAt(r.xs, top + (T.tBottom - top) * i / 6); m = Math.max(m, 1 - ff.n[1] * ff.n[1]); }
+        gSlope += (9.81 * Math.sqrt(Math.max(0, m)) - gSlope) * k;
+      }
+    }
+    // (no `postMoveDrop` here: off a move the drop is real gravity, the wave giving it back; the arcade model's "no drop
+    // speed off a move until mid-face" held you on the lip after snaps and re-entries, the user, 2026-11-21)
+    if (net < 0) gDv = -net * gSlope * dropDrag * dt;
     else if (!(r.floater && T.floaterSteer)) gDv = -net * gSlope * dt;
   } else if (T.physPocket?.gravity) {
     // (`physPocket.gravity`: real gravity on the slope under the board, both ways: g sin(face angle) x how much you point
