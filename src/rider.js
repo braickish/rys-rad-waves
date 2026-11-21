@@ -167,7 +167,11 @@ export function useWave(w) {
 // - Airs: lift-off physics instead of the 19/21 mph thresholds (Raglan's notes: the board leaves the water over a 3-5 m
 //   crest once v^2/R > g, ~12-15 mph; a usable ~0.5 m pop needs ~16-18 mph), since a climb now costs real speed.
 export const ENERGY = typeof location !== 'undefined' ? /[?&]energy(&|=|$)/.test(location.search) : !!(globalThis.process && process.env.ENERGY);
-const ENERGY_TUNE = { energy: true, pocketHold: 1.0, airSpeedCurl: 7.15, airSpeed: 8.05, skidDriveK: 0.75 }; // (16 / 18 mph)
+const ENERGY_TUNE = { energy: true, pocketHold: 1.0, airSpeedCurl: 7.15, airSpeed: 8.05, skidDriveK: 0.75, // (16 / 18 mph)
+  // In the tube (the user, 2026-11-21): no tube engine (`tubeDrive`) or speed holder (`trimCap`): the tube is the
+  // pocket at its steepest, 1.0x the peel, a high line fast by gravity, a climb toward the roof costly; deep in, the
+  // front-foot lean trims 1.04x (was a push); the back foot is the stall, 0.85x (0.95x on the open face).
+  tubeLeanSpeed: 1.04, tubeBackSpeed: 0.85 };
 
 
 const v3 = {
@@ -1009,7 +1013,8 @@ function stepSurf(r, input, dt) {
   r.cruise = target; // (the wave's cruising speed for you here, before feet and foam: tests)
   if (r.foot < 0) target *= 1 - (1 - (T.tailSpeed ?? 1)) * -r.foot; // (standing on the tail the board drags: slower than from the middle)
   if (r.foot > 0 && T.noseSpeed) target *= 1 - (1 - T.noseSpeed) * r.foot; // (energy pocket, longboard: on the nose a touch under the middle)
-  target *= 1 + (T.backSpeed - 1) * sBack + (T.fwdSpeed - 1) * sFwd; // (shortboard feet: back a little slower, forward a little faster)
+  target *= 1 + ((r.tube && T.tubeBackSpeed ? T.tubeBackSpeed : T.backSpeed) - 1) * sBack + (T.fwdSpeed - 1) * sFwd; // (shortboard feet: back a little slower, forward a little faster; energy pocket: in the tube the back foot is the stall, `tubeBackSpeed`)
+  if (r.tube && T.tubeLeanSpeed) target *= 1 + (T.tubeLeanSpeed - 1) * r.frontLean; // (energy pocket: deep in, leaning onto the front foot trims a touch faster, like the forward foot)
   // Trimming from the middle is the fast line: a higher cruising speed that it picks up quicker (`middleSpeed`, `middleFeed`).
   const mid = T.middleSpeed ? 1 - Math.min(1, Math.abs(r.foot)) : 0;
   target *= 1 + ((T.middleSpeed || 1) - 1) * mid;
@@ -1061,12 +1066,12 @@ function stepSurf(r, input, dt) {
   // (deep in, leaning onto the front foot adds a little: `tubeLeanOver` faster, `tubeLeanDrive` more push)
   const trimCap = PEEL_SPEED + T.tubeTrimOver + (T.tubeTrimOverHigh - T.tubeTrimOver) * sstep(0.42, 0.52, height)
     + (T.tubeLeanOver || 0) * r.frontLean;
-  if (r.tube && Math.cos(r.phi) > 0 && r.speed < trimCap) {
+  if (r.tube && !T.energy && Math.cos(r.phi) > 0 && r.speed < trimCap) {
     r.speed = Math.min(trimCap, r.speed + (T.tubeDrive + (T.tubeLeanDrive || 0) * r.frontLean) * (1 - sstep(0.0, 0.35, sinp)) * dt);
   }
   // ... and trimming in the barrel settles you at that speed (dropping down
   // the face can still take you past it).
-  if (r.tube && sinp > -0.2 && r.speed > trimCap) r.speed -= (r.speed - trimCap) * 3 * dt;
+  if (r.tube && !T.energy && sinp > -0.2 && r.speed > trimCap) r.speed -= (r.speed - trimCap) * 3 * dt;
   // Stacked moves can't run away with your speed: above softMax it bleeds off.
   const softMax = T.softMax + T.highDropSoftMax * highDropNow; // a drop from high up can run a bit faster
   if (r.speed > softMax) r.speed -= (r.speed - softMax) * T.overBleed * dt;
