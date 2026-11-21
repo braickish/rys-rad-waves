@@ -124,6 +124,23 @@ Trestles wave any way we can"). Research, simulations and the pipeline for new r
   known high-performance board, no branding), black full wetsuit, grey-green water (`green` 0.55), regular foot, `dir: -1`,
   scale 0.8 (takeoff face ~3.6 m). No catching the wave yet (pop-up/paddling is still a planned idea).
 
+## Performance Peak: the first designed reef (`src/waves/peak.js`)
+
+- The user's reef generator idea (2026-11-20): build reefs from Mead & Black's surf-reef components (ramp, platform,
+  focus, wedge, ledge, ridge, pinnacle) instead of surveys of real breaks, and let FUNWAVE decide how they break.
+  Generator, recipes, peel estimate and runs: `~/workspace/research/reef-generator` (README there).
+- The reef: an A-frame: a pointed focus (the takeoff peak) and two 1:15 wedges at 45 deg to the swell, 3 m deep at
+  their edge (recipes/performance_peak.json). FUNWAVE (1.6 m 15 s straight in): median peel angle ~31 deg (37 by the
+  other break test), an advanced wave; rights run 120-240 m.
+- Peel angle vs wedge angle (option A): about 0.7x the wedge angle (the crests bend toward the wedge); steeper wedges
+  peel slower but a reef of the same reach ends sooner. A pointed peak focuses energy and the shoulders lose it.
+- In the game it is Trestles's wave kind (the bar: `peak-breaks.js` from reef_breaks.py, waves 422/171/260/312, one per
+  ride) with warm clear water and boardshorts. `tb` there comes from the face-steepening test: on the reef FUNWAVE's
+  breaking flag misses most of the shoulder (its wave height drops 25-35% across the wedge where the flag stays off).
+- Not its own yet: the breaking shapes are Trestles's (similar breakers, ~2.3 m; tubes 0.73 m, too small to ride);
+  the takeoff's first ~50 m goes fast (15-30 m/s) on three of the four waves. `node test/trestles.mjs peak` runs
+  Trestles's checks on it.
+
 ## How it works
 
 - Wave shape between keyframes is a smooth cubic (Catmull-Rom slopes) and the phase rate changes
@@ -725,7 +742,7 @@ node test/shuffle.mjs  # shortboard feet: back / middle / forward, turn and spee
 node test/elbows.mjs   # skinned-body elbows: jump per frame and upper-arm twist flips (lower is smoother)
 node test/arms.mjs     # how jerkily the hands move against the shoulders while riding (lower is smoother)
 node test/slash.mjs    # the slash: when it fires (and doesn't), climb, speed scrub, slide, turn; point, reef, barrel
-node test/trestles.mjs # Trestles: the ride along the bar (speed, section, tube size), phase smoothness, bots riding it
+node test/trestles.mjs [peak] # Trestles (or Performance Peak): the ride along the bar (speed, section, tube size), phase smoothness, bots riding it
 node test/plot-slices.mjs out.svg [crumble|barrel]   # draw the wave cross-sections
 node test/steepness.mjs  # reef face angle at fixed heights from the tube out to the shoulder
 node test/concave.mjs    # bulges along the wave (should wrap in, never bulge out)

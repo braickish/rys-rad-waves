@@ -1,0 +1,26 @@
+// Performance Peak: the first designed reef (2026-11-21; the user's reef generator spec: build reefs from Mead & Black's
+// components instead of surveys of real breaks). An A-frame on a tropical reef; we ride its right, regular foot.
+//
+// Where the numbers come from (~/workspace/research/reef-generator, README there):
+// - The reef: reefgen.py, recipes/performance_peak.json: a ramp, a pointed focus (the takeoff peak) and two 1:15
+//   wedges at 60 deg to the swell, shallowing from 3.0 to 1.9 m along their length so the shoulder, which loses
+//   height to the peak, keeps breaking.
+// - When each part breaks (peak-breaks.js): FUNWAVE-TVD on that reef, 1.6 m 15 s straight in, FUNWAVE's own breaking
+//   flag at the sim's own pace, exactly as Trestles (the same bar: wave.js). Peel angle ~35 deg: an advanced wave.
+// - The breaking shapes: borrowed from Trestles (sim-trestles.js, the same breaker size, ~2.3 m) until the reef has
+//   its own 2D breaking-wave (BEM) runs.
+import trestles from './trestles.js';
+import { BREAKS } from './peak-breaks.js';
+
+export default {
+  ...trestles,
+  id: 'peak',
+  name: 'Performance Peak',
+  outfit: '', // warm water: boardshorts
+  green: 0, // clear tropical water over reef
+  bar: {
+    ...trestles.bar,
+    maps: BREAKS,
+    use: BREAKS.map((m) => m.wave), // every simulated wave, one per ride
+  },
+};
