@@ -44,6 +44,17 @@ for (const w of waves) {
     trims.push(`${h} high (peel ${mph(ps / Math.max(1, n))}) ${n ? (vs / ps).toFixed(2) : '-'}x (${n ? mph(vs / n) : '-'} mph, xs ${r.xs.toFixed(1)}${r.mode !== 'surf' ? ', ' + r.mode : ''}${t < 5.9 ? ' @' + t.toFixed(1) + 's' : ''})`);
   }
   console.log('  trim: ' + trims.join(' | '));
+  // a longboard's spots (tail / middle / nose), mid-face in the pocket
+  if (TUNE.middleSpeed) {
+    const spots = [];
+    for (const [label, foot] of [['tail', -1], ['middle', 0], ['nose', 1]]) {
+      let vs = 0, ps = 0;
+      ride({ xs: 1.5, speed: PEEL_SPEED, foot, footGoal: foot },
+        (r, tt) => { if (tt > 4) { vs += r.speed; ps += peel(); } return aim(Math.max(-0.6, Math.min(0.6, 3 * (0.5 - r.height)))); }, 10);
+      spots.push(`${label} ${ps ? (vs / ps).toFixed(2) : '-'}x`);
+    }
+    console.log('  feet: ' + spots.join(' | '));
+  }
   // drop from the top
   { let v0 = null;
     const { r } = ride({ xs: 2, speed: PEEL_SPEED },

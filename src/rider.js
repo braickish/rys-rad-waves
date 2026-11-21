@@ -145,6 +145,9 @@ export function useWave(w) {
   // (nested settings a wave changes only part of, e.g. the reef's `slashTube`, merge over the rider's)
   for (const k of ['slashTube']) if (WAVE.tune && WAVE.tune[k]) TUNE[k] = { ...RIDER_TUNE[k], ...WAVE.tune[k] };
   if (ENERGY) Object.assign(TUNE, ENERGY_TUNE);
+  // (a longboard's spots as ratios of the same pocket speed, the user, 2026-11-21: the middle is the sweet spot, 1.0x;
+  // the nose a touch under, 0.95x, held by the pocket; the tail a real stall, 0.85x)
+  if (ENERGY && TUNE.middleSpeed) Object.assign(TUNE, { middleSpeed: 1, tailSpeed: 0.85, noseSpeed: 0.95 });
   waveRef = null;
 }
 
@@ -871,7 +874,7 @@ function stepSurf(r, input, dt) {
       r.onNose = false; r.noseTime = 0; r.tenTime = 0; r.tenDone = false;
     }
     if (n > 0) {
-      r.speed += (PEEL_SPEED - (T.noseUnder || 0) - r.speed) * (1 - Math.exp(-dt * T.noseHold * pk * n)); // (a touch under the curl's speed: the wave adds a little back)
+      r.speed += ((T.noseSpeed ? T.noseSpeed * PEEL_SPEED : PEEL_SPEED - (T.noseUnder || 0)) - r.speed) * (1 - Math.exp(-dt * T.noseHold * pk * n)); // (a touch under the curl's speed: the wave adds a little back)
       const out = clamp(1 - pk / T.nosePocket, 0, 1); // 0 in the pocket .. 1 well out on the shoulder
       r.speed *= Math.exp(-dt * T.noseDrag * out * n);
       r.noseRisk = clamp(r.noseRisk + (out > 0 ? out * n / T.nosePearl : -1.5) * dt, 0, 1);
@@ -980,6 +983,7 @@ function stepSurf(r, input, dt) {
   else if (T.physPocket) target = physCruise(T.physPocket, height, pkSpeed, steepAny);
   r.cruise = target; // (the wave's cruising speed for you here, before feet and foam: tests)
   if (r.foot < 0) target *= 1 - (1 - (T.tailSpeed ?? 1)) * -r.foot; // (standing on the tail the board drags: slower than from the middle)
+  if (r.foot > 0 && T.noseSpeed) target *= 1 - (1 - T.noseSpeed) * r.foot; // (energy pocket, longboard: on the nose a touch under the middle)
   target *= 1 + (T.backSpeed - 1) * sBack + (T.fwdSpeed - 1) * sFwd; // (shortboard feet: back a little slower, forward a little faster)
   // Trimming from the middle is the fast line: a higher cruising speed that it picks up quicker (`middleSpeed`, `middleFeed`).
   const mid = T.middleSpeed ? 1 - Math.min(1, Math.abs(r.foot)) : 0;
@@ -1010,10 +1014,10 @@ function stepSurf(r, input, dt) {
   const dropDrag = T.dropTerminal ? Math.max(0, 1 - (r.speed / T.dropTerminal) ** 2) : 1;
   let gDv = 0; // (energy pocket: gravity's change, added after the acceleration cap: a drop isn't capped, it's g sin(face))
   if (T.energy) {
-    // (on your net height change over the face, the water's lift included: holding a line against the lift is neutral,
-    // so trimming in the pocket stays at the peel; only actually dropping pays and actually climbing costs)
+    // (pointing down pays only for what goes beyond cancelling the water's lift, so holding a line against it is neutral
+    // and trimming in the pocket stays at the peel; climbing costs only your own climb: the lift is the wave's work, free)
     const gSlope = 9.81 * Math.sqrt(Math.max(0, 1 - f.n[1] * f.n[1]));
-    const net = sinp + (T.faceFlow || 0) * steep * pkReach / Math.max(r.speed, 1);
+    const net = sinp < 0 ? Math.min(0, sinp + (T.faceFlow || 0) * steep * pkReach / Math.max(r.speed, 1)) : sinp;
     if (net < 0) gDv = -net * gSlope * dropDrag * (r.postMove ? T.postMoveDrop ?? 1 : 1) * dt;
     else if (!(r.floater && T.floaterSteer)) gDv = -net * gSlope * dt;
   } else if (T.physPocket?.gravity) {
