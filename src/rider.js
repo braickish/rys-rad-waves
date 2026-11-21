@@ -144,8 +144,22 @@ export function useWave(w) {
   Object.assign(TUNE, RIDER_TUNE, WAVE.tune);
   // (nested settings a wave changes only part of, e.g. the reef's `slashTube`, merge over the rider's)
   for (const k of ['slashTube']) if (WAVE.tune && WAVE.tune[k]) TUNE[k] = { ...RIDER_TUNE[k], ...WAVE.tune[k] };
+  if (ENERGY) Object.assign(TUNE, ENERGY_TUNE);
   waveRef = null;
 }
+
+// Energy pocket (trial behind ?energy / ENERGY=1, the user, 2026-11-21): one model for every wave instead of a cruising
+// speed that grows with height.
+// - Holding the pocket = keeping pace with the curl: its cruising speed is 1.0x the local peel speed at any height
+//   (`pocketHold`), fading to vLow off the pocket's power. Nothing makes you faster just for being up high.
+// - Height is stored energy: real gravity on your own motion over the face, g sin(face) x sin(pointing), so a drop pays
+//   sqrt(2 g h) and a climb gives it back. In the wave's frame gravity only works when you move up or down the face.
+// - The wave is the engine: the water rushing up the face lifts you for free (`faceFlow`), so pointing down to hold a
+//   high line turns that lift into speed above the peel; drag (`bleed`) pulls it back toward the peel.
+// - Airs: lift-off physics instead of the 19/21 mph thresholds (Raglan's notes: the board leaves the water over a 3-5 m
+//   crest once v^2/R > g, ~12-15 mph; a usable ~0.5 m pop needs ~16-18 mph), since a climb now costs real speed.
+export const ENERGY = typeof location !== 'undefined' ? /[?&]energy(&|=|$)/.test(location.search) : !!(globalThis.process && process.env.ENERGY);
+const ENERGY_TUNE = { energy: true, pocketHold: 1.0, airSpeedCurl: 7.15, airSpeed: 8.05 }; // (16 / 18 mph)
 
 
 const v3 = {
@@ -962,7 +976,8 @@ function stepSurf(r, input, dt) {
   const pkReach = r.xs > 0 ? pocketPower(Math.max(0, r.xs - T.shoulderReach) / (T.shoulderFade || 1)) : pk; // (shoulderFade: fades over this many times the pocket's own length)
   const pkSpeed = Math.max(pkReach, wall); // (a steep wall anywhere feeds you too: `wallK`)
   let target = T.vLow + (T.vPocket - T.vLow) * pkSpeed * steep * (T.heightSpeed[0] + T.heightSpeed[1] * height);
-  if (T.physPocket) target = physCruise(T.physPocket, height, pkSpeed, steepAny);
+  if (T.energy) target = T.vLow + (T.pocketHold * PEEL_SPEED - T.vLow) * pkSpeed * steepAny; // (energy pocket: 1.0x the peel, any height)
+  else if (T.physPocket) target = physCruise(T.physPocket, height, pkSpeed, steepAny);
   r.cruise = target; // (the wave's cruising speed for you here, before feet and foam: tests)
   if (r.foot < 0) target *= 1 - (1 - (T.tailSpeed ?? 1)) * -r.foot; // (standing on the tail the board drags: slower than from the middle)
   target *= 1 + (T.backSpeed - 1) * sBack + (T.fwdSpeed - 1) * sFwd; // (shortboard feet: back a little slower, forward a little faster)
@@ -993,7 +1008,15 @@ function stepSurf(r, input, dt) {
   // (waves with `dropTerminal`: the faster you already go, the less a drop adds, fading to nothing at that speed, like
   // drag growing with speed; and `postMoveDrop`: dropping back down off a move pays only this much)
   const dropDrag = T.dropTerminal ? Math.max(0, 1 - (r.speed / T.dropTerminal) ** 2) : 1;
-  if (T.physPocket?.gravity) {
+  let gDv = 0; // (energy pocket: gravity's change, added after the acceleration cap: a drop isn't capped, it's g sin(face))
+  if (T.energy) {
+    // (on your net height change over the face, the water's lift included: holding a line against the lift is neutral,
+    // so trimming in the pocket stays at the peel; only actually dropping pays and actually climbing costs)
+    const gSlope = 9.81 * Math.sqrt(Math.max(0, 1 - f.n[1] * f.n[1]));
+    const net = sinp + (T.faceFlow || 0) * steep * pkReach / Math.max(r.speed, 1);
+    if (net < 0) gDv = -net * gSlope * dropDrag * (r.postMove ? T.postMoveDrop ?? 1 : 1) * dt;
+    else if (!(r.floater && T.floaterSteer)) gDv = -net * gSlope * dt;
+  } else if (T.physPocket?.gravity) {
     // (`physPocket.gravity`: real gravity on the slope under the board, both ways: g sin(face angle) x how much you point
     // down / up it, so a drop gains sqrt(2 g x height) and a climb gives it back; drag above `dropTerminal` as before;
     // off a move the drop still pays only `postMoveDrop` until you're back below mid-face)
@@ -1024,6 +1047,7 @@ function stepSurf(r, input, dt) {
   const highDrop = highDropNow;
   const accelCap = T.maxAccel * (1 - (1 - T.maxAccelFast) * sstep(T.accelTaper[0], T.accelTaper[1], speedAtStart)) * (1 + T.highDropAccel * highDrop) * (1 + (T.fwdAccel - 1) * sFwd);
   r.speed = Math.min(r.speed, speedAtStart + accelCap * dt);
+  r.speed += gDv;
   // During a move, and for a moment after it, you don't speed up at all:
   // the move is a turn of the board, not a boost. (Bottom turns excluded.)
   r.calm = Math.max(0, (r.calm || 0) - dt);
