@@ -44,17 +44,21 @@ for (const w of waves) {
     trims.push(`${h} high (peel ${mph(ps / Math.max(1, n))}) ${n ? (vs / ps).toFixed(2) : '-'}x (${n ? mph(vs / n) : '-'} mph, xs ${r.xs.toFixed(1)}${r.mode !== 'surf' ? ', ' + r.mode : ''}${t < 5.9 ? ' @' + t.toFixed(1) + 's' : ''})`);
   }
   console.log('  trim: ' + trims.join(' | '));
-  // a longboard's spots (tail / middle / nose), mid-face in the pocket
-  if (TUNE.middleSpeed) {
-    const spots = [];
-    for (const [label, foot] of [['tail', -1], ['middle', 0], ['nose', 1]]) {
+  // the foot spots (longboard tail / middle / nose; shortboard back / middle / forward): trim mid-face in the pocket
+  // (speed / peel), and a bottom turn from low on the face pointing down at 1.1x the peel (speed out)
+  { const spots = [];
+    const lb = !!TUNE.middleSpeed;
+    for (const [label, s] of lb ? [['tail', -1], ['middle', 0], ['nose', 1]] : [['back', -1], ['middle', 0], ['forward', 1]]) {
+      const at = lb ? { foot: s, footGoal: s } : { shuf: s, shufGoal: s };
       let vs = 0, ps = 0;
-      ride({ xs: 1.5, speed: PEEL_SPEED, foot, footGoal: foot },
+      ride({ xs: 1.5, speed: PEEL_SPEED, ...at },
         (r, tt) => { if (tt > 4) { vs += r.speed; ps += peel(); } return aim(Math.max(-0.6, Math.min(0.6, 3 * (0.5 - r.height)))); }, 10);
-      spots.push(`${label} ${ps ? (vs / ps).toFixed(2) : '-'}x`);
+      let vIn = null;
+      const { r } = ride({ xs: 2, speed: PEEL_SPEED * 1.1, ...at },
+        (r) => { if (vIn === null) { r.t = TUNE.tBottom - 0.6; r.phi = -0.9; vIn = r.speed; } return { turn: 1 }; }, 2, (r) => Math.sin(r.phi) > 0.5);
+      spots.push(`${label} trim ${ps ? (vs / ps).toFixed(2) : '-'}x, bottom turn ${mph(vIn)} -> ${mph(r.speed)}`);
     }
-    console.log('  feet: ' + spots.join(' | '));
-  }
+    console.log('  feet: ' + spots.join(' | ')); }
   // drop from the top
   { let v0 = null;
     const { r } = ride({ xs: 2, speed: PEEL_SPEED },
