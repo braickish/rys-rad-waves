@@ -150,7 +150,9 @@ export function useWave(w) {
   // split, both ways: the rail share drives in full, the pivot share `pivotDriveK` of that (no full-drive turns toward
   // the face, `pivotDriveUp`; the user, 2026-11-21: pivot share at 0.5 stalled too much, 0.75: at 50% pivot toward the
   // face that's 0.875x a carve's drive, at 85% away 0.79x)
-  if (ENERGY && TUNE.middleSpeed) Object.assign(TUNE, { middleSpeed: 1, tailSpeed: 0.85, noseSpeed: 0.95, pivotDriveUp: undefined, pivotDriveK: 0.75 });
+  if (ENERGY && TUNE.middleSpeed) Object.assign(TUNE, { middleSpeed: 1, tailSpeed: 0.85, noseSpeed: 0.95, pivotDriveUp: undefined, pivotDriveK: 0.75,
+    // (the pivot share by speed: slow (<= 7 mph) 85% away from the face / 50% toward it, fast (>= 15 mph) 60% / 35%)
+    pivotFastSpeeds: [3.13, 6.71], pivotMaxFast: 0.6, pivotMaxUpFast: 0.35 });
   waveRef = null;
 }
 
@@ -753,7 +755,10 @@ function stepSurf(r, input, dt) {
     // coming back up) slowed to the toward-the-wall setting. Toward the wall = the swing's first ~25 deg takes the
     // nose further up the face (from straight down either way is toward the wall, from straight up either way away).
     // (r.pivotUp: toward the wall or away, decided once per turn where the turn starts, above)
-    const pmax = r.pivotUp ? (T.pivotMaxUp ?? T.pivotMax ?? 1) : (T.pivotMax ?? 1);
+    let pmax = r.pivotUp ? (T.pivotMaxUp ?? T.pivotMax ?? 1) : (T.pivotMax ?? 1);
+    // (`pivotFastSpeeds`: the pivot share falls with speed, the rail biting harder as the board planes: from the share
+    // above at the slow speed to `pivotMaxFast` / `pivotMaxUpFast` at the fast one; the user, 2026-11-21)
+    if (T.pivotFastSpeeds) pmax += ((r.pivotUp ? T.pivotMaxUpFast : T.pivotMaxFast) - pmax) * sstep(T.pivotFastSpeeds[0], T.pivotFastSpeeds[1], r.speed);
     const pv = (r.pivotHeld && !r.tube ? 1 : allow) * Math.max(0, -r.foot) * pmax; // (the tail spot is just ahead of the very tail, so it's part pivot, part rail)
     r.pivot += (pv - r.pivot) * (1 - Math.exp(-dt / 0.08));
   }
