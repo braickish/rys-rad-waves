@@ -500,9 +500,11 @@ First named Performance Peak (renamed 2026-11-21, the user).
     In the tube: past `tubeCollapse` = pinched; driving straight into the
     roof = over the falls (it used to deflect you back down unless steeper than `roofCrash`; removed). On the reef the water rushes up the face
     (`faceFlow`, scaled by steepness and pocket power): riding level drifts you up, you hold your line
-    pointing about 23 degrees down. Every wave's flow is 0.46 x its wave speed c = sqrt(g (depth + H)) at
-    breaking, Pipe's tuned 5.7 m/s being the reference (the user, 2026-11-21): Raglan 4.3 (c 9.4), Trestles and
-    Dynamic 3.7 (c 8.1), Queens 2.5 (c 5.5). In the tube, trimming flat or pointing down the
+    pointing about 23 degrees down. Every wave's flow is `faceFlowK` 0.46 x its wave speed c = sqrt(g (depth + H))
+    at breaking, measured live from the wave's current shape (rider.js `faceFlow()`; Pipe's tuned 5.7 m/s is the
+    reference; the user, 2026-11-21): Pipe 5.7 (c 12.4), Raglan 4.3 (c 9.4), Queens 2.5 (c 5.5); Trestles and
+    Dynamic 3.6 at the peak easing to 3.1 inside as the bar reshapes the wave; sets scale it (Pipe 5.1 / 6.2 at
+    0.8x / 1.2x). It follows the wave's size, not the peel speed. In the tube, trimming flat or pointing down the
     line adds acceleration (`tubeDrive`) (brushing it deflects you down); way below the bottom
     (`tubeLow`) = the lip lands on you; back past `tubeExit` = out. Caught way up in the lip as it throws
     (`tubeTooHigh`), or riding in the top 3/8 of the barrel (`tubeFallHeight`) = over the falls. The barrel

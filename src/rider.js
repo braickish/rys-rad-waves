@@ -412,6 +412,21 @@ export function dropInSpeed() {
 // the descent). Not in the tube, where it's what keeps you off the bottom.
 function liftTop(r, height) { return TUNE.energy && !r.tube ? 1 - sstep(0.8, 1.0, height) : 1; }
 
+// How fast the water rushes up the face (m/s): `faceFlowK` x the wave's speed c = sqrt(g (depth + H)) at breaking,
+// depth ~ H / 0.78, H the face's height at the curl as the wave is shaped right now (the user, 2026-11-21: Pipe's tuned
+// 5.7 m/s is 0.46 c; every wave follows the same rule). On Trestles and Dynamic the bar reshapes the wave section by
+// section as you ride, and sets come bigger or smaller, so the flow follows the wave you're on. (`faceFlow`: a fixed
+// value instead, for a wave without `faceFlowK`.)
+let flowRef = null;
+export function waveC() {
+  if (!flowRef || flowRef.scale !== SCALE || flowRef.ver !== SHAPE.ver || flowRef.id !== WAVE.id) {
+    const H = Math.max(0.3, surface(0.5, topOfFace(0.5))[1] - surface(0.5, TUNE.tBottom)[1]);
+    flowRef = { c: Math.sqrt(9.81 * H * (1 + 1 / 0.78)), scale: SCALE, ver: SHAPE.ver, id: WAVE.id };
+  }
+  return flowRef.c;
+}
+export const faceFlow = () => (TUNE.faceFlowK ? TUNE.faceFlowK * waveC() : TUNE.faceFlow || 0);
+
 export function resetRider(r) {
   Object.assign(r, createRider());
   if (TUNE.startXs != null) r.xs = TUNE.startXs; // where this wave drops you in
@@ -1052,7 +1067,7 @@ function stepSurf(r, input, dt) {
     // (pointing down pays only for what goes beyond cancelling the water's lift, so holding a line against it is neutral
     // and trimming in the pocket stays at the peel; climbing costs only your own climb: the lift is the wave's work, free)
     let gSlope = 9.81 * Math.sqrt(Math.max(0, 1 - f.n[1] * f.n[1]));
-    const net = sinp < 0 ? Math.min(0, sinp + (T.faceFlow || 0) * steep * pkReach * liftTop(r, height) / Math.max(r.speed, 1)) : sinp;
+    const net = sinp < 0 ? Math.min(0, sinp + faceFlow() * steep * pkReach * liftTop(r, height) / Math.max(r.speed, 1)) : sinp;
     // Heading down from the lip or in the whitewater, gravity works at the face's steepest angle, not the nearly level
     // crest under the board (8 deg at Raglan's lip): the lip is throwing and the face standing up under you, so the wave
     // drops away beneath you (the user, 2026-11-21: you got stuck on the lip). Going down only (climbing into the lip
@@ -1133,7 +1148,7 @@ function stepSurf(r, input, dt) {
   }
   // On a heavy wave the water rushes up the face and carries you with it:
   // trimming level drifts you up, so you hold your line pointing a little down.
-  let faceLift = (T.faceFlow || 0) * steep * pkReach * liftTop(r, height); // (carries as far out as the pocket's speed; not the wall's)
+  let faceLift = faceFlow() * steep * pkReach * liftTop(r, height); // (carries as far out as the pocket's speed; not the wall's)
   if (r.tube && (r.slide > 0 || (r.slash && r.slash.released))) faceLift *= T.slashTube.lift; // a barrel slash digs in against the water rushing up
   let rise = r.speed * sinp + faceLift;
   // In the barrel, heading up the face is slowed (`tubeClimbDamp`, more the deeper you are) so a turn

@@ -124,7 +124,6 @@ export default {
     // wallPower; the user, 2026-11-19: up-and-down carves on a steep section ahead should make speed, so you can make
     // it). Mid-face angle 17 deg (the fat shoulder) -> 0, 28 deg (a section about to break) -> full.
     wallK: 0.65, wallAngles: [17, 28],
-    faceFlow: 3.7, // water flowing up the face (m/s): 0.46 x c 8.1 m/s, as Pipe (reef.js; was Raglan's 3.8). Dynamic too.
     // The pocket's cruising speed from wave physics and surfers' GPS speeds (rider.js physCruise): c 6.5 m/s at the break,
     // over the ground 1.2 / 1.45 / 1.8 c low / mid / high on the face (~17 / 21 / 26 mph; GPS: recreational max ~21,
     // pros ~25, record 28), and never slower than 1.03 x the peel (you can hold the pocket). The HUD shows the board's
