@@ -407,6 +407,11 @@ export function dropInSpeed() {
   if (WAVE.bar && RIDE.map) { const dt = breaksAt(30) - breaksAt(0); v = dt > 0 ? 30 / dt : TUNE.softMax; }
   return clamp(v, TUNE.vLow, TUNE.softMax);
 }
+// The water rushing up the face fades out over the top of the face (energy pocket, the user, 2026-11-21): at full
+// strength right up to the crest it held a rider under ~14 mph pinned on Pipe's lip pointing down (its 5.7 m/s beat
+// the descent). Not in the tube, where it's what keeps you off the bottom.
+function liftTop(r, height) { return TUNE.energy && !r.tube ? 1 - sstep(0.8, 1.0, height) : 1; }
+
 export function resetRider(r) {
   Object.assign(r, createRider());
   if (TUNE.startXs != null) r.xs = TUNE.startXs; // where this wave drops you in
@@ -1047,7 +1052,7 @@ function stepSurf(r, input, dt) {
     // (pointing down pays only for what goes beyond cancelling the water's lift, so holding a line against it is neutral
     // and trimming in the pocket stays at the peel; climbing costs only your own climb: the lift is the wave's work, free)
     let gSlope = 9.81 * Math.sqrt(Math.max(0, 1 - f.n[1] * f.n[1]));
-    const net = sinp < 0 ? Math.min(0, sinp + (T.faceFlow || 0) * steep * pkReach / Math.max(r.speed, 1)) : sinp;
+    const net = sinp < 0 ? Math.min(0, sinp + (T.faceFlow || 0) * steep * pkReach * liftTop(r, height) / Math.max(r.speed, 1)) : sinp;
     // Heading down from the lip or in the whitewater, gravity works at the face's steepest angle, not the nearly level
     // crest under the board (8 deg at Raglan's lip): the lip is throwing and the face standing up under you, so the wave
     // drops away beneath you (the user, 2026-11-21: you got stuck on the lip). Going down only (climbing into the lip
@@ -1128,7 +1133,7 @@ function stepSurf(r, input, dt) {
   }
   // On a heavy wave the water rushes up the face and carries you with it:
   // trimming level drifts you up, so you hold your line pointing a little down.
-  let faceLift = (T.faceFlow || 0) * steep * pkReach; // (carries as far out as the pocket's speed; not the wall's)
+  let faceLift = (T.faceFlow || 0) * steep * pkReach * liftTop(r, height); // (carries as far out as the pocket's speed; not the wall's)
   if (r.tube && (r.slide > 0 || (r.slash && r.slash.released))) faceLift *= T.slashTube.lift; // a barrel slash digs in against the water rushing up
   let rise = r.speed * sinp + faceLift;
   // In the barrel, heading up the face is slowed (`tubeClimbDamp`, more the deeper you are) so a turn
