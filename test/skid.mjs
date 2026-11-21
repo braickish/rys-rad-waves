@@ -1,8 +1,8 @@
-// Shortboard bottom turns at low speed (rider.js `skidDriveK`, ENERGY=1; the user, 2026-11-21): below ~17 mph a bottom
+// Shortboard bottom turns at low speed (rider.js `skidDriveK`; the user, 2026-11-21): below ~17 mph a bottom
 // turn runs on the minimum turn rate, faster than a carve at that speed, so part of it is the tail skidding round and
 // drives at skidDriveK of a carve. From low on the face pointing down, hold a turn up the face until the nose points
 // ~30 deg up it: the skid share, the turn drive banked, speed in -> out. NOSKID=1: every radian drives in full.
-//   ENERGY=1 node test/skid.mjs [wave ...]
+//   node test/skid.mjs [wave ...]
 import { createRider, stepRider, useWave, TUNE } from '../src/rider.js';
 const dt = 1 / 120, mph = (v) => (v * 2.237).toFixed(1);
 const waves = process.argv.length > 2 ? process.argv.slice(2) : ['point', 'reef', 'trestles', 'peak'];

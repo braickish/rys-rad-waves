@@ -277,7 +277,21 @@ Trestles wave any way we can"). Research, simulations and the pipeline for new r
   `-Px.y·dxs/Pt.y`): staying at the same place in the cross-section carried you up and down over a
   lump that wasn't in the water. (A post-exit angle correction and a full re-solve of motion in
   the level frame were tried first: the first was a patch, the second changed how the barrel rode.)
-  - Speed: the pocket feeds you toward a fast cruising speed (`vPocket`, faster higher on the face);
+  - **Energy pocket** (2026-11-21, the user; rider.js `ENERGY_TUNE`, live on every wave; it overrides parts of the speed
+    model described below): holding the pocket means keeping pace with the curl, so the cruising target is 1.0x the
+    local peel at any height (`pocketHold`), fading to `vLow` off the pocket. Height is stored energy: real gravity on
+    your height change over the face (g sin(face) x sin(pointing), uncapped by `maxAccel`); pointing down pays only beyond
+    cancelling the water's lift (`faceFlow`), so holding a line is neutral, and climbing costs only your own climb (the
+    lift is free). Drag (`bleed`) pulls extra speed back to the peel. You drop in at 1.0x the peel (`dropInSpeed`; bar
+    waves: the takeoff's average curl speed over its first 30 m). Air thresholds are lift-off physics: 16 mph at the
+    curl, 18 out. Foot spots as ratios of that speed: longboard middle 1.0x / nose 0.95x / tail 0.85x (a stall);
+    shortboard back 0.95x / forward 1.04x. A longboard tail turn drives by its split (rail share in full, pivot share
+    `pivotDriveK` 0.75), and the pivot share falls with speed (`pivotFastSpeeds`: 85% / 50% away from / toward the face at
+    <= 7 mph, 60% / 35% at >= 15 mph). A shortboard turn's skid share (faster than speed / radius) drives at
+    `skidDriveK` 0.75. In the tube: no `tubeDrive` / `trimCap`; the front-foot lean trims 1.04x; the back foot is the
+    stall, 0.85x (`tubeBackSpeed`). Tests: energy, pivotshare, skid, tubetrim. Trestles' `physPocket` cruise is no longer
+    used; the wall (`wallK`) now pays ~+1.4 mph on a steep section (was +2.2; test/wallspeed.mjs's 1.5 mph check fails).
+  - Speed (the original arcade model; see the energy pocket above): the pocket feeds you toward a fast cruising speed (`vPocket`, faster higher on the face);
     the shoulder, flat water and foam bleed you down (`vLow`, `vFoam`). Dropping pays a lot (`drop`);
     climbing costs real speed (`climb`) and the pocket stops feeding you while you point up the face; dropping from
     the top half of the pocket pays most (`topDropBoost`, scaled by pocket power so the shoulder still bogs); pointing down high up also
@@ -739,6 +753,10 @@ node test/moves.mjs    # audit every move: peak acceleration, speed before/after
 node test/controls.mjs # human-style inputs on both waves: no glitches, Up/Down never flips you
 node test/pocket.mjs   # where different riding styles spend their time vs. the curl
 node test/shuffle.mjs  # shortboard feet: back / middle / forward, turn and speed effects on Raglan and Pipe
+node test/energy.mjs   # energy pocket per wave: trim / peel at three heights, foot spots, drop, lip speed, pocket bot
+node test/pivotshare.mjs # longboard tail turns at 7 / 11 / 15 mph: pivot share, turn time, speed (vs the middle)
+node test/skid.mjs     # shortboard bottom turns at 10 / 13 / 17 mph: skid share and drive (NOSKID=1 to compare)
+node test/tubetrim.mjs # Pipe: holding a line in the tube with each foot spot: speed / peel, depth, time in
 node test/elbows.mjs   # skinned-body elbows: jump per frame and upper-arm twist flips (lower is smoother)
 node test/arms.mjs     # how jerkily the hands move against the shoulders while riding (lower is smoother)
 node test/slash.mjs    # the slash: when it fires (and doesn't), climb, speed scrub, slide, turn; point, reef, barrel

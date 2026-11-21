@@ -1,8 +1,8 @@
-// Trimming in the barrel (Pipe), for the energy pocket's tube rules (ENERGY=1, the user, 2026-11-21: no tube engine
+// Trimming in the barrel (Pipe), for the energy pocket's tube rules (the user, 2026-11-21: no tube engine
 // or speed holder; a high line is fast by gravity; the back foot is the stall). Pulls in the way test/tube.mjs does
 // (stall low by the curl until the tube comes over you), then with each shortboard foot spot holds a line at a height
 // for up to 5 s: speed / peel in the tube, how deep you go, how long you stay in, and how it ends.
-//   ENERGY=1 node test/tubetrim.mjs
+//   node test/tubetrim.mjs
 import { createRider, stepRider, useWave, tubeDepth } from '../src/rider.js';
 import { PEEL_SPEED } from '../src/wave.js';
 const dt = 1 / 120;

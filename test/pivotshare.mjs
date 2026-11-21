@@ -1,8 +1,8 @@
-// Longboard tail turns by speed (Queens; with ENERGY=1 the pivot share falls with speed, the user, 2026-11-21: slow
+// Longboard tail turns by speed (Queens; the pivot share falls with speed, the user, 2026-11-21: slow
 // 85% pivot away from the face / 50% toward it, fast 60% / 35%). From mid-face, riding level along the wave, hold a
 // turn down the face (away) or up it (toward) for 70 degrees: the pivot share reached, how long it took, speed in -> out.
 // The middle of the board (all rail) for comparison.
-//   ENERGY=1 node test/pivotshare.mjs
+//   node test/pivotshare.mjs
 import { createRider, stepRider, useWave, TUNE } from '../src/rider.js';
 const dt = 1 / 120, mph = (v) => (v * 2.237).toFixed(1);
 useWave('queens');

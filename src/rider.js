@@ -156,7 +156,7 @@ export function useWave(w) {
   waveRef = null;
 }
 
-// Energy pocket (trial behind ?energy / ENERGY=1, the user, 2026-11-21): one model for every wave instead of a cruising
+// Energy pocket (the user, 2026-11-21; a trial behind ?energy, then made the model for every wave): instead of a cruising
 // speed that grows with height.
 // - Holding the pocket = keeping pace with the curl: its cruising speed is 1.0x the local peel speed at any height
 //   (`pocketHold`), fading to vLow off the pocket's power. Nothing makes you faster just for being up high.
@@ -166,7 +166,7 @@ export function useWave(w) {
 //   high line turns that lift into speed above the peel; drag (`bleed`) pulls it back toward the peel.
 // - Airs: lift-off physics instead of the 19/21 mph thresholds (Raglan's notes: the board leaves the water over a 3-5 m
 //   crest once v^2/R > g, ~12-15 mph; a usable ~0.5 m pop needs ~16-18 mph), since a climb now costs real speed.
-export const ENERGY = typeof location !== 'undefined' ? /[?&]energy(&|=|$)/.test(location.search) : !!(globalThis.process && process.env.ENERGY);
+export const ENERGY = true; // (was a trial behind ?energy; live for every wave since 2026-11-21, the user)
 const ENERGY_TUNE = { energy: true, pocketHold: 1.0, airSpeedCurl: 7.15, airSpeed: 8.05, skidDriveK: 0.75, // (16 / 18 mph)
   // In the tube (the user, 2026-11-21): no tube engine (`tubeDrive`) or speed holder (`trimCap`): the tube is the
   // pocket at its steepest, 1.0x the peel, a high line fast by gravity, a climb toward the roof costly; deep in, the

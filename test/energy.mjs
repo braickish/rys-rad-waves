@@ -1,11 +1,11 @@
-// Energy pocket check (rider.js ENERGY, the user, 2026-11-21: holding the pocket should be 1.0x the peel; extra speed
+// Energy pocket check (rider.js energy pocket, the user, 2026-11-21: holding the pocket should be 1.0x the peel; extra speed
 // from height). For each wave:
 //   trim: hold a low / mid / high line near the curl for 6 s (steering only to keep the height): board speed / peel,
 //         and how far you drift from the curl
 //   drop: from the top, straight down the face: speed at the bottom
 //   lip:  from the bottom, straight up into the lip: speed at the top, and what you get (vs the air threshold)
 //   bot:  30 s of S-turns in the pocket: average / top speed, airs
-//   ENERGY=1 node test/energy.mjs [wave ...]      (without ENERGY: the current model, for comparison)
+//   node test/energy.mjs [wave ...]
 import { createRider, stepRider, useWave, TUNE, airSpeedAt } from '../src/rider.js';
 import { PEEL_SPEED } from '../src/wave.js';
 import { nextWave, stepSea, seedSea } from '../src/sea.js';
