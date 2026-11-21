@@ -167,7 +167,7 @@ export function useWave(w) {
 // - Airs: lift-off physics instead of the 19/21 mph thresholds (Raglan's notes: the board leaves the water over a 3-5 m
 //   crest once v^2/R > g, ~12-15 mph; a usable ~0.5 m pop needs ~16-18 mph), since a climb now costs real speed.
 export const ENERGY = typeof location !== 'undefined' ? /[?&]energy(&|=|$)/.test(location.search) : !!(globalThis.process && process.env.ENERGY);
-const ENERGY_TUNE = { energy: true, pocketHold: 1.0, airSpeedCurl: 7.15, airSpeed: 8.05 }; // (16 / 18 mph)
+const ENERGY_TUNE = { energy: true, pocketHold: 1.0, airSpeedCurl: 7.15, airSpeed: 8.05, skidDriveK: 0.75 }; // (16 / 18 mph)
 
 
 const v3 = {
@@ -683,6 +683,13 @@ function stepSurf(r, input, dt) {
   const rateCap = T.turn * (1 + (T.hardRate - 1) * hard) * shufT;
   let rate = (1 - (T.tubeTurnDamp || 0) * r.tubeDamp) * (1 - (T.noseTurnDamp || 0) * r.nose) * clamp(r.speed / radius, T.minTurn, rateCap); // (damped in the barrel: subtler turns the deeper you are)
   if (sBack > 0) rate += (rateCap * (1 - (T.tubeTurnDamp || 0) * r.tubeDamp) - rate) * T.backPivot * sBack; // (back foot: a little more pivot, less tied to speed)
+  // (energy pocket, shortboards, `skidDriveK`: the share of this turn's rate beyond what a carve at this speed can make,
+  // speed / radius, comes from the minimum turn rate and the back foot's pivot: the tail skidding round, not the rail.
+  // It drives at `skidDriveK` of a carve, like a longboard's pivot share; the user, 2026-11-21)
+  if (T.skidDriveK != null && !T.pivotRate) {
+    const carve = (1 - (T.tubeTurnDamp || 0) * r.tubeDamp) * (1 - (T.noseTurnDamp || 0) * r.nose) * r.speed / radius;
+    r.skid = rate > carve ? 1 - carve / rate : 0;
+  } else r.skid = 0;
   // Fin pivot (longboard, `pivotRate`): stepped back on the tail, the board swings round
   // the fin at its own rate, however slow you're going, instead of carving an arc on the rail.
   // (turning away from the lip, nose swinging down the face, it pivots quicker: `pivotDownRate`)
@@ -957,7 +964,8 @@ function stepSurf(r, input, dt) {
   const driveLow = 1 - sstep(0.35, 0.9, height); // starts higher up the face, and works out on the flats too
   const high = sstep(0.55, 0.95, height);
   // (Only your own carving drives you, not the quick assisted pivots.)
-  const pivotK = 1 - (r.pivot || 0) * (1 - ((r.pivotUp ? T.pivotDriveUp : null) ?? T.pivotDriveK ?? 0)); // (a fin pivot isn't on the rail: only `pivotDriveK` of a carve's drive, `pivotDriveUp` turning toward the lip)
+  const pivotK = (1 - (r.pivot || 0) * (1 - ((r.pivotUp ? T.pivotDriveUp : null) ?? T.pivotDriveK ?? 0))) // (a fin pivot isn't on the rail: only `pivotDriveK` of a carve's drive, `pivotDriveUp` turning toward the lip)
+    * (1 - (r.skid || 0) * (1 - (T.skidDriveK ?? 1))); // (energy pocket: a shortboard's skid share, above)
   const carveDrive = (r.bottomCarve ? T.bottomCarveDrive : 1 + 0.35 * hard) * pivotK;
   // Turn drive goes into a buffer that releases smoothly, so speed builds
   // through the turn instead of jumping.
