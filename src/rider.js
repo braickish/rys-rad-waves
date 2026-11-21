@@ -1448,6 +1448,9 @@ function checkHazards(r, dt) {
     }
     if (RIDE.time - RIDE.closed.time > WAVE.bar.end) return startStepOff(r, 'You rode it to the end of the wave!');
   }
+  // (a wave whose right just stops breaking, the Peak: the shoulder backs off, nothing closes out; you step off
+  // `fadeEnd` s after the curl reaches the end)
+  if (WAVE.bar && RIDE.done && !RIDE.closed && !r.tube && RIDE.time - RIDE.done.time > (WAVE.bar.fadeEnd ?? WAVE.bar.end)) return startStepOff(r, 'You rode it to the end of the wave!');
   // The foam only takes you if you sit in it.
   if (r.foam > 0.6 && !r.floater && !(r.boost > 0) && !climbingFoam(r)) r.foamTime += dt; // floating on it, carrying out of a move, or climbing it doesn't count
   else r.foamTime = Math.max(0, r.foamTime - dt * 2);

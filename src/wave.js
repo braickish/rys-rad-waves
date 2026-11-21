@@ -87,7 +87,7 @@ export function sectionGrace(xs) {
   return xs !== undefined && RIDE.c + xs > RIDE.front + 2 && RIDE.time > breaksAt(RIDE.c + xs) - 0.5;
 }
 export function startRide() {
-  RIDE.time = 0; RIDE.c = 0; RIDE.front = 0; RIDE.closed = null; RIDE.closing = false; RIDE.sectionT = -Infinity;
+  RIDE.time = 0; RIDE.c = 0; RIDE.front = 0; RIDE.closed = null; RIDE.closing = false; RIDE.sectionT = -Infinity; RIDE.done = null;
   if (!WAVE.bar) return;
   RIDE.time = -(WAVE.bar.lead || 0); // (you drop in as the peak stands up, `lead` s before it breaks)
   // (which simulated waves: `bar.use` (the user kept 545, 2026-11-19: 1139 closed out too quickly), or ?map=<wave>)
@@ -95,7 +95,7 @@ export function startRide() {
   const all = WAVE.bar.maps, maps = all.filter((m) => (want ? m.wave === want : !WAVE.bar.use || WAVE.bar.use.includes(m.wave)));
   RIDE.k = (RIDE.k + 1) % maps.length;
   const m = maps[RIDE.k];
-  RIDE.map = { d0: m.d0, step: m.step, tb: m.tb, up: m.up, wave: m.wave, swell: m.swell };
+  RIDE.map = { d0: m.d0, step: m.step, tb: m.tb, up: m.up, wave: m.wave, swell: m.swell, end: m.end };
   RIDE.closeAt = closeoutAt();
   applyBar();
 }
@@ -154,6 +154,9 @@ export function stepRide(dt) {
       if (b > a && t > a) f += m.step * Math.min(1, (t - a) / (b - a));
     }
     RIDE.front = Math.max(RIDE.front, f);
+    // (maps with `end`, the Peak: past where the right stops breaking the curl slows to a stop (the map fades it out); the
+    // wave is done once the curl gets there, and the ride ends `bar.fadeEnd` s later, rider.js checkHazards)
+    if (m.end != null && !RIDE.done && RIDE.front >= m.end) RIDE.done = { time: t, c: RIDE.front };
     // (closing: water within 80 m ahead of the curl, past the closeout spot, has already broken: the inside, broken on its own, coming to meet it)
     if (!RIDE.closing) for (let d = 2 * m.step; d <= 80; d += m.step) if (RIDE.front + d > RIDE.closeAt && breaksAt(RIDE.front + d) < t) { RIDE.closing = true; break; }
   }

@@ -20,6 +20,7 @@ export default {
   green: 0, // clear tropical water over reef
   bar: {
     ...trestles.bar,
+    fadeEnd: 4, // (the right just stops breaking: you step off this many s after the curl reaches its end; the user, 2026-11-21)
     maps: BREAKS,
     use: BREAKS.map((m) => m.wave), // every simulated wave, one per ride
   },
