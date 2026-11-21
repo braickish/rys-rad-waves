@@ -146,8 +146,10 @@ export function useWave(w) {
   for (const k of ['slashTube']) if (WAVE.tune && WAVE.tune[k]) TUNE[k] = { ...RIDER_TUNE[k], ...WAVE.tune[k] };
   if (ENERGY) Object.assign(TUNE, ENERGY_TUNE);
   // (a longboard's spots as ratios of the same pocket speed, the user, 2026-11-21: the middle is the sweet spot, 1.0x;
-  // the nose a touch under, 0.95x, held by the pocket; the tail a real stall, 0.85x)
-  if (ENERGY && TUNE.middleSpeed) Object.assign(TUNE, { middleSpeed: 1, tailSpeed: 0.85, noseSpeed: 0.95 });
+  // the nose a touch under, 0.95x, held by the pocket; the tail a real stall, 0.85x). A tail turn's drive goes by its
+  // split, both ways: the rail share drives in full, the pivot share `pivotDriveK` (0.5) of that (no full-drive turns
+  // toward the face, `pivotDriveUp`: at 50% pivot that's 0.75x a carve's drive; the user, 2026-11-21)
+  if (ENERGY && TUNE.middleSpeed) Object.assign(TUNE, { middleSpeed: 1, tailSpeed: 0.85, noseSpeed: 0.95, pivotDriveUp: undefined });
   waveRef = null;
 }
 
