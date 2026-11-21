@@ -147,9 +147,10 @@ export function useWave(w) {
   if (ENERGY) Object.assign(TUNE, ENERGY_TUNE);
   // (a longboard's spots as ratios of the same pocket speed, the user, 2026-11-21: the middle is the sweet spot, 1.0x;
   // the nose a touch under, 0.95x, held by the pocket; the tail a real stall, 0.85x). A tail turn's drive goes by its
-  // split, both ways: the rail share drives in full, the pivot share `pivotDriveK` (0.5) of that (no full-drive turns
-  // toward the face, `pivotDriveUp`: at 50% pivot that's 0.75x a carve's drive; the user, 2026-11-21)
-  if (ENERGY && TUNE.middleSpeed) Object.assign(TUNE, { middleSpeed: 1, tailSpeed: 0.85, noseSpeed: 0.95, pivotDriveUp: undefined });
+  // split, both ways: the rail share drives in full, the pivot share `pivotDriveK` of that (no full-drive turns toward
+  // the face, `pivotDriveUp`; the user, 2026-11-21: pivot share at 0.5 stalled too much, 0.75: at 50% pivot toward the
+  // face that's 0.875x a carve's drive, at 85% away 0.79x)
+  if (ENERGY && TUNE.middleSpeed) Object.assign(TUNE, { middleSpeed: 1, tailSpeed: 0.85, noseSpeed: 0.95, pivotDriveUp: undefined, pivotDriveK: 0.75 });
   waveRef = null;
 }
 
