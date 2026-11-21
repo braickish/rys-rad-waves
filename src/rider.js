@@ -21,7 +21,7 @@
 //  - Turning back into the whitewater, high, turning as you hit: rebound.
 //    Sit in the foam too long and it takes you.
 
-import { surface, slice, phaseAt, verticalHits, segmentHit, PEEL_SPEED, WAVE_SPEED, NP, WAVE, setWave, SCALE, controlPoints, crPoint, SHAPE, withShape, RIDE, sectionGrace } from './wave.js';
+import { surface, slice, phaseAt, verticalHits, segmentHit, PEEL_SPEED, WAVE_SPEED, NP, WAVE, setWave, SCALE, controlPoints, crPoint, SHAPE, withShape, RIDE, sectionGrace, breaksAt } from './wave.js';
 
 export const G = 9.8;
 // The rider's and board's settings. Wave-specific settings (pocket speeds,
@@ -390,9 +390,18 @@ export function createRider() {
   };
 }
 
+// The drop-in speed with the energy pocket (the user, 2026-11-21): 1.0x the peel, so you start out keeping pace with the
+// curl and the drop's own height (gravity) gets you up to speed, as on a real takeoff. Bar waves (Trestles, the Peak)
+// start before the peak breaks (peel 0 then), so theirs is the takeoff's average curl speed over its first 30 m.
+export function dropInSpeed() {
+  let v = PEEL_SPEED;
+  if (WAVE.bar && RIDE.map) { const dt = breaksAt(30) - breaksAt(0); v = dt > 0 ? 30 / dt : TUNE.softMax; }
+  return clamp(v, TUNE.vLow, TUNE.softMax);
+}
 export function resetRider(r) {
   Object.assign(r, createRider());
   if (TUNE.startXs != null) r.xs = TUNE.startXs; // where this wave drops you in
+  if (TUNE.energy) r.speed = dropInSpeed(); // (energy pocket: you drop in keeping pace with the curl; the drop adds the rest)
   syncPose(r, frameAt(r.xs, r.t));
 }
 
