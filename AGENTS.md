@@ -500,8 +500,9 @@ First named Performance Peak (renamed 2026-11-21, the user).
     In the tube: past `tubeCollapse` = pinched; driving straight into the
     roof = over the falls (it used to deflect you back down unless steeper than `roofCrash`; removed). On the reef the water rushes up the face
     (`faceFlow`, scaled by steepness and pocket power): riding level drifts you up, you hold your line
-    pointing about 23 degrees down. The point has 2/3 of the reef's flow (3.8 vs 5.7 m/s): you hold
-    your line about 12 degrees down there. In the tube, trimming flat or pointing down the
+    pointing about 23 degrees down. Every wave's flow is 0.46 x its wave speed c = sqrt(g (depth + H)) at
+    breaking, Pipe's tuned 5.7 m/s being the reference (the user, 2026-11-21): Raglan 4.3 (c 9.4), Trestles and
+    Dynamic 3.7 (c 8.1), Queens 2.5 (c 5.5). In the tube, trimming flat or pointing down the
     line adds acceleration (`tubeDrive`) (brushing it deflects you down); way below the bottom
     (`tubeLow`) = the lip lands on you; back past `tubeExit` = out. Caught way up in the lip as it throws
     (`tubeTooHigh`), or riding in the top 3/8 of the barrel (`tubeFallHeight`) = over the falls. The barrel

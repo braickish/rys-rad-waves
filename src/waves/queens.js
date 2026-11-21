@@ -84,7 +84,7 @@ export default {
     roundhouseMaxRate: 4.0, roundhouseNoDrive: true, roundhouseZone: 3.0, roundhousePocket: 0.65,
     tTop: 5.3, tBottom: 13.9, tFlats: 14.6,
     shoulderReach: 2.0,
-    faceFlow: 0.8,
+    faceFlow: 2.5, // water flowing up the face (m/s): 0.46 x c 5.5 m/s, as Pipe (reef.js; was 0.8; the user, 2026-11-21: harder, but likely right)
     // Noseriding (rider.js): walking up and back, steering, holding the pocket, pearling.
     noseWalkUp: 1.1, noseWalkBack: 0.8, // seconds to walk to the nose / back
     noseTurnDamp: 0.55, // on the nose you steer only a little (was 0.8; the user wanted a bit more turn)

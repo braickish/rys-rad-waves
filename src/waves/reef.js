@@ -83,7 +83,7 @@ const reef = {
     airs: false,
     shoulderReach: 6, // the pocket's speed carries this much further out toward the shoulder (m, x size; was 0: the user found the speed died too soon going out)
     startXs: 5, // drop in a little further along: the tall wall stands up well ahead of the curl
-    faceFlow: 5.7, // water rushing up the face (m/s): point a little down to hold your line
+    faceFlow: 5.7, // water rushing up the face (m/s): point ~20 deg down to hold your line. The reference: every wave's faceFlow is 0.46 x its wave speed c = sqrt(g (depth + H)) at breaking (Pipe 12.4 m/s; the user, 2026-11-21)
     floaters: false, rebounds: false, // too heavy: hit the whitewater or the lip next to it and you go over the falls
     // Tube riding (see stepTube in rider.js).
     tubeEnter: 0.12, // the curl has passed you: you're in the tube
