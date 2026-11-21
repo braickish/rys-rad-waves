@@ -1,4 +1,4 @@
-// Performance Peak break maps: when each spot along the wave breaks (s after the takeoff peak), from FUNWAVE-TVD runs over a
+// Dynamic break maps: when each spot along the wave breaks (s after the takeoff peak), from FUNWAVE-TVD runs over a
 // generated reef (~/workspace/research/reef-generator: reefgen.py recipe -> setup_reef.py -> break_map.py -> reef_breaks.py).
 // Generated: regenerate rather than editing by hand. d0/step: the first spot (m from the takeoff peak, + along the right
 // we ride) and the spacing. `tb`: when it breaks (FUNWAVE's breaking flag); past where the flag stops, the curl slows to a

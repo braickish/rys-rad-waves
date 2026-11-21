@@ -124,22 +124,24 @@ Trestles wave any way we can"). Research, simulations and the pipeline for new r
   known high-performance board, no branding), black full wetsuit, grey-green water (`green` 0.55), regular foot, `dir: -1`,
   scale 0.8 (takeoff face ~3.6 m). No catching the wave yet (pop-up/paddling is still a planned idea).
 
-## Performance Peak: the first designed reef (`src/waves/peak.js`)
+## Dynamic: the first designed reef (`src/waves/dynamic.js`; `?wave=dynamic`, `?wave=peak` still works)
 
+First named Performance Peak (renamed 2026-11-21, the user).
 - The user's reef generator idea (2026-11-20): build reefs from Mead & Black's surf-reef components (ramp, platform,
-  focus, wedge, ledge, ridge, pinnacle) instead of surveys of real breaks, and let FUNWAVE decide how they break.
-  Generator, recipes, peel estimate and runs: `~/workspace/research/reef-generator` (README there).
+  focus, wedge, ledge, ridge, pinnacle; plus our `channel`, the one that deepens) instead of surveys of real breaks, and
+  let FUNWAVE decide how they break. Generator, recipes, peel estimate and runs: `~/workspace/research/reef-generator`
+  (README there).
 - The reef: an A-frame: a pointed focus (the takeoff peak) and two 1:15 wedges at 45 deg to the swell, 3 m deep at
-  their edge (recipes/performance_peak.json). FUNWAVE (1.6 m 15 s straight in): median peel angle ~31 deg (37 by the
-  other break test), an advanced wave; rights run 120-240 m.
-- Peel angle vs wedge angle (option A): about 0.7x the wedge angle (the crests bend toward the wedge); steeper wedges
-  peel slower but a reef of the same reach ends sooner. A pointed peak focuses energy and the shoulders lose it.
-- In the game it is Trestles's wave kind (the bar: `peak-breaks.js` from reef_breaks.py, waves 422/171/260/312, one per
-  ride) with warm clear water and boardshorts. `tb` there comes from the face-steepening test: on the reef FUNWAVE's
-  breaking flag misses most of the shoulder (its wave height drops 25-35% across the wedge where the flag stays off).
-- Not its own yet: the breaking shapes are Trestles's (similar breakers, ~2.3 m; tubes 0.73 m, too small to ride);
-  the takeoff's first ~50 m goes fast (15-30 m/s) on three of the four waves. `node test/trestles.mjs peak` runs
-  Trestles's checks on it.
+  their edge (run performance_peak_45). FUNWAVE (1.6 m 15 s straight in): median peel angle ~31 deg, an advanced wave.
+- Peel angle vs wedge angle: about 0.7x the wedge angle (the crests bend toward the wedge). A pointed peak focuses
+  energy and the shoulders lose it.
+- In the game it is Trestles's wave kind (the bar: `dynamic-breaks.js` from reef_breaks.py, waves 171/312/422, one per
+  ride) with warm clear water and boardshorts. `tb` is FUNWAVE's breaking flag (never the face-steepening test; SWASH's
+  own breaking agrees within ~1-3 s along the right). Past where the flag stops, the curl slows to a stop (the map's
+  fade) and you step off `bar.fadeEnd` 4 s after it gets there ("You rode it to the end of the wave!"; maps carry `end`).
+- Not its own yet: the breaking shapes are Trestles's (similar breakers, ~2.3 m; tubes 0.73 m, too small to ride).
+  An inside barrel section is being designed (reef generator README, "Inside barrel"). `node test/trestles.mjs dynamic`
+  runs Trestles's checks on it.
 
 ## How it works
 
@@ -760,7 +762,7 @@ node test/tubetrim.mjs # Pipe: holding a line in the tube with each foot spot: s
 node test/elbows.mjs   # skinned-body elbows: jump per frame and upper-arm twist flips (lower is smoother)
 node test/arms.mjs     # how jerkily the hands move against the shoulders while riding (lower is smoother)
 node test/slash.mjs    # the slash: when it fires (and doesn't), climb, speed scrub, slide, turn; point, reef, barrel
-node test/trestles.mjs [peak] # Trestles (or Performance Peak): the ride along the bar (speed, section, tube size), phase smoothness, bots riding it
+node test/trestles.mjs [dynamic] # Trestles (or Dynamic): the ride along the bar (speed, section, tube size), phase smoothness, bots riding it
 node test/plot-slices.mjs out.svg [crumble|barrel]   # draw the wave cross-sections
 node test/steepness.mjs  # reef face angle at fixed heights from the tube out to the shoulder
 node test/concave.mjs    # bulges along the wave (should wrap in, never bulge out)

@@ -10,7 +10,7 @@ import { createRider, stepRider, useWave, TUNE, airSpeedAt } from '../src/rider.
 import { PEEL_SPEED } from '../src/wave.js';
 import { nextWave, stepSea, seedSea } from '../src/sea.js';
 const dt = 1 / 120, mph = (v) => (v * 2.237).toFixed(1);
-const waves = process.argv.length > 2 ? process.argv.slice(2) : ['point', 'reef', 'queens', 'trestles', 'peak'];
+const waves = process.argv.length > 2 ? process.argv.slice(2) : ['point', 'reef', 'queens', 'trestles', 'dynamic'];
 
 function ride(o, policy, secs, until = () => false) {
   seedSea(1); nextWave();

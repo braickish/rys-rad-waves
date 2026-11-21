@@ -5,7 +5,7 @@
 import { createRider, stepRider, useWave, tubeHeight } from '../src/rider.js';
 import { WAVE, PEEL_SPEED, RIDE, SHAPE, phaseAt, surface, setWaveSize, startRide, stepRide } from '../src/wave.js';
 const dt = 1 / 120, mph = (v) => Math.round(v * 2.237);
-useWave(process.argv[2] || 'trestles'); // (node test/trestles.mjs peak: the same checks on Performance Peak)
+useWave(process.argv[2] || 'trestles'); // (node test/trestles.mjs dynamic: the same checks on Dynamic)
 
 // 1. The bar, on its own.
 console.log('-- the ride along the bar (normal size)');

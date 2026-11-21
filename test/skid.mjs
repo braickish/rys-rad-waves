@@ -5,7 +5,7 @@
 //   node test/skid.mjs [wave ...]
 import { createRider, stepRider, useWave, TUNE } from '../src/rider.js';
 const dt = 1 / 120, mph = (v) => (v * 2.237).toFixed(1);
-const waves = process.argv.length > 2 ? process.argv.slice(2) : ['point', 'reef', 'trestles', 'peak'];
+const waves = process.argv.length > 2 ? process.argv.slice(2) : ['point', 'reef', 'trestles', 'dynamic'];
 for (const w of waves) {
   useWave(w); if (process.env.NOSKID) TUNE.skidDriveK = null;
   const row = [];
