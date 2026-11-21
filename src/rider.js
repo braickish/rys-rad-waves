@@ -412,31 +412,6 @@ export function dropInSpeed() {
 // the descent). Not in the tube, where it's what keeps you off the bottom.
 function liftTop(r, height) { return TUNE.energy && !r.tube ? 1 - sstep(0.8, 1.0, height) : 1; }
 
-// Water flowing up the face, from physics (`?flow` / FLOW=1, a trial; the user, 2026-11-21: replace the tuned `faceFlow`
-// with something physical for every wave, by relative speed). Riding with the wave, the water ahead streams toward it at
-// the wave's speed c, runs up the face and over the crest; the surface is a streamline, so by Bernoulli its speed there
-// is q = sqrt(c^2 - 2 g eta) at height eta above still water (zero at eta = c^2 / 2g, the steepest a crest can stand).
-// c = sqrt(g (depth + H)) at breaking, depth ~ H / 0.78 (H: the face's height at the curl): Raglan ~9.3 m/s, Pipe ~12.6,
-// Queens ~5.4, Trestles / Dynamic ~8.1 (FUNWAVE's crests ran 7.5-8). Where the crest is breaking the water there moves
-// with the wave (surface speed >= 0.85 c, the kinematic breaking test), so relative to it at most 0.15 c; in the foam the
-// bore carries the water along with the wave: no flow up the face. (Not in the tube yet: it keeps `faceFlow`.)
-export const FLOW = typeof location !== 'undefined' ? /[?&]flow(&|=|$)/.test(location.search) : !!(globalThis.process && process.env.FLOW);
-let flowRef = null;
-export function waveC() {
-  if (!flowRef || flowRef.scale !== SCALE || flowRef.ver !== SHAPE.ver || flowRef.id !== WAVE.id) {
-    const y0 = surface(0.5, TUNE.tBottom)[1], H = Math.max(0.3, surface(0.5, topOfFace(0.5))[1] - y0);
-    flowRef = { c: Math.sqrt(9.81 * H * (1 + 1 / 0.78)), y0: surface(0.5, TUNE.tFlats)[1], scale: SCALE, ver: SHAPE.ver, id: WAVE.id };
-  }
-  return flowRef;
-}
-function waterUp(r, f, height, foam) {
-  const { c, y0 } = waveC();
-  let q = Math.sqrt(Math.max(0, c * c - 2 * 9.81 * Math.max(0, f.P[1] - y0)));
-  const brk = sstep(-0.6, 0.0, phaseAt(r.xs)); // (the crest breaking: at the curl and behind it)
-  q += (Math.min(q, 0.15 * c) - q) * brk * sstep(0.5, 0.95, height);
-  return q * (1 - clamp(foam, 0, 1));
-}
-
 export function resetRider(r) {
   Object.assign(r, createRider());
   if (TUNE.startXs != null) r.xs = TUNE.startXs; // where this wave drops you in
@@ -687,9 +662,6 @@ function stepSurf(r, input, dt) {
   const steep = Math.max(clamp((1 - f.n[1]) / 0.55, 0, 1), 0.85 * pk * sstep(0.05, 0.3, 1 - f.n[1]),
     wall > 0 ? 0.85 * (1 - pk) * sstep(...(T.wallAngles || [17, 28]), faceAng) : 0);
   r.pocket = pk; r.foam = foam; r.height = height;
-  // (`?flow`: the water's speed up the face here, m/s. It carries a board planing on a steep face; on a fat shoulder or
-  // the flats it passes under you instead (the wave catching or leaving you), so it counts by the face's steepness)
-  const q = FLOW ? waterUp(r, f, height, foam) * (globalThis.process?.env?.FLOWRAW ? 1 : steep) : 0; r.waterUp = q;
 
   // --- steering ---
   // Every input is the same rail-to-rail carve; only the direction differs:
@@ -1041,10 +1013,7 @@ function stepSurf(r, input, dt) {
   const pkReach = r.xs > 0 ? pocketPower(Math.max(0, r.xs - T.shoulderReach) / (T.shoulderFade || 1)) : pk; // (shoulderFade: fades over this many times the pocket's own length)
   const pkSpeed = Math.max(pkReach, wall); // (a steep wall anywhere feeds you too: `wallK`)
   let target = T.vLow + (T.vPocket - T.vLow) * pkSpeed * steep * (T.heightSpeed[0] + T.heightSpeed[1] * height);
-  // (energy pocket: keeping pace with the curl, 1.0x the peel along the wave; `?flow`: while also holding your height
-  // against the water coming up the face, so relative to the water sqrt(peel^2 + q^2): more low on the face)
-  const holdV = FLOW && !r.tube ? Math.hypot(T.pocketHold * PEEL_SPEED, q) : T.pocketHold * PEEL_SPEED;
-  if (T.energy) target = T.vLow + (holdV - T.vLow) * pkSpeed * steepAny;
+  if (T.energy) target = T.vLow + (T.pocketHold * PEEL_SPEED - T.vLow) * pkSpeed * steepAny; // (energy pocket: 1.0x the peel, any height)
   else if (T.physPocket) target = physCruise(T.physPocket, height, pkSpeed, steepAny);
   r.cruise = target; // (the wave's cruising speed for you here, before feet and foam: tests)
   if (r.foot < 0) target *= 1 - (1 - (T.tailSpeed ?? 1)) * -r.foot; // (standing on the tail the board drags: slower than from the middle)
@@ -1083,8 +1052,7 @@ function stepSurf(r, input, dt) {
     // (pointing down pays only for what goes beyond cancelling the water's lift, so holding a line against it is neutral
     // and trimming in the pocket stays at the peel; climbing costs only your own climb: the lift is the wave's work, free)
     let gSlope = 9.81 * Math.sqrt(Math.max(0, 1 - f.n[1] * f.n[1]));
-    const lift = FLOW && !r.tube ? q : (T.faceFlow || 0) * steep * pkReach * liftTop(r, height);
-    const net = sinp < 0 ? Math.min(0, sinp + lift / Math.max(r.speed, 1)) : sinp;
+    const net = sinp < 0 ? Math.min(0, sinp + (T.faceFlow || 0) * steep * pkReach * liftTop(r, height) / Math.max(r.speed, 1)) : sinp;
     // Heading down from the lip or in the whitewater, gravity works at the face's steepest angle, not the nearly level
     // crest under the board (8 deg at Raglan's lip): the lip is throwing and the face standing up under you, so the wave
     // drops away beneath you (the user, 2026-11-21: you got stuck on the lip). Going down only (climbing into the lip
@@ -1165,7 +1133,7 @@ function stepSurf(r, input, dt) {
   }
   // On a heavy wave the water rushes up the face and carries you with it:
   // trimming level drifts you up, so you hold your line pointing a little down.
-  let faceLift = FLOW && !r.tube ? q : (T.faceFlow || 0) * steep * pkReach * liftTop(r, height); // (carries as far out as the pocket's speed; not the wall's) (`?flow`: the water's own speed up the face)
+  let faceLift = (T.faceFlow || 0) * steep * pkReach * liftTop(r, height); // (carries as far out as the pocket's speed; not the wall's)
   if (r.tube && (r.slide > 0 || (r.slash && r.slash.released))) faceLift *= T.slashTube.lift; // a barrel slash digs in against the water rushing up
   let rise = r.speed * sinp + faceLift;
   // In the barrel, heading up the face is slowed (`tubeClimbDamp`, more the deeper you are) so a turn
