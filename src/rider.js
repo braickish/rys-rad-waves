@@ -415,7 +415,16 @@ export function dropInSpeed() {
 // held a rider under ~14 mph pinned on Pipe's lip pointing down). Not in the tube, where it's what keeps you off the bottom.
 function liftTop(r, height) {
   if (!TUNE.energy || r.tube) return 1;
-  return Math.sqrt(Math.max(0, 1 - 0.88 * height)) * (1 - sstep(0.8, 1.0, height));
+  return Math.sqrt(Math.max(0, 1 - 0.88 * height)) * crestFade(r, height);
+}
+// Over the top of the face the wave stops working for you (the user, 2026-11-22: positioned up by the lip you could stay
+// there forever): the face you plane on, with the water rushing up it, is below you, and at the crest the water moves
+// with the wave and starts to throw. So both the water's lift and the pocket's hold (keeping pace with the curl) fade
+// over the top 20% of the face: ride a line up there and you bog and drift back toward the curl unless you drop. Not in
+// the tube, where the face is over you.
+function crestFade(r, height) {
+  if (!TUNE.energy || r.tube) return 1;
+  return 1 - sstep(0.8, 1.0, height);
 }
 
 // How fast the water rushes up the face (m/s): `faceFlowK` x the wave's speed c = sqrt(g (depth + H)) at breaking,
@@ -1038,7 +1047,7 @@ function stepSurf(r, input, dt) {
   const pkReach = r.xs > 0 ? pocketPower(Math.max(0, r.xs - T.shoulderReach) / (T.shoulderFade || 1)) : pk; // (shoulderFade: fades over this many times the pocket's own length)
   const pkSpeed = Math.max(pkReach, wall); // (a steep wall anywhere feeds you too: `wallK`)
   let target = T.vLow + (T.vPocket - T.vLow) * pkSpeed * steep * (T.heightSpeed[0] + T.heightSpeed[1] * height);
-  if (T.energy) target = T.vLow + (T.pocketHold * PEEL_SPEED - T.vLow) * pkSpeed * steepAny; // (energy pocket: 1.0x the peel, any height)
+  if (T.energy) target = T.vLow + (T.pocketHold * PEEL_SPEED - T.vLow) * pkSpeed * steepAny * crestFade(r, height); // (energy pocket: 1.0x the peel at any height up to the crest, where it fades)
   else if (T.physPocket) target = physCruise(T.physPocket, height, pkSpeed, steepAny);
   r.cruise = target; // (the wave's cruising speed for you here, before feet and foam: tests)
   if (r.foot < 0) target *= 1 - (1 - (T.tailSpeed ?? 1)) * -r.foot; // (standing on the tail the board drags: slower than from the middle)
