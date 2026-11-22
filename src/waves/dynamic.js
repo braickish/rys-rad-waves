@@ -2,11 +2,13 @@
 // components instead of surveys of real breaks). An A-frame on a tropical reef; we ride its right, regular foot.
 //
 // Where the numbers come from (~/workspace/research/reef-generator, README there):
-// - The reef: reefgen.py, recipes/performance_peak.json: a ramp, a pointed focus (the takeoff peak) and two 1:15
-//   wedges at 60 deg to the swell, shallowing from 3.0 to 1.9 m along their length so the shoulder, which loses
-//   height to the peak, keeps breaking.
-// - When each part breaks (peak-breaks.js): FUNWAVE-TVD on that reef, 1.6 m 15 s straight in, FUNWAVE's own breaking
-//   flag at the sim's own pace, exactly as Trestles (the same bar: wave.js). Peel angle ~35 deg: an advanced wave.
+// - The reef (2026-11-22, the user swapped in the design sweep's best): reefgen.py, recipes/sweep_combo_shelf_eased_grad10.json
+//   (run sw_combo_shelf_eased_grad10): the A-frame with a 1:10 reef line (was 1:15) and a shelf eased into the right arm
+//   from 40 m. FUNWAVE (1.6 m 15 s straight in): median curl 204 m (the old reef 122), peel ~29 deg, bigger and steeper
+//   breakers (1.86 m, H/h 0.81).
+// - When each part breaks (dynamic-breaks.js): FUNWAVE's own breaking flag at the sim's own pace, exactly as Trestles (the
+//   same bar: wave.js). Waves 159 and 261 rotate; 313 and 437 (a ~4-5 m/s crawl over the shelf, then ~60 m at once)
+//   caught the racer bot every time, so they're left out.
 // - The breaking shapes: borrowed from Trestles (sim-trestles.js, the same breaker size, ~2.3 m) until the reef has
 //   its own 2D breaking-wave (BEM) runs.
 import trestles from './trestles.js';

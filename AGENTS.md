@@ -131,11 +131,13 @@ First named Performance Peak (renamed 2026-11-21, the user).
   focus, wedge, ledge, ridge, pinnacle; plus our `channel`, the one that deepens) instead of surveys of real breaks, and
   let FUNWAVE decide how they break. Generator, recipes, peel estimate and runs: `~/workspace/research/reef-generator`
   (README there).
-- The reef: an A-frame: a pointed focus (the takeoff peak) and two 1:15 wedges at 45 deg to the swell, 3 m deep at
-  their edge (run performance_peak_45). FUNWAVE (1.6 m 15 s straight in): median peel angle ~31 deg, an advanced wave.
+- The reef (since 2026-11-22, the user): the design sweep's best, combo_shelf_eased_grad10: the A-frame (focus + two
+  wedges at 45 deg) with a 1:10 reef line and a shelf eased into the right arm from 40 m. FUNWAVE (1.6 m 15 s straight
+  in): median curl 204 m (the first reef, performance_peak_45: 122), peel ~29 deg, an advanced wave. Maps: waves 159 and
+  261 (313/437 crawl over the shelf then section ~60 m at once and caught the racer bot every time).
 - Peel angle vs wedge angle: about 0.7x the wedge angle (the crests bend toward the wedge). A pointed peak focuses
   energy and the shoulders lose it.
-- In the game it is Trestles's wave kind (the bar: `dynamic-breaks.js` from reef_breaks.py, waves 171/312/422, one per
+- In the game it is Trestles's wave kind (the bar: `dynamic-breaks.js` from reef_breaks.py, waves 159/261, one per
   ride) with warm clear water and boardshorts. `tb` is FUNWAVE's breaking flag (never the face-steepening test; SWASH's
   own breaking agrees within ~1-3 s along the right). Past where the flag stops, the curl slows to a stop (the map's
   fade) and you step off `bar.fadeEnd` 4 s after it gets there ("You rode it to the end of the wave!"; maps carry `end`).
