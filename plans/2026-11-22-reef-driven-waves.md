@@ -4,7 +4,7 @@ Agreed with the user 2026-11-22, after Build a Break got DROP IN. Today a built 
 builder's curl: its speed and where its sections are. Its shape (crumbly, steep, hollow) and size don't come from the reef.
 The goal: a ramp feels soft, a ridge steep, a ledge heavy, and a good ledge barrels, all from the physics.
 
-Done in order. Each step ends live on Pages, with its tests passing and the user testing it before the next one starts.
+Done in order (steps 5-6 added 2026-11-22 after step 3: coastline and sandbar before barrels). Each step ends live on Pages, with its tests passing and the user testing it before the next one starts.
 Rules that hold throughout: no fudge factors (fix causes); the other waves stay unchanged (their tests' output identical);
 circles only for draggable things in the builder.
 
@@ -64,7 +64,27 @@ be wrong on exactly the blocks that make them.
   case in particular.
 - Builder: a small "refining..." state after a drag.
 
-## 5. Barrel sections
+## 5. Editable coastline (added 2026-11-22, the user)
+
+Long sand points and coasts (Skeleton Bay, J-Bay) have no separate bar: the whole sloping shoreline is the "sandbar". In
+Mead & Black's terms the coast is one very long wedge on a ramp; research/reef-generator's `shore` component and the
+Skeleton Bay sweep (README) model it: the swell's angle to the shore sets the peel, the beach face's slope the hollowness
+(1:12 / 1:20 / 1:35 -> xi 0.93 / 0.63 / 0.37), uniformity along the line the length.
+
+- Builder: the fixed straight beach becomes an editable shoreline (a few round handles to bend it into a bay, a point or a
+  long angled beach) with a beach-slope choice (steep / medium / gentle). Reef blocks and sandbars sit on top of it.
+- reef.js: the `shore` component (waterline polyline + cross-shore profile by distance from it); the bay may need to grow
+  or turn for long coasts (the research turned its grid toward the swell's breaking direction).
+- Check: against the Skeleton Bay sweep's peel and xi trends.
+
+## 6. Sandbar block (added 2026-11-22, the user)
+
+A beach-break bar: a long, gentle sand mound (an elongated platform / broad ridge on a ramp, slopes ~1:30-1:60), with a
+length, a turn and a crest depth. An A-frame off its middle, a right or left when angled, a closeout when lined up with the
+swell. Uses step 4's heights (gentle slopes are where the rays are weakest). Later idea: sand moves (a "season" that slowly
+reshapes bars while reef stays put).
+
+## 7. Barrel sections
 
 - Shapes: Pipe's simulated tube shapes (sim-pipe.js) as the hollow end of step 3's scale, where intensity and height say it
   pitches far enough to make a tube (and the tube is tall enough: tubeMinHeight).
