@@ -504,7 +504,9 @@ First named Performance Peak (renamed 2026-11-21, the user).
     at breaking, measured live from the wave's current shape (rider.js `faceFlow()`; Pipe's tuned 5.7 m/s is the
     reference; the user, 2026-11-21): Pipe 5.7 (c 12.4), Raglan 4.3 (c 9.4), Queens 2.5 (c 5.5); Trestles and
     Dynamic 3.6 at the peak easing to 3.1 inside as the bar reshapes the wave; sets scale it (Pipe 5.1 / 6.2 at
-    0.8x / 1.2x). It follows the wave's size, not the peel speed. In the tube, trimming flat or pointing down the
+    0.8x / 1.2x). It follows the wave's size, not the peel speed. Up the face it slows as it climbs (Bernoulli along
+    the surface: q / q_bottom = sqrt(1 - 0.88 x height), 0.78 at a mid-face takeoff, 0.35 at the top; rider.js liftTop,
+    with the fade over the top; not in the tube; the user, 2026-11-21: Raglan's takeoff felt flat at full flow). In the tube, trimming flat or pointing down the
     line adds acceleration (`tubeDrive`) (brushing it deflects you down); way below the bottom
     (`tubeLow`) = the lip lands on you; back past `tubeExit` = out. Caught way up in the lip as it throws
     (`tubeTooHigh`), or riding in the top 3/8 of the barrel (`tubeFallHeight`) = over the falls. The barrel

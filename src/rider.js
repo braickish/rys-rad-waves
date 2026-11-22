@@ -407,10 +407,16 @@ export function dropInSpeed() {
   if (WAVE.bar && RIDE.map) { const dt = breaksAt(30) - breaksAt(0); v = dt > 0 ? 30 / dt : TUNE.softMax; }
   return clamp(v, TUNE.vLow, TUNE.softMax);
 }
-// The water rushing up the face fades out over the top of the face (energy pocket, the user, 2026-11-21): at full
-// strength right up to the crest it held a rider under ~14 mph pinned on Pipe's lip pointing down (its 5.7 m/s beat
-// the descent). Not in the tube, where it's what keeps you off the bottom.
-function liftTop(r, height) { return TUNE.energy && !r.tube ? 1 - sstep(0.8, 1.0, height) : 1; }
+// The water rushing up the face slows as it climbs (the user, 2026-11-21: Raglan's takeoff felt flat once its flow rose to
+// 0.46 c; fade it toward the top, as physics says). Riding with the wave, the surface is a streamline: by Bernoulli the
+// water's speed up the face at height eta is q = sqrt(c^2 - 2 g eta), and with c^2 = g (depth + H), depth ~ H / 0.78,
+// q / q_bottom = sqrt(1 - 0.88 eta / H): 0.78 at a mid-face takeoff, 0.35 at the top (`height` from the face's bottom
+// stands in for eta / H). Then it fades out over the top (the breaking crest moves with the wave: at full strength there it
+// held a rider under ~14 mph pinned on Pipe's lip pointing down). Not in the tube, where it's what keeps you off the bottom.
+function liftTop(r, height) {
+  if (!TUNE.energy || r.tube) return 1;
+  return Math.sqrt(Math.max(0, 1 - 0.88 * height)) * (1 - sstep(0.8, 1.0, height));
+}
 
 // How fast the water rushes up the face (m/s): `faceFlowK` x the wave's speed c = sqrt(g (depth + H)) at breaking,
 // depth ~ H / 0.78, H the face's height at the curl as the wave is shaped right now (the user, 2026-11-21: Pipe's tuned
