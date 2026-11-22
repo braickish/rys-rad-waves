@@ -1,5 +1,5 @@
 // Idle decay (the user, 2026-11-22): on the shortboard waves, after 2 s with no key pressed and no change of direction
-// you lose ~1 mph every second (steady, not growing), and the pocket doesn't top you back up, until you work the board.
+// you lose ~0.5 mph every second (steady, not growing), and the pocket doesn't top you back up, until you work the board.
 // Not on Queens (longboard trim and noseriding are no-key moves) and not in the tube.
 // A rider trims mid-face along the line in the pocket: idle (no input) vs holding the line with a key.
 //   node test/idle.mjs [wave ...]

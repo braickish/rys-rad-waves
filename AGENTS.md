@@ -294,9 +294,9 @@ First named Performance Peak (renamed 2026-11-21, the user).
     Over the top 20% of the face the pocket's hold fades with the water's lift (rider.js `crestFade`; the user,
     forever-on-top.jpg: you could sit on the lip forever): a line up there bogs and drifts back to the curl; the highest
     line you can hold is ~0.8 of the face. Not in the tube. `node test/crest.mjs`.
-    Idle decay on the shortboards (`idleDecay` 0.45 m/s per s after `idleDelay` 2 s, set on Raglan, inherited by Pipe,
+    Idle decay on the shortboards (`idleDecay` 0.22 m/s per s, ~0.5 mph/s, after `idleDelay` 2 s, set on Raglan, inherited by Pipe,
     Trestles, Dynamic; not Queens, not in the tube; the user, 2026-11-22): no key and no change of direction for 2 s and
-    you lose ~1 mph every second, steadily, and the pocket doesn't top you back up, until you press a key or turn.
+    you lose ~0.5 mph every second, steadily, and the pocket doesn't top you back up, until you press a key or turn.
     `node test/idle.mjs`. Air thresholds are lift-off physics: 16 mph at the
     curl, 18 out. Foot spots as ratios of that speed: longboard middle 1.0x / nose 0.95x / tail 0.85x (a stall);
     shortboard back 0.95x / forward 1.04x. A longboard tail turn drives by its split (rail share in full, pivot share
