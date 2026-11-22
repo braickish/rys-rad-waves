@@ -293,7 +293,11 @@ First named Performance Peak (renamed 2026-11-21, the user).
     oddly slow, and Indicators/Manu Bay walls on a good swell are ~45-50 deg peels, ~17-21 mph. `node test/takeoff.mjs`.
     Over the top 20% of the face the pocket's hold fades with the water's lift (rider.js `crestFade`; the user,
     forever-on-top.jpg: you could sit on the lip forever): a line up there bogs and drifts back to the curl; the highest
-    line you can hold is ~0.8 of the face. Not in the tube. `node test/crest.mjs`. Air thresholds are lift-off physics: 16 mph at the
+    line you can hold is ~0.8 of the face. Not in the tube. `node test/crest.mjs`.
+    Idle decay on the shortboards (`idleDecay` 0.45 m/s per s after `idleDelay` 2 s, set on Raglan, inherited by Pipe,
+    Trestles, Dynamic; not Queens, not in the tube; the user, 2026-11-22): no key and no change of direction for 2 s and
+    you lose ~1 mph every second, steadily, and the pocket doesn't top you back up, until you press a key or turn.
+    `node test/idle.mjs`. Air thresholds are lift-off physics: 16 mph at the
     curl, 18 out. Foot spots as ratios of that speed: longboard middle 1.0x / nose 0.95x / tail 0.85x (a stall);
     shortboard back 0.95x / forward 1.04x. A longboard tail turn drives by its split (rail share in full, pivot share
     `pivotDriveK` 0.75), and the pivot share falls with speed (`pivotFastSpeeds`: 85% / 50% away from / toward the face at
@@ -769,6 +773,7 @@ node test/controls.mjs # human-style inputs on both waves: no glitches, Up/Down 
 node test/pocket.mjs   # where different riding styles spend their time vs. the curl
 node test/shuffle.mjs  # shortboard feet: back / middle / forward, turn and speed effects on Raglan and Pipe
 node test/crest.mjs    # holding a line near the crest: the curl catches you above ~0.8 of the face, not mid-face
+node test/idle.mjs     # idle decay: no loss for 2 s, ~1 mph/s after, none with a key held; Queens untouched
 node test/takeoff.mjs  # from the drop-in, nose held at 0 / -20 / -40 / -60 / -80 deg: speed and height over 3 s
 node test/energy.mjs   # energy pocket per wave: trim / peel at three heights, foot spots, drop, lip speed, pocket bot
 node test/pivotshare.mjs # longboard tail turns at 7 / 11 / 15 mph: pivot share, turn time, speed (vs the middle)

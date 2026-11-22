@@ -1042,6 +1042,17 @@ function stepSurf(r, input, dt) {
   if (height > 0.75) r.bottomArmed = false;
 
   // --- speed ---
+  // Idle decay (waves with `idleDecay`: the shortboards; the user, 2026-11-22): after `idleDelay` s with no key pressed
+  // and no change of direction, you lose `idleDecay` m/s every second, steadily (not growing), and the pocket doesn't top
+  // you back up meanwhile, until you work the board again. Not in the tube.
+  let idleNow = false;
+  if (T.idleDecay) {
+    const keys = !!(input.turn || input.tilt || input.walk || input.crouch || input.pump || (input.aim && (input.aim[0] || input.aim[1])));
+    const turned = Math.abs(wrap(r.phi - (r.idlePhi ?? r.phi))) > 0.05 * dt; // (more than ~3 deg/s of turn)
+    r.idlePhi = r.phi;
+    r.idle = keys || turned ? 0 : (r.idle || 0) + dt;
+    idleNow = r.idle > T.idleDelay && !r.tube;
+  }
   // Cruising speed climbs with height: up near the top of the pocket is fastest.
   // (speed fades a little further out than the pocket itself: shoulderReach)
   const pkReach = r.xs > 0 ? pocketPower(Math.max(0, r.xs - T.shoulderReach) / (T.shoulderFade || 1)) : pk; // (shoulderFade: fades over this many times the pocket's own length)
@@ -1067,7 +1078,7 @@ function stepSurf(r, input, dt) {
   // and you slow down for real.
   const climbing = sstep(0.15, 0.6, Math.sin(r.phi));
   const foamFeed = 1 + ((T.foamPushFeed || 1) - 1) * mid * foam; // (and it picks you up quickly)
-  r.speed += (target - r.speed) * (r.speed < target ? T.feed * feedK * foamFeed * (1 - climbing) : T.bleed) * dt;
+  r.speed += (target - r.speed) * (r.speed < target ? (idleNow ? 0 : T.feed * feedK * foamFeed * (1 - climbing)) : T.bleed) * dt; // (idle: no top-up)
   const sinp = Math.sin(r.phi);
   // Pointing down pays, and pays most from the top third of the wave: that's
   // where the drop has the most height to turn into speed.
@@ -1152,6 +1163,7 @@ function stepSurf(r, input, dt) {
   // Sliding sideways in a slash scrubs speed, and nothing builds it meanwhile.
   else if (r.slide > 0) r.speed = Math.min(r.speed, speedAtStart) * (1 - (r.tube ? T.slashTube.slashDrag : T.slashDrag) * Math.sin(Math.min(r.slide, Math.PI / 2)) * dt);
   if (sBack > 0) r.speed *= 1 - T.backScrub * sBack * r.turnRate * dt; // (back foot: turning scrubs a little speed)
+  if (idleNow) r.speed -= T.idleDecay * dt; // (idle decay, above)
   r.speed = clamp(r.speed, T.minSpeed, T.maxSpeed);
 
   // --- move ---
