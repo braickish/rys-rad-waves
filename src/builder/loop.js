@@ -22,7 +22,7 @@ export function curlAt(curl, s) {
 // A good default stretch: past the takeoff, up to just before the ride ends; null if the ride is too short to loop.
 export function defaultLoop(side) {
   if (!side || side.ride < LOOP.min + 2 * LOOP.edge) return null;
-  const a = LOOP.edge, b = Math.floor((side.ride - LOOP.edge / 2) / LOOP.snap) * LOOP.snap;
+  const a = LOOP.edge, b = Math.floor((side.ride - LOOP.edge) / LOOP.snap) * LOOP.snap; // (20 m in from each end: the takeoff, and the last metres that often go at once)
   return b - a >= LOOP.min ? { a, b } : null;
 }
 

@@ -227,7 +227,21 @@ section (25-30 deg), backing off (slower than 70 deg, or a gap), or closing out 
   heights..." in the footer), and DROP IN always sends the refined wave. Dynamic: breakers 1.7 m (rays 2.1), the right's
   ledge shelf xi0 1.36 pitching (rays 1.53 barrelling), arms pitching 0.94-1.10; built waves come out smaller (scale 0.62
   vs 0.74). The arm Slope dial is weaker refined (0.79 / 0.94 / 0.98): the set waves break further out, partly on the
-  Peak's fixed 1:10 face.
+  Peak's fixed 1:10 face. (Corrected at step 5: with the slope measured along the wave's own direction the right's ledge
+  shelf reads ~1.56 refined, about the rays' 1.53: the set waves break on its steep face.)
+  Plan step 5 (2026-11-22): the coastline. reef.js `buildDepth(.., coast)`: the floor is the coast's profile by signed
+  distance from a waterline polyline (beach face 1:`face` to 5 m, then 1:66.7, up the beach to +2.5 m); `defaultCoast()`
+  (straight at x' 1250, face 66.7) is the old floor (7 mm apart); the reef's part is eased to its mean at the sides, so a
+  bent coast stays bent. Builder: five sand-coloured handles on the waterline (drag in and out, x' 700-1240, 10 m snap),
+  Beach slope Steep 1:12 / Medium 1:20 / Gentle 1:35 / Flat 1:67, Straighten; the Peak gets the arms' Slope. For long
+  oblique coasts: the model runs 300 m wider each side than the map (`BAY.view`, rays and pewave see real seabed where
+  the waves come in from); rays start along a line extended past the sides by the swell's drift and each sets off when
+  the angled crest reaches it (all at once swept the break along a coast ~2x too fast; design_eval.py's oblique front);
+  the slope for xi is taken along the ray's own direction where it breaks; a closeout is more than 40 m in a row faster
+  than 25 deg (as Trestles' sectionMax; the 20 m readings jitter ~8 deg along a coast); swell direction +-40 (pewave's
+  reach). A coast 35 deg off, swell +40 (75 deg to the shore), face 1:20: 800 m at 28 deg (Skeleton Bay); faces 1:12 /
+  1:20 / 1:35 xi0 1.09 / 0.66 / 0.38 (research 0.93 / 0.63 / 0.37); 11.6 / 15 / 18 s: 0.51 / 0.65 / 0.79 (0.49 / 0.63 /
+  0.76); a straight beach facing the swell closes out. Default loops end 20 m before the ride's end.
 - Zoom (the user, 2026-11-22): wheel / trackpad pinch about the pointer, two-finger pinch, drag the water to pan, and − / + / Fit
   in the map's corner (up to 6x; handles, labels and line widths keep their screen size; the scale bar picks a round length).
   `?zoom=2.5` opens zoomed on the peak (testing).

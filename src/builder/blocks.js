@@ -12,7 +12,7 @@ export const ARM_SLOPES = [['1:18', 'Gentle'], ['1:10', 'Medium'], ['1:6', 'Stee
 export const ROTATIONS = [0, 30, 45, 60, 90, 120, 135, 150]; // ridge / channel direction, degrees from straight in
 
 export const BLOCKS = {
-  peak: { label: 'Peak', blurb: 'A rounded point of reef: focuses the swell into a takeoff peak.' },
+  peak: { label: 'Peak', blurb: 'A rounded point of reef: focuses the swell into a takeoff peak. Its slope sets how hard the set waves break on it.' },
   arm: { label: 'Arm', blurb: 'A sloping reef line off a peak: its angle sets the peel (30 deg fast, 60 deg mellow), its slope how hollow it breaks (gentle crumbles, steep pitches).' },
   ridge: { label: 'Ridge', blurb: 'A bar laid along an arm: the arm stands up steeper there, a fast section you pump through. Turned across the wave it closes out.' },
   pinnacle: { label: 'Pinnacle', blurb: 'A round bommie: the wave wraps and stands up over it.' },
@@ -26,7 +26,7 @@ export const FLOOR = [{ type: 'ramp', start_depth_m: 13, end_depth_m: 8.5, x0_m:
 export function blockComponents(b) {
   const rad = (d) => d * Math.PI / 180;
   switch (b.type) {
-    case 'peak': return [{ type: 'focus', apex: [b.x, b.y], width_m: 220, convexity: 0.667, depth_m: 3.0, gradient: '1:10' }];
+    case 'peak': return [{ type: 'focus', apex: [b.x, b.y], width_m: 220, convexity: 0.667, depth_m: 3.0, gradient: b.slope || '1:10' }]; // (Slope: the hollowness dial, as the arms')
     case 'arm': return [{ type: 'wedge', start: [b.x, b.y], side: b.side, length_m: b.length, gradient: b.slope || '1:10', angle_to_swell_deg: b.angle, depth_m: 3.0, top_depth_m: 1.0 }];
     case 'ridge': {
       const ux = Math.cos(rad(b.rot)), uy = Math.sin(rad(b.rot)), h = b.length / 2;

@@ -65,41 +65,53 @@ export function traceRays(grid, swell) {
     const i = Math.floor(u), j = Math.floor(v), fu = u - i, fv = v - j, q = j * M + i;
     return (F[q] * (1 - fu) + F[q + 1] * fu) * (1 - fv) + (F[q + M] * (1 - fu) + F[q + M + 1] * fu) * fv;
   };
-  const sp = RAYS.spacing, n = Math.floor((N * dx) / sp), th0 = -swell.dir * Math.PI / 180; // (peelrays: theta0 = -dir)
+  const th0 = -swell.dir * Math.PI / 180; // (peelrays: theta0 = -dir)
+  // (rays start along the offshore edge, extended past the bay's sides by as far as the swell's angle carries them on the
+  // way in, so an angled swell still covers the whole bay: a long coast needs every metre of it; outside the bay they see
+  // its edge rows, and only breaks inside count)
+  const drift = (M * dx) * Math.tan(th0), yS = gy0 + Math.min(0, -drift), yE = gy0 + N * dx + Math.max(0, -drift);
+  const sp = RAYS.spacing, n = Math.floor((yE - yS) / sp);
   const x = new Float64Array(n), y = new Float64Array(n), th = new Float64Array(n), alive = new Uint8Array(n).fill(1);
   const tb = new Float64Array(n).fill(NaN), xb = new Float64Array(n).fill(NaN), yb = new Float64Array(n).fill(NaN);
-  const hb = new Float64Array(n).fill(NaN), Hb = new Float64Array(n).fill(NaN), cb = new Float64Array(n).fill(NaN), sb = new Float64Array(n).fill(NaN);
-  for (let r = 0; r < n; r++) { x[r] = RAYS.x0; y[r] = gy0 + (r + 0.5) * sp; th[r] = th0; }
+  const hb = new Float64Array(n).fill(NaN), Hb = new Float64Array(n).fill(NaN), cb = new Float64Array(n).fill(NaN), sb = new Float64Array(n).fill(NaN), thb = new Float64Array(n).fill(NaN);
+  for (let r = 0; r < n; r++) { x[r] = RAYS.x0; y[r] = yS + (r + 0.5) * sp; th[r] = th0; }
   const cg0 = look(cgT, samp(hs, RAYS.x0, y[0])), b0 = sp * Math.cos(th0), kw = Math.max(1, Math.round(RAYS.kw / sp));
+  // (one crest: with an angled swell the crest crosses the offshore edge at an angle, so each ray sets off when it gets there,
+  // (y - y_first) sin(theta) / c0 later; starting them all at once swept the break along a coast ~2x too fast. As
+  // research/reef-generator's design_eval.py, which starts its arrival march with an oblique front.)
+  const c0 = samp(C, RAYS.x0, (yS + yE) / 2), go = new Float64Array(n);
+  { let mn = Infinity; for (let r = 0; r < n; r++) { go[r] = (y[r] * Math.sin(th0)) / c0; mn = Math.min(mn, go[r]); } for (let r = 0; r < n; r++) go[r] -= mn; }
   const H = new Float64Array(n), crests = [];
   let t = 0, nAlive = n, step = 0;
-  while (t < RAYS.tmax && nAlive > 0) {
+  const tmax = RAYS.tmax + Math.max(...go);
+  while (t < tmax && nAlive > 0) {
     for (let r = 0; r < n; r++) {
-      if (!alive[r]) continue;
+      if (!alive[r] || t < go[r]) continue;
       const ip = Math.min(n - 1, r + kw), im = Math.max(0, r - kw);
       const b = Math.hypot(x[ip] - x[im], y[ip] - y[im]) / Math.max(ip - im, 1);
       const Kr = Math.sqrt(Math.min(6.25, Math.max(0, b0 / Math.max(b, 1e-3))));
       const h = samp(hs, x[r], y[r]);
       H[r] = swell.H * Math.sqrt(cg0 / look(cgT, h)) * Kr;
       if (H[r] >= RAYS.gamma * h || h < 0.3) { tb[r] = t; xb[r] = x[r]; yb[r] = y[r]; hb[r] = h; Hb[r] = H[r]; cb[r] = samp(C, x[r], y[r]);
-        sb[r] = -(samp(Hx, x[r], y[r]) * Math.cos(th[r]) + samp(Hy, x[r], y[r]) * Math.sin(th[r])); // (the bottom rising in the wave's direction)
+        sb[r] = -(samp(Hx, x[r], y[r]) * Math.cos(th[r]) + samp(Hy, x[r], y[r]) * Math.sin(th[r])); thb[r] = th[r]; // (the bottom rising in the wave's direction)
         alive[r] = 0; nAlive--; }
     }
     if (step % 25 === 0) crests.push({ t, x: Float32Array.from(x), y: Float32Array.from(y), alive: Uint8Array.from(alive) }); // (every 5 s: the crest lines)
     for (let r = 0; r < n; r++) {
-      if (!alive[r]) continue;
+      if (!alive[r] || t < go[r]) continue;
       const c = samp(C, x[r], y[r]), cx = samp(Cx, x[r], y[r]), cy = samp(Cy, x[r], y[r]);
       th[r] += RAYS.dt * (Math.sin(th[r]) * cx - Math.cos(th[r]) * cy);
       x[r] += RAYS.dt * c * Math.cos(th[r]); y[r] += RAYS.dt * c * Math.sin(th[r]);
-      if (x[r] <= gx0 || x[r] >= gx0 + M * dx - dx || y[r] <= gy0 || y[r] >= gy0 + N * dx - dx) { alive[r] = 0; nAlive--; }
+      if (x[r] <= gx0 || x[r] >= gx0 + M * dx - dx || y[r] <= yS - 50 || y[r] >= yE + 50) { alive[r] = 0; nAlive--; }
     }
     t += RAYS.dt; step++;
   }
   const L0 = g * T * T / (2 * Math.PI);
   // (the seabed slope in the swell's mean direction at any spot: for breaking intensity where the height model (pewave.js)
   // says the set waves break)
-  const slopeAt = (x, y) => -(samp(Hx, x, y) * Math.cos(th0) + samp(Hy, x, y) * Math.sin(th0));
-  return { tb, xb, yb, hb, Hb, cb, sb, crests, n, H0: swell.H, L0, slopeAt };
+  // (in the direction the wave is travelling there: `th`, the ray's own at its break, else the swell's mean direction)
+  const slopeAt = (x, y, th = th0) => -(samp(Hx, x, y) * Math.cos(th) + samp(Hy, x, y) * Math.sin(th));
+  return { tb, xb, yb, hb, Hb, cb, sb, thb, crests, n, H0: swell.H, L0, slopeAt };
 }
 
 // When each 4 m strip along the reef first breaks (5-strip running median), then from the earliest spot (the peak) both
@@ -113,12 +125,12 @@ export function traceRays(grid, swell) {
 // is where it breaks, and Hs there its height. A strip where it never gets there doesn't break in that model (the rays
 // over-read ledges): its curl is marked as backing off. Timing and peel stay the rays'.
 export function analyse(R, grid, { binM = 4, step = 20, pe = null } = {}) {
-  const yLo = grid.y0 + grid.edge + 10, yHi = grid.y0 + grid.N * grid.dx - grid.edge - 10;
+  const V = grid.view || { y0: grid.y0, y1: grid.y0 + grid.N * grid.dx }, yLo = V.y0 + 70, yHi = V.y1 - 70; // (the curl within the map, clear of its edges)
   const strips = [];
   for (let e = yLo; e < yHi; e += binM) {
     let best = -1;
     for (let r = 0; r < R.n; r++) if (R.hb[r] > 0.4 && R.yb[r] >= e && R.yb[r] < e + binM && (best < 0 || R.tb[r] < R.tb[best])) best = r;
-    strips.push(best < 0 ? [e + binM / 2, NaN, NaN, NaN, NaN, NaN] : [e + binM / 2, R.tb[best], R.xb[best], R.cb[best], R.Hb[best], R.sb[best]]);
+    strips.push(best < 0 ? [e + binM / 2, NaN, NaN, NaN, NaN, NaN, NaN] : [e + binM / 2, R.tb[best], R.xb[best], R.cb[best], R.Hb[best], R.sb[best], R.thb[best]]);
   }
   for (let col = 1; col <= 5; col++) { // (running median over 5 strips: where rays cross a strip breaks a second or two off)
     const v = strips.map((s) => s[col]);
@@ -154,12 +166,15 @@ export function analyse(R, grid, { binM = 4, step = 20, pe = null } = {}) {
       const a = sl <= 0 ? 0 : Math.asin(Math.min(1, cm * sl)) * 180 / Math.PI;
       segs.push({ e0, a, H: idx.reduce((q, k) => q + pts[k][4], 0) / idx.length });
     }
-    // the ride: from the peak until two stretches in a row break faster than anyone can surf (one alone is a section the
-    // curl runs through); the takeoff stretch doesn't count
+    // the ride: from the peak until more than 40 m in a row breaks faster than anyone can surf (shorter is a section the curl
+    // runs through); the takeoff stretch doesn't count
+    // (each stretch's angle as the median of it and its neighbours: along a long coast the 20 m readings jitter by ~8 deg
+    // where rays cross, and a coast peeling at ~27 deg tripped the rule by chance)
+    segs.forEach((sg, i) => { const v = segs.slice(Math.max(0, i - 1), i + 2).map((q) => q.a).sort((a, b) => a - b); sg.am = v[Math.floor(v.length / 2)]; });
     let ride = 0, bad = 0, closed = false;
     for (const sg of segs) {
-      bad = sg.a < RAYS.closeout && sg.e0 >= step ? bad + 1 : 0;
-      if (bad >= 2) { ride = sg.e0 - step; closed = true; break; }
+      bad = sg.am < RAYS.closeout && sg.e0 >= step ? bad + 1 : 0;
+      if (bad >= 3) { ride = sg.e0 - 2 * step; closed = true; break; } // (more than 40 m in a row faster than anyone can surf: a closeout, as the game's own rule for Trestles, bar.sectionMax 40 m; shorter is a section the curl runs through)
       ride = sg.e0 + step;
     }
     ride = Math.min(ride, s[s.length - 1]);
@@ -171,14 +186,14 @@ export function analyse(R, grid, { binM = 4, step = 20, pe = null } = {}) {
       const sg = segs.find((q) => s[k] >= q.e0 && s[k] <= q.e0 + step) || segs[segs.length - 1];
       let kind = 'ride';
       if (s[k] > ride && closed) kind = 'closeout';
-      else if (gaps.includes(k) || (sg && sg.a > 70 && s[k] > step)) kind = 'backoff';
-      else if (sg && sg.a < 30 && s[k] > step) kind = 'section';
-      return { x: p[2], y: p[0], t: tc, s: s[k], H: p[4], Hray: p[4], c: p[3], slope: p[5], kind }; // (c: the wave's speed at breaking there)
+      else if (gaps.includes(k) || (sg && sg.am > 70 && s[k] > step)) kind = 'backoff';
+      else if (sg && sg.am < 30 && s[k] > step) kind = 'section';
+      return { x: p[2], y: p[0], t: tc, s: s[k], H: p[4], Hray: p[4], c: p[3], slope: p[5], th: p[6], kind }; // (c: the wave's speed at breaking there; th: the wave's direction there)
     });
     if (pe) { // (heights, break spots and slopes from the height model; then a 5-point running median along the curl)
       const { Hs, M } = pe, d = grid.depth, raw = curl.map((p) => {
         const j = Math.min(grid.N - 1, Math.max(0, Math.round((p.y - grid.y0) / grid.dx - 0.5)));
-        for (let i = 0; i < M; i++) { const h = d[j * M + i], hs = Hs[j * M + i]; if (h > 0.3 && hs / h >= 0.47) { const x = grid.x0 + (i + 0.5) * grid.dx; return { H: hs, slope: R.slopeAt(x, p.y), breaks: true }; } }
+        for (let i = 0; i < M; i++) { const h = d[j * M + i], hs = Hs[j * M + i]; if (h > 0.3 && hs / h >= 0.47) { const x = grid.x0 + (i + 0.5) * grid.dx; return { H: hs, slope: R.slopeAt(x, p.y, isFinite(p.th) ? p.th : undefined), breaks: true }; } }
         const i = Math.min(M - 1, Math.max(0, Math.round((p.x - grid.x0) / grid.dx - 0.5)));
         return { H: Hs[j * M + i], slope: p.slope, breaks: false };
       });

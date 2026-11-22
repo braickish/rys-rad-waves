@@ -4,7 +4,7 @@
 // onto peaks), the swell, crest lines every 5 s, and the curl from the fast break model (rays.js) coloured by time with
 // ticks every 5 s, marked where it sections, backs off or closes out. Circles mean "you can drag this": only the blocks'
 // handles are circles (the user, 2026-11-22); the curl's time ticks and the break's peak (a diamond) aren't.
-import { buildDepth, makeGrid } from './reef.js';
+import { buildDepth, makeGrid, defaultCoast } from './reef.js';
 import { traceRays, analyse } from './rays.js';
 import { runPE } from './pewave.js';
 import { LOOP, curlAt, defaultLoop, clampLoop, loopInfo, snapEnd, bestLoop, wavePayload } from './loop.js';
@@ -18,7 +18,7 @@ const BANDS = [[-50, 0, '#efe2bd'], [0, 1, '#e3f3d9'], [1, 2, '#9fe6d6'], [2, 3,
 const BAND_RGB = BANDS.map(([a, b, c]) => [a, b, parseInt(c.slice(1, 3), 16), parseInt(c.slice(3, 5), 16), parseInt(c.slice(5, 7), 16)]);
 const COL = { yellow: [255, 212, 38], pink: [255, 61, 139], red: '#ff4b4b' };
 
-const state = { blocks: dynamicPreset(), sel: null, swell: { H: 1.6, T: 15, dir: 0 }, grid: null, rays: null, wave: null, dirty: true, ms: 0,
+const state = { blocks: dynamicPreset(), coast: defaultCoast(), sel: null, swell: { H: 1.6, T: 15, dir: 0 }, grid: null, rays: null, wave: null, dirty: true, ms: 0,
   loop: { on: false, side: 'right', a: null, b: null, info: null }, hover: null }; // (loop: a stretch of one side to surf on repeat, loop.js)
 let view = null; // the map's placement on the canvas
 const depthImg = document.createElement('canvas');
@@ -26,7 +26,7 @@ const depthImg = document.createElement('canvas');
 // ---- the model ----
 function recompute() {
   const t0 = performance.now();
-  state.grid = buildDepth(reefComponents(state.blocks), makeGrid());
+  state.grid = buildDepth(reefComponents(state.blocks), makeGrid(), state.coast);
   state.rays = traceRays(state.grid, state.swell);
   state.wave = analyse(state.rays, state.grid);
   state.ms = performance.now() - t0;
@@ -41,12 +41,12 @@ function recompute() {
 // The design is remembered (in this browser) so coming back from riding it finds it as you left it.
 const SAVE_KEY = 'rys-rad-waves-builder';
 function save() {
-  try { localStorage.setItem(SAVE_KEY, JSON.stringify({ blocks: state.blocks, swell: state.swell, loop: { on: state.loop.on, side: state.loop.side, a: state.loop.a, b: state.loop.b }})); } catch {}
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify({ blocks: state.blocks, coast: state.coast, swell: state.swell, loop: { on: state.loop.on, side: state.loop.side, a: state.loop.a, b: state.loop.b }})); } catch {}
 }
 function restore() {
   try {
     const j = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null'); if (!j || !Array.isArray(j.blocks)) return;
-    state.blocks = j.blocks; Object.assign(state.swell, j.swell || {}); Object.assign(state.loop, j.loop || {}); 
+    state.blocks = j.blocks; if (j.coast && Array.isArray(j.coast.pts)) state.coast = j.coast; Object.assign(state.swell, j.swell || {}); Object.assign(state.loop, j.loop || {}); 
     for (const [id, key] of [['H', 'H'], ['T', 'T'], ['D', 'dir']]) document.getElementById(id).value = state.swell[key];
   } catch {}
 }
@@ -81,7 +81,7 @@ function layout() {
   const dpr = window.devicePixelRatio || 1, r = canvas.getBoundingClientRect();
   canvas.width = Math.round(r.width * dpr); canvas.height = Math.round(r.height * dpr);
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  const g = state.grid || makeGrid(), Y0 = g.y0, Y1 = g.y0 + g.N * g.dx;
+  const g = state.grid || makeGrid(), Y0 = g.view.y0, Y1 = g.view.y1; // (the map shows `view`; the model runs wider)
   const pad = 14, w = r.width - 2 * pad, h = r.height - 2 * pad - 30 - 26; // (30 above for the swell, 26 below for the scale)
   const S = Math.min(w / (Y1 - Y0), h / (VIEW.x1 - VIEW.x0));
   const z = view ? view.z : 1, panX = view ? view.panX : 0, panY = view ? view.panY : 0;
@@ -129,7 +129,7 @@ function draw() {
   // depth bands (the grid image, cropped to the view)
   const i0 = (VIEW.x0 - g.x0) / g.dx, iN = (VIEW.x1 - VIEW.x0) / g.dx;
   ctx.imageSmoothingEnabled = true;
-  ctx.drawImage(depthImg, 0, i0 * 2, g.N * 2, iN * 2, px(view.Y0), py(VIEW.x0), mw * view.z, mh * view.z);
+  ctx.drawImage(depthImg, (view.Y0 - g.y0) / g.dx * 2, i0 * 2, (view.Y1 - view.Y0) / g.dx * 2, iN * 2, px(view.Y0), py(VIEW.x0), mw * view.z, mh * view.z);
   // crest lines every 5 s (only the bit still unbroken)
   ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 1.2;
   for (const c of state.rays.crests) {
@@ -151,11 +151,12 @@ function draw() {
   if (w && !state.blocks.some((b) => { const h = handle(b); return Math.hypot(px(h.y) - px(w.peak.y), py(h.x) - py(w.peak.x)) < 14; })) diamond(px(w.peak.y), py(w.peak.x), 8);
   // blocks
   for (const b of state.blocks) drawBlock(b);
+  drawCoast();
   if (w && state.loop.info) drawLoopHandles();
   // labels: beach, swell
   ctx.restore();
   ctx.font = '700 13px Rubik'; ctx.textAlign = 'center'; ctx.fillStyle = '#8a6a2a';
-  { const bxp = Math.min(view.left + mw - 40, Math.max(view.left + 40, px((view.Y0 + view.Y1) / 2))), byp = py(VIEW.x1) - 10; if (byp < view.top + mh + 2) ctx.fillText('BEACH', bxp, byp); } // (moves with the zoom)
+  { const yb = (state.coast.pts[2][1] + state.coast.pts[3][1]) / 2, xb = (state.coast.pts[2][0] + state.coast.pts[3][0]) / 2 + 9, bxp = px(yb), byp = py(xb); if (byp < view.top + mh - 2 && bxp > view.left && bxp < view.left + mw) ctx.fillText('BEACH', bxp, byp); } // (on the sand, between two coastline handles; moves with the zoom)
   drawSwell(view.left + mw / 2, view.top - 14);
   // scale bar
   ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; const sx = view.left + 6, sy = view.top + mh + 16;
@@ -230,6 +231,13 @@ function handle(b) {
   const a = b.angle * Math.PI / 180, L = (b.type === 'arm' ? b.length : 100) / 2, off = 28;
   return { x: b.x + Math.sin(a) * L - Math.cos(a) * off, y: b.y + b.side * Math.cos(a) * L + b.side * Math.sin(a) * off };
 }
+// The coastline's handles (plan step 5): round, on the waterline; you drag them in and out. Its name shows on hover.
+function drawCoast() {
+  const on = state.hover === 'coast' || (drag && drag.coast != null);
+  for (const [x, y] of state.coast.pts) dot(px(y), py(x), on ? 7 : 6, '#efe2bd', '#0b1a24', 2);
+  if (on) { const [x, y] = state.coast.pts[2]; ctx.font = '400 12px Bungee'; ctx.textAlign = 'center'; ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(11,26,36,.8)'; ctx.fillStyle = '#efe2bd'; ctx.strokeText('COASTLINE', px(y), py(x) - 14); ctx.fillText('COASTLINE', px(y), py(x) - 14); }
+}
+function hitCoast(cx, cy) { let best = -1, bd = 14; state.coast.pts.forEach(([x, y], k) => { const d = Math.hypot(px(y) - cx, py(x) - cy); if (d < bd) { bd = d; best = k; } }); return best; }
 function drawBlock(b) {
   const X = px(b.y), Y = py(b.x), on = state.sel === b, hov = state.hover === b, show = on || hov;
   // its shape and name only when selected or under the pointer (the user: they covered the curl's colours)
@@ -280,6 +288,7 @@ canvas.addEventListener('pointerdown', (e) => {
   }
   const r0 = canvas.getBoundingClientRect(), lh = hitLoop(e.clientX - r0.left, e.clientY - r0.top);
   if (lh) { drag = { loop: lh }; canvas.setPointerCapture(e.pointerId); return; }
+  { const r1 = canvas.getBoundingClientRect(), ck = hitCoast(e.clientX - r1.left, e.clientY - r1.top); if (ck >= 0 && !hit(e.clientX - r1.left, e.clientY - r1.top)) { drag = { coast: ck }; state.sel = null; showSel(); canvas.setPointerCapture(e.pointerId); return; } }
   const r = canvas.getBoundingClientRect(), cx = e.clientX - r.left, cy = e.clientY - r.top, b = hit(cx, cy);
   state.sel = b; showSel();
   if (b) {
@@ -298,8 +307,13 @@ canvas.addEventListener('pointermove', (e) => {
     const [a, b] = [...pointers.values()], d = Math.hypot(a.x - b.x, a.y - b.y);
     zoomAt((a.x + b.x) / 2, (a.y + b.y) / 2, d / Math.max(1, pinch.d)); pinch.d = d; return;
   }
+  if (drag && drag.coast != null) { // (a coastline handle: in and out only, 10 m snap, kept inside the bay)
+    const p = toReef(cx, cy), nx = Math.min(1240, Math.max(700, snap(p.x)));
+    if (nx !== state.coast.pts[drag.coast][0]) { state.coast.pts[drag.coast][0] = nx; state.dirty = true; schedule(); }
+    return;
+  }
   if (drag && drag.pan) { view.panX = drag.px0 - (cx - drag.sx); view.panY = drag.py0 - (cy - drag.sy); clampPan(); draw(); return; }
-  if (!drag) { const h = hit(cx, cy); canvas.style.cursor = h || hitLoop(cx, cy) || view.z > 1 ? 'grab' : 'default'; if (h !== state.hover) { state.hover = h; draw(); } return; }
+  if (!drag) { const h = hit(cx, cy) || (hitCoast(cx, cy) >= 0 ? 'coast' : null); canvas.style.cursor = h || hitLoop(cx, cy) || view.z > 1 ? 'grab' : 'default'; if (h !== state.hover) { state.hover = h; draw(); } return; }
   if (drag.loop) { // (a loop end: to the nearest spot on the curl, 10 m snap, the loop at least LOOP.min long, inside the ride)
     const L = state.loop, side = state.wave[L.side];
     let best = null; for (let s = 0; s <= side.ride; s += 2) { const q = curlAt(side.curl, s), d = Math.hypot(px(q.y) - cx, py(q.x) - cy); if (!best || d < best.d) best = { s, d }; }
@@ -383,7 +397,7 @@ function showSel() {
     el.appendChild(opt('Angle', ARM_ANGLES, b.angle, (v) => `${v}°`, (v) => { b.angle = v; }));
   }
   if (b.type === 'arm') el.appendChild(opt('Length', ARM_LENGTHS, b.length, (v) => `${v} m`, (v) => { b.length = v; }));
-  if (b.type === 'arm') el.appendChild(opt('Slope', ARM_SLOPES.map(([g]) => g), b.slope || '1:10', (v) => ARM_SLOPES.find(([g]) => g === v)[1], (v) => { b.slope = v; }));
+  if (b.type === 'arm' || b.type === 'peak') el.appendChild(opt('Slope', ARM_SLOPES.map(([g]) => g), b.slope || '1:10', (v) => ARM_SLOPES.find(([g]) => g === v)[1], (v) => { b.slope = v; }));
   if (b.type === 'ridge' || b.type === 'channel') {
     el.appendChild(opt('Turn', ROTATIONS, b.rot, (v) => `${v}°`, (v) => { b.rot = v; }));
     el.appendChild(opt('Length', b.type === 'ridge' ? [50, 80, 120] : [140, 220, 320], b.length, (v) => `${v} m`, (v) => { b.length = v; }));
@@ -453,19 +467,30 @@ for (const [id, key, fmt] of [['H', 'H', (v) => `${v.toFixed(1)} m`], ['T', 'T',
   const set = () => { state.swell[key] = Number(input.value); out.textContent = fmt(state.swell[key]); state.dirty = true; schedule(); };
   input.addEventListener('input', set); out.textContent = fmt(Number(input.value));
 }
+// The coast panel: the beach face's slope (the Skeleton Bay research: it sets the hollowness, not the peel), and straighten.
+const BEACH = [[12, 'Steep 1:12'], [20, 'Medium 1:20'], [35, 'Gentle 1:35'], [66.7, 'Flat 1:67']];
+function showCoast() {
+  const el = $('coast'); el.innerHTML = '';
+  const row = document.createElement('div'); row.className = 'row';
+  for (const [f, label] of BEACH) { const b = document.createElement('button'); b.textContent = label; if (Math.abs(state.coast.face - f) < 0.1) b.className = 'on'; b.onclick = () => { state.coast.face = f; state.dirty = true; showCoast(); schedule(); }; row.appendChild(b); }
+  el.appendChild(row);
+  const st = document.createElement('button'); st.textContent = 'Straighten'; st.style.marginTop = '6px';
+  st.onclick = () => { const face = state.coast.face; state.coast = defaultCoast(); state.coast.face = face; state.dirty = true; schedule(); };
+  el.appendChild(st);
+}
 function showZoom() { // (the map's corner: zoom out / in / fit)
   const el = $('colorby'); el.innerHTML = '';
   for (const [label, fn] of [['−', () => zoomAt(view.left + view.mw / 2, view.top + view.mh / 2, 1 / 1.5)], ['+', () => zoomAt(view.left + view.mw / 2, view.top + view.mh / 2, 1.5)], ['Fit', () => { view.z = 1; view.panX = view.panY = 0; draw(); }]]) {
     const b = document.createElement('button'); b.textContent = label; b.onclick = fn; el.appendChild(b);
   }
 }
-$('reset').onclick = () => { state.blocks = dynamicPreset(); state.sel = null; state.dirty = true; showSel(); schedule(); };
+$('reset').onclick = () => { state.coast = defaultCoast(); showCoast(); state.blocks = dynamicPreset(); state.sel = null; state.dirty = true; showSel(); schedule(); };
 $('clear').onclick = () => { state.blocks = []; state.sel = null; state.dirty = true; showSel(); schedule(); };
 window.addEventListener('resize', () => { layout(); draw(); });
 
 restore();
 { const q = new URLSearchParams(location.search).get('loop'); if (q) { state.loop.on = true; state.loop.side = q === 'left' ? 'left' : 'right'; } } // (?loop=right|left: start looped, for testing)
-recompute(); layout(); showSel(); showZoom();
+recompute(); layout(); showSel(); showZoom(); showCoast();
 { const zq = Number(new URLSearchParams(location.search).get('zoom')); if (zq > 1 && state.wave) zoomAt(px(state.wave.peak.y), py(state.wave.peak.x), zq); } // (?zoom=2.5: open zoomed on the peak, for testing)
 draw();
 document.fonts?.ready.then(() => draw());

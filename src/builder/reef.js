@@ -13,7 +13,9 @@ const smooth01 = (t) => { t = Math.min(1, Math.max(0, t)); return t * t * (3 - 2
 const band = (u, a, b, fade) => smooth01((u - a) / fade + 1) * smooth01((b - u) / fade + 1);
 
 // The bay: x' from x0 to x1, y' from y0 to y1 (m), cells of dx m.
-export const BAY = { x0: 150, x1: 1262, y0: 120, y1: 920, dx: 4, offDepth: 15, flatTo: 250, shoreX: 1250, edge: 60, blend: 4 };
+// (the model runs 300 m wider each side than the map shows, `view`: with an angled swell many waves come in from beyond the
+// map's sides, and copying its edge rows outward bent them wrong before they got there)
+export const BAY = { view: { y0: 120, y1: 920 }, x0: 150, x1: 1262, y0: -180, y1: 1220, dx: 4, offDepth: 15, flatTo: 250, shoreX: 1250, edge: 60, blend: 4 };
 
 export function makeGrid(bay = BAY) {
   const M = Math.round((bay.x1 - bay.x0) / bay.dx), N = Math.round((bay.y1 - bay.y0) / bay.dx);
@@ -113,16 +115,45 @@ export function blur(src, M, N, sigma) {
 }
 
 // Build the seabed for a list of components (reefgen's `components`).
-export function buildDepth(components, grid = makeGrid()) {
+// The coastline (plan step 5; the user, 2026-11-22: long sandy shores like Skeleton Bay, where the whole sloping shore is the
+// "sandbar"; in Mead & Black's terms one long wedge on a ramp; research/reef-generator's `shore` component): the waterline as
+// a polyline of points [x', y'] (sorted along y'), and the beach face's slope 1:`face` down to 5 m, then 1:66.7 (the bay's
+// own slope) beyond. The bay's floor is then the coast's profile by distance from that line (offshore +). The default, a
+// straight line at x' 1250 with face 66.7, is exactly the old floor (15 m at x' 250 shoaling 1:66.7 to the beach at 1250).
+export const COAST = { face: 66.7, faceDepth: 5, outer: 66.7, dune: 2.5 };
+export const defaultCoast = (bay = BAY) => ({ face: 66.7, pts: [0.08, 0.31, 0.54, 0.77, 0.92].map((f) => [bay.shoreX, bay.view.y0 + (bay.view.y1 - bay.view.y0) * f]) }); // (handles inside the bay, the line running on past them)
+function coastDepth(n, face) {
+  if (n <= 0) return Math.max(-COAST.dune, n / COAST.outer); // (up the beach)
+  const nf = COAST.faceDepth * face;
+  return n <= nf ? n / face : COAST.faceDepth + (n - nf) / COAST.outer;
+}
+// Signed distance from the coastline: + offshore (smaller x' than the line at that y'), - on the beach. The line runs on
+// straight past its end points.
+function coastDist(pts, x, y) {
+  const P = pts.slice().sort((a, b) => a[1] - b[1]), n = P.length;
+  const ext = [[P[0][0] - (P[1][0] - P[0][0]) * 50, P[0][1] - (P[1][1] - P[0][1]) * 50], ...P, [P[n - 1][0] + (P[n - 1][0] - P[n - 2][0]) * 50, P[n - 1][1] + (P[n - 1][1] - P[n - 2][1]) * 50]];
+  let best = Infinity, lineX = ext[0][0];
+  for (let k = 0; k + 1 < ext.length; k++) {
+    const [ax, ay] = ext[k], [bx, by] = ext[k + 1], ex = bx - ax, ey = by - ay, l2 = ex * ex + ey * ey || 1e-9;
+    const t = Math.min(1, Math.max(0, ((x - ax) * ex + (y - ay) * ey) / l2));
+    best = Math.min(best, Math.hypot(x - ax - t * ex, y - ay - t * ey));
+    if (y >= ay && y <= by) lineX = ax + (bx - ax) * ((y - ay) / (by - ay || 1e-9));
+  }
+  return x <= lineX ? best : -best;
+}
+
+export function buildDepth(components, grid = makeGrid(), coast = null) {
   const { M, N, dx, x0, y0, offDepth, flatTo, shoreX } = grid;
   const baseSlope = offDepth / (shoreX - flatTo);
+  const baseAt = coast ? (x, y) => Math.min(offDepth, coastDepth(coastDist(coast.pts, x, y), coast.face)) : (x) => offDepth - baseSlope * Math.max(0, x - flatTo);
+  const baseGrid = new Float32Array(M * N);
   let depth = new Float32Array(M * N);
   const shallow = components.filter((c) => c.type !== 'channel'), chans = components.filter((c) => c.type === 'channel');
   for (let j = 0; j < N; j++) {
     const y = y0 + (j + 0.5) * dx;
     for (let i = 0; i < M; i++) {
       const x = x0 + (i + 0.5) * dx;
-      const base = offDepth - baseSlope * Math.max(0, x - flatTo);
+      const base = baseAt(x, y); baseGrid[j * M + i] = base;
       let d = base;
       for (const c of shallow) d = Math.min(d, compDepth(c, x, y, base, grid));
       for (const c of chans) { // (channels deepen: along a polyline, `depth_m` across `width_m`, easing out over `fade_m`)
@@ -134,14 +165,17 @@ export function buildDepth(components, grid = makeGrid()) {
   }
   depth = blur(depth, M, N, grid.blend / dx);
   // flat offshore strip, eased in; side edges eased to the along-shore mean
+  // (with a coastline: the reef's part (depth - the coast's floor) is eased to its along-shore mean at the sides, so a bent
+  // coast stays bent to the edge; for a straight coast this is the same as before)
+  const bg = coast ? blur(baseGrid, M, N, grid.blend / dx) : null;
   const mean = new Float32Array(M);
-  for (let i = 0; i < M; i++) { let a = 0; for (let j = 0; j < N; j++) a += depth[j * M + i]; mean[i] = a / N; }
+  for (let i = 0; i < M; i++) { let a = 0; for (let j = 0; j < N; j++) a += depth[j * M + i] - (bg ? bg[j * M + i] : 0); mean[i] = a / N; }
   for (let j = 0; j < N; j++) {
     const y = (j + 0.5) * dx, e = grid.edge > 0 ? smooth01(Math.min(y, N * dx - y) / grid.edge) : 1;
     for (let i = 0; i < M; i++) {
       const x = x0 + (i + 0.5) * dx, w = smooth01(x / flatTo);
       let d = offDepth * (1 - w) + depth[j * M + i] * w;
-      const mw = offDepth * (1 - w) + mean[i] * w;
+      const mw = offDepth * (1 - w) + (mean[i] + (bg ? bg[j * M + i] : 0)) * w;
       depth[j * M + i] = mw * (1 - e) + d * e;
     }
   }

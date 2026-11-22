@@ -64,7 +64,7 @@ be wrong on exactly the blocks that make them.
   case in particular.
 - Builder: a small "refining..." state after a drag.
 
-## 5. Editable coastline (added 2026-11-22, the user)
+## 5. Editable coastline (added 2026-11-22, the user; done 2026-11-22)
 
 Long sand points and coasts (Skeleton Bay, J-Bay) have no separate bar: the whole sloping shoreline is the "sandbar". In
 Mead & Black's terms the coast is one very long wedge on a ramp; research/reef-generator's `shore` component and the

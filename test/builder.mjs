@@ -3,7 +3,7 @@
 // References (2026-11-22): peelrays.py right ride 220 m at median peel 29.5 deg, left 220 m at 31.7; FUNWAVE (flag break
 // maps) median curl 204 m, peel ~29 deg. Also how long a rebuild + trace takes (the builder redraws while you drag).
 //   node test/builder.mjs
-import { buildDepth, makeGrid } from '../src/builder/reef.js';
+import { buildDepth, makeGrid, defaultCoast } from '../src/builder/reef.js';
 import { traceRays, analyse } from '../src/builder/rays.js';
 import { defaultLoop, loopInfo, clampLoop, LOOP } from '../src/builder/loop.js';
 import { runPE } from '../src/builder/pewave.js';
@@ -86,8 +86,30 @@ check(A.left.xi > 0.5 && A.left.xi < 3.3 && A.right.xi > 0.5 && A.right.xi < 3.3
   const B = analyse(R, grid, { pe: P });
   console.log(`refined: right H ${B.right.H.toFixed(2)} m (rays ${A.right.H.toFixed(2)}), xi0 ${B.right.xi.toFixed(2)} (${B.right.how}, rays ${A.right.xi.toFixed(2)}); left H ${B.left.H.toFixed(2)}, xi0 ${B.left.xi.toFixed(2)} (${B.left.how})`);
   check(B.right.refined && B.right.H < A.right.H, 'refined: the set waves break smaller than the rays said (they over-read)');
-  check(B.right.xi < A.right.xi, 'refined: the right\'s ledge shelf reads less hollow than the rays made it');
+  check(B.right.xi > 0.5 && B.right.xi < 3.3 && B.left.xi > 0.5, 'refined: both arms still plunge (the right\'s ledge shelf ~1.5: the set waves break on its steep face)');
   check(Math.abs(B.right.peel - A.right.peel) < 1e-9 && B.right.ride === A.right.ride, 'refined: timing and peel stay the rays\'');
+}
+// The coastline (plan step 5): the default is the old floor; a sandy coast at a steep angle to the swell peels the whole bay
+// like Skeleton Bay; the beach face sets the hollowness and the swell's angle the peel, as research/reef-generator's
+// Skeleton Bay sweep (75 deg off the shore normal: ~30 deg peel; faces 1:12 / 1:20 / 1:35 -> xi 0.93 / 0.63 / 0.37;
+// periods 11.6 / 15 / 18 s -> xi 0.49 / 0.63 / 0.76).
+{
+  const { FLOOR } = await import('../src/builder/blocks.js');
+  const a = buildDepth(DYNAMIC, makeGrid()).depth, b = buildDepth(DYNAMIC, makeGrid(), defaultCoast()).depth;
+  let m = 0; for (let i = 0; i < a.length; i++) m = Math.max(m, Math.abs(a[i] - b[i]));
+  check(m < 0.02, `coast: the default coastline is the old floor (max ${m.toFixed(3)} m apart)`);
+  const angled = (face, ang) => { const c = defaultCoast(); c.face = face; const t = Math.tan(ang * Math.PI / 180); c.pts = c.pts.map(([x, y]) => [1240 - (y - c.pts[0][1]) * t, y]); return c; };
+  const coast = (c, sw) => { const g = buildDepth(FLOOR, makeGrid(), c), R2 = traceRays(g, sw); return analyse(R2, g, { pe: runPE(g, sw) }); };
+  const sk = coast(angled(20, 35), { H: 1.6, T: 15, dir: 40 }).right;
+  console.log(`coast 35 deg, swell +40 (75 deg to the shore), face 1:20: ride ${sk.ride.toFixed(0)} m at ${sk.peel.toFixed(0)} deg, xi0 ${sk.xi.toFixed(2)} (${sk.how})`);
+  check(sk.ride > 600 && sk.peel > 24 && sk.peel < 34, 'coast: a sandy coast nearly along the swell peels the whole bay at ~25-33 deg');
+  const f35 = coast(angled(35, 35), { H: 1.6, T: 15, dir: 40 }).right, t11 = coast(angled(20, 35), { H: 1.6, T: 11.6, dir: 40 }).right, t18 = coast(angled(20, 35), { H: 1.6, T: 18, dir: 40 }).right;
+  const f12 = coast(angled(12, 35), { H: 1.6, T: 15, dir: 40 }).right;
+  console.log(`  faces 1:12 / 1:20 / 1:35: xi0 ${f12.xi.toFixed(2)} / ${sk.xi.toFixed(2)} / ${f35.xi.toFixed(2)} (research 0.93 / 0.63 / 0.37); 11.6 / 18 s: ${t11.xi.toFixed(2)} / ${t18.xi.toFixed(2)} (0.49 / 0.76)`);
+  check(f12.xi > sk.xi && sk.xi > f35.xi && Math.abs(sk.xi - 0.63) < 0.15 && Math.abs(f35.xi - 0.37) < 0.1, 'coast: the beach face sets the hollowness, near the research\'s numbers');
+  check(t18.xi > sk.xi && sk.xi > t11.xi, 'coast: a longer period breaks hollower');
+  const st = coast((() => { const c = defaultCoast(); c.face = 20; return c; })(), { H: 1.6, T: 15, dir: 0 });
+  check(!st || (st.right.ride < 60 && st.left.ride < 60), 'coast: a straight beach facing the swell closes out');
 }
 check(tBuild + tRays + tAn < 400, `rebuild + trace under 400 ms in node (${(tBuild + tRays + tAn).toFixed(0)})`);
 console.log(fails ? 'SOME FAILED' : 'all ok');
