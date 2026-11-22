@@ -63,6 +63,7 @@ export async function createRenderer(canvas) {
     u[0] = COLS; u[1] = WATER_XS.length; u[2] = TABLE.rows; u[3] = SHAPE.a; u[10] = SHAPE.b; f[9] = SHAPE.w; // (shape sets: wave.js SHAPE)
     f[4] = TABLE.sMin; f[5] = TABLE.sMax; f[6] = SCALE; f[7] = WAVE.turquoise || 0; // (clear, shallow water: Queens)
     f[8] = WAVE.green || 0; // (cold, green water: Raglan)
+    f[11] = WAVE.ridges ? 1 : 0; // (Raglan+: the shape blends per slice by the reef ridge, shaders.js tableAt)
     device.queue.writeBuffer(waterInfoBuf, 0, b);
   };
   writeWaterInfo();

@@ -87,10 +87,10 @@ struct VO {
   @location(2) attr: vec3f,
 };
 // The water surface, built from the cross-section table (see mesh.js).
-struct WaterInfo { cols: u32, nx: u32, rows: u32, setA: u32, sMin: f32, sMax: f32, scale: f32, turquoise: f32, green: f32, blend: f32, setB: u32, pad3: f32 };
+struct WaterInfo { cols: u32, nx: u32, rows: u32, setA: u32, sMin: f32, sMax: f32, scale: f32, turquoise: f32, green: f32, blend: f32, setB: u32, ridges: f32 };
 @group(0) @binding(1) var<uniform> W: WaterInfo;
 @group(0) @binding(2) var<storage, read> table: array<vec4f>;   // [z, y, foam, thin] per (row, col)
-@group(0) @binding(3) var<storage, read> slices: array<vec2f>;  // [xs, phase] per slice
+@group(0) @binding(3) var<storage, read> slices: array<vec4f>;  // [xs, phase, ridge, 0] per slice
 
 fn tableSet(si: u32, s: f32, j: u32) -> vec4f {
   let f = clamp((s - W.sMin) / (W.sMax - W.sMin), 0.0, 1.0) * f32(W.rows - 1u);
@@ -100,7 +100,13 @@ fn tableSet(si: u32, s: f32, j: u32) -> vec4f {
   return mix(table[base + r0 * W.cols + j], table[base + r1 * W.cols + j], f - floor(f));
 }
 // (a wave with shape sets, Trestles: set A blended toward set B, as wave.js controlPoints does)
-fn tableAt(s: f32, j: u32) -> vec4f {
+// (a wave with ridges, Raglan+: set 0 blended toward the section shape, set 1, by this slice's ridge, as wave.js does)
+fn tableAt(s: f32, j: u32, ridge: f32) -> vec4f {
+  if (W.ridges > 0.5) {
+    let p = tableSet(0u, s, j);
+    if (ridge <= 0.0001) { return p; }
+    return mix(p, tableSet(1u, s, j), ridge);
+  }
   let a = tableSet(W.setA, s, j);
   if (W.blend <= 0.0 || W.setB == W.setA) { return a; }
   return mix(a, tableSet(W.setB, s, j), W.blend);
@@ -108,7 +114,7 @@ fn tableAt(s: f32, j: u32) -> vec4f {
 // Surface point for slice i, column j.
 fn surfacePoint(i: u32, j: u32) -> vec3f {
   let sl = slices[i];
-  let e = tableAt(sl.y, j);
+  let e = tableAt(sl.y, j, sl.z);
   if (j == 0u || j == W.cols - 1u) { return vec3f(sl.x, 0.0, e.x); }
   return vec3f(sl.x, e.y * W.scale, e.x * W.scale);
 }
@@ -129,7 +135,7 @@ fn surfacePoint(i: u32, j: u32) -> vec3f {
     n = normalize(cross(tu, tx));
   }
   let sl = slices[i];
-  let e = tableAt(sl.y, j);
+  let e = tableAt(sl.y, j, sl.z);
   // Whitewater fades a little far behind the curl.
   let foam = e.z * (1.0 - smoothstep(10.0, 40.0, -sl.x) * 0.5 * smoothstep(0.8, 1.4, sl.y));
   let pw = dirX(p); // (built along the wave, placed in the world)

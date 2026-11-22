@@ -4,7 +4,7 @@
 // `sea` (see src/waves/). Deterministic for a given seed, so tests are
 // repeatable.
 
-import { WAVE, SECTIONS, stepSections, setWaveSize, surface, startRide, stepRide } from './wave.js';
+import { WAVE, SECTIONS, stepSections, setWaveSize, surface, startRide, stepRide, seedRidges } from './wave.js';
 
 let rnd = mulberry(1);
 let setIndex = -1, timer = 0;
@@ -20,7 +20,7 @@ function mulberry(seed) {
 }
 const between = ([a, b]) => a + (b - a) * rnd();
 
-export function seedSea(seed) { rnd = mulberry(seed); setIndex = -1; }
+export function seedSea(seed) { rnd = mulberry(seed); setIndex = -1; seedRidges(seed); }
 
 // Start a new ride: the next wave of the set (sizes cycle through the set).
 export function nextWave() {

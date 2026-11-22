@@ -21,7 +21,7 @@
 //  - Turning back into the whitewater, high, turning as you hit: rebound.
 //    Sit in the foam too long and it takes you.
 
-import { surface, slice, phaseAt, verticalHits, segmentHit, PEEL_SPEED, WAVE_SPEED, NP, WAVE, setWave, SCALE, controlPoints, crPoint, SHAPE, withShape, RIDE, sectionGrace, breaksAt } from './wave.js';
+import { surface, slice, phaseAt, verticalHits, segmentHit, PEEL_SPEED, WAVE_SPEED, NP, WAVE, setWave, SCALE, controlPoints, crPoint, SHAPE, withShape, RIDE, sectionGrace, breaksAt, holdPeel } from './wave.js';
 
 export const G = 9.8;
 // The rider's and board's settings. Wave-specific settings (pocket speeds,
@@ -1073,7 +1073,7 @@ function stepSurf(r, input, dt) {
   const pkReach = r.xs > 0 ? pocketPower(Math.max(0, r.xs - T.shoulderReach) / (T.shoulderFade || 1)) : pk; // (shoulderFade: fades over this many times the pocket's own length)
   const pkSpeed = Math.max(pkReach, wall); // (a steep wall anywhere feeds you too: `wallK`)
   let target = T.vLow + (T.vPocket - T.vLow) * pkSpeed * steep * (T.heightSpeed[0] + T.heightSpeed[1] * height);
-  if (T.energy) target = T.vLow + (T.pocketHold * PEEL_SPEED - T.vLow) * pkSpeed * steepAny * crestFade(r, height); // (energy pocket: 1.0x the peel at any height up to the crest, where it fades)
+  if (T.energy) target = T.vLow + (T.pocketHold * holdPeel() - T.vLow) * pkSpeed * steepAny * crestFade(r, height); // (energy pocket: 1.0x the peel at any height up to the crest, where it fades; Raglan+'s sections: the wave's own peel, wave.js holdPeel)
   else if (T.physPocket) target = physCruise(T.physPocket, height, pkSpeed, steepAny);
   r.cruise = target; // (the wave's cruising speed for you here, before feet and foam: tests)
   if (r.foot < 0) target *= 1 - (1 - (T.tailSpeed ?? 1)) * -r.foot; // (standing on the tail the board drags: slower than from the middle)
@@ -1630,7 +1630,7 @@ export function tubeHeight() {
 // How far toward the beach the lip reaches at xs (world z of its tip).
 const _lipCp = new Float64Array(NP * 2), _lipO = [0, 0];
 function lipTipZ(xs) {
-  controlPoints(phaseAt(xs), _lipCp);
+  controlPoints(phaseAt(xs), _lipCp, undefined, xs);
   let z = -1e9;
   for (let t = 6; t <= 10.5; t += 0.05) z = Math.max(z, crPoint(_lipCp, t, _lipO)[0]);
   return z;

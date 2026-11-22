@@ -12,7 +12,8 @@ python3 -m http.server 8765 --bind 127.0.0.1   # then open http://127.0.0.1:8765
 
 It needs a WebGPU browser (recent Chrome/Edge, or Safari on macOS/iOS 26+).
 
-Waves (2026-11-17 names, after real waves): **Raglan** (`point`, the crumbling point; was "Mellow Point"),
+Waves (2026-11-17 names, after real waves): **Raglan** (`point`, the crumbling point; was "Mellow Point"), **Raglan+**
+(`raglanPlus`, Raglan with random faster sections; see below),
 **Pipe** (`reef`, the simulated barrel; was "Reef Barrel"), **Queens** (`queens`, a small longboard wave: a right, ridden regular foot; see below),
 **Trestles** (`trestles`, Lower Trestles: a right that changes as you ride it; see below). The title
 screen is just the wave picker and a DROP IN button (the instructions were dropped, the user's call).
@@ -36,6 +37,21 @@ a muted emerald glow through the top of the face, which now runs all along the w
 wetsuit there (`outfit: 'wetsuit'`, main.js `bodyColors`: neck to wrists and ankles, painted per body and outfit).
 The taller shoulder carries speed further out: test/pocket.mjs's pocket bot now averages ~43 m out (was ~9 m), S-turning ~19 m
 (was ~11); the moves' numbers barely changed.
+
+**Raglan+** (`raglanPlus`, src/waves/raglan-plus.js; 2026-11-22, the user; plain Raglan kept): Raglan with random faster
+sections. Reef ridges (wave.js `ridges`, `RIDGE`, `ridgeAt(xs)`): a ridge makes the wave stand up steeper and peel
+faster ("a ridge causes a local increase in seabed gradient and leads to a wave section with a steeper face and lower
+peel angles", Mead & Black 2001 on Raglan, via Scarfe et al. 2002), so one strength per spot along the beach drives
+both. The shape blends toward a section shape (`shapes[1]`: Raglan's own, face drawn in to 0.66, 1.1x taller, lip
+pitched slightly; mid-face ~52 -> ~65 deg, ~73 higher up, 3.5 -> 3.8 m) by the ridge under each slice (the GPU gets it
+per slice: `slicePhases` is now [xs, phase, ridge, 0], shaders.js `tableAt`; the physics via `controlPoints(.., xs)`),
+and the curl runs `fast` 1.45x faster by the ridge where the curl is (base peel 7.6 m/s, ~17 mph; sections ~22.5-24.6
+mph), added up as it goes (`RIDGE.c`). Ridges are fixed to the reef, so a section walls up ahead before the curl gets
+there. Each wave lays out its own (`ridges` ranges: first 40-90 m, then every 70-140 m, 15-30 m either side, strength
+0.75-1.0; seeded with the sea). Trimming holds the wave's own pace through a section (wave.js `holdPeel`; the user: as it
+speeds up you need to pump), and carving the steep wall pays (`wallK` 0.65, `wallAngles` [55, 63]). `node
+test/sections.mjs`: a mid-face trimmer makes 1 of 6 sections (caught ~10 s in), the pocket-pumping bot 6 of 9 (~23 s
+rides). crest.mjs runs Raglan+ without ridges. GPU ~+1 ms.
 
 **Feet on every wave** (2026-11-18, the user: carry Queens's Up/Down walking to the other waves): all waves have
 `walkKeys`, so Up/Down (and up/down swipes) move the feet and only Left/Right turn. On Queens they walk the longboard
@@ -782,7 +798,8 @@ node test/controls.mjs # human-style inputs on both waves: no glitches, Up/Down 
 node test/pocket.mjs   # where different riding styles spend their time vs. the curl
 node test/shuffle.mjs  # shortboard feet: back / middle / forward, turn and speed effects on Raglan and Pipe
 node test/crest.mjs    # holding a line near the crest: the curl catches you above ~0.8 of the face, not mid-face
-node test/idle.mjs     # idle decay: no loss for 2 s, ~1 mph/s after, none with a key held; Queens untouched
+node test/idle.mjs     # idle decay: no loss for 2 s, then ~0.5 mph/s growing, none with a key held; Queens untouched
+node test/sections.mjs # Raglan+: trimming vs pumping through the random faster sections (WAVE=point to compare)
 node test/takeoff.mjs  # from the drop-in, nose held at 0 / -20 / -40 / -60 / -80 deg: speed and height over 3 s
 node test/energy.mjs   # energy pocket per wave: trim / peel at three heights, foot spots, drop, lip speed, pocket bot
 node test/pivotshare.mjs # longboard tail turns at 7 / 11 / 15 mph: pivot share, turn time, speed (vs the middle)

@@ -4,7 +4,7 @@
 // `foamPush`), while mid-face you can hold the pocket indefinitely.
 //   node test/crest.mjs [wave ...]
 import { createRider, resetRider, stepRider, useWave, TUNE, topOfFace } from '../src/rider.js';
-import { PEEL_SPEED } from '../src/wave.js';
+import { PEEL_SPEED, RIDGE } from '../src/wave.js';
 import { nextWave, stepSea, seedSea } from '../src/sea.js';
 const dt = 1 / 120, mph = (v) => (v * 2.237).toFixed(1);
 const waves = process.argv.length > 2 ? process.argv.slice(2) : ['point', 'reef', 'queens'];
@@ -12,6 +12,7 @@ let fails = 0;
 const check = (ok, msg) => { console.log(`${ok ? 'ok  ' : 'FAIL'} ${msg}`); if (!ok) fails++; };
 function hold(H, xsGoal = 3, secs = 20, policy) {
   seedSea(1); nextWave();
+  RIDGE.list.length = 0; // (Raglan+: no sections here, they catch a trimmer by design: test/sections.mjs)
   const r = createRider(); resetRider(r); r.events = [];
   r.xs = xsGoal; r.phi = 0; r.speed = PEEL_SPEED; r.t = TUNE.tBottom - H * (TUNE.tBottom - topOfFace(r.xs));
   stepRider(r, {}, 0);

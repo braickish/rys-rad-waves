@@ -87,6 +87,7 @@ export function sectionGrace(xs) {
   return xs !== undefined && RIDE.c + xs > RIDE.front + 2 && RIDE.time > breaksAt(RIDE.c + xs) - 0.5;
 }
 export function startRide() {
+  layRidges(); // (a wave with ridges lays out this wave's sections)
   RIDE.time = 0; RIDE.c = 0; RIDE.front = 0; RIDE.closed = null; RIDE.closing = false; RIDE.sectionT = -Infinity; RIDE.done = null;
   if (!WAVE.bar) return;
   RIDE.time = -(WAVE.bar.lead || 0); // (you drop in as the peak stands up, `lead` s before it breaks)
@@ -136,7 +137,50 @@ function applyBar() {
   else if (f <= 1e-4) setShape(sets[i], sets[i], 0);
   else setShape(sets[i], sets[i + 1], Math.min(1, f));
 }
+// Reef ridges (a wave with `ridges`, Raglan+; the user, 2026-11-22): random faster sections. Where the reef has a ridge
+// (the seabed running more across the waves, steeper), the wave there stands up steeper and peels faster: "a ridge causes
+// a local increase in seabed gradient and leads to a wave section with a steeper face and lower peel angles" (Mead &
+// Black 2001, on Raglan's reefs, via Scarfe et al. 2002). One strength per spot along the beach drives both: the shape
+// blends toward the wave's section shape (SHAPES[1]) by it, and the curl runs faster by it where the curl is. The ridges
+// are fixed to the reef, so ahead of you the section stands up before the curl gets there. Each wave lays out its own
+// (swell direction and size light up different parts of the reef): `ridges` { first, gap, width, strength } ranges.
+// RIDGE.c: how far the curl has run along the beach this ride (m, from where you dropped in).
+export const RIDGE = { c: 0, list: [], at: 0 };
+let ridgeRnd = mulberry32(1);
+export function seedRidges(seed) { ridgeRnd = mulberry32(seed); }
+function mulberry32(seed) {
+  return () => { seed = (seed + 0x6d2b79f5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+}
+function layRidges() {
+  RIDGE.c = 0; RIDGE.list.length = 0; RIDGE.at = 0;
+  const R = WAVE.ridges; if (!R) return;
+  const pick = ([a, b]) => a + (b - a) * ridgeRnd();
+  for (let x = pick(R.first); x < 3000; x += pick(R.gap)) RIDGE.list.push({ x, w: pick(R.width), k: pick(R.strength) });
+}
+// The ridge strength under the spot xs m ahead of the curl (0 = the plain wave, 1 = a full section): each ridge a smooth
+// bump `w` m either side of its middle.
+export function ridgeAt(xs) {
+  if (!WAVE.ridges) return 0;
+  const X = RIDGE.c + xs; let k = 0;
+  for (const r of RIDGE.list) { const d = (X - r.x) / r.w; if (d > -1 && d < 1) k += r.k * (0.5 + 0.5 * Math.cos(Math.PI * d)); }
+  return Math.min(1, k);
+}
+// The speed the pocket holds you at when you trim (rider.js energy pocket): the curl's speed, except through a ridge's
+// faster section, where it stays the wave's own (the user, 2026-11-22: as a section speeds up you need to pump to keep
+// up; trimming holds the plain wall's pace, and the extra comes from working the steeper face).
+export const holdPeel = () => (WAVE.ridges ? WAVE.peelSpeed * Math.sqrt(SIZE) : PEEL_SPEED);
+// The curl's speed with ridges: the wave's own peel (by size) x up to `ridges.fast` where the curl is on a full ridge.
+// The curl advances by its speed, added up (never time x speed: anything varying the peel must integrate).
+function stepRidges(dt) {
+  const base = WAVE.peelSpeed * Math.sqrt(SIZE);
+  RIDGE.at = ridgeAt(0);
+  PEEL_SPEED = base * (1 + (WAVE.ridges.fast - 1) * RIDGE.at);
+  RIDGE.c += PEEL_SPEED * dt;
+  SHAPE.ver++; // (the shape at the curl changes as the ridges come through: caches keyed on it recompute)
+}
+
 export function stepRide(dt) {
+  if (WAVE.ridges) return stepRidges(dt);
   if (!WAVE.bar) return;
   RIDE.time += dt;
   // The curl: from where it is, on along the right while the water there has broken (to the exact spot between map
@@ -188,6 +232,7 @@ export function setWaveSize(k) {
   PEEL_SPEED = WAVE.peelSpeed * Math.sqrt(k);
   WAVE_SPEED = WAVE.waveSpeed * Math.sqrt(k);
   if (WAVE.bar) { PEEL_SPEED = 0; applyBar(); } // (the bar's map moves the curl; a set wave may have its own shapes)
+  if (WAVE.ridges) PEEL_SPEED *= 1 + (WAVE.ridges.fast - 1) * ridgeAt(0);
 }
 
 // Sections: places along the wave that break differently for a while (a
@@ -232,7 +277,14 @@ const smooth = (f) => f * f * (3 - 2 * f);
 
 // Control points for a phase, as a Float64Array [z0, y0, z1, y1, ...], scaled.
 const _cpB = new Float64Array(NP * 2);
-export function controlPoints(s, out = new Float64Array(NP * 2), scale = SCALE) {
+export function controlPoints(s, out = new Float64Array(NP * 2), scale = SCALE, xs) {
+  // (a wave with `ridges`, Raglan+: the plain shape blended toward the section shape by the reef ridge under xs)
+  if (WAVE.ridges && xs !== undefined && SHAPE.a === SHAPE.b) {
+    kfPoints(SHAPES[0], s, out, scale);
+    const w = ridgeAt(xs);
+    if (w > 1e-4) { kfPoints(SHAPES[1], s, _cpB, scale); for (let i = 0; i < NP * 2; i++) out[i] += (_cpB[i] - out[i]) * w; }
+    return out;
+  }
   if (SHAPES.length === 1) return kfPoints(KF, s, out, scale);
   // (shape sets: set a blended toward set b, point by point)
   kfPoints(SHAPES[SHAPE.a], s, out, scale);
@@ -308,7 +360,7 @@ const _o = [0, 0];
 
 // Surface point at (xs, t), t in [0, NP-1] along the cross-section.
 export function surface(xs, t, out = [0, 0, 0]) {
-  controlPoints(phaseAt(xs), _cp);
+  controlPoints(phaseAt(xs), _cp, SCALE, xs);
   crPoint(_cp, t, _o);
   out[0] = xs; out[1] = _o[1]; out[2] = _o[0];
   return out;
@@ -316,7 +368,7 @@ export function surface(xs, t, out = [0, 0, 0]) {
 
 // Cross-section polyline for a given xs: arrays of z, y, t.
 export function slice(xs, perSeg = 10) {
-  const cp = controlPoints(phaseAt(xs));
+  const cp = controlPoints(phaseAt(xs), undefined, SCALE, xs);
   const count = (NP - 1) * perSeg + 1;
   const z = new Float64Array(count), y = new Float64Array(count), t = new Float64Array(count);
   const o = [0, 0];

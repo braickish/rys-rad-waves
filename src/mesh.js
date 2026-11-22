@@ -1,7 +1,7 @@
 // Geometry: the water's cross-section table, a lip lookup table for the GPU
 // particle emitters, and simple primitives for the surfer and board.
 
-import { NP, FAR, phaseAt, surface, WAVE, controlPoints, crPoint, SHAPES, withShape } from './wave.js';
+import { NP, FAR, phaseAt, surface, WAVE, controlPoints, crPoint, SHAPES, withShape, ridgeAt } from './wave.js';
 
 const sstep = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 
@@ -68,8 +68,9 @@ export function buildWaterIndices() {
 }
 
 // Each slice's position and its phase right now: [xs, phase] pairs.
-export function slicePhases(out = new Float32Array(WATER_XS.length * 2)) {
-  for (let i = 0; i < WATER_XS.length; i++) { out[i * 2] = WATER_XS[i]; out[i * 2 + 1] = phaseAt(WATER_XS[i]); }
+// [xs, phase, ridge, 0] per slice (ridge: a wave with `ridges`, Raglan+, blends toward its section shape by it)
+export function slicePhases(out = new Float32Array(WATER_XS.length * 4)) {
+  for (let i = 0; i < WATER_XS.length; i++) { const x = WATER_XS[i]; out[i * 4] = x; out[i * 4 + 1] = phaseAt(x); out[i * 4 + 2] = ridgeAt(x); out[i * 4 + 3] = 0; }
   return out;
 }
 
@@ -87,7 +88,7 @@ export function buildLipTable(data = new Float32Array(LIP.count * 12)) {
   for (let i = 0; i < LIP.count; i++) {
     const xs = LIP.x0 + i * LIP.step;
     const s = phaseAt(xs);
-    controlPoints(s, cp);
+    controlPoints(s, cp, undefined, xs);
     const tipT = WAVE.lipT;
     at(tipT, a);
     at(tipT + 0.15, b);
