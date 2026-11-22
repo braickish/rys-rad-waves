@@ -49,7 +49,7 @@ const wave = {
   faceTop: (s, xs) => { const k = xs === undefined ? 0 : env.tubeAt(xs); return raglanPlus.faceTop(s) * (1 - k) + pipeFaceTop(s) * k; },
   foam: (s, t, xs) => { const k = xs === undefined ? 0 : env.tubeAt(xs); return raglanPlus.foam(s, t) * (1 - k) + reef.foam(s, t) * k; },
   // (the GPU table is built one shape set at a time: the tube set takes Pipe's foam and glow)
-  foamVisual: (s, t, xs) => (env.SHAPE.a === 3 ? reef.foamVisual(s, t, xs) : raglanPlus.foamVisual(s, t, xs)),
+  foamVisual: (s, t, xs) => { const k = wave.sizeK || 1; return env.SHAPE.a === 3 ? reef.foamVisual(s, t, xs / k) : raglanPlus.foamVisual(s, t, xs / k); }, // (lengths along the wave by size)
   thin: (s, t) => (env.SHAPE.a === 3 ? reef.thin(s, t) : raglanPlus.thin(s, t)),
   tune: {
     ...raglanPlus.tune,
@@ -63,12 +63,23 @@ const wave = {
 
 // Set the wave from a builder payload (at load from the hash / localStorage; tests and a later in-game swap call it too,
 // then useWave('built')).
+const baseTune = wave.tune;
 export function applyBuilt(data) {
   delete wave.dir; delete wave.stance;
+  // Size, with no cap (the user, 2026-11-22): k = the breakers' height against Raglan's (its ~3.5 m face at scale 1.25 is a
+  // ~3.5 m breaker). The cross-section scales by k and so does everything measured along the wave or across the pocket, as
+  // Pipe's ?size does (reef.js sized): how fast the shape changes along the wave (phase), the pocket's reach, the foam drawn
+  // behind, the curl zone, the shoulder's reach, where you drop in, the air and snap zones, and the camera's distance. The
+  // curl's and the wave's speeds already come from the builder's physics, so they don't.
+  const k = Math.max(0.05, data.H / 3.5), T = baseTune, p = raglanPlus.phase;
   Object.assign(wave, {
     built: data,
-    // size: the breakers' height against Raglan's (its ~3.5 m face at scale 1.25 is a ~3.5 m breaker), within reason
-    scale: raglanPlus.scale * Math.min(2.6, Math.max(0.45, data.H / 3.5)), // (up to ~9 m breakers: big swells, Pipe-size waves)
+    sizeK: k, // (the riding camera pulls back with it, main.js)
+    scale: raglanPlus.scale * k,
+    phase: { ...p, ahead: p.ahead * k, behind: p.behind * k },
+    pocket: (xs) => raglanPlus.pocket(xs / k),
+    tune: { ...T, curlZone: T.curlZone.map((x) => x * k), startXs: 4 * k, shoulderReach: T.shoulderReach * k, snapIntoLip: T.snapIntoLip * k,
+      airCurlZone: T.airCurlZone * k, airBoostZone: T.airBoostZone * k, airIntoCurl: T.airIntoCurl * k },
     peelSpeed: data.base, // (what trimming holds: the plain wall's pace, wave.js holdPeel)
     waveSpeed: data.c ?? raglanPlus.waveSpeed, // (the wave's speed toward the shore at breaking, from the builder)
     ...(data.side === 'right' ? { dir: -1, stance: 'regular' } : {}), // (a right peels the other way; ridden frontside, regular foot)

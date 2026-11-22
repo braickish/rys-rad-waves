@@ -205,5 +205,14 @@ for (const [mode, data] of Object.entries(payloads)) {
   console.log(`-- small barrel (tube ${R.tubeHeight(-6).toFixed(2)} m): ${outcome}; ${reason || 'still riding'}`);
   check(outcome === 'no error', 'small barrel: riding under a lip too small to fit in doesn\'t crash');
 }
+// No size cap (the user, 2026-11-22): a 10.5 m-breaker wave is 3x a 3.5 m one, and its lengths along the wave and camera with it.
+{
+  const mk = (H) => { const prof = []; for (let s0 = 0; s0 <= 300; s0 += 10) prof.push({ s: s0, peel: 8, k: 0, H, c: 5.5, u: 1 }); return { v: 1, mode: 'loop', side: 'left', length: 300, base: 8, H, c: 5.5, profile: prof }; };
+  const faceOf = (H) => { applyBuilt(mk(H)); R.useWave('built'); S.seedSea(1); S.nextWave(); return { face: W.surface(0.5, R.topOfFace(0.5))[1] - W.surface(0.5, R.TUNE.tBottom)[1], k: W.WAVE.sizeK, curl: R.TUNE.curlZone[1], start: R.TUNE.startXs }; };
+  const a = faceOf(3.5), b = faceOf(10.5), c = faceOf(0.9);
+  console.log(`-- size: 3.5 / 10.5 / 0.9 m breakers: face ${a.face.toFixed(1)} / ${b.face.toFixed(1)} / ${c.face.toFixed(1)} m, camera x${a.k.toFixed(2)} / x${b.k.toFixed(2)} / x${c.k.toFixed(2)}, curl zone ${a.curl.toFixed(1)} / ${b.curl.toFixed(1)} / ${c.curl.toFixed(1)} m`);
+  check(Math.abs(b.face / a.face - 3) < 0.05 && Math.abs(b.k / a.k - 3) < 1e-6 && Math.abs(b.curl / a.curl - 3) < 1e-6, 'size: no cap; the face, camera and lengths along the wave scale together');
+  check(c.face < 1.5, 'size: small waves are small too (no floor)');
+}
 console.log(fails ? 'SOME FAILED' : 'all ok');
 process.exitCode = fails ? 1 : 0;

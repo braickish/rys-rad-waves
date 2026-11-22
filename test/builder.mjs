@@ -135,6 +135,18 @@ check(A.left.xi > 0.5 && A.left.xi < 3.3 && A.right.xi > 0.5 && A.right.xi < 3.3
   console.log(`4 m swell: shelf bay right ${shelf.right.ride.toFixed(0)} / left ${shelf.left.ride.toFixed(0)} m; deep bay right ${deep.right.ride.toFixed(0)} / left ${deep.left.ride.toFixed(0)} m at ${deep.left.peel.toFixed(0)} deg, ${(deep.left.H * 3.281).toFixed(0)} ft`);
   check(deep.right.ride + deep.left.ride > 2 * (shelf.right.ride + shelf.left.ride) && deep.left.ride > 60, 'big swell: deep offshore water lets the reef ride a 4 m swell that closes out on the shelf');
 }
+// Reef Size (the user, 2026-11-22): every length and depth of a block x 2.5 (Froude: a 2.5x reef breaks a 2.5x swell alike).
+// A 13 ft swell on the Dynamic reef at 1x rides short and crumbly; at 2.5x (its peak set 160 m further out so its arms fit) it
+// rides long and pitching again, as the 1x reef does at 5 ft.
+{
+  const { BAY, BAY_DEEP_OFF } = await import('../src/builder/reef.js');
+  const { reefComponents: rc, dynamicPreset: dp } = await import('../src/builder/blocks.js');
+  const big = { H: 4, T: 18, dir: 0 };
+  const ride = (size, x) => { const bl = dp(); for (const b of bl) { b.size = size; b.x = x; } const c = defaultCoast(); c.deep = true; const g = buildDepth(rc(bl, true), makeGrid({ ...BAY, offDepth: BAY_DEEP_OFF }), c), R2 = traceRays(g, big); return analyse(R2, g, { pe: runPE(g, big) }); };
+  const s1 = ride(1, 860), s25 = ride(2.5, 700);
+  console.log(`13 ft 18 s: reef 1x right ${s1.right.ride.toFixed(0)} m ${s1.right.how}, left ${s1.left.ride.toFixed(0)} m; reef 2.5x right ${s25.right.ride.toFixed(0)} m at ${s25.right.peel.toFixed(0)} deg ${s25.right.how}, left ${s25.left.ride.toFixed(0)} m at ${s25.left.peel.toFixed(0)} deg`);
+  check(s25.right.ride > 2 * s1.right.ride && s25.left.ride > 2 * s1.left.ride && s25.right.xi > 0.9, 'size: a 2.5x reef rides a 13 ft swell long and pitching, as the 1x reef rides 5 ft');
+}
 check(tBuild + tRays + tAn < 400, `rebuild + trace under 400 ms in node (${(tBuild + tRays + tAn).toFixed(0)})`);
 console.log(fails ? 'SOME FAILED' : 'all ok');
 process.exitCode = fails ? 1 : 0;

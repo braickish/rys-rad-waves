@@ -9,7 +9,7 @@ import { traceRays, analyse } from './rays.js';
 import { runPE } from './pewave.js';
 import { LOOP, curlAt, defaultLoop, clampLoop, loopInfo, snapEnd, bestLoop, wavePayload, takeoffStart } from './loop.js';
 import { encodeBuilt, BUILT_KEY } from '../waves/built.js';
-import { BLOCKS, SNAP, ARM_ANGLES, ARM_LENGTHS, ARM_SLOPES, BAR_CRESTS, DEPTHS, ROTATIONS, reefComponents, newBlock, dynamicPreset, beachPreset, armRot, nearestArm } from './blocks.js';
+import { BLOCKS, SNAP, ARM_ANGLES, ARM_LENGTHS, ARM_SLOPES, BAR_CRESTS, DEPTHS, SIZES, blockLength, ROTATIONS, reefComponents, newBlock, dynamicPreset, beachPreset, armRot, nearestArm } from './blocks.js';
 
 const canvas = document.getElementById('map'), ctx = canvas.getContext('2d');
 // Heights and lengths are shown in feet (the user, 2026-11-22); the model works in metres underneath.
@@ -233,7 +233,7 @@ function blockLabel(b) {
 function handle(b) {
   if (b.type !== 'arm' && b.type !== 'ledge') return { x: b.x, y: b.y };
   // (half way along, set 28 m offshore of the line so it doesn't sit on the curl and hide its colour)
-  const a = b.angle * Math.PI / 180, L = (b.type === 'arm' ? b.length : 100) / 2, off = 28;
+  const a = b.angle * Math.PI / 180, L = blockLength(b) / 2, off = 28;
   return { x: b.x + Math.sin(a) * L - Math.cos(a) * off, y: b.y + b.side * Math.cos(a) * L + b.side * Math.sin(a) * off };
 }
 // The coastline's handles (plan step 5): round, on the waterline; you drag them in and out. Its name shows on hover.
@@ -249,11 +249,11 @@ function drawBlock(b) {
   ctx.lineWidth = on ? 2.5 : 1.5; ctx.strokeStyle = on ? '#ffd426' : 'rgba(255,255,255,.7)'; ctx.setLineDash(on ? [] : [4, 4]);
   if (!show) { /* just the handle */ }
   else if (b.type === 'arm' || b.type === 'ledge') {
-    const a = b.angle * Math.PI / 180, L = b.type === 'arm' ? b.length : 100;
+    const a = b.angle * Math.PI / 180, L = blockLength(b);
     const ex = b.x + Math.sin(a) * L, ey = b.y + b.side * Math.cos(a) * L;
     ctx.beginPath(); ctx.moveTo(X, Y); ctx.lineTo(px(ey), py(ex)); ctx.stroke();
   } else if (b.type === 'ridge' || b.type === 'channel' || b.type === 'sandbar') {
-    const r = b.rot * Math.PI / 180, h = b.length / 2, ux = Math.cos(r), uy = Math.sin(r);
+    const r = b.rot * Math.PI / 180, h = blockLength(b) / 2, ux = Math.cos(r), uy = Math.sin(r);
     ctx.beginPath(); ctx.moveTo(px(b.y - uy * h), py(b.x - ux * h)); ctx.lineTo(px(b.y + uy * h), py(b.x + ux * h)); ctx.stroke();
   }
   ctx.setLineDash([]);
@@ -374,7 +374,7 @@ for (const type of Object.keys(BLOCKS)) {
     let b;
     if (type === 'arm' && pk) b = Object.assign(newBlock('arm', pk.x, pk.y), { side: state.blocks.some((q) => q.type === 'arm' && q.side < 0 && q.x === pk.x) ? 1 : -1 });
     else if (type === 'ridge' && state.blocks.some((q) => q.type === 'arm')) { // (onto the middle of an arm, lined up with it)
-      const a = state.blocks.find((q) => q.type === 'arm'), r = a.angle * Math.PI / 180, L = a.length * 0.55;
+      const a = state.blocks.find((q) => q.type === 'arm'), r = a.angle * Math.PI / 180, L = blockLength(a) * 0.55;
       b = Object.assign(newBlock('ridge', Math.round(a.x + Math.sin(r) * L), Math.round(a.y + a.side * Math.cos(r) * L)), { rot: armRot(a) });
     } else b = newBlock(type, snap(type === 'channel' ? 950 : type === 'sandbar' ? 1040 : 900), snap((view.Y0 + view.Y1) / 2 + (Math.random() - 0.5) * 120)); // (a sandbar near the beach, in ~3 m of water)
     state.blocks.push(b); state.sel = b; state.dirty = true; showSel(); schedule();
@@ -401,12 +401,13 @@ function showSel() {
     el.appendChild(opt('Side', [-1, 1], b.side, (v) => (v < 0 ? 'Right' : 'Left'), (v) => { b.side = v; }));
     el.appendChild(opt('Angle', ARM_ANGLES, b.angle, (v) => `${v}°`, (v) => { b.angle = v; }));
   }
-  if (b.type === 'arm') el.appendChild(opt('Length', ARM_LENGTHS, b.length, (v) => `${ft(v)} ft`, (v) => { b.length = v; }));
+  if (b.type === 'arm') el.appendChild(opt('Length', ARM_LENGTHS, b.length, (v) => `${ft(v * (b.size || 1))} ft`, (v) => { b.length = v; }));
   if (b.type === 'arm' || b.type === 'peak') el.appendChild(opt('Slope', ARM_SLOPES.map(([g]) => g), b.slope || '1:10', (v) => ARM_SLOPES.find(([g]) => g === v)[1], (v) => { b.slope = v; }));
   if (b.type === 'ridge' || b.type === 'channel' || b.type === 'sandbar') {
     el.appendChild(opt('Turn', ROTATIONS, b.rot, (v) => `${v}°`, (v) => { b.rot = v; }));
-    el.appendChild(opt('Length', b.type === 'ridge' ? [50, 80, 120] : b.type === 'sandbar' ? [100, 160, 240] : [140, 220, 320], b.length, (v) => `${ft(v)} ft`, (v) => { b.length = v; }));
+    el.appendChild(opt('Length', b.type === 'ridge' ? [50, 80, 120] : b.type === 'sandbar' ? [100, 160, 240] : [140, 220, 320], b.length, (v) => `${ft(v * (b.size || 1))} ft`, (v) => { b.length = v; }));
   }
+  el.appendChild(opt('Size', SIZES.map(([z]) => z), b.size || 1, (v) => SIZES.find(([z]) => z === v)[1], (v) => { b.size = v; if (b.type === 'peak') for (const q of state.blocks) if ((q.type === 'arm' || q.type === 'ledge') && q.x === b.x && q.y === b.y) q.size = v; })); // (a peak's size goes to its arms too)
   if (b.type !== 'sandbar') el.appendChild(opt('Depth', DEPTHS.map(([f]) => f), b.depth || 1, (v) => DEPTHS.find(([f]) => f === v)[1], (v) => { b.depth = v; })); // (deeper reefs for big swells)
   if (b.type === 'sandbar') el.appendChild(opt('Crest', BAR_CRESTS.map(([d]) => d), b.crest, (v) => BAR_CRESTS.find(([d]) => d === v)[1], (v) => { b.crest = v; }));
   const del = document.createElement('button'); del.className = 'danger'; del.textContent = 'Remove'; del.style.marginTop = '8px';

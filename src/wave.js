@@ -182,7 +182,7 @@ function profileAt(key, X) {
   return key === 'peel' ? lin(L) * fade : key === 'H' || key === 'u' ? lin(L) : 0;
 }
 // The wave's size at xs (plan step 2): a built wave grows and shrinks along its stretch with the breakers the builder found
-// there, against the height it's scaled to (WAVE.built.H); 1 everywhere else. Applied to the whole cross-section, so the
+// there, against the height it's scaled to (WAVE.built.H); 1 everywhere else. No cap. Applied to the whole cross-section, so the
 // face keeps its shape and angles and just gets taller or smaller.
 // Where on its shape scale the wave is at xs (0 .. SHAPES.length - 1): a built wave by how it breaks there (plan step 3: the
 // builder's profile `u`, from the surf-similarity number), Raglan+ by its ridges (plain 0, section 1).
@@ -200,7 +200,7 @@ export function tubeAt(xs) {
 }
 export function sizeAt(xs) {
   if (!WAVE.ridges || !WAVE.ridges.profile || !WAVE.built || !(WAVE.built.H > 0) || WAVE.ridges.profile[0].H == null) return 1;
-  return Math.min(1.8, Math.max(0.5, profileAt('H', RIDGE.c + xs) / WAVE.built.H));
+  return Math.max(0.05, profileAt('H', RIDGE.c + xs) / WAVE.built.H); // (no cap: the user, 2026-11-22)
 }
 export function ridgeAt(xs) {
   if (!WAVE.ridges) return 0;

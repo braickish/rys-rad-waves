@@ -282,6 +282,16 @@ section (25-30 deg), backing off (slower than 70 deg, or a gap), or closing out 
   8 ft 591 / 591 vs 525 / 591; 11 ft 262 / 262 crumbly vs 328 / 328 steep; 15 ft closes out vs 262 / 262 at 16 ft. The reef
   rising out of deep water close in is what lets one reef work at every size; the research site's shallow shelf turned big
   swells into closeouts on its straight contours. (test/builder.mjs keeps the shelf for its Python / FUNWAVE comparisons.)
+- No size caps (the user, 2026-11-22): a built wave's size k = breakers / 3.5 m with no floor or ceiling (was 0.45-2.6), and
+  `sizeAt` along the stretch uncapped (was 0.5-1.8). As Pipe's `sized()`: the phase rates along the wave, the pocket, the
+  drawn foam, curlZone, startXs, shoulderReach, snapIntoLip, the air zones and the camera (`sizeK`) all scale by k; the
+  curl's and wave's speeds come from the builder. The rider doesn't scale (a human on a shortboard): riding the same wall at
+  0.5x / 1x / 3x with the curl at sqrt(k), a pump bot rode 40 / 27 / 8 s (avg speed 1.49 / 1.08 / 0.88x the curl): big
+  waves are harder, as real ones are (guns would help: open, the user's call).
+- Reef Size (same day): blocks get Size 1x / 1.5x / 2.5x (blocks.js SIZES: every length and depth about the anchor, slopes
+  unchanged; Froude scaling; a peak passes its size to its arms; `blockLength` for handles and snapping). A 13 ft 18 s swell
+  on Dynamic at 1x: 80 / 80 m, steep; at 2.5x with its peak 160 m further out (so its 530 m arms fit): 240 / 280 m at 27 /
+  31 deg, pitching, ~14 ft. At its normal spot the 2.5x reef runs into the beach.
 - Units (the user, 2026-11-22): the builder shows heights and lengths in feet (swell, waves, rides, loops, block lengths,
   the scale bar; ui.js `ft`/`ft1`), speeds in mph; the model works in metres underneath and saves metres.
 - Circles only for what you can drag (block handles, loop ends; the user): the curl's time marks are ticks, where it

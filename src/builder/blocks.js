@@ -30,24 +30,29 @@ export const FLOOR_DEEP = [{ type: 'ramp', start_depth_m: 24, end_depth_m: 16, x
 // A block's Depth (same day): its depths x 0.7 / 1 / 1.8, so a reef can sit deep enough for a big swell to break on it.
 export const DEPTHS = [[0.7, 'Shallow'], [1, 'Medium'], [1.8, 'Deep']];
 
+// A block's Size (the user, 2026-11-22: reefs for big swells): every length and depth x 1 / 1.5 / 2.5 about its anchor, slopes
+// unchanged. Waves scale the same way (Froude: a wave and a reef both 2.5x bigger break alike), so a reef that breaks a 5 ft
+// swell well breaks a ~13 ft swell the same way at 2.5x. (Depth still scales the depths alone.)
+export const SIZES = [[1, '1x'], [1.5, '1.5x'], [2.5, '2.5x']];
+export const blockLength = (b) => (b.length ?? (b.type === 'ledge' ? 100 : 0)) * (b.size || 1); // (an arm's / ledge's / ridge's ... length on the reef)
 export function blockComponents(b) {
-  const rad = (d) => d * Math.PI / 180, f = b.depth || 1;
+  const rad = (d) => d * Math.PI / 180, z = b.size || 1, f = (b.depth || 1) * z; // (z: size, every length and depth; f: depths)
   switch (b.type) {
-    case 'peak': return [{ type: 'focus', apex: [b.x, b.y], width_m: 220, convexity: 0.667, depth_m: 3.0 * f, gradient: b.slope || '1:10' }]; // (Slope: the hollowness dial, as the arms')
-    case 'arm': return [{ type: 'wedge', start: [b.x, b.y], side: b.side, length_m: b.length, gradient: b.slope || '1:10', angle_to_swell_deg: b.angle, depth_m: 3.0 * f, top_depth_m: 1.0 * f }];
+    case 'peak': return [{ type: 'focus', apex: [b.x, b.y], width_m: 220 * z, tip_radius_m: 20 * z, fade_m: 40 * z, convexity: 0.667, depth_m: 3.0 * f, gradient: b.slope || '1:10' }]; // (Slope: the hollowness dial, as the arms')
+    case 'arm': return [{ type: 'wedge', start: [b.x, b.y], side: b.side, length_m: b.length * z, width_m: 200 * z, back_m: 150 * z, fade_m: 40 * z, gradient: b.slope || '1:10', angle_to_swell_deg: b.angle, depth_m: 3.0 * f, top_depth_m: 1.0 * f }];
     case 'ridge': {
-      const ux = Math.cos(rad(b.rot)), uy = Math.sin(rad(b.rot)), h = b.length / 2;
-      return [{ type: 'ridge', points: [[b.x - ux * h, b.y - uy * h], [b.x + ux * h, b.y + uy * h]], depth_m: 2.6 * f, width_m: 35 }]; // (2.6 m crest, a little shallower than the arm's 3 m toe: a section the curl still makes; 1.8 m closed out)
+      const ux = Math.cos(rad(b.rot)), uy = Math.sin(rad(b.rot)), h = b.length * z / 2;
+      return [{ type: 'ridge', points: [[b.x - ux * h, b.y - uy * h], [b.x + ux * h, b.y + uy * h]], depth_m: 2.6 * f, width_m: 35 * z }]; // (2.6 m crest, a little shallower than the arm's 3 m toe: a section the curl still makes; 1.8 m closed out)
     }
-    case 'pinnacle': return [{ type: 'pinnacle', center: [b.x, b.y], radius_m: 38, depth_m: 2.2 * f }];
-    case 'ledge': return [{ type: 'ledge', start: [b.x, b.y], side: b.side, length_m: 100, angle_to_swell_deg: b.angle, depth_m: 1.6 * f, step_m: 4.0 * f, face: '1:3', gradient: '1:15', width_m: 40, back_m: 40, fade_m: 40 }];
+    case 'pinnacle': return [{ type: 'pinnacle', center: [b.x, b.y], radius_m: 38 * z, depth_m: 2.2 * f }];
+    case 'ledge': return [{ type: 'ledge', start: [b.x, b.y], side: b.side, length_m: 100 * z, angle_to_swell_deg: b.angle, depth_m: 1.6 * f, step_m: 4.0 * f, face: '1:3', gradient: '1:15', width_m: 40 * z, back_m: 40 * z, fade_m: 40 * z }];
     case 'sandbar': {
-      const ux = Math.cos(rad(b.rot)), uy = Math.sin(rad(b.rot)), h = b.length / 2;
-      return [{ type: 'bar', points: [[b.x - ux * h, b.y - uy * h], [b.x + ux * h, b.y + uy * h]], depth_m: b.crest, slope: '1:40' }];
+      const ux = Math.cos(rad(b.rot)), uy = Math.sin(rad(b.rot)), h = b.length * z / 2;
+      return [{ type: 'bar', points: [[b.x - ux * h, b.y - uy * h], [b.x + ux * h, b.y + uy * h]], depth_m: b.crest * z, slope: '1:40' }];
     }
     case 'channel': {
-      const ux = Math.cos(rad(b.rot)), uy = Math.sin(rad(b.rot)), h = b.length / 2;
-      return [{ type: 'channel', points: [[b.x - ux * h, b.y - uy * h], [b.x + ux * h, b.y + uy * h]], depth_m: 9 * f, width_m: 40, fade_m: 20 }];
+      const ux = Math.cos(rad(b.rot)), uy = Math.sin(rad(b.rot)), h = b.length * z / 2;
+      return [{ type: 'channel', points: [[b.x - ux * h, b.y - uy * h], [b.x + ux * h, b.y + uy * h]], depth_m: 9 * f, width_m: 40 * z, fade_m: 20 * z }];
     }
   }
   return [];
@@ -61,7 +66,7 @@ export function nearestArm(blocks, x, y, near = 35) {
   for (const a of blocks) {
     if (a.type !== 'arm') continue;
     const r = a.angle * Math.PI / 180, tx = Math.sin(r), ty = a.side * Math.cos(r);
-    const s = Math.min(a.length - 30, Math.max(30, (x - a.x) * tx + (y - a.y) * ty));
+    const L = blockLength(a), s = Math.min(L - 30, Math.max(30, (x - a.x) * tx + (y - a.y) * ty));
     const qx = a.x + tx * s, qy = a.y + ty * s, d = Math.hypot(x - qx, y - qy);
     if (d < near && (!best || d < best.d)) best = { arm: a, d, x: qx, y: qy };
   }
