@@ -152,6 +152,9 @@ function drawCurl(curl, t0, inward) { // (inward: which way the time labels go, 
   if (curl.length < 2) return;
   const span = 25;
   ctx.lineCap = 'round';
+  // a thin dark casing under the whole line first, so its colour reads against the teal reef
+  ctx.strokeStyle = 'rgba(11,26,36,.75)'; ctx.lineWidth = 8.5; ctx.setLineDash([]);
+  ctx.beginPath(); curl.forEach((p, k) => (k ? ctx.lineTo(px(p.y), py(p.x)) : ctx.moveTo(px(p.y), py(p.x)))); ctx.stroke();
   for (let k = 1; k < curl.length; k++) {
     const a = curl[k - 1], b = curl[k], X0 = px(a.y), Y0 = py(a.x), X1 = px(b.y), Y1 = py(b.x);
     ctx.setLineDash([]); ctx.shadowBlur = 0;
@@ -169,6 +172,7 @@ function drawCurl(curl, t0, inward) { // (inward: which way the time labels go, 
   }
   ctx.setLineDash([]); ctx.shadowBlur = 0;
   // a tick across the line every 5 s of the curl's time (not dots: circles are for things you can drag)
+  if (state.colorBy !== 'time') return; // (time marks only in the Time view: they'd hide how it breaks)
   for (let tt = 5, k = 1; k < curl.length; k++) {
     while (k < curl.length && curl[k].t - t0 >= tt) {
       const p = curl[k], q = curl[k - 1], X = px(p.y), Y = py(p.x);
@@ -220,14 +224,16 @@ function blockLabel(b) {
 // own handle there), everything else at its position.
 function handle(b) {
   if (b.type !== 'arm' && b.type !== 'ledge') return { x: b.x, y: b.y };
-  const a = b.angle * Math.PI / 180, L = (b.type === 'arm' ? b.length : 100) / 2;
-  return { x: b.x + Math.sin(a) * L, y: b.y + b.side * Math.cos(a) * L };
+  // (half way along, set 28 m offshore of the line so it doesn't sit on the curl and hide its colour)
+  const a = b.angle * Math.PI / 180, L = (b.type === 'arm' ? b.length : 100) / 2, off = 28;
+  return { x: b.x + Math.sin(a) * L - Math.cos(a) * off, y: b.y + b.side * Math.cos(a) * L + b.side * Math.sin(a) * off };
 }
 function drawBlock(b) {
-  const X = px(b.y), Y = py(b.x), on = state.sel === b;
-  // a hint of its shape
-  ctx.lineWidth = on ? 2.5 : 1.5; ctx.strokeStyle = on ? '#ffd426' : 'rgba(11,26,36,.55)'; ctx.setLineDash(on ? [] : [4, 4]);
-  if (b.type === 'arm' || b.type === 'ledge') {
+  const X = px(b.y), Y = py(b.x), on = state.sel === b, hov = state.hover === b, show = on || hov;
+  // its shape and name only when selected or under the pointer (the user: they covered the curl's colours)
+  ctx.lineWidth = on ? 2.5 : 1.5; ctx.strokeStyle = on ? '#ffd426' : 'rgba(255,255,255,.7)'; ctx.setLineDash(on ? [] : [4, 4]);
+  if (!show) { /* just the handle */ }
+  else if (b.type === 'arm' || b.type === 'ledge') {
     const a = b.angle * Math.PI / 180, L = b.type === 'arm' ? b.length : 100;
     const ex = b.x + Math.sin(a) * L, ey = b.y + b.side * Math.cos(a) * L;
     ctx.beginPath(); ctx.moveTo(X, Y); ctx.lineTo(px(ey), py(ex)); ctx.stroke();
@@ -238,6 +244,7 @@ function drawBlock(b) {
   ctx.setLineDash([]);
   const hp = handle(b), HX = px(hp.y), HY = py(hp.x);
   dot(HX, HY, on ? 8 : 6, on ? '#ffd426' : '#fff', '#0b1a24', 2);
+  if (!show) return;
   ctx.font = '400 12px Bungee'; ctx.textAlign = 'center'; ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(11,26,36,.8)'; ctx.fillStyle = on ? '#ffd426' : '#fff';
   let lx = HX, ly = HY - 14;
   if (b.type === 'arm' || b.type === 'ledge') { lx = HX + b.side * 14; ly = HY + 4; ctx.textAlign = b.side < 0 ? 'right' : 'left'; } // (out to the side)
@@ -274,7 +281,7 @@ canvas.addEventListener('pointerdown', (e) => {
 });
 canvas.addEventListener('pointermove', (e) => {
   const r = canvas.getBoundingClientRect(), cx = e.clientX - r.left, cy = e.clientY - r.top;
-  if (!drag) { canvas.style.cursor = hit(cx, cy) || hitLoop(cx, cy) ? 'grab' : 'default'; return; }
+  if (!drag) { const h = hit(cx, cy); canvas.style.cursor = h || hitLoop(cx, cy) ? 'grab' : 'default'; if (h !== state.hover) { state.hover = h; draw(); } return; }
   if (drag.loop) { // (a loop end: to the nearest spot on the curl, 10 m snap, the loop at least LOOP.min long, inside the ride)
     const L = state.loop, side = state.wave[L.side];
     let best = null; for (let s = 0; s <= side.ride; s += 2) { const q = curlAt(side.curl, s), d = Math.hypot(px(q.y) - cx, py(q.x) - cy); if (!best || d < best.d) best = { s, d }; }
@@ -302,6 +309,7 @@ canvas.addEventListener('pointermove', (e) => {
   }
 });
 const endDrag = () => { drag = null; };
+canvas.addEventListener('pointerleave', () => { if (state.hover) { state.hover = null; draw(); } });
 canvas.addEventListener('pointerup', endDrag); canvas.addEventListener('pointercancel', endDrag);
 
 let queued = false;

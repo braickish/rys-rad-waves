@@ -203,6 +203,8 @@ section (25-30 deg), backing off (slower than 70 deg, or a gap), or closing out 
   the end of the wave!", rider.js checkHazards). The builder remembers your design in localStorage
   (`rys-rad-waves-builder`). `applyBuilt(data)` swaps the wave in place (tests). Not yet: the breaker height along the
   stretch (one size for the whole wave), the reef's own breaking intensity (it's Raglan+'s shapes). `node test/built.mjs`.
+- Kept clear so the curl's colour reads (the user, 2026-11-22): block names and shape guides only on hover or selection,
+  arm handles set 28 m offshore of their line, the curl drawn over a thin dark casing, time ticks only in the Time view.
 - Circles only for what you can drag (block handles, loop ends; the user): the curl's time marks are ticks, where it
   first breaks a diamond.
 - `PAGE=builder.html node test/drive.mjs test/out/bld "" 2500` screenshots it (drive.mjs's `PAGE`).
