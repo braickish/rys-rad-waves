@@ -5,6 +5,7 @@
 //   node test/builder.mjs
 import { buildDepth, makeGrid } from '../src/builder/reef.js';
 import { traceRays, analyse } from '../src/builder/rays.js';
+import { defaultLoop, loopInfo, clampLoop, LOOP } from '../src/builder/loop.js';
 
 const DYNAMIC = [
   { type: 'ramp', start_depth_m: 13, end_depth_m: 8.5, x0_m: 300, length_m: 420 },
@@ -34,6 +35,14 @@ for (const side of ['right', 'left']) {
   check(Math.abs(s.peel - ref[side][1]) < 4, `${side}: peel within 4 deg of Python's ${ref[side][1]}`);
   check(Math.abs(s.ride - ref[side][0]) < 50, `${side}: ride within 50 m of Python's ${ref[side][0]} m (FUNWAVE 204)`);
 }
+// Loop (the user, 2026-11-22: mark the primary stretch and surf it on repeat): the default stretch on each side
+for (const side of ['right', 'left']) {
+  const st = defaultLoop(A[side]), I = st && loopInfo(A[side], st.a, st.b);
+  console.log(`loop ${side}: ${st ? `${st.a}-${st.b} m, ${I.length} m, ${I.seconds.toFixed(1)} s a lap, curl ${(I.vMin * 2.237).toFixed(0)}-${(I.vMax * 2.237).toFixed(0)} mph, ${I.sections} sections, seam dv ${(I.seam.dv * 100).toFixed(0)}% dH ${(I.seam.dH * 100).toFixed(0)}%` : 'none'}`);
+  check(st && I.length >= LOOP.min && !I.closes, `${side}: a default loop past the takeoff, no closeout in it`);
+  check(I && I.profile.length === Math.floor(I.length / 10) + 1, `${side}: the loop's profile has a point every 10 m`);
+}
+check(clampLoop(A.right, 0, 9999).b <= A.right.ride && clampLoop(A.right, 200, 210) === null || clampLoop(A.right, 200, 210)?.b - clampLoop(A.right, 200, 210)?.a >= LOOP.min, 'a loop stays inside the ride and at least LOOP.min long');
 check(tBuild + tRays + tAn < 400, `rebuild + trace under 400 ms in node (${(tBuild + tRays + tAn).toFixed(0)})`);
 console.log(fails ? 'SOME FAILED' : 'all ok');
 process.exitCode = fails ? 1 : 0;

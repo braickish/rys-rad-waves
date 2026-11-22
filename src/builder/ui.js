@@ -6,6 +6,7 @@
 // handles are circles (the user, 2026-11-22); the curl's time ticks and the break's peak (a diamond) aren't.
 import { buildDepth, makeGrid } from './reef.js';
 import { traceRays, analyse } from './rays.js';
+import { LOOP, curlAt, defaultLoop, clampLoop, loopInfo } from './loop.js';
 import { BLOCKS, SNAP, ARM_ANGLES, ARM_LENGTHS, ROTATIONS, reefComponents, newBlock, dynamicPreset, armRot, nearestArm } from './blocks.js';
 
 const canvas = document.getElementById('map'), ctx = canvas.getContext('2d');
@@ -15,7 +16,8 @@ const BANDS = [[-50, 0, '#efe2bd'], [0, 1, '#e3f3d9'], [1, 2, '#9fe6d6'], [2, 3,
 const BAND_RGB = BANDS.map(([a, b, c]) => [a, b, parseInt(c.slice(1, 3), 16), parseInt(c.slice(3, 5), 16), parseInt(c.slice(5, 7), 16)]);
 const COL = { yellow: [255, 212, 38], pink: [255, 61, 139], red: '#ff4b4b' };
 
-const state = { blocks: dynamicPreset(), sel: null, swell: { H: 1.6, T: 15, dir: 0 }, grid: null, rays: null, wave: null, dirty: true, ms: 0 };
+const state = { blocks: dynamicPreset(), sel: null, swell: { H: 1.6, T: 15, dir: 0 }, grid: null, rays: null, wave: null, dirty: true, ms: 0,
+  loop: { on: false, side: 'right', a: null, b: null, info: null } }; // (loop: a stretch of one side to surf on repeat, loop.js)
 let view = null; // the map's placement on the canvas
 const depthImg = document.createElement('canvas');
 
@@ -26,9 +28,20 @@ function recompute() {
   state.rays = traceRays(state.grid, state.swell);
   state.wave = analyse(state.rays, state.grid);
   state.ms = performance.now() - t0;
+  fitLoop();
   paintDepth();
   state.dirty = false;
   showResults();
+}
+// Keep the loop on the ride as the wave changes (a new stretch if it has none, or it no longer fits).
+function fitLoop() {
+  const L = state.loop, side = state.wave && state.wave[L.side];
+  L.info = null;
+  if (!L.on || !side) return;
+  let st = L.a == null ? defaultLoop(side) : clampLoop(side, L.a, L.b);
+  if (!st) st = defaultLoop(side);
+  if (!st) { L.a = L.b = null; return; }
+  L.a = st.a; L.b = st.b; L.info = loopInfo(side, L.a, L.b);
 }
 function paintDepth() {
   // (drawn at 2x the grid with the depth interpolated between cells, so the bands' edges are smooth, not 4 m steps)
@@ -87,6 +100,7 @@ function draw() {
   }
   // the curl, each way from the peak
   const w = state.wave;
+  if (w && state.loop.info) drawLoopBand();
   if (w) for (const side of ['right', 'left']) drawCurl(w[side].curl, w.peak.t, side === 'right' ? 1 : -1);
   // the peak
   // (where it first breaks: computed, so a diamond, not a circle; only when it's clear of a block's handle, which it
@@ -94,6 +108,7 @@ function draw() {
   if (w && !state.blocks.some((b) => { const h = handle(b); return Math.hypot(px(h.y) - px(w.peak.y), py(h.x) - py(w.peak.x)) < 14; })) diamond(px(w.peak.y), py(w.peak.x), 8);
   // blocks
   for (const b of state.blocks) drawBlock(b);
+  if (w && state.loop.info) drawLoopHandles();
   // labels: beach, swell
   ctx.restore();
   ctx.font = '700 13px Rubik'; ctx.textAlign = 'center'; ctx.fillStyle = '#8a6a2a';
@@ -144,6 +159,25 @@ function drawCurl(curl, t0, inward) { // (inward: which way the time labels go, 
     }
   }
 }
+// The loop: a wide teal band under its stretch of the curl, round handles at each end (you drag them along the curl).
+function loopPath(a, b) { const c = state.wave[state.loop.side].curl, pts = [curlAt(c, a)]; for (const p of c) if (p.s > a && p.s < b) pts.push(p); pts.push(curlAt(c, b)); return pts; }
+function drawLoopBand() {
+  const L = state.loop, pts = loopPath(L.a, L.b);
+  ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  // (dark under a bright edge: the reef's own colours are teal, so a teal band disappeared on it; amber edge = rough seam)
+  const path = () => { ctx.beginPath(); pts.forEach((p, k) => (k ? ctx.lineTo(px(p.y), py(p.x)) : ctx.moveTo(px(p.y), py(p.x)))); };
+  ctx.strokeStyle = L.info.seam.ok ? '#00c2c7' : '#ffaa28'; ctx.lineWidth = 28; path(); ctx.stroke();
+  ctx.strokeStyle = 'rgba(11,34,51,.82)'; ctx.lineWidth = 23; path(); ctx.stroke();
+  ctx.restore();
+}
+function loopEnds() { const L = state.loop, c = state.wave[L.side].curl; return [curlAt(c, L.a), curlAt(c, L.b)]; }
+function drawLoopHandles() {
+  const L = state.loop, [A, B] = loopEnds();
+  for (const p of [A, B]) dot(px(p.y), py(p.x), 7, '#00c2c7', '#0b1a24', 2.5);
+  const out = L.side === 'right' ? -1 : 1, lx = px(B.y) + out * 14, ly = py(B.x) + 24; // (by the far end, clear of the arm's label)
+  ctx.font = '400 13px Bungee'; ctx.textAlign = 'center'; ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(11,26,36,.9)'; ctx.fillStyle = '#00c2c7';
+  const txt = `↻ LOOP ${L.info.length.toFixed(0)} m`; ctx.strokeText(txt, lx, ly); ctx.fillText(txt, lx, ly);
+}
 function drawSwell(cx, cy) {
   const a = -state.swell.dir * Math.PI / 180; // (the swell's heading on the map: straight down, turned by its direction)
   ctx.save(); ctx.translate(cx - 70, cy); ctx.rotate(a);
@@ -192,7 +226,16 @@ function hit(cx, cy) {
   for (const b of state.blocks) { const h = handle(b), d = Math.hypot(px(h.y) - cx, py(h.x) - cy); if (d < bd) { bd = d; best = b; } }
   return best;
 }
+function hitLoop(cx, cy) {
+  if (!state.loop.info) return null;
+  const [A, B] = loopEnds();
+  if (Math.hypot(px(A.y) - cx, py(A.x) - cy) < 14) return 'a';
+  if (Math.hypot(px(B.y) - cx, py(B.x) - cy) < 14) return 'b';
+  return null;
+}
 canvas.addEventListener('pointerdown', (e) => {
+  const r0 = canvas.getBoundingClientRect(), lh = hitLoop(e.clientX - r0.left, e.clientY - r0.top);
+  if (lh) { drag = { loop: lh }; canvas.setPointerCapture(e.pointerId); return; }
   const r = canvas.getBoundingClientRect(), cx = e.clientX - r.left, cy = e.clientY - r.top, b = hit(cx, cy);
   state.sel = b; showSel();
   if (b) {
@@ -206,7 +249,14 @@ canvas.addEventListener('pointerdown', (e) => {
 });
 canvas.addEventListener('pointermove', (e) => {
   const r = canvas.getBoundingClientRect(), cx = e.clientX - r.left, cy = e.clientY - r.top;
-  if (!drag) { canvas.style.cursor = hit(cx, cy) ? 'grab' : 'default'; return; }
+  if (!drag) { canvas.style.cursor = hit(cx, cy) || hitLoop(cx, cy) ? 'grab' : 'default'; return; }
+  if (drag.loop) { // (a loop end: to the nearest spot on the curl, 10 m snap, the loop at least LOOP.min long, inside the ride)
+    const L = state.loop, side = state.wave[L.side];
+    let best = null; for (let s = 0; s <= side.ride; s += 2) { const q = curlAt(side.curl, s), d = Math.hypot(px(q.y) - cx, py(q.x) - cy); if (!best || d < best.d) best = { s, d }; }
+    const v = Math.round(best.s / LOOP.snap) * LOOP.snap;
+    if (drag.loop === 'a') L.a = Math.max(0, Math.min(v, L.b - LOOP.min)); else L.b = Math.min(Math.floor(side.ride / LOOP.snap) * LOOP.snap, Math.max(v, L.a + LOOP.min));
+    L.info = loopInfo(side, L.a, L.b); showRide(); draw(); return;
+  }
   const p = toReef(cx, cy), b = drag.b;
   let nx = snap(p.x + drag.dx), ny = snap(p.y + drag.dy);
   nx = Math.min(VIEW.x1 - 40, Math.max(VIEW.x0 + 20, nx)); ny = Math.min(view.Y1 - 20, Math.max(view.Y0 + 20, ny));
@@ -277,6 +327,32 @@ function showSel() {
   del.onclick = () => { state.blocks = state.blocks.filter((q) => q !== b); state.sel = null; state.dirty = true; showSel(); schedule(); };
   el.appendChild(del);
 }
+const mph = (v) => (v * 2.237).toFixed(0);
+function showRide() {
+  const el = $('ride'), L = state.loop; el.innerHTML = '';
+  const mode = document.createElement('div'); mode.className = 'row';
+  for (const [on, label] of [[false, 'Full ride'], [true, '↻ Loop']]) {
+    const b = document.createElement('button'); b.textContent = label; if (L.on === on) b.className = 'on';
+    b.onclick = () => { L.on = on; fitLoop(); showRide(); draw(); }; mode.appendChild(b);
+  }
+  el.appendChild(mode);
+  const note = document.createElement('div'); note.className = 'note'; note.style.marginTop = '8px';
+  if (!L.on) { note.textContent = 'Ride it from the takeoff until it ends, or loop your favourite stretch to surf it forever, like Queens or Raglan.'; el.appendChild(note); return; }
+  const sides = document.createElement('div'); sides.className = 'row'; sides.style.marginTop = '8px';
+  for (const sd of ['right', 'left']) {
+    const b = document.createElement('button'); b.textContent = sd === 'right' ? 'Right' : 'Left'; if (L.side === sd) b.className = 'on';
+    b.onclick = () => { L.side = sd; L.a = L.b = null; fitLoop(); showRide(); draw(); }; sides.appendChild(b);
+  }
+  el.appendChild(sides);
+  const I = L.info;
+  if (!I) { note.innerHTML = `<span class="bad">The ${L.side} is too short to loop (it needs ${LOOP.min + 2 * LOOP.edge} m).</span>`; el.appendChild(note); return; }
+  note.innerHTML = `Drag the round ends along the curl.<br><b style="color:var(--text)">${I.length.toFixed(0)} m · ${I.seconds.toFixed(0)} s a lap</b>`
+    + ` · curl ${mph(I.vMin) === mph(I.vMax) ? mph(I.vMin) : `${mph(I.vMin)}–${mph(I.vMax)}`} mph along the reef · ${I.sections ? `${I.sections} fast section${I.sections > 1 ? 's' : ''}` : 'no sections'}<br>`
+    + (I.closes ? '<span class="bad">It closes out inside the loop.</span> ' : '')
+    + (I.seam.ok ? '<span style="color:var(--teal)">Seam: smooth</span> (the end runs back into the start)'
+      : `<span style="color:#ffaa28">Seam: rough</span>: the end is ${(I.seam.dv * 100).toFixed(0)}% ${I.seam.dv > LOOP.seamSpeed ? 'off in speed' : ''}${I.seam.dv > LOOP.seamSpeed && I.seam.dH > LOOP.seamHeight ? ' and ' : ''}${I.seam.dH > LOOP.seamHeight ? `${(I.seam.dH * 100).toFixed(0)}% off in height` : ''} from the start; move an end to where they match`);
+  el.appendChild(note);
+}
 function showResults() {
   const w = state.wave, el = $('res');
   if (!w) { el.innerHTML = '<span class="bad">Nothing breaks: the swell rolls in to the beach.</span>'; return; }
@@ -287,6 +363,7 @@ function showResults() {
       + ` · ~${(s.H * 3.28).toFixed(0)} ft<br><span class="end">then it ${s.end}</span></div>`;
   };
   el.innerHTML = line('Right', w.right) + line('Left', w.left);
+  showRide();
   $('stats').textContent = `model ${state.ms.toFixed(0)} ms · ${state.rays.n} rays · ${state.grid.M}×${state.grid.N} cells of ${state.grid.dx} m`;
 }
 for (const [id, key, fmt] of [['H', 'H', (v) => `${v.toFixed(1)} m`], ['T', 'T', (v) => `${v} s`], ['D', 'dir', (v) => `${v > 0 ? '+' : ''}${v}°`]]) {
@@ -298,6 +375,7 @@ $('reset').onclick = () => { state.blocks = dynamicPreset(); state.sel = null; s
 $('clear').onclick = () => { state.blocks = []; state.sel = null; state.dirty = true; showSel(); schedule(); };
 window.addEventListener('resize', () => { layout(); draw(); });
 
+{ const q = new URLSearchParams(location.search).get('loop'); if (q) { state.loop.on = true; state.loop.side = q === 'left' ? 'left' : 'right'; } } // (?loop=right|left: start looped, for testing)
 recompute(); layout(); showSel(); draw();
 document.fonts?.ready.then(() => draw());
 window.__builder = state; // (tests)

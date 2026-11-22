@@ -39,6 +39,7 @@
   .legend { display: grid; grid-template-columns: 34px 1fr; gap: 6px 10px; align-items: center; font-size: 12px; color: var(--dim); }
   .sw { height: 6px; border-radius: 3px; }
   .note { font-size: 12px; color: var(--dim); line-height: 1.4; }
+  .bad { color: var(--red); }
   .stats { font-size: 11px; color: var(--dim); }
   @media (max-width: 820px) {
     .app { grid-template-columns: 1fr; padding: 16px; }
@@ -68,6 +69,10 @@
     <div>
       <h2>The wave</h2>
       <div class="res" id="res"></div>
+    </div>
+    <div>
+      <h2>Ride it</h2>
+      <div id="ride"></div>
     </div>
     <div class="legend">
       <div class="sw" style="background: linear-gradient(90deg, var(--yellow), var(--pink))"></div><div>the curl, as it peels (a tick every 5 s; ◆ where it first breaks)</div>

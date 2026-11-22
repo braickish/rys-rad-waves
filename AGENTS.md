@@ -182,6 +182,15 @@ section (25-30 deg), backing off (slower than 70 deg, or a gap), or closing out 
   out; a ridge along an arm (2.6 m crest) gives fast sections (1.8 m closed out).
 - Known from the Python work: rays over-read breaker heights on ledges, saturate on very wide wedges, fragment on very
   gentle ones; pewave.py (heights) isn't ported yet. Not yet: riding a built break (DROP IN), presets, saving/sharing.
+- **Loop** (`loop.js`; the user, 2026-11-22: mark the primary stretch and surf it forever; the builder will drive endless
+  waves like Queens / Raglan / Raglan+): Ride it = Full ride or Loop (Right / Left). The loop is a stretch of one side's
+  curl (`a`..`b` m from the peak; default from 20 m to just before the ride ends; 10 m snap, >= 60 m), drawn as a dark band
+  with a teal edge (amber = rough seam) and round end handles you drag along the curl. `loopInfo`: length, seconds a lap,
+  the curl's speed along the reef, sections, closeouts, and the seam (end vs start: speed within 15%, height within 20%),
+  plus its `profile` (curl speed, height, kind every 10 m): the data an endless wave would repeat, the same shape as
+  Raglan+'s ridges (a curl speed and section strength along the beach). Not wired into riding yet. `?loop=right|left`.
+- Circles only for what you can drag (block handles, loop ends; the user): the curl's time marks are ticks, where it
+  first breaks a diamond.
 - `PAGE=builder.html node test/drive.mjs test/out/bld "" 2500` screenshots it (drive.mjs's `PAGE`).
 
 ## How it works
