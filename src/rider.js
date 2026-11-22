@@ -73,6 +73,10 @@ const RIDER_TUNE = {
   foamExit: 0.6, // ... but out of the whitewater, shallower (down and forward, ~35 deg) // speed gained per radian of carving up near the top of the pocket (m/s)
   comboWindow: 1.6, // seconds after a bottom turn that a move counts as a combo
   moveGap: 1.0, // at least this long between moves (s), so they don't stack
+  // Airs need you to be coming up the face (the user, 2026-11-22: off a floater at the lip you launched, but with no
+  // upward motion there's no way you would): rising at least `airMinRise` m/s (measured, not where the nose points), and
+  // at least `airMoveGap` s since you were last in a move (floater, snap, slash...). Otherwise you stay on the top.
+  airMinRise: 1.0, airMoveGap: 0.5,
   airPop: 5.0, // upward speed off the lip for an air (m/s)
   airDrift: -1.5, // in the air the wave carries you along: you never drift back faster than this (m/s)
   softMax: 14.5, // above this (~32 mph) extra speed bleeds off quickly ...
@@ -676,6 +680,14 @@ function stepSurf(r, input, dt) {
     }
   }
   let f = frameAt(r.xs, r.t);
+  // For airs (the user, 2026-11-22): how fast you're actually rising (m/s, smoothed over ~0.1 s; not where the nose
+  // points: on a floater the nose can point up while the foam holds you level), and when you were last in a move.
+  if (dt > 0) {
+    const vy = r.lastY === undefined ? 0 : (f.P[1] - r.lastY) / dt;
+    r.vy = (r.vy || 0) + (vy - (r.vy || 0)) * (1 - Math.exp(-dt / 0.1));
+  }
+  r.lastY = f.P[1];
+  if (r.floater || r.assist || r.lipSnap || r.snapGrip || r.slide > 0 || r.roundhouse) r.lastBusy = r.time;
 
   const pk = pocketPower(r.xs);
   const foam = foamAt(r.xs, r.t);
@@ -1290,7 +1302,8 @@ function stepSurf(r, input, dt) {
     // Airs reach a little way into the curl too (`airIntoCurl`, Raglan; the user, 2026-11-18: you can often hit an air
     // right off the whitewater): heading up the face without turning, fast enough, up to that far into the breaking
     // part it's an air (a big one, right by the whitewater) instead of an automatic snap or a floater.
-    const airEdge = T.airs && T.airIntoCurl > 0 && !turning && sinp > 0.4 && r.speed > (T.airPopPerSpeed > 0 ? airSpeedAt(r.xs) : T.airMinSpeed)
+    const riseOk = r.vy >= T.airMinRise && r.time - (r.lastBusy ?? -9) >= T.airMoveGap; // (airs: coming up the face, not just out of a move)
+    const airEdge = T.airs && riseOk && T.airIntoCurl > 0 && !turning && sinp > 0.4 && r.speed > (T.airPopPerSpeed > 0 ? airSpeedAt(r.xs) : T.airMinSpeed)
       && r.xs >= T.curlZone[0] - T.airIntoCurl && r.xs < T.curlZone[0] + 0.5;
     const autoSnap = onLip && r.xs < T.curlZone[0] && cosp >= -0.1 && !airEdge; // (only into the breaking lip: right at the curl, not turning is an air)
     const lipEdge = onLip && (turning || autoSnap);
@@ -1352,6 +1365,11 @@ function stepSurf(r, input, dt) {
         r.events.push({ type: 'move', move, speed: r.speed, combo, xs: r.xs });
         r.moveCooldown = T.moveGap;
       }
+    } else if (T.airs && !riseOk && !inWhitewater // (any upward heading: as the nose eases round it stays on the top)
+      && (T.airPopPerSpeed > 0 ? r.speed > airSpeedAt(r.xs) : r.speed > T.airSpeed || (r.xs - T.curlZone[0] < T.airCurlZone && r.speed > T.airMinSpeed))) {
+      // Fast enough for an air but not coming up the face (just off a floater or another move, or held level at the
+      // top): no launch. You stay on the top and the board eases round along the line (then down, as you steer).
+      r.phi += clampTurn(wrap((r.rideDir >= 0 ? 0 : Math.PI) - r.phi), 2.5 * dt);
     } else {
       // Not turning: you keep going, up and off the top. Fast enough (and out
       // of the whitewater) it's an air; otherwise over the back you go.
@@ -1380,7 +1398,7 @@ function stepSurf(r, input, dt) {
           : T.airPop + Math.max(0, r.speed - T.airSpeed) * 0.3 + (nearWhitewater ? T.airBoostUp : 0);
         const big = scaled ? up >= T.bigAirPop : nearWhitewater;
         r.vel = [r.speed * cosp - PEEL_SPEED, up, 1.2];
-        r.events.push({ type: 'launch', big });
+        r.events.push({ type: 'launch', big, vy: r.vy, since: r.time - (r.lastBusy ?? -9) }); // (vy, since: how fast you were rising, time since the last move)
         r.bigAir = big;
         r.moveCooldown = T.moveGap;
       } else {
@@ -1459,6 +1477,7 @@ function stepAir(r, input, dt) {
     const half = Math.round(r.airSpin / Math.PI);
     const spinErr = Math.abs(r.airSpin - half * Math.PI);
     r.mode = 'surf';
+    r.lastY = undefined; r.vy = 0; // (rising speed starts over on landing)
     r.t = clamp(hit.t, TUNE.tTop, TUNE.tBottom);
     if (hit.nz < -0.05 || r.overTheBack) return wipe(r, r.overTheBack ? 'Went over the back! (turn at the lip)' : 'Landed over the back!');
     const fl = frameAt(r.xs, r.t);

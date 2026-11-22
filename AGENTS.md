@@ -301,6 +301,11 @@ First named Performance Peak (renamed 2026-11-21, the user).
     Floaters (the user, 2026-11-22: not enough boost): no speed cost to get on (`moveScrub.floater` 0, was 0.05, which
     cancelled half of `floaterBoost`) and no post-move calm or speed freeze during a free floater, so steering down off
     the foam pays at once. `node test/floater.mjs`: peak +1.8 mph, ~+0.7-1.5 mph 1.5 s after.
+    Airs need you coming up the face (the user, 2026-11-22): rising at least `airMinRise` 1.0 m/s (measured from your
+    real height change, smoothed ~0.1 s, not the nose's heading) and `airMoveGap` 0.5 s since you were last in a move
+    (floater, snap, slash, assist...). Fast enough but not rising: you stay on the top and the board eases round along
+    the line. Every legit air in the tests rises 1.5-5.8 m/s, 9+ s after a move; the old floater launch came 0.28 s
+    after the float. floater.mjs checks no air within 0.5 s of a float.
     `node test/idle.mjs`. Air thresholds are lift-off physics: 16 mph at the
     curl, 18 out. Foot spots as ratios of that speed: longboard middle 1.0x / nose 0.95x / tail 0.85x (a stall);
     shortboard back 0.95x / forward 1.04x. A longboard tail turn drives by its split (rail share in full, pivot share

@@ -41,3 +41,19 @@ for (const [sname, start] of Object.entries(starts)) {
       + `input locked ${locked.toFixed(2)}s, ${mph(v0)} -> peak ${mph(peak)} -> ${vAfter === null ? '?' : mph(vAfter)} mph 1.5s after, ${r.mode === 'wipe' ? 'WIPE ' + r.wipeReason : 'riding'} (${moves.join('>')})`);
   }
 }
+// No air straight off a floater (the user, 2026-11-22): airs need you rising up the face (`airMinRise`) and a gap since
+// the last move (`airMoveGap`). Every start and plan above, any speed: no launch within 0.5 s of the float ending.
+{ let bad = 0;
+  for (const start of Object.values(starts)) for (const plan of Object.values(plans)) for (const speed of [11, 13, 15]) {
+    const r = createRider(); Object.assign(r, start, { speed }); r.events = []; stepRider(r, {}, 0);
+    let fStart = null, fEnd = null;
+    for (let i = 0; i < 4 / dt && r.mode === 'surf'; i++) {
+      stepRider(r, fStart === null ? {} : plan(i * dt - fStart), dt);
+      if (r.floater && fStart === null) fStart = i * dt;
+      if (fStart !== null && fEnd === null && !r.floater) fEnd = i * dt;
+      for (const e of r.events) if (e.type === 'launch' && fEnd !== null && i * dt - fEnd < 0.5) bad++;
+    }
+  }
+  console.log(`${bad ? 'FAIL' : 'ok  '} no air straight off a floater (${bad} launched within 0.5 s)`);
+  if (bad) process.exitCode = 1;
+}
