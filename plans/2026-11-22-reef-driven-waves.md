@@ -50,7 +50,7 @@ A built wave is one size now; the builder knows the breaker height every 10 m.
 - Test: a built wave crossing spilling -> plunging shows the face steepness rising in step (test/steepness-style
   measure), and riders cope (pocket bot rides it).
 
-## 4. Trustworthy heights before barrels
+## 4. Trustworthy heights before barrels (done 2026-11-22)
 
 The ray model over-reads breaker heights on ledges (Python validation: 1.8-2.3 m where FUNWAVE had 0.8-1.45) because it
 has no diffraction, one wave from one direction, and no energy lost to waves breaking upstream. Barrels from step 5 would

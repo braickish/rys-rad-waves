@@ -96,7 +96,10 @@ export function traceRays(grid, swell) {
     t += RAYS.dt; step++;
   }
   const L0 = g * T * T / (2 * Math.PI);
-  return { tb, xb, yb, hb, Hb, cb, sb, crests, n, H0: swell.H, L0 };
+  // (the seabed slope in the swell's mean direction at any spot: for breaking intensity where the height model (pewave.js)
+  // says the set waves break)
+  const slopeAt = (x, y) => -(samp(Hx, x, y) * Math.cos(th0) + samp(Hy, x, y) * Math.sin(th0));
+  return { tb, xb, yb, hb, Hb, cb, sb, crests, n, H0: swell.H, L0, slopeAt };
 }
 
 // When each 4 m strip along the reef first breaks (5-strip running median), then from the earliest spot (the peak) both
@@ -104,7 +107,12 @@ export function traceRays(grid, swell) {
 // the curl reaches them (the running max: a stretch that broke before the curl got there is crossed at once) and a
 // kind for drawing: 'ride', 'section' (fast but makeable, 25-30 deg), 'closeout' (< 25 deg twice in a row: where the
 // ride ends), 'backoff' (the wave backs off: slower than 70 deg, or a gap where it doesn't break).
-export function analyse(R, grid, { binM = 4, step = 20 } = {}) {
+// With `pe` (pewave.js runPE over the same grid, plan step 4): the heights, where the set waves break and so the slope
+// they break on come from the refraction-diffraction model, as research/reef-generator's design_eval.py: along each
+// strip's row, coming in from offshore, the first spot where Hs / h >= 0.47 (the 1-in-100 wave, 1.67 Hs, reaching 0.78 h)
+// is where it breaks, and Hs there its height. A strip where it never gets there doesn't break in that model (the rays
+// over-read ledges): its curl is marked as backing off. Timing and peel stay the rays'.
+export function analyse(R, grid, { binM = 4, step = 20, pe = null } = {}) {
   const yLo = grid.y0 + grid.edge + 10, yHi = grid.y0 + grid.N * grid.dx - grid.edge - 10;
   const strips = [];
   for (let e = yLo; e < yHi; e += binM) {
@@ -165,15 +173,28 @@ export function analyse(R, grid, { binM = 4, step = 20 } = {}) {
       if (s[k] > ride && closed) kind = 'closeout';
       else if (gaps.includes(k) || (sg && sg.a > 70 && s[k] > step)) kind = 'backoff';
       else if (sg && sg.a < 30 && s[k] > step) kind = 'section';
-      const xi = Math.max(0, p[5]) / Math.sqrt(R.H0 / R.L0); // (surf-similarity, Battjes' xi0: the slope it breaks on / sqrt(H0 / L0))
-      return { x: p[2], y: p[0], t: tc, s: s[k], H: p[4], c: p[3], slope: p[5], xi, how: breakType(xi), kind }; // (c: the wave's speed at breaking there)
+      return { x: p[2], y: p[0], t: tc, s: s[k], H: p[4], Hray: p[4], c: p[3], slope: p[5], kind }; // (c: the wave's speed at breaking there)
     });
+    if (pe) { // (heights, break spots and slopes from the height model; then a 5-point running median along the curl)
+      const { Hs, M } = pe, d = grid.depth, raw = curl.map((p) => {
+        const j = Math.min(grid.N - 1, Math.max(0, Math.round((p.y - grid.y0) / grid.dx - 0.5)));
+        for (let i = 0; i < M; i++) { const h = d[j * M + i], hs = Hs[j * M + i]; if (h > 0.3 && hs / h >= 0.47) { const x = grid.x0 + (i + 0.5) * grid.dx; return { H: hs, slope: R.slopeAt(x, p.y), breaks: true }; } }
+        const i = Math.min(M - 1, Math.max(0, Math.round((p.x - grid.x0) / grid.dx - 0.5)));
+        return { H: Hs[j * M + i], slope: p.slope, breaks: false };
+      });
+      const med5 = (k, key) => { const v = raw.slice(Math.max(0, k - 2), k + 3).map((r) => r[key]).filter(isFinite).sort((a, b) => a - b); return v.length ? v[Math.floor(v.length / 2)] : raw[k][key]; };
+      curl.forEach((p, k) => {
+        p.H = med5(k, 'H'); p.slope = med5(k, 'slope'); p.peBreaks = raw.slice(Math.max(0, k - 2), k + 3).filter((r) => r.breaks).length >= 3;
+        if (!p.peBreaks && p.kind !== 'closeout' && k > 0) p.kind = 'backoff';
+      });
+    }
+    for (const p of curl) { p.xi = Math.max(0, p.slope) / Math.sqrt(R.H0 / R.L0); p.how = breakType(p.xi); } // (surf-similarity, Battjes' xi0: the slope it breaks on / sqrt(H0 / L0))
     const inRide = segs.filter((q) => q.e0 < ride && q.e0 >= step).map((q) => q.a).sort((a, b) => a - b);
     const med = inRide.length ? inRide[Math.floor(inRide.length / 2)] : NaN;
-    const Hs = segs.filter((q) => q.e0 < ride).map((q) => q.H).sort((a, b) => a - b);
+    const Hs = (pe ? curl.filter((p) => p.s <= ride).map((p) => p.H) : segs.filter((q) => q.e0 < ride).map((q) => q.H)).sort((a, b) => a - b);
     const xis = curl.filter((p) => p.s >= step && p.s <= ride).map((p) => p.xi).sort((a, b) => a - b);
     const xiMed = xis.length ? xis[Math.floor(xis.length / 2)] : NaN;
-    out[side] = { xi: xiMed, how: isFinite(xiMed) ? breakType(xiMed) : '-', curl, segs, ride, line: s[s.length - 1], peel: med, band: isFinite(med) ? skillBand(med) : '-', H: Hs.length ? Hs[Math.floor(Hs.length / 2)] : NaN, end, seconds: curl.length ? curl[curl.length - 1].t - curl[0].t : 0 };
+    out[side] = { refined: !!pe, xi: xiMed, how: isFinite(xiMed) ? breakType(xiMed) : '-', curl, segs, ride, line: s[s.length - 1], peel: med, band: isFinite(med) ? skillBand(med) : '-', H: Hs.length ? Hs[Math.floor(Hs.length / 2)] : NaN, end, seconds: curl.length ? curl[curl.length - 1].t - curl[0].t : 0 };
   }
   return out;
 }

@@ -217,6 +217,17 @@ section (25-30 deg), backing off (slower than 70 deg, or a gap), or closing out 
   have a Slope (Gentle 1:18 / Medium 1:10 / Steep 1:6: the hollowness dial; 1:16 and gentler broke up in the rays): on
   Dynamic xi0 0.66 / 0.88 / 1.11, scale 0.65 / 1.31 / 1.73. Reefs are steep, so truly crumbly waves need gentle slopes and
   short-period swell (9 s on 1:18 arms: 0.52).
+  Plan step 4 (2026-11-22): `src/builder/pewave.js`, a port of research/reef-generator/pewave.py (wide-angle parabolic
+  mild-slope equation per spectral component, JONSWAP + 7 deg spread, 8 x 9 components, Battjes-Janssen breaking with
+  Battjes & Stive's gamma, friction; y' padded 400 m), ~260 ms. Against pewave.py on Dynamic's recipe: Hs within 0.12 m rms
+  at 13 points (worst 0.35 m on the inner flat). `analyse(.., { pe })`: as design_eval.py, along each strip's row the first
+  spot where Hs / h >= 0.47 (the 1-in-100 wave reaching 0.78 h) is where the set waves break, Hs there their height, the
+  slope there the one for xi (5-point median along the curl); a stretch that never gets there backs off. Timing and peel
+  stay the rays'. The builder runs it 0.3 s after you stop changing things (rays alone while dragging; "refining
+  heights..." in the footer), and DROP IN always sends the refined wave. Dynamic: breakers 1.7 m (rays 2.1), the right's
+  ledge shelf xi0 1.36 pitching (rays 1.53 barrelling), arms pitching 0.94-1.10; built waves come out smaller (scale 0.62
+  vs 0.74). The arm Slope dial is weaker refined (0.79 / 0.94 / 0.98): the set waves break further out, partly on the
+  Peak's fixed 1:10 face.
 - Zoom (the user, 2026-11-22): wheel / trackpad pinch about the pointer, two-finger pinch, drag the water to pan, and − / + / Fit
   in the map's corner (up to 6x; handles, labels and line widths keep their screen size; the scale bar picks a round length).
   `?zoom=2.5` opens zoomed on the peak (testing).

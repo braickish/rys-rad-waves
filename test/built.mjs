@@ -7,13 +7,14 @@ import { buildDepth, makeGrid } from '../src/builder/reef.js';
 import { traceRays, analyse } from '../src/builder/rays.js';
 import { defaultLoop, bestLoop, wavePayload, LOOP } from '../src/builder/loop.js';
 import { reefComponents, dynamicPreset } from '../src/builder/blocks.js';
+import { runPE } from '../src/builder/pewave.js';
 import { applyBuilt } from '../src/waves/built.js';
 import * as W from '../src/wave.js';
 import * as R from '../src/rider.js';
 import * as S from '../src/sea.js';
 
 const swell = { H: 1.6, T: 15, dir: 0 };
-const grid = buildDepth(reefComponents(dynamicPreset()), makeGrid()), A = analyse(traceRays(grid, swell), grid);
+const grid = buildDepth(reefComponents(dynamicPreset()), makeGrid()), Rg = traceRays(grid, swell), A = analyse(Rg, grid, { pe: runPE(grid, swell) }); // (refined, as DROP IN sends it)
 const side = A.right, lp = bestLoop(side) || defaultLoop(side);
 const payloads = {
   loop: wavePayload(side, 'right', 'loop', lp.a, lp.b, swell),
@@ -102,7 +103,7 @@ for (const [mode, data] of Object.entries(payloads)) {
   const us = {};
   for (const slope of ['1:18', '1:10', '1:6']) {
     const bl = dynamicPreset(); for (const b of bl) if (b.type === 'arm') b.slope = slope;
-    const g2 = buildDepth(reefComponents(bl), makeGrid()), A2 = analyse(traceRays(g2, swell), g2), lp2 = bestLoop(A2.left) || defaultLoop(A2.left);
+    const g2 = buildDepth(reefComponents(bl), makeGrid()), A2 = analyse(traceRays(g2, swell), g2, { pe: runPE(g2, swell) }), lp2 = bestLoop(A2.left) || defaultLoop(A2.left);
     const d2 = wavePayload(A2.left, 'left', 'loop', lp2.a, lp2.b, swell), u = d2.profile.map((p) => p.u);
     us[slope] = u.reduce((x, y) => x + y, 0) / u.length;
     console.log(`-- shape: arms ${slope}: xi0 ${A2.left.xi.toFixed(2)} (${A2.left.how}), shape scale ${Math.min(...u).toFixed(2)}-${Math.max(...u).toFixed(2)} (mean ${us[slope].toFixed(2)})`);

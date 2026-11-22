@@ -6,6 +6,7 @@
 import { buildDepth, makeGrid } from '../src/builder/reef.js';
 import { traceRays, analyse } from '../src/builder/rays.js';
 import { defaultLoop, loopInfo, clampLoop, LOOP } from '../src/builder/loop.js';
+import { runPE } from '../src/builder/pewave.js';
 
 const DYNAMIC = [
   { type: 'ramp', start_depth_m: 13, end_depth_m: 8.5, x0_m: 300, length_m: 420 },
@@ -57,6 +58,36 @@ check(A.left.xi > 0.5 && A.left.xi < 3.3 && A.right.xi > 0.5 && A.right.xi < 3.3
   check(x6.xi > x10.xi && x10.xi > x15.xi, 'a steeper reef line breaks harder');
   check(Math.abs(x6.peel - x15.peel) < 5, 'the reef line\'s gradient leaves the peel alone (within 5 deg)');
   check(t18.xi > t10.xi, 'a longer-period swell breaks harder on the same reef');
+}
+// The height model (plan step 4: pewave.js, a port of research/reef-generator/pewave.py): Hs on this reef against the
+// Python model's own (pewave.py on the recipe, 2 m cells, 2026-11-22: x', y', depth, Hs), then the refined wave.
+{
+  const PY = [
+  [800, 520, 6.65, 1.847],
+  [860, 520, 2.99, 2.286],
+  [900, 480, 1.78, 1.912],
+  [940, 440, 1.62, 1.414],
+  [980, 400, 2.88, 1.551],
+  [1010, 370, 3.0, 1.563],
+  [900, 560, 2.81, 1.652],
+  [940, 600, 3.01, 1.606],
+  [980, 640, 2.81, 1.572],
+  [700, 520, 8.25, 1.768],
+  [1050, 520, 1.1, 1.213],
+  [885, 488, 2.27, 1.847],
+  [905, 468, 2.09, 1.608]];
+  let t1 = performance.now(); const P = runPE(grid, swell); const tPE = performance.now() - t1;
+  let se = 0, worst = 0;
+  for (const [x, y, , hpy] of PY) { const i = Math.round((x - grid.x0) / grid.dx - 0.5), j = Math.round((y - grid.y0) / grid.dx - 0.5), d = P.Hs[j * grid.M + i] - hpy; se += d * d; worst = Math.max(worst, Math.abs(d)); }
+  const rms = Math.sqrt(se / PY.length);
+  console.log(`height model: ${tPE.toFixed(0)} ms; Hs vs pewave.py at ${PY.length} points: rms ${rms.toFixed(2)} m, worst ${worst.toFixed(2)} m`);
+  check(rms < 0.2, 'height model: Hs within 0.2 m rms of the Python model');
+  check(tPE < 1500, 'height model: fast enough to refine after a drag (< 1.5 s in node)');
+  const B = analyse(R, grid, { pe: P });
+  console.log(`refined: right H ${B.right.H.toFixed(2)} m (rays ${A.right.H.toFixed(2)}), xi0 ${B.right.xi.toFixed(2)} (${B.right.how}, rays ${A.right.xi.toFixed(2)}); left H ${B.left.H.toFixed(2)}, xi0 ${B.left.xi.toFixed(2)} (${B.left.how})`);
+  check(B.right.refined && B.right.H < A.right.H, 'refined: the set waves break smaller than the rays said (they over-read)');
+  check(B.right.xi < A.right.xi, 'refined: the right\'s ledge shelf reads less hollow than the rays made it');
+  check(Math.abs(B.right.peel - A.right.peel) < 1e-9 && B.right.ride === A.right.ride, 'refined: timing and peel stay the rays\'');
 }
 check(tBuild + tRays + tAn < 400, `rebuild + trace under 400 ms in node (${(tBuild + tRays + tAn).toFixed(0)})`);
 console.log(fails ? 'SOME FAILED' : 'all ok');

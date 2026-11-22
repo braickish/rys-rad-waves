@@ -6,6 +6,7 @@
 // handles are circles (the user, 2026-11-22); the curl's time ticks and the break's peak (a diamond) aren't.
 import { buildDepth, makeGrid } from './reef.js';
 import { traceRays, analyse } from './rays.js';
+import { runPE } from './pewave.js';
 import { LOOP, curlAt, defaultLoop, clampLoop, loopInfo, snapEnd, bestLoop, wavePayload } from './loop.js';
 import { encodeBuilt, BUILT_KEY } from '../waves/built.js';
 import { BLOCKS, SNAP, ARM_ANGLES, ARM_LENGTHS, ARM_SLOPES, ROTATIONS, reefComponents, newBlock, dynamicPreset, armRot, nearestArm } from './blocks.js';
@@ -29,6 +30,7 @@ function recompute() {
   state.rays = traceRays(state.grid, state.swell);
   state.wave = analyse(state.rays, state.grid);
   state.ms = performance.now() - t0;
+  state.peMs = null; scheduleRefine();
   fitLoop();
   save();
   paintDepth();
@@ -329,6 +331,18 @@ canvas.addEventListener('pointerleave', () => { if (state.hover) { state.hover =
 canvas.addEventListener('pointerup', endDrag); canvas.addEventListener('pointercancel', endDrag);
 
 let queued = false;
+// The height model (pewave.js, ~0.3 s) refines the wave once you stop changing it: heights, where the set waves break and
+// how it breaks (plan step 4). While you drag, the rays alone keep the curl live.
+let refineTimer = null;
+function scheduleRefine() { clearTimeout(refineTimer); refineTimer = setTimeout(() => { if (drag) return scheduleRefine(); refine(); }, 300); }
+function refine() {
+  if (!state.rays || (state.wave && state.wave.right && state.wave.right.refined)) return;
+  const t0 = performance.now();
+  const pe = runPE(state.grid, state.swell);
+  state.wave = analyse(state.rays, state.grid, { pe });
+  state.peMs = performance.now() - t0;
+  fitLoop(); showResults(); draw();
+}
 function schedule() { if (queued) return; queued = true; requestAnimationFrame(() => { queued = false; if (state.dirty) recompute(); draw(); }); }
 
 // ---- panel ----
@@ -387,6 +401,8 @@ function rideStretch() { // (what DROP IN rides: the loop, or the whole ride fro
   return b - a >= LOOP.min ? { a, b } : null;
 }
 function dropIn() {
+  if (state.dirty) recompute();
+  clearTimeout(refineTimer); refine(); // (the wave you ride is always the refined one)
   const L = state.loop, st = rideStretch(); if (!st) return;
   const data = wavePayload(state.wave[L.side], L.side, L.on ? 'loop' : 'full', st.a, st.b, state.swell);
   try { localStorage.setItem(BUILT_KEY, JSON.stringify(data)); } catch {}
@@ -429,7 +445,8 @@ function showResults() {
   };
   el.innerHTML = line('Right', w.right) + line('Left', w.left);
   showRide();
-  $('stats').textContent = `model ${state.ms.toFixed(0)} ms · ${state.rays.n} rays · ${state.grid.M}×${state.grid.N} cells of ${state.grid.dx} m`;
+  const refined = state.wave.right && state.wave.right.refined;
+  $('stats').textContent = `rays ${state.ms.toFixed(0)} ms · ${refined ? `heights refined (${state.peMs.toFixed(0)} ms)` : 'refining heights…'} · ${state.rays.n} rays · ${state.grid.M}×${state.grid.N} cells of ${state.grid.dx} m`;
 }
 for (const [id, key, fmt] of [['H', 'H', (v) => `${v.toFixed(1)} m`], ['T', 'T', (v) => `${v} s`], ['D', 'dir', (v) => `${v > 0 ? '+' : ''}${v}°`]]) {
   const input = $(id), out = $(id + 'v');
