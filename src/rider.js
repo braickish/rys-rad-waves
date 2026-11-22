@@ -1576,7 +1576,7 @@ function checkHazards(r, dt) {
   // above where it lands, means it hits you; low on the face ahead of where it lands, or out ahead, you're clear.)
   if (!r.tube && WAVE.tubeMinHeight && tubeHeight(WAVE.tubeScale ? r.xs : undefined) < WAVE.tubeMinHeight) {
     if (ph > T.tubeEnter + 0.2 && ph < T.tubeCollapse && (!WAVE.tubeFloor || r.t < WAVE.tubeFloor.t) && r.t > topOfFace(r.xs) - 0.5
-      && r.pos[2] <= lipTipZ(r.xs) - WAVE.tubeReal.enterIn && !sectionGrace(r.xs)) {
+      && r.pos[2] <= lipTipZ(r.xs) - (WAVE.tubeReal ? WAVE.tubeReal.enterIn : 0) && !sectionGrace(r.xs)) { // (a built wave has no tubeReal: under the lip's tip at all)
       return wipe(r, 'Clipped by the lip! (the tube was too small to fit in: go around it)');
     }
     return;

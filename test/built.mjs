@@ -190,5 +190,20 @@ for (const [mode, data] of Object.entries(payloads)) {
   console.log(`  2 m breakers: tube ${hs.toFixed(2)} m (3 m: ${Math.min(...hIn).toFixed(2)})`);
   check(Math.abs(hs / Math.min(...hIn) - 2 / 3) < 0.03, 'barrel: the tube grows with the wave');
 }
+// A barrel section too small to fit in (the user hit a crash here, 2026-11-22: the clipped-by-the-lip rule read Trestles'
+// `tubeReal`, which a built wave doesn't have). A small, partly formed barrel: a rider caught under its lip is clipped.
+{
+  const prof = []; for (let s0 = 0; s0 <= 200; s0 += 10) prof.push({ s: s0, peel: 8, k: 0, H: 1.7, c: 5.2, u: s0 >= 40 && s0 <= 160 ? 2.6 : 1 });
+  applyBuilt({ v: 1, mode: 'loop', side: 'left', length: 200, base: 8, H: 1.7, c: 5.2, profile: prof }); R.useWave('built'); S.seedSea(1); S.nextWave();
+  const dt = 1 / 120; for (let i = 0; i < 10 / dt; i++) S.stepSea(dt); // (the curl into the section)
+  let outcome = 'no error', reason = '';
+  try {
+    const r = R.createRider(); R.resetRider(r); r.events = []; r.xs = -3; r.t = R.topOfFace(-3) + 0.3; r.phi = 0.2; r.speed = 6; R.stepRider(r, {}, 0);
+    for (let i = 0; i < 3 / dt && r.mode === 'surf'; i++) { S.stepSea(dt); R.stepRider(r, {}, dt); }
+    reason = r.wipeReason;
+  } catch (e) { outcome = 'error: ' + e.message; }
+  console.log(`-- small barrel (tube ${R.tubeHeight(-6).toFixed(2)} m): ${outcome}; ${reason || 'still riding'}`);
+  check(outcome === 'no error', 'small barrel: riding under a lip too small to fit in doesn\'t crash');
+}
 console.log(fails ? 'SOME FAILED' : 'all ok');
 process.exitCode = fails ? 1 : 0;
