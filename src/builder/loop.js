@@ -86,7 +86,8 @@ export function snapEnd(side, which, s, other, reach = 20) {
 export function bestLoop(side) {
   const end = Math.floor(side.ride / LOOP.snap) * LOOP.snap;
   let best = null;
-  for (let a = 0; a <= end - LOOP.min; a += LOOP.snap) for (let b = end; b >= a + LOOP.min; b -= LOOP.snap) {
+  // (from past the takeoff, as the default loop: a lap that ran back through the peak's slow first metres would stall each time)
+  for (let a = LOOP.edge; a <= end - LOOP.min; a += LOOP.snap) for (let b = end; b >= a + LOOP.min; b -= LOOP.snap) {
     if (best && b - a < best.b - best.a) break;
     const sm = seamOf(side, a, b);
     if (!sm.ok || sm.closes) continue;
@@ -105,9 +106,11 @@ export function wavePayload(side, which, mode, a, b, swell) {
   const plain = I.profile.filter((p) => p.kind !== 'section').map((p) => p.peel).sort((x, y) => x - y);
   const all = I.profile.map((p) => p.peel).sort((x, y) => x - y);
   const base = (plain.length ? plain : all)[Math.floor((plain.length ? plain : all).length / 2)];
-  const Hs = I.profile.map((p) => p.H).sort((x, y) => x - y);
+  const med = (k) => { const v = I.profile.map((p) => p[k]).sort((x, y) => x - y); return v[Math.floor(v.length / 2)]; };
   return {
-    v: 1, mode, side: which, length: I.length, base, H: Hs[Math.floor(Hs.length / 2)], swell,
-    profile: I.profile.map((p) => ({ s: p.s, peel: +p.peel.toFixed(2), k: p.kind === 'section' ? 1 : 0, H: +p.H.toFixed(2) })),
+    // (H: the reference height the wave is sized to, and per point the size along it (plan step 2); c: the wave's speed
+    // toward the shore at breaking, for the game's wave speed; the takeoff speed is the curl's at the stretch's start)
+    v: 1, mode, side: which, length: I.length, base, H: med('H'), c: med('c'), swell,
+    profile: I.profile.map((p) => ({ s: p.s, peel: +p.peel.toFixed(2), k: p.kind === 'section' ? 1 : 0, H: +p.H.toFixed(2), c: +p.c.toFixed(2) })),
   };
 }

@@ -55,5 +55,43 @@ for (const [mode, data] of Object.entries(payloads)) {
   if (mode === 'loop') check(i * dt > 15, 'loop: a pumping rider surfs it for a good while (> 15 s)');
   else check(!!r.stepOff || r.mode === 'wipe' || i * dt >= 59, 'full: the ride ends (stepping off at the end of the wave, or caught)');
 }
+// Plan step 2 (the user, 2026-11-22): the takeoff speed and the wave's speed come from the builder, and the wave's size follows
+// the breakers along the stretch. Takeoff: Dynamic's full right. Size: a made-up loop whose breakers step from 2.0 to 3.0 m
+// over 60-80 m and back at the seam.
+{
+  const d = payloads.full; applyBuilt(d); R.useWave('built'); S.seedSea(1); S.nextWave();
+  const r = R.createRider(); R.resetRider(r);
+  const want = d.profile[0].peel * Math.sqrt(W.SIZE);
+  console.log(`-- takeoff: curl at the stretch's start ${mph(want)} mph, drop-in ${mph(r.speed)} mph; wave speed ${W.WAVE_SPEED.toFixed(2)} m/s (builder c ${d.c.toFixed(2)} x sqrt(size ${W.SIZE}))`);
+  check(Math.abs(r.speed - Math.max(R.TUNE.vLow, Math.min(R.TUNE.softMax, want))) < 0.05, 'takeoff: you drop in at the curl\'s speed where the builder\'s stretch starts');
+  check(Math.abs(W.WAVE_SPEED - d.c * Math.sqrt(W.SIZE)) < 0.01, 'takeoff: the wave moves toward the shore at the builder\'s speed');
+}
+{
+  const prof = []; for (let s0 = 0; s0 <= 200; s0 += 10) prof.push({ s: s0, peel: 8, k: 0, H: s0 < 60 ? 2 : s0 < 80 ? 2 + (s0 - 60) / 20 : 3, c: 5.5 });
+  const d = { v: 1, mode: 'loop', side: 'left', length: 200, base: 8, H: 2, c: 5.5, profile: prof };
+  applyBuilt(d); R.useWave('built'); S.seedSea(1); S.nextWave();
+  const face = () => W.surface(0.5, R.topOfFace(0.5))[1] - W.surface(0.5, R.TUNE.tBottom)[1];
+  const dt = 1 / 120; let lo = 1e9, hi = 0, jump = 0, prev = face();
+  const at = {}; for (let i = 0; i < 60 / dt; i++) {
+    S.stepSea(dt); const f = face(); lo = Math.min(lo, f); hi = Math.max(hi, f); jump = Math.max(jump, Math.abs(f - prev) / dt); prev = f;
+    const u = W.RIDGE.c % 200; if (Math.abs(u - 30) < 0.1) at.small = f; if (Math.abs(u - 120) < 0.1) at.big = f;
+  }
+  console.log(`-- size: face ${at.small?.toFixed(2)} m on the 2 m stretch, ${at.big?.toFixed(2)} m on the 3 m stretch (range ${lo.toFixed(2)}-${hi.toFixed(2)}), fastest change ${jump.toFixed(2)} m/s`);
+  check(at.small && at.big && Math.abs(at.big / at.small - 1.5) < 0.05, 'size: the face is 1.5x taller where the breakers are 1.5x bigger');
+  check(jump < 1.5, 'size: it grows and shrinks smoothly, the seam included (< 1.5 m/s)');
+  // a pumping rider through the size change
+  S.seedSea(1); S.nextWave();
+  const r = R.createRider(); R.resetRider(r); r.events = []; R.stepRider(r, {}, 0);
+  let up = false, i = 0, airs = 0;
+  for (; i < 40 / dt; i++) {
+    S.stepSea(dt);
+    if (up && r.height > 0.8) up = false; if (!up && r.height < 0.15) up = true;
+    R.stepRider(r, Math.cos(r.phi) < 0 ? { aim: [1, -0.3] } : r.xs < -1 ? { aim: [1, 0.6] } : r.xs > 6 ? { aim: [-0.2, up ? 1 : -1] } : { tilt: up ? 1 : -1 }, dt);
+    for (const e of r.events) if (e.type === 'launch') airs++;
+    if (r.mode === 'wipe') break;
+  }
+  console.log(`  pump bot through it: ${(i * dt).toFixed(1)} s (${(W.RIDGE.c / 200).toFixed(1)} laps), ${r.mode === 'wipe' ? r.wipeReason : 'still riding'}, airs ${airs}`);
+  check(i * dt > 15, 'size: a pumping rider rides through the size change (> 15 s)');
+}
 console.log(fails ? 'SOME FAILED' : 'all ok');
 process.exitCode = fails ? 1 : 0;

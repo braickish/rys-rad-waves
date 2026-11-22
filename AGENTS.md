@@ -201,8 +201,13 @@ section (25-30 deg), backing off (slower than 70 deg, or a gap), or closing out 
   the profile (wave.js `ridges.profile`, `profileAt`): looped, the last 20-30 m crossfade into the start (smoothstep) and
   it repeats forever; a full ride runs once, backs off over 30 m past the end, and you step off 3 s later ("You rode it to
   the end of the wave!", rider.js checkHazards). The builder remembers your design in localStorage
-  (`rys-rad-waves-builder`). `applyBuilt(data)` swaps the wave in place (tests). Not yet: the breaker height along the
-  stretch (one size for the whole wave), the reef's own breaking intensity (it's Raglan+'s shapes). `node test/built.mjs`.
+  (`rys-rad-waves-builder`). `applyBuilt(data)` swaps the wave in place (tests). `node test/built.mjs`.
+  Plan step 2 (2026-11-22): the wave's size follows the breakers along the stretch (wave.js `sizeAt`: profile H / the
+  wave's reference H, 0.5-1.8, crossfaded at a loop's seam; the whole cross-section scales, so angles stay; physics via
+  controlPoints(.., xs), the GPU via the slice's 4th float, shaders.js surfacePoint). The takeoff and the wave's speed come
+  from the builder (the user): you drop in at the curl's speed where the stretch starts (dropInSpeed = PEEL_SPEED there),
+  and `waveSpeed` is the builder's median c at breaking (was Raglan's fixed 5 m/s). Best loop now starts past the takeoff
+  (a lap through the peak's slow first metres stalled each time). Not yet: the reef's own breaking intensity (step 3).
 - Zoom (the user, 2026-11-22): wheel / trackpad pinch about the pointer, two-finger pinch, drag the water to pan, and − / + / Fit
   in the map's corner (up to 6x; handles, labels and line widths keep their screen size; the scale bar picks a round length).
   `?zoom=2.5` opens zoomed on the peak (testing).

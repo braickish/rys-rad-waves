@@ -90,7 +90,7 @@ struct VO {
 struct WaterInfo { cols: u32, nx: u32, rows: u32, setA: u32, sMin: f32, sMax: f32, scale: f32, turquoise: f32, green: f32, blend: f32, setB: u32, ridges: f32 };
 @group(0) @binding(1) var<uniform> W: WaterInfo;
 @group(0) @binding(2) var<storage, read> table: array<vec4f>;   // [z, y, foam, thin] per (row, col)
-@group(0) @binding(3) var<storage, read> slices: array<vec4f>;  // [xs, phase, ridge, 0] per slice
+@group(0) @binding(3) var<storage, read> slices: array<vec4f>;  // [xs, phase, ridge, size] per slice
 
 fn tableSet(si: u32, s: f32, j: u32) -> vec4f {
   let f = clamp((s - W.sMin) / (W.sMax - W.sMin), 0.0, 1.0) * f32(W.rows - 1u);
@@ -116,7 +116,8 @@ fn surfacePoint(i: u32, j: u32) -> vec3f {
   let sl = slices[i];
   let e = tableAt(sl.y, j, sl.z);
   if (j == 0u || j == W.cols - 1u) { return vec3f(sl.x, 0.0, e.x); }
-  return vec3f(sl.x, e.y * W.scale, e.x * W.scale);
+  let sz = select(1.0, sl.w, sl.w > 0.0); // (a built wave's size along its stretch, wave.js sizeAt)
+  return vec3f(sl.x, e.y * W.scale * sz, e.x * W.scale * sz);
 }
 
 @vertex fn vs(@builtin(vertex_index) vi: u32) -> VO {

@@ -8,7 +8,7 @@ Done in order. Each step ends live on Pages, with its tests passing and the user
 Rules that hold throughout: no fudge factors (fix causes); the other waves stay unchanged (their tests' output identical);
 circles only for draggable things in the builder.
 
-## 1. Breaking intensity, shown in the builder
+## 1. Breaking intensity, shown in the builder (done 2026-11-22, 97370b7)
 
 How a wave breaks is set by the seabed's slope along the wave's path against the wave's own steepness: the surf-similarity
 (Iribarren) number, xi = tan(beta) / sqrt(H0 / L0), L0 = g T^2 / 2 pi. Mead & Black (2001) tie reef breaking intensity to
@@ -24,7 +24,7 @@ the upper part), surging > 3.3.
   sweep; the Skeleton Bay beach faces 1:12 / 1:20 / 1:35 -> 0.93 / 0.63 / 0.37), and the trend in FUNWAVE where we have it.
 - Test: test/builder.mjs gains intensity checks (Dynamic's arms in the plunging band; a gentler line lower, a steeper higher).
 
-## 2. Wave size along the stretch
+## 2. Wave size along the stretch (done 2026-11-22; with the takeoff speed and wave speed from the builder, the user)
 
 A built wave is one size now; the builder knows the breaker height every 10 m.
 

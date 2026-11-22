@@ -35,6 +35,7 @@ export function applyBuilt(data) {
     // size: the breakers' height against Raglan's (its ~3.5 m face at scale 1.25 is a ~3.5 m breaker), within reason
     scale: raglanPlus.scale * Math.min(1.6, Math.max(0.45, data.H / 3.5)),
     peelSpeed: data.base, // (what trimming holds: the plain wall's pace, wave.js holdPeel)
+    waveSpeed: data.c ?? raglanPlus.waveSpeed, // (the wave's speed toward the shore at breaking, from the builder)
     ...(data.side === 'right' ? { dir: -1, stance: 'regular' } : {}), // (a right peels the other way; ridden frontside, regular foot)
     ridges: { profile: data.profile, length: data.length, loop: data.mode === 'loop', fast: 1 },
   });

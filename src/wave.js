@@ -177,8 +177,15 @@ function profileAt(key, X) {
     return lin(u) * (1 - w) + P[0][key] * w;
   }
   if (X <= L) return lin(Math.max(0, X));
-  const fade = Math.max(0, 1 - (X - L) / 30); // (past the end: backing off)
-  return key === 'peel' ? lin(L) * fade : 0;
+  const fade = Math.max(0, 1 - (X - L) / 30); // (past the end: backing off; the size stays as it was at the end)
+  return key === 'peel' ? lin(L) * fade : key === 'H' ? lin(L) : 0;
+}
+// The wave's size at xs (plan step 2): a built wave grows and shrinks along its stretch with the breakers the builder found
+// there, against the height it's scaled to (WAVE.built.H); 1 everywhere else. Applied to the whole cross-section, so the
+// face keeps its shape and angles and just gets taller or smaller.
+export function sizeAt(xs) {
+  if (!WAVE.ridges || !WAVE.ridges.profile || !WAVE.built || !(WAVE.built.H > 0) || WAVE.ridges.profile[0].H == null) return 1;
+  return Math.min(1.8, Math.max(0.5, profileAt('H', RIDGE.c + xs) / WAVE.built.H));
 }
 export function ridgeAt(xs) {
   if (!WAVE.ridges) return 0;
@@ -314,6 +321,8 @@ export function controlPoints(s, out = new Float64Array(NP * 2), scale = SCALE, 
     kfPoints(SHAPES[0], s, out, scale);
     const w = ridgeAt(xs);
     if (w > 1e-4) { kfPoints(SHAPES[1], s, _cpB, scale); for (let i = 0; i < NP * 2; i++) out[i] += (_cpB[i] - out[i]) * w; }
+    const f = sizeAt(xs); // (a built wave's size along its stretch)
+    if (f !== 1) for (let i = 0; i < NP * 2; i++) out[i] *= f;
     return out;
   }
   if (SHAPES.length === 1) return kfPoints(KF, s, out, scale);
