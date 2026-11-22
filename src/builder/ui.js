@@ -20,7 +20,10 @@ const BANDS = [[-50, 0, '#efe2bd'], [0, 1, '#e3f3d9'], [1, 2, '#9fe6d6'], [2, 3,
 const BAND_RGB = BANDS.map(([a, b, c]) => [a, b, parseInt(c.slice(1, 3), 16), parseInt(c.slice(3, 5), 16), parseInt(c.slice(5, 7), 16)]);
 const COL = { yellow: [255, 212, 38], pink: [255, 61, 139], red: '#ff4b4b' };
 
-const state = { blocks: dynamicPreset(), coast: defaultCoast(), sel: null, swell: { H: 1.6, T: 15, dir: 0 }, grid: null, rays: null, wave: null, dirty: true, ms: 0,
+// (reef designs start on deep offshore water: the reef rises out of deep water close in, so it works from small swells to big
+// ones; on the research site's shallow shelf a big swell closed out across the bay. The beach break keeps the gentle shelf.)
+const reefCoast = () => Object.assign(defaultCoast(), { deep: true });
+const state = { blocks: dynamicPreset(), coast: reefCoast(), sel: null, swell: { H: 1.6, T: 15, dir: 0 }, grid: null, rays: null, wave: null, dirty: true, ms: 0,
   loop: { on: false, side: 'right', a: null, b: null, info: null }, hover: null }; // (loop: a stretch of one side to surf on repeat, loop.js)
 let view = null; // the map's placement on the canvas
 const depthImg = document.createElement('canvas');
@@ -496,7 +499,7 @@ $('beach').onclick = () => {
   state.coast = defaultCoast(); state.coast.face = 20; showCoast(); state.blocks = beachPreset(); state.sel = null;
   state.swell.T = 12; $('T').value = 12; $('Tv').textContent = '12 s'; state.loop.a = state.loop.b = null; state.dirty = true; showSel(); schedule();
 };
-$('reset').onclick = () => { state.coast = defaultCoast(); showCoast(); state.blocks = dynamicPreset(); state.sel = null; state.dirty = true; showSel(); schedule(); };
+$('reset').onclick = () => { state.coast = reefCoast(); showCoast(); state.blocks = dynamicPreset(); state.sel = null; state.dirty = true; showSel(); schedule(); };
 $('clear').onclick = () => { state.blocks = []; state.sel = null; state.dirty = true; showSel(); schedule(); };
 window.addEventListener('resize', () => { layout(); draw(); });
 

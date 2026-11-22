@@ -276,6 +276,12 @@ section (25-30 deg), backing off (slower than 70 deg, or a gap), or closing out 
   (60 / 100 m at 35 deg, ~14 ft). Not yet Pipe-like barrels: deeper blocks alone let big waves pass over and break on the
   bay; a reef for a 13 ft swell must grow ~2.5x in every direction (Froude scaling), which needs a reef Size option and a
   bigger bay (the user's call).
+  Then (the user: real reefs work at small and big sizes; is there a better default?): reef designs now start on Deep offshore
+  water (ui.js `reefCoast`; the beach-break preset keeps the gentle shelf, as sand beaches are). The Dynamic reef across
+  swells, shelf vs deep (rides right / left): 3 ft 197 / 197 vs 131 / 197 ft; 5 ft 722 / 774 at 32 deg vs 722 / 776 at 29;
+  8 ft 591 / 591 vs 525 / 591; 11 ft 262 / 262 crumbly vs 328 / 328 steep; 15 ft closes out vs 262 / 262 at 16 ft. The reef
+  rising out of deep water close in is what lets one reef work at every size; the research site's shallow shelf turned big
+  swells into closeouts on its straight contours. (test/builder.mjs keeps the shelf for its Python / FUNWAVE comparisons.)
 - Units (the user, 2026-11-22): the builder shows heights and lengths in feet (swell, waves, rides, loops, block lengths,
   the scale bar; ui.js `ft`/`ft1`), speeds in mph; the model works in metres underneath and saves metres.
 - Circles only for what you can drag (block handles, loop ends; the user): the curl's time marks are ticks, where it
