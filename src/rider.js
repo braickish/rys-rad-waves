@@ -613,7 +613,9 @@ export function stepRider(r, input, dt) {
     if ((e.type === 'move' && e.move !== 'bottomTurn') || e.type === 'land') {
       // (no calm after a slash: it's a sharper turn, not a pivot off the lip,
       // so carving through it keeps its flow; it still scrubs a little)
-      if (e.move !== 'slash' && e.move !== 'roundhouse') r.calm = TUNE.moveCalm; // (a roundhouse flows into the rebound)
+      // (and none after a free floater, `floaterSteer`: speed builds straight away, the drop back down off the foam paying at
+      // once; the user, 2026-11-22)
+      if (e.move !== 'slash' && e.move !== 'roundhouse' && !(e.move === 'floater' && TUNE.floaterSteer)) r.calm = TUNE.moveCalm; // (a roundhouse flows into the rebound)
       // A move costs a little speed (the board scrubs as it pivots), and any
       // drive still banked from the bottom turn is spent.
       r.speed *= 1 - (e.move === 'slash' && e.tube ? TUNE.slashTube.scrub : (TUNE.moveScrub[e.move || 'land'] || 0));
@@ -1150,7 +1152,8 @@ function stepSurf(r, input, dt) {
   // During a move, and for a moment after it, you don't speed up at all:
   // the move is a turn of the board, not a boost. (Bottom turns excluded.)
   r.calm = Math.max(0, (r.calm || 0) - dt);
-  if (r.assist || r.floater || r.calm > 0 || r.lipSnap || r.snapGrip) { r.speed = Math.min(r.speed, speedAtStart); r.sinceHold = 0; }
+  // (a free floater doesn't freeze your speed: steer down off the foam and the drop pays at once)
+  if (r.assist || (r.floater && !T.floaterSteer) || r.calm > 0 || r.lipSnap || r.snapGrip) { r.speed = Math.min(r.speed, speedAtStart); r.sinceHold = 0; }
   // ... and once the move hands the board back, speed eases back in over `moveEase` instead of switching on at
   // full in one frame (2026-11-18, the user: unnatural acceleration out of moves; coming off a snap's grip the
   // speed went from scrubbing -13 mph/s to building +21 mph/s between two frames).

@@ -298,6 +298,9 @@ First named Performance Peak (renamed 2026-11-21, the user).
     Trestles, Dynamic; not Queens, not in the tube; the user, 2026-11-22): no key and no change of direction for 2 s and
     you lose ~0.5 mph/s, growing ~0.5 mph/s each further idle second up to ~3 mph/s (`idleRamp`, `idleDecayMax`), and
     the pocket doesn't top you back up, until you press a key or turn.
+    Floaters (the user, 2026-11-22: not enough boost): no speed cost to get on (`moveScrub.floater` 0, was 0.05, which
+    cancelled half of `floaterBoost`) and no post-move calm or speed freeze during a free floater, so steering down off
+    the foam pays at once. `node test/floater.mjs`: peak +1.8 mph, ~+0.7-1.5 mph 1.5 s after.
     `node test/idle.mjs`. Air thresholds are lift-off physics: 16 mph at the
     curl, 18 out. Foot spots as ratios of that speed: longboard middle 1.0x / nose 0.95x / tail 0.85x (a stall);
     shortboard back 0.95x / forward 1.04x. A longboard tail turn drives by its split (rail share in full, pivot share

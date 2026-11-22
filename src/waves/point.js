@@ -91,7 +91,9 @@ export default {
     // scrubs half as much on the lip, the slash less, and the no-speeding-up pause after a move is 0.25 s (was 0.95),
     // so the drop off the lip takes over straight away.
     lipSnapDrag: 0.7, slashDrag: 2.2, moveCalm: 0.25,
-    moveScrub: { roundhouse: 0.03, slash: 0.15, snap: 0.06, check: 0.05, reentry: 0.08, topTurn: 0.04, lip180: 0.1, floater: 0.05, rebound: 0.1, rebound180: 0.1, revert: 0.05, land: 0.05 },
+    moveScrub: { roundhouse: 0.03, slash: 0.15, snap: 0.06, check: 0.05, reentry: 0.08, topTurn: 0.04, lip180: 0.1, floater: 0, rebound: 0.1, rebound180: 0.1, revert: 0.05, land: 0.05 },
+    // (floater: 0, was 0.05: gliding onto the top of the foam isn't a turn that scrubs; the cost dated from when the floater
+    // grabbed the board, and it cancelled half of `floaterBoost`. The user, 2026-11-22: the floater wasn't giving enough.)
     bleed: 0.65, // extra speed fades a little slower (rider default 0.9)
     curlZone: [-0.5, 2.5],
     snapIntoLip: 1.0, // turning at the lip, a snap reaches 1 m further into the breaking lip before it's a floater (the user, 2026-11-18)
