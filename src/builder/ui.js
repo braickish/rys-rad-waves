@@ -24,7 +24,7 @@ const COL = { yellow: [255, 212, 38], pink: [255, 61, 139], red: '#ff4b4b' };
 // ones; on the research site's shallow shelf a big swell closed out across the bay. The beach break keeps the gentle shelf.)
 const reefCoast = () => Object.assign(defaultCoast(), { deep: true });
 const state = { blocks: dynamicPreset(), coast: reefCoast(), sel: null, swell: { H: 1.6, T: 15, dir: 0 }, grid: null, rays: null, wave: null, dirty: true, ms: 0,
-  loop: { on: false, side: 'right', a: null, b: null, info: null }, hover: null }; // (loop: a stretch of one side to surf on repeat, loop.js)
+  loop: { on: false, side: 'right', a: null, b: null, info: null }, hover: null, board: 'shortboard' }; // (loop: a stretch of one side to surf on repeat, loop.js)
 let view = null; // the map's placement on the canvas
 const depthImg = document.createElement('canvas');
 
@@ -46,12 +46,12 @@ function recompute() {
 // The design is remembered (in this browser) so coming back from riding it finds it as you left it.
 const SAVE_KEY = 'rys-rad-waves-builder';
 function save() {
-  try { localStorage.setItem(SAVE_KEY, JSON.stringify({ blocks: state.blocks, coast: state.coast, swell: state.swell, loop: { on: state.loop.on, side: state.loop.side, a: state.loop.a, b: state.loop.b }})); } catch {}
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify({ blocks: state.blocks, coast: state.coast, swell: state.swell, board: state.board, loop: { on: state.loop.on, side: state.loop.side, a: state.loop.a, b: state.loop.b }})); } catch {}
 }
 function restore() {
   try {
     const j = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null'); if (!j || !Array.isArray(j.blocks)) return;
-    state.blocks = j.blocks; if (j.coast && Array.isArray(j.coast.pts)) state.coast = j.coast; Object.assign(state.swell, j.swell || {}); Object.assign(state.loop, j.loop || {}); 
+    state.blocks = j.blocks; if (j.coast && Array.isArray(j.coast.pts)) state.coast = j.coast; if (j.board) state.board = j.board; Object.assign(state.swell, j.swell || {}); Object.assign(state.loop, j.loop || {}); 
     for (const [id, key] of [['H', 'H'], ['T', 'T'], ['D', 'dir']]) document.getElementById(id).value = state.swell[key];
   } catch {}
 }
@@ -425,7 +425,7 @@ function dropIn() {
   if (state.dirty) recompute();
   clearTimeout(refineTimer); refine(); // (the wave you ride is always the refined one)
   const L = state.loop, st = rideStretch(); if (!st) return;
-  const data = wavePayload(state.wave[L.side], L.side, L.on ? 'loop' : 'full', st.a, st.b, state.swell);
+  const data = wavePayload(state.wave[L.side], L.side, L.on ? 'loop' : 'full', st.a, st.b, state.swell, state.board);
   try { localStorage.setItem(BUILT_KEY, JSON.stringify(data)); } catch {}
   save();
   location.href = `index.html?wave=built&play#built=${encodeBuilt(data)}`;
@@ -452,6 +452,11 @@ function showRide() {
       row([btn('★ Best loop', false, () => { const bl = bestLoop(side); if (bl) { L.a = bl.a; L.b = bl.b; L.info = loopInfo(side, L.a, L.b); save(); showRide(); draw(); } else { note.innerHTML += '<br><span class="bad">No stretch here has a smooth seam.</span>'; } })]);
     }
   }
+  // the board (the user, 2026-11-22): a gun for big waves, suggested from ~10 ft
+  const big = side && side.H * 3.281 >= 10;
+  const br = row([btn('Shortboard', state.board === 'shortboard', () => { state.board = 'shortboard'; save(); showRide(); }), btn('Gun', state.board === 'gun', () => { state.board = 'gun'; save(); showRide(); })]);
+  br.insertBefore(Object.assign(document.createElement('span'), { textContent: 'Board', style: 'font-size:13px;color:var(--dim);width:70px;align-self:center' }), br.firstChild);
+  if (big && state.board !== 'gun') { const n = document.createElement('div'); n.className = 'note'; n.style.marginTop = '4px'; n.textContent = `These are ~${ft(side.H)} ft waves: a gun holds the speed they need.`; el.appendChild(n); }
   const go = btn('DROP IN', false, dropIn, 'go'); go.disabled = !rideStretch();
   const r = row([go]); r.style.marginTop = '12px';
 }

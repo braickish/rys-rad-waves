@@ -193,6 +193,19 @@ export const BOARDS = {
     fins: [[-0.65, 0.14, 0.1, 0.12], [-0.65, -0.14, 0.1, 0.12], [-0.8, 0, 0.1, 0.12]], // thruster
     stringer: [1.55, -0.05],
   },
+  // A 9'6" x 19.5" gun (built waves on big swells, the user, 2026-11-22): long and narrow, a pointed nose and a pin tail, a
+  // gentle, continuous rocker (it drops in early and holds a line at speed), a thruster; the rider stands back over the fins.
+  gun: {
+    half: 1.45,
+    width: planform(0.248, 0.78, 0.5, -0.99), // 19.5" at its widest, a little ahead of the middle; drawn in to points at both ends
+    notch: 0,
+    rocker: (u) => 0.03 * u * u + 0.12 * Math.max(0, u - 0.55) ** 2 / 0.2025 + 0.04 * Math.max(0, -u - 0.55) ** 2 / 0.2025,
+    thick: (u) => 0.042 * (1 - 0.6 * u * u),
+    noseFrom: 0.78,
+    stance: [-0.98, -0.44], // back foot over the fins
+    fins: [[-1.1, 0.13, 0.12, 0.14], [-1.1, -0.13, 0.12, 0.14], [-1.28, 0, 0.12, 0.14]], // thruster
+    stringer: [2.6, -0.02],
+  },
   // A 9'0" noserider (Queens; was 9'6", the user had it shortened): 23" wide, a wide round nose
   // (for standing on it) and a squared tail, thick and flat with only a little nose kick (less than
   // before: a noserider wants a flat nose) and a little tail kick, one big fin. Seafoam with a turquoise rail (the user's pick).

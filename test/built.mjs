@@ -214,5 +214,20 @@ for (const [mode, data] of Object.entries(payloads)) {
   check(Math.abs(b.face / a.face - 3) < 0.05 && Math.abs(b.k / a.k - 3) < 1e-6 && Math.abs(b.curl / a.curl - 3) < 1e-6, 'size: no cap; the face, camera and lengths along the wave scale together');
   check(c.face < 1.5, 'size: small waves are small too (no floor)');
 }
+// The gun (the user, 2026-11-22): chosen at DROP IN, a 9'6" board that turns wider and holds more speed, no airs. On a
+// 3x wall (10.5 m breakers, the curl at 31 mph) a rider drawing a line at mid-face rides it on either board; pumping up and
+// down a 10 m face doesn't work on either (you don't pump a wave that size), the gun lasting a little longer.
+{
+  const mk = (board) => { const k = 3, peel = 8 * Math.sqrt(k), c = 5.5 * Math.sqrt(k), prof = []; for (let s0 = 0; s0 <= 900; s0 += 10) prof.push({ s: s0, peel, k: 0, H: 10.5, c, u: 1 }); return { v: 1, mode: 'loop', side: 'left', length: 900, base: peel, H: 10.5, c, profile: prof, board }; };
+  applyBuilt(mk('gun')); R.useWave('built'); S.seedSea(1); S.nextWave();
+  check(W.WAVE.board === 'gun' && R.TUNE.rBottom > 7 && R.TUNE.softMax > 17 && R.TUNE.airs === false, 'gun: the board and its riding come with the wave');
+  const r = R.createRider(); R.resetRider(r); r.events = []; R.stepRider(r, {}, 0);
+  const dt = 1 / 120; let i = 0;
+  for (; i < 40 / dt; i++) { S.stepSea(dt); R.stepRider(r, { aim: [1, Math.max(-0.6, Math.min(0.6, 3 * (0.55 - r.height) - 0.05 * (r.xs - 9)))] }, dt); if (r.mode === 'wipe') break; }
+  console.log(`-- gun on a 3x wall: a line at mid-face ${(i * dt).toFixed(1)} s, ${r.mode === 'wipe' ? r.wipeReason : 'still riding'}`);
+  check(i * dt >= 39.9, 'gun: drawing a line, a 10 m wave rides');
+  applyBuilt(mk('shortboard')); R.useWave('built');
+  check(W.WAVE.board !== 'gun' && R.TUNE.airs !== false, 'gun: a shortboard drop-in is still a shortboard');
+}
 console.log(fails ? 'SOME FAILED' : 'all ok');
 process.exitCode = fails ? 1 : 0;

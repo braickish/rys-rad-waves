@@ -287,7 +287,14 @@ section (25-30 deg), backing off (slower than 70 deg, or a gap), or closing out 
   drawn foam, curlZone, startXs, shoulderReach, snapIntoLip, the air zones and the camera (`sizeK`) all scale by k; the
   curl's and wave's speeds come from the builder. The rider doesn't scale (a human on a shortboard): riding the same wall at
   0.5x / 1x / 3x with the curl at sqrt(k), a pump bot rode 40 / 27 / 8 s (avg speed 1.49 / 1.08 / 0.88x the curl): big
-  waves are harder, as real ones are (guns would help: open, the user's call).
+  waves are harder, as real ones are.
+- The gun (the user, 2026-11-22): a Board choice in the builder's Ride it panel (Shortboard / Gun; suggested from ~10 ft
+  waves), sent with DROP IN (`board` in the payload). mesh.js `BOARDS.gun`: 9'6" x 19.5", pointed nose, pin tail, gentle
+  rocker, thruster, stance back over the fins. built.js `GUN` riding: turn radii 2.3 / 8.2 m (shortboard 1.3 / 4.8), top turn
+  rate 3.6 rad/s (5.2), slower snaps and check turns, drag bites at 40 mph (32; hard cap 49), extra speed fades half as fast,
+  acceleration holds at speed, drops slow down later, no airs. On a 3x wall (10.5 m breakers, curl 31 mph): pumping up and
+  down the 10 m face fails on both boards (shortboard 7.8 s, gun 9.9 s; top 36 / 41 mph); drawing a line at mid-face rides
+  it on both for the full 40 s. You don't pump a wave that size.
 - Reef Size (same day): blocks get Size 1x / 1.5x / 2.5x (blocks.js SIZES: every length and depth about the anchor, slopes
   unchanged; Froude scaling; a peak passes its size to its arms; `blockLength` for handles and snapping). A 13 ft 18 s swell
   on Dynamic at 1x: 80 / 80 m, steep; at 2.5x with its peak 160 m further out (so its 530 m arms fit): 240 / 280 m at 27 /

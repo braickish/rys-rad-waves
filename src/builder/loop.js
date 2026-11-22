@@ -125,7 +125,7 @@ export function shapeIndex(xi) {
   if (xi <= 1.5) return Math.min(2, 1 + (xi - 0.8) / 0.5);
   return Math.min(3, 2 + (xi - 1.5) / 0.4);
 }
-export function wavePayload(side, which, mode, a, b, swell) {
+export function wavePayload(side, which, mode, a, b, swell, board = 'shortboard') {
   const I = loopInfo(side, a, b);
   const plain = I.profile.filter((p) => p.kind !== 'section').map((p) => p.peel).sort((x, y) => x - y);
   const all = I.profile.map((p) => p.peel).sort((x, y) => x - y);
@@ -134,7 +134,7 @@ export function wavePayload(side, which, mode, a, b, swell) {
   return {
     // (H: the reference height the wave is sized to, and per point the size along it (plan step 2); c: the wave's speed
     // toward the shore at breaking, for the game's wave speed; the takeoff speed is the curl's at the stretch's start)
-    v: 1, mode, side: which, length: I.length, base, H: med('H'), c: med('c'), swell,
+    v: 1, mode, side: which, length: I.length, base, H: med('H'), c: med('c'), swell, board,
     profile: I.profile.map((p) => ({ s: p.s, peel: +p.peel.toFixed(2), k: p.kind === 'section' ? 1 : 0, H: +p.H.toFixed(2), c: +p.c.toFixed(2), u: +shapeIndex(p.xi).toFixed(3) })),
   };
 }
