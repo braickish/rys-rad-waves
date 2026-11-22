@@ -203,8 +203,11 @@ section (25-30 deg), backing off (slower than 70 deg, or a gap), or closing out 
   the end of the wave!", rider.js checkHazards). The builder remembers your design in localStorage
   (`rys-rad-waves-builder`). `applyBuilt(data)` swaps the wave in place (tests). Not yet: the breaker height along the
   stretch (one size for the whole wave), the reef's own breaking intensity (it's Raglan+'s shapes). `node test/built.mjs`.
+- Zoom (the user, 2026-11-22): wheel / trackpad pinch about the pointer, two-finger pinch, drag the water to pan, and − / + / Fit
+  in the map's corner (up to 6x; handles, labels and line widths keep their screen size; the scale bar picks a round length).
+  `?zoom=2.5` opens zoomed on the peak (testing).
 - Kept clear so the curl's colour reads (the user, 2026-11-22): block names and shape guides only on hover or selection,
-  arm handles set 28 m offshore of their line, the curl drawn over a thin dark casing, time ticks only in the Time view.
+  arm handles set 28 m offshore of their line, the curl drawn over a thin dark casing, no time ticks on the map.
 - Circles only for what you can drag (block handles, loop ends; the user): the curl's time marks are ticks, where it
   first breaks a diamond.
 - `PAGE=builder.html node test/drive.mjs test/out/bld "" 2500` screenshots it (drive.mjs's `PAGE`).
@@ -212,9 +215,9 @@ section (25-30 deg), backing off (slower than 70 deg, or a gap), or closing out 
   smoothed over 4 m, the bottom rising in the wave's direction) and the curl carries xi0 = slope / sqrt(H0 / L0)
   (Iribarren / Battjes; Mead & Black tie reef breaking intensity to the same slope), 5-strip median, and a type
   (`BREAK_TYPES`: crumbly < 0.5 spilling; within plunging, our provisional split steep < 0.9, pitching < 1.5, barrelling).
-  The map's corner toggle colours the curl by Time or How it breaks (mint / yellow / orange / violet); each side's summary
-  reads "breaks steep (ξ 0.88)". Dynamic's arms 0.88 (the right ~1.5 over its ledge shelf; Python's ray_zone.py 0.9-1.5);
-  1:6 / 1:10 / 1:15 lines 1.14 / 0.88 / 0.72 at the same peel; 10 / 18 s swell 0.67 / 1.00. `?break` opens in that view.
+  The curl is coloured by how it breaks (mint / yellow / orange / violet; one view, no seconds on the map: the user
+  dropped the Time view; a fast section is thicker and glowing); each side's summary reads "breaks steep (ξ 0.88)". Dynamic's arms 0.88 (the right ~1.5 over its ledge shelf; Python's ray_zone.py 0.9-1.5);
+  1:6 / 1:10 / 1:15 lines 1.14 / 0.88 / 0.72 at the same peel; 10 / 18 s swell 0.67 / 1.00.
 - **Next (agreed 2026-11-22):** shape, size and barrels from the reef, in five steps: plans/2026-11-22-reef-driven-waves.md.
 
 ## How it works

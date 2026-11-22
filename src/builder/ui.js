@@ -18,7 +18,7 @@ const BAND_RGB = BANDS.map(([a, b, c]) => [a, b, parseInt(c.slice(1, 3), 16), pa
 const COL = { yellow: [255, 212, 38], pink: [255, 61, 139], red: '#ff4b4b' };
 
 const state = { blocks: dynamicPreset(), sel: null, swell: { H: 1.6, T: 15, dir: 0 }, grid: null, rays: null, wave: null, dirty: true, ms: 0,
-  loop: { on: false, side: 'right', a: null, b: null, info: null }, colorBy: 'time' }; // (loop: a stretch of one side to surf on repeat, loop.js)
+  loop: { on: false, side: 'right', a: null, b: null, info: null }, hover: null }; // (loop: a stretch of one side to surf on repeat, loop.js)
 let view = null; // the map's placement on the canvas
 const depthImg = document.createElement('canvas');
 
@@ -39,12 +39,12 @@ function recompute() {
 // The design is remembered (in this browser) so coming back from riding it finds it as you left it.
 const SAVE_KEY = 'rys-rad-waves-builder';
 function save() {
-  try { localStorage.setItem(SAVE_KEY, JSON.stringify({ blocks: state.blocks, swell: state.swell, loop: { on: state.loop.on, side: state.loop.side, a: state.loop.a, b: state.loop.b }, colorBy: state.colorBy })); } catch {}
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify({ blocks: state.blocks, swell: state.swell, loop: { on: state.loop.on, side: state.loop.side, a: state.loop.a, b: state.loop.b }})); } catch {}
 }
 function restore() {
   try {
     const j = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null'); if (!j || !Array.isArray(j.blocks)) return;
-    state.blocks = j.blocks; Object.assign(state.swell, j.swell || {}); Object.assign(state.loop, j.loop || {}); if (j.colorBy) state.colorBy = j.colorBy;
+    state.blocks = j.blocks; Object.assign(state.swell, j.swell || {}); Object.assign(state.loop, j.loop || {}); 
     for (const [id, key] of [['H', 'H'], ['T', 'T'], ['D', 'dir']]) document.getElementById(id).value = state.swell[key];
   } catch {}
 }
@@ -82,11 +82,30 @@ function layout() {
   const g = state.grid || makeGrid(), Y0 = g.y0, Y1 = g.y0 + g.N * g.dx;
   const pad = 14, w = r.width - 2 * pad, h = r.height - 2 * pad - 30 - 26; // (30 above for the swell, 26 below for the scale)
   const S = Math.min(w / (Y1 - Y0), h / (VIEW.x1 - VIEW.x0));
-  view = { S, Y0, Y1, left: pad + (w - (Y1 - Y0) * S) / 2, top: pad + 30 + (h - (VIEW.x1 - VIEW.x0) * S) / 2, W: r.width, H: r.height };
+  const z = view ? view.z : 1, panX = view ? view.panX : 0, panY = view ? view.panY : 0;
+  view = { S, Y0, Y1, left: pad + (w - (Y1 - Y0) * S) / 2, top: pad + 30 + (h - (VIEW.x1 - VIEW.x0) * S) / 2, W: r.width, H: r.height, z, panX, panY };
+  view.mw = (Y1 - Y0) * S; view.mh = (VIEW.x1 - VIEW.x0) * S;
+  clampPan();
 }
-const px = (y) => view.left + (y - view.Y0) * view.S;
-const py = (x) => view.top + (x - VIEW.x0) * view.S;
-const toReef = (cx, cy) => ({ x: VIEW.x0 + (cy - view.top) / view.S, y: view.Y0 + (cx - view.left) / view.S });
+// Zoom (the user, 2026-11-22): `z` x about the map's middle, then panned by (panX, panY) screen px; handles, labels and
+// line widths keep their size on screen.
+const bx = (y) => view.left + (y - view.Y0) * view.S, by = (x) => view.top + (x - VIEW.x0) * view.S;
+const px = (y) => view.left + view.mw / 2 + (bx(y) - view.left - view.mw / 2) * view.z - view.panX;
+const py = (x) => view.top + view.mh / 2 + (by(x) - view.top - view.mh / 2) * view.z - view.panY;
+const toReef = (cx, cy) => {
+  const ux = (cx + view.panX - view.left - view.mw / 2) / view.z + view.mw / 2, uy = (cy + view.panY - view.top - view.mh / 2) / view.z + view.mh / 2;
+  return { x: VIEW.x0 + uy / view.S, y: view.Y0 + ux / view.S };
+};
+function clampPan() { // (the zoomed map always covers its frame)
+  const mx = view.mw * (view.z - 1) / 2, my = view.mh * (view.z - 1) / 2;
+  view.panX = Math.min(mx, Math.max(-mx, view.panX)); view.panY = Math.min(my, Math.max(-my, view.panY));
+}
+function zoomAt(cx, cy, factor) { // (keep the reef spot under (cx, cy) where it is)
+  const before = toReef(cx, cy);
+  view.z = Math.min(6, Math.max(1, view.z * factor));
+  const ax = px(before.y), ay = py(before.x);
+  view.panX += ax - cx; view.panY += ay - cy; clampPan(); draw();
+}
 const snap = (v) => Math.round(v / SNAP) * SNAP;
 // How it breaks, as a colour: crumbly mint -> steep yellow -> pitching orange -> barrelling violet, by xi0 (rays.js BREAK_TYPES)
 const XI_STOPS = [[0.3, [189, 245, 230]], [0.7, [255, 212, 38]], [1.2, [255, 122, 47]], [1.8, [193, 59, 255]]];
@@ -108,7 +127,7 @@ function draw() {
   // depth bands (the grid image, cropped to the view)
   const i0 = (VIEW.x0 - g.x0) / g.dx, iN = (VIEW.x1 - VIEW.x0) / g.dx;
   ctx.imageSmoothingEnabled = true;
-  ctx.drawImage(depthImg, 0, i0 * 2, g.N * 2, iN * 2, view.left, view.top, mw, mh);
+  ctx.drawImage(depthImg, 0, i0 * 2, g.N * 2, iN * 2, px(view.Y0), py(VIEW.x0), mw * view.z, mh * view.z);
   // crest lines every 5 s (only the bit still unbroken)
   ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 1.2;
   for (const c of state.rays.crests) {
@@ -123,7 +142,7 @@ function draw() {
   // the curl, each way from the peak
   const w = state.wave;
   if (w && state.loop.info) drawLoopBand();
-  if (w) for (const side of ['right', 'left']) drawCurl(w[side].curl, w.peak.t, side === 'right' ? 1 : -1);
+  if (w) for (const side of ['right', 'left']) drawCurl(w[side].curl);
   // the peak
   // (where it first breaks: computed, so a diamond, not a circle; only when it's clear of a block's handle, which it
   // usually sits right on)
@@ -134,12 +153,13 @@ function draw() {
   // labels: beach, swell
   ctx.restore();
   ctx.font = '700 13px Rubik'; ctx.textAlign = 'center'; ctx.fillStyle = '#8a6a2a';
-  ctx.fillText('BEACH', view.left + mw / 2, view.top + mh - 10);
+  { const bxp = Math.min(view.left + mw - 40, Math.max(view.left + 40, px((view.Y0 + view.Y1) / 2))), byp = py(VIEW.x1) - 10; if (byp < view.top + mh + 2) ctx.fillText('BEACH', bxp, byp); } // (moves with the zoom)
   drawSwell(view.left + mw / 2, view.top - 14);
   // scale bar
   ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; const sx = view.left + 6, sy = view.top + mh + 16;
-  ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(sx + 100 * S, sy); ctx.moveTo(sx, sy - 5); ctx.lineTo(sx, sy + 5); ctx.moveTo(sx + 100 * S, sy - 5); ctx.lineTo(sx + 100 * S, sy + 5); ctx.stroke();
-  ctx.fillStyle = '#fff'; ctx.textAlign = 'left'; ctx.font = '500 12px Rubik'; ctx.fillText('100 m', sx + 100 * S + 8, sy + 4);
+  const sm = [200, 100, 50, 20, 10].find((m) => m * S * view.z <= 170) || 10, sl = sm * S * view.z; // (a round length that fits, as you zoom)
+  ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(sx + sl, sy); ctx.moveTo(sx, sy - 5); ctx.lineTo(sx, sy + 5); ctx.moveTo(sx + sl, sy - 5); ctx.lineTo(sx + sl, sy + 5); ctx.stroke();
+  ctx.fillStyle = '#fff'; ctx.textAlign = 'left'; ctx.font = '500 12px Rubik'; ctx.fillText(`${sm} m`, sx + sl + 8, sy + 4);
 }
 function roundRect(x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
 function diamond(x, y, r) {
@@ -148,9 +168,8 @@ function diamond(x, y, r) {
 }
 function dot(x, y, r, fill, stroke, lw = 2) { ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fillStyle = fill; ctx.fill(); if (stroke) { ctx.lineWidth = lw; ctx.strokeStyle = stroke; ctx.stroke(); } }
 
-function drawCurl(curl, t0, inward) { // (inward: which way the time labels go, toward the middle of the reef)
+function drawCurl(curl) {
   if (curl.length < 2) return;
-  const span = 25;
   ctx.lineCap = 'round';
   // a thin dark casing under the whole line first, so its colour reads against the teal reef
   ctx.strokeStyle = 'rgba(11,26,36,.75)'; ctx.lineWidth = 8.5; ctx.setLineDash([]);
@@ -161,32 +180,13 @@ function drawCurl(curl, t0, inward) { // (inward: which way the time labels go, 
     if (b.kind === 'closeout') { ctx.strokeStyle = COL.red; ctx.lineWidth = 6; }
     else if (b.kind === 'backoff') { ctx.strokeStyle = 'rgba(255,255,255,.8)'; ctx.lineWidth = 3; ctx.setLineDash([5, 5]); }
     else {
-      if (state.colorBy === 'break') { ctx.strokeStyle = xiColor((a.xi + b.xi) / 2); ctx.lineWidth = b.kind === 'section' ? 7 : 5; }
-      else {
-        ctx.strokeStyle = lerpCol(COL.yellow, COL.pink, Math.min(1, (b.t - t0) / span));
-        ctx.lineWidth = b.kind === 'section' ? 7 : 4.5;
-        if (b.kind === 'section') { ctx.shadowColor = '#ff3d8b'; ctx.shadowBlur = 12; }
-      }
+      // (one view, the user: the curl coloured by how it breaks; a fast section thicker and glowing)
+      ctx.strokeStyle = xiColor((a.xi + b.xi) / 2); ctx.lineWidth = b.kind === 'section' ? 7.5 : 5;
+      if (b.kind === 'section') { ctx.shadowColor = 'rgba(255,255,255,.9)'; ctx.shadowBlur = 10; }
     }
     ctx.beginPath(); ctx.moveTo(X0, Y0); ctx.lineTo(X1, Y1); ctx.stroke();
   }
   ctx.setLineDash([]); ctx.shadowBlur = 0;
-  // a tick across the line every 5 s of the curl's time (not dots: circles are for things you can drag)
-  if (state.colorBy !== 'time') return; // (time marks only in the Time view: they'd hide how it breaks)
-  for (let tt = 5, k = 1; k < curl.length; k++) {
-    while (k < curl.length && curl[k].t - t0 >= tt) {
-      const p = curl[k], q = curl[k - 1], X = px(p.y), Y = py(p.x);
-      let ux = X - px(q.y), uy = Y - py(q.x); const l = Math.hypot(ux, uy) || 1; ux /= l; uy /= l;
-      ctx.lineCap = 'round';
-      ctx.strokeStyle = '#0b1a24'; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(X - uy * 8, Y + ux * 8); ctx.lineTo(X + uy * 8, Y - ux * 8); ctx.stroke();
-      ctx.strokeStyle = '#fff'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.moveTo(X - uy * 7, Y + ux * 7); ctx.lineTo(X + uy * 7, Y - ux * 7); ctx.stroke();
-      if (Math.hypot(px(p.y) - px(curl[0].y), py(p.x) - py(curl[0].x)) < 34) { tt += 5; continue; } // (no label crowding the peak)
-      ctx.font = 'bold 12px Rubik'; ctx.fillStyle = '#fff'; ctx.textAlign = inward > 0 ? 'left' : 'right';
-      const lx = px(p.y) + inward * 9, ly = py(p.x) + 4;
-      ctx.strokeStyle = '#0b1a24'; ctx.lineWidth = 3; ctx.strokeText(`${tt} s`, lx, ly); ctx.fillText(`${tt} s`, lx, ly);
-      tt += 5;
-    }
-  }
 }
 // The loop: a wide teal band under its stretch of the curl, round handles at each end (you drag them along the curl).
 function loopPath(a, b) { const c = state.wave[state.loop.side].curl, pts = [curlAt(c, a)]; for (const p of c) if (p.s > a && p.s < b) pts.push(p); pts.push(curlAt(c, b)); return pts; }
@@ -265,7 +265,17 @@ function hitLoop(cx, cy) {
   if (Math.hypot(px(B.y) - cx, py(B.x) - cy) < 14) return 'b';
   return null;
 }
+// Zoom and pan (the user, 2026-11-22): the wheel (and a trackpad pinch) zooms about the pointer; two fingers pinch; drag the
+// water (not a handle) to pan.
+const pointers = new Map(); let pinch = null;
+const local = (e) => { const r = canvas.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
+canvas.addEventListener('wheel', (e) => { e.preventDefault(); const p = local(e); zoomAt(p.x, p.y, Math.exp(-e.deltaY * (e.ctrlKey ? 0.01 : 0.0015))); }, { passive: false });
 canvas.addEventListener('pointerdown', (e) => {
+  pointers.set(e.pointerId, local(e));
+  if (pointers.size === 2) { // (a second finger: pinch, dropping whatever the first one was dragging)
+    const [a, b] = [...pointers.values()];
+    pinch = { d: Math.hypot(a.x - b.x, a.y - b.y) }; drag = null; canvas.setPointerCapture(e.pointerId); return;
+  }
   const r0 = canvas.getBoundingClientRect(), lh = hitLoop(e.clientX - r0.left, e.clientY - r0.top);
   if (lh) { drag = { loop: lh }; canvas.setPointerCapture(e.pointerId); return; }
   const r = canvas.getBoundingClientRect(), cx = e.clientX - r.left, cy = e.clientY - r.top, b = hit(cx, cy);
@@ -276,12 +286,18 @@ canvas.addEventListener('pointerdown', (e) => {
     const kids = b.type === 'peak' ? state.blocks.filter((q) => q !== b && (q.type === 'arm' || q.type === 'ledge') && q.x === b.x && q.y === b.y) : [];
     drag = { b, dx: b.x - p.x, dy: b.y - p.y, kids };
     canvas.setPointerCapture(e.pointerId);
-  }
+  } else { drag = { pan: true, sx: cx, sy: cy, px0: view.panX, py0: view.panY }; canvas.setPointerCapture(e.pointerId); } // (the water: pan)
   draw();
 });
 canvas.addEventListener('pointermove', (e) => {
   const r = canvas.getBoundingClientRect(), cx = e.clientX - r.left, cy = e.clientY - r.top;
-  if (!drag) { const h = hit(cx, cy); canvas.style.cursor = h || hitLoop(cx, cy) ? 'grab' : 'default'; if (h !== state.hover) { state.hover = h; draw(); } return; }
+  if (pointers.has(e.pointerId)) pointers.set(e.pointerId, { x: cx, y: cy });
+  if (pinch && pointers.size >= 2) {
+    const [a, b] = [...pointers.values()], d = Math.hypot(a.x - b.x, a.y - b.y);
+    zoomAt((a.x + b.x) / 2, (a.y + b.y) / 2, d / Math.max(1, pinch.d)); pinch.d = d; return;
+  }
+  if (drag && drag.pan) { view.panX = drag.px0 - (cx - drag.sx); view.panY = drag.py0 - (cy - drag.sy); clampPan(); draw(); return; }
+  if (!drag) { const h = hit(cx, cy); canvas.style.cursor = h || hitLoop(cx, cy) || view.z > 1 ? 'grab' : 'default'; if (h !== state.hover) { state.hover = h; draw(); } return; }
   if (drag.loop) { // (a loop end: to the nearest spot on the curl, 10 m snap, the loop at least LOOP.min long, inside the ride)
     const L = state.loop, side = state.wave[L.side];
     let best = null; for (let s = 0; s <= side.ride; s += 2) { const q = curlAt(side.curl, s), d = Math.hypot(px(q.y) - cx, py(q.x) - cy); if (!best || d < best.d) best = { s, d }; }
@@ -308,7 +324,7 @@ canvas.addEventListener('pointermove', (e) => {
     b.x = nx; b.y = ny; state.dirty = true; schedule();
   }
 });
-const endDrag = () => { drag = null; };
+const endDrag = (e) => { pointers.delete(e.pointerId); if (pointers.size < 2) pinch = null; drag = null; };
 canvas.addEventListener('pointerleave', () => { if (state.hover) { state.hover = null; draw(); } });
 canvas.addEventListener('pointerup', endDrag); canvas.addEventListener('pointercancel', endDrag);
 
@@ -419,21 +435,20 @@ for (const [id, key, fmt] of [['H', 'H', (v) => `${v.toFixed(1)} m`], ['T', 'T',
   const set = () => { state.swell[key] = Number(input.value); out.textContent = fmt(state.swell[key]); state.dirty = true; schedule(); };
   input.addEventListener('input', set); out.textContent = fmt(Number(input.value));
 }
-function showColorBy() {
+function showZoom() { // (the map's corner: zoom out / in / fit)
   const el = $('colorby'); el.innerHTML = '';
-  for (const [k, label] of [['time', 'Time'], ['break', 'How it breaks']]) {
-    const b = document.createElement('button'); b.textContent = label; if (state.colorBy === k) b.className = 'on';
-    b.onclick = () => { state.colorBy = k; save(); showColorBy(); draw(); }; el.appendChild(b);
+  for (const [label, fn] of [['−', () => zoomAt(view.left + view.mw / 2, view.top + view.mh / 2, 1 / 1.5)], ['+', () => zoomAt(view.left + view.mw / 2, view.top + view.mh / 2, 1.5)], ['Fit', () => { view.z = 1; view.panX = view.panY = 0; draw(); }]]) {
+    const b = document.createElement('button'); b.textContent = label; b.onclick = fn; el.appendChild(b);
   }
-  $('legend-time').hidden = state.colorBy !== 'time'; $('legend-break').hidden = state.colorBy !== 'break';
 }
 $('reset').onclick = () => { state.blocks = dynamicPreset(); state.sel = null; state.dirty = true; showSel(); schedule(); };
 $('clear').onclick = () => { state.blocks = []; state.sel = null; state.dirty = true; showSel(); schedule(); };
 window.addEventListener('resize', () => { layout(); draw(); });
 
 restore();
-if (new URLSearchParams(location.search).has('break')) state.colorBy = 'break'; // (?break: colour by how it breaks, for testing)
 { const q = new URLSearchParams(location.search).get('loop'); if (q) { state.loop.on = true; state.loop.side = q === 'left' ? 'left' : 'right'; } } // (?loop=right|left: start looped, for testing)
-recompute(); layout(); showSel(); showColorBy(); draw();
+recompute(); layout(); showSel(); showZoom();
+{ const zq = Number(new URLSearchParams(location.search).get('zoom')); if (zq > 1 && state.wave) zoomAt(px(state.wave.peak.y), py(state.wave.peak.x), zq); } // (?zoom=2.5: open zoomed on the peak, for testing)
+draw();
 document.fonts?.ready.then(() => draw());
 window.__builder = state; // (tests)

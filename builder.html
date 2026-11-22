@@ -56,7 +56,7 @@
 <div class="app">
   <div>
     <h1>Build a Break</h1>
-    <p class="sub">Drag the reef blocks (the round handles) around the bay and watch where the wave breaks. Prototype: the curl comes from a fast wave-ray model, checked against FUNWAVE on the Dynamic reef.</p>
+    <p class="sub">Drag the reef blocks (the round handles) around the bay and watch how the wave breaks. Scroll or pinch to zoom, drag the water to pan. Prototype: the curl comes from a fast wave-ray model, checked against FUNWAVE on the Dynamic reef.</p>
     <div class="mapwrap"><canvas id="map"></canvas><div class="row mapctl" id="colorby"></div></div>
   </div>
   <div class="panel">
@@ -79,20 +79,19 @@
       <h2>Ride it</h2>
       <div id="ride"></div>
     </div>
-    <div class="legend" id="legend-time">
-      <div class="sw" style="background: linear-gradient(90deg, var(--yellow), var(--pink))"></div><div>the curl, as it peels (a tick every 5 s; ◆ where it first breaks)</div>
-      <div class="sw" style="background: var(--pink); box-shadow: 0 0 6px var(--pink)"></div><div>fast section: steep, you'll need to pump</div>
-      <div class="sw" style="background: repeating-linear-gradient(90deg, #fff 0 5px, transparent 5px 9px); opacity: .7"></div><div>backs off: deeper water, the wave slows or fades</div>
-      <div class="sw" style="background: var(--red)"></div><div>closes out: breaks all at once</div>
-      <div class="sw" style="background: rgba(255,255,255,.35)"></div><div>wave crests every 5 s</div>
-    </div>
-    <div class="legend" id="legend-break" hidden>
+    <div>
+      <h2>The curl</h2>
+      <div class="legend" id="legend-break">
       <div class="sw" style="background: #bdf5e6"></div><div>crumbly: spills down the face, soft and forgiving</div>
       <div class="sw" style="background: #ffd426"></div><div>steep: stands up and plunges a little</div>
       <div class="sw" style="background: #ff7a2f"></div><div>pitching: the lip throws, hollow</div>
       <div class="sw" style="background: #c13bff"></div><div>barrelling: throws far enough to make a tube</div>
-      <div class="sw" style="background: linear-gradient(90deg, var(--red) 0 45%, transparent 45% 55%, rgba(255,255,255,.7) 55%)"></div><div>closes out (red) / backs off (dashed), as before</div>
+      <div class="sw" style="background: #ffd426; height: 9px; box-shadow: 0 0 6px #fff"></div><div>thicker and glowing: a fast section, you'll need to pump</div>
+      <div class="sw" style="background: repeating-linear-gradient(90deg, #fff 0 5px, transparent 5px 9px); opacity: .7"></div><div>backs off: deeper water, the wave slows or fades</div>
+      <div class="sw" style="background: var(--red)"></div><div>closes out: breaks all at once</div>
+      <div class="sw" style="background: rgba(255,255,255,.35)"></div><div>wave crests every 5 s · ◆ where it first breaks</div>
       <div class="note" style="grid-column: 1 / -1">How it breaks comes from the reef's slope under the wave against the swell's steepness (the surf-similarity number ξ). The split between steep, pitching and barrelling is provisional.</div>
+      </div>
     </div>
     <div class="row">
       <button id="reset">Start from Dynamic</button>
