@@ -69,6 +69,12 @@ function compDepth(c, x, y, base, bay) {
       d = c.depth_m + (base - c.depth_m) * smooth01(dist / c.width_m); m = 1;
       break;
     }
+    case 'bar': { // (a sandbar, plan step 6: a long gentle mound of sand, Mead & Black's elongated platform / broad ridge on a
+      // ramp: `depth_m` along its crest line `points`, falling away 1:`slope` to either side and off its rounded ends)
+      const dist = polyDist(c.points, x, y);
+      d = c.depth_m + slopeOf(c.slope ?? '1:40') * dist; m = 1;
+      break;
+    }
     case 'pinnacle': {
       const r = Math.hypot(x - c.center[0], y - c.center[1]);
       d = c.depth_m + (base - c.depth_m) * smooth01(r / c.radius_m); m = 1;

@@ -111,6 +111,19 @@ check(A.left.xi > 0.5 && A.left.xi < 3.3 && A.right.xi > 0.5 && A.right.xi < 3.3
   const st = coast((() => { const c = defaultCoast(); c.face = 20; return c; })(), { H: 1.6, T: 15, dir: 0 });
   check(!st || (st.right.ride < 60 && st.left.ride < 60), 'coast: a straight beach facing the swell closes out');
 }
+// The Sandbar block (plan step 6): a gentle 1:40 mound, a beach-break peak. On the beach preset (medium 1:20 beach, 12 s
+// swell): pointing out to sea an A-frame, crumbly, both ways; lined up with the swell it closes out or barely rides.
+{
+  const { reefComponents: rc, newBlock: nb, beachPreset } = await import('../src/builder/blocks.js');
+  const sw12 = { H: 1.6, T: 12, dir: 0 }, coast20 = defaultCoast(); coast20.face = 20;
+  const beach = (bl) => { const g = buildDepth(rc(bl), makeGrid(), coast20), R2 = traceRays(g, sw12); return analyse(R2, g, { pe: runPE(g, sw12) }); };
+  const af = beach(beachPreset());
+  console.log(`sandbar A-frame: right ${af.right.ride.toFixed(0)} m ${af.right.peel.toFixed(0)} deg ${af.right.how}, left ${af.left.ride.toFixed(0)} m ${af.left.peel.toFixed(0)} deg ${af.left.how} (xi0 ${af.right.xi.toFixed(2)} / ${af.left.xi.toFixed(2)})`);
+  check(af.right.ride >= 40 && af.left.ride >= 40 && af.right.xi < 0.5 && af.left.xi < 0.5, 'sandbar: pointing out to sea, a crumbly A-frame both ways');
+  const par = beach([Object.assign(nb('sandbar', 1040, 520), { rot: 90 })]);
+  console.log(`sandbar lined up with the swell: right ${par ? par.right.ride.toFixed(0) : 0} m, left ${par ? par.left.ride.toFixed(0) : 0} m`);
+  check(!par || par.right.ride + par.left.ride < af.right.ride + af.left.ride, 'sandbar: lined up with the swell it rides less (it closes out)');
+}
 check(tBuild + tRays + tAn < 400, `rebuild + trace under 400 ms in node (${(tBuild + tRays + tAn).toFixed(0)})`);
 console.log(fails ? 'SOME FAILED' : 'all ok');
 process.exitCode = fails ? 1 : 0;

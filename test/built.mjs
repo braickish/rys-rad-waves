@@ -5,7 +5,7 @@
 //   node test/built.mjs
 import { buildDepth, makeGrid } from '../src/builder/reef.js';
 import { traceRays, analyse } from '../src/builder/rays.js';
-import { defaultLoop, bestLoop, wavePayload, LOOP } from '../src/builder/loop.js';
+import { defaultLoop, bestLoop, wavePayload, takeoffStart, LOOP } from '../src/builder/loop.js';
 import { reefComponents, dynamicPreset } from '../src/builder/blocks.js';
 import { runPE } from '../src/builder/pewave.js';
 import { applyBuilt } from '../src/waves/built.js';
@@ -18,7 +18,7 @@ const grid = buildDepth(reefComponents(dynamicPreset()), makeGrid()), Rg = trace
 const side = A.right, lp = bestLoop(side) || defaultLoop(side);
 const payloads = {
   loop: wavePayload(side, 'right', 'loop', lp.a, lp.b, swell),
-  full: wavePayload(side, 'right', 'full', LOOP.edge / 2, Math.floor(side.ride / 10) * 10, swell),
+  full: wavePayload(side, 'right', 'full', takeoffStart(side).a, takeoffStart(side).b, swell),
 };
 let fails = 0;
 const check = (ok, msg) => { console.log(`${ok ? 'ok  ' : 'FAIL'} ${msg}`); if (!ok) fails++; };
@@ -134,6 +134,24 @@ for (const [mode, data] of Object.entries(payloads)) {
   }
   check(res[0].angles[0] < res[1].angles[0] && res[1].angles[0] < res[2].angles[0], 'shape: the face steepens along the scale (crumbly < wall < section)');
   check(res[0].t > 15 && res[2].t > 15, 'shape: a pumping rider rides both the crumbly and the steep wave (> 15 s)');
+}
+// The beach break (plan step 6): a full ride off the sandbar's A-frame starts past its at-once peak, so a rider can follow it.
+{
+  const { beachPreset } = await import('../src/builder/blocks.js'); const { defaultCoast } = await import('../src/builder/reef.js');
+  const sw = { H: 1.6, T: 12, dir: 0 }, c = defaultCoast(); c.face = 20;
+  const g = buildDepth(reefComponents(beachPreset()), makeGrid(), c), A2 = analyse(traceRays(g, sw), g, { pe: runPE(g, sw) });
+  const st = takeoffStart(A2.left), d = wavePayload(A2.left, 'left', 'full', st.a, st.b, sw);
+  applyBuilt(d); R.useWave('built'); S.seedSea(1); S.nextWave();
+  const r = R.createRider(); R.resetRider(r); r.events = []; R.stepRider(r, {}, 0);
+  const dt = 1 / 120; let up = false, i = 0;
+  for (; i < 30 / dt; i++) {
+    S.stepSea(dt); if (up && r.height > 0.8) up = false; if (!up && r.height < 0.15) up = true;
+    R.stepRider(r, Math.cos(r.phi) < 0 ? { aim: [1, -0.3] } : r.xs < -1 ? { aim: [1, 0.6] } : r.xs > 6 ? { aim: [-0.2, up ? 1 : -1] } : { tilt: up ? 1 : -1 }, dt);
+    if (r.mode === 'wipe' || r.stepOff) break;
+  }
+  console.log(`-- beach: the left off the sandbar from ${st.a} m (of ${st.b}), peel ${mph(d.profile[0].peel)} mph at the takeoff; pump bot ${(i * dt).toFixed(1)} s, ${r.stepOff ? 'stepped off: ' + r.wipeReason : r.mode === 'wipe' ? r.wipeReason : 'still riding'}`);
+  check(st.a > LOOP.edge / 2 && d.profile[0].peel < 15, 'beach: the ride starts past the at-once peak, where the curl can be followed');
+  check(i * dt > 4, 'beach: a pumping rider rides the sandbar\'s left (> 4 s)');
 }
 console.log(fails ? 'SOME FAILED' : 'all ok');
 process.exitCode = fails ? 1 : 0;

@@ -19,6 +19,18 @@ export function curlAt(curl, s) {
   return curl[curl.length - 1];
 }
 
+// Where a full ride starts (plan step 6, the sandbar): the first spot past the peak where the curl can be followed (its speed
+// along the line no more than c / sin 25 deg, the closeout limit), not inside the peak itself, which often breaks all at
+// once (a sandbar's curved end: its first ~25 m go together); at least LOOP.edge / 2 in.
+export function takeoffStart(side) {
+  const end = Math.floor(side.ride / LOOP.snap) * LOOP.snap;
+  if (end < LOOP.min) return null;
+  const I = loopInfo(side, 0, end, 2), lim = 1 / Math.sin(25 * Math.PI / 180);
+  const p = I.profile.find((q) => q.s >= LOOP.edge / 2 && q.v <= lim * q.c);
+  const a = p ? Math.ceil(p.s / 2) * 2 : LOOP.edge / 2;
+  return end - a >= LOOP.min / 2 ? { a, b: end } : null;
+}
+
 // A good default stretch: past the takeoff, up to just before the ride ends; null if the ride is too short to loop.
 export function defaultLoop(side) {
   if (!side || side.ride < LOOP.min + 2 * LOOP.edge) return null;

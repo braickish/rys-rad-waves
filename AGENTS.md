@@ -242,6 +242,15 @@ section (25-30 deg), backing off (slower than 70 deg, or a gap), or closing out 
   reach). A coast 35 deg off, swell +40 (75 deg to the shore), face 1:20: 800 m at 28 deg (Skeleton Bay); faces 1:12 /
   1:20 / 1:35 xi0 1.09 / 0.66 / 0.38 (research 0.93 / 0.63 / 0.37); 11.6 / 15 / 18 s: 0.51 / 0.65 / 0.79 (0.49 / 0.63 /
   0.76); a straight beach facing the swell closes out. Default loops end 20 m before the ride's end.
+  Plan step 6 (2026-11-22): the Sandbar block (reef.js component `bar`: a crest line `points` at `depth_m`, falling away 1:40
+  to the sides and off its rounded ends; Mead & Black's elongated platform / broad ridge): Turn, Length 100 / 160 / 240 m,
+  Crest Shallow 1.0 / Medium 1.5 / Deep 2.0 m; it lands near the beach in ~3 m. "Start from a beach break" (blocks.js
+  `beachPreset`: one bar pointing out to sea on a medium 1:20 beach, 12 s swell): a crumbly A-frame, right 60 m at 45 deg,
+  left 96 m at 34 deg (xi0 0.29); lined up with the swell it closes out. A full ride now starts where the curl can be
+  followed (loop.js `takeoffStart`: its speed along the line <= c / sin 25 deg), not inside the peak: a sandbar's curved
+  end breaks all at once for ~25 m (the sandbar's left: from 48 m of 90; a pump bot rides it to the end of the wave).
+  Known gap: the curl analysis follows one peak, the first to break; several bars make several peaks, only one shows.
+  `?preset=beach` (testing).
 - Zoom (the user, 2026-11-22): wheel / trackpad pinch about the pointer, two-finger pinch, drag the water to pan, and − / + / Fit
   in the map's corner (up to 6x; handles, labels and line widths keep their screen size; the scale bar picks a round length).
   `?zoom=2.5` opens zoomed on the peak (testing).

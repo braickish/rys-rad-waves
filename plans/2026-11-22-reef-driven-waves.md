@@ -77,7 +77,7 @@ Skeleton Bay sweep (README) model it: the swell's angle to the shore sets the pe
   or turn for long coasts (the research turned its grid toward the swell's breaking direction).
 - Check: against the Skeleton Bay sweep's peel and xi trends.
 
-## 6. Sandbar block (added 2026-11-22, the user)
+## 6. Sandbar block (added 2026-11-22, the user; done 2026-11-22. Gap: one peak analysed per design)
 
 A beach-break bar: a long, gentle sand mound (an elongated platform / broad ridge on a ramp, slopes ~1:30-1:60), with a
 length, a turn and a crest depth. An A-frame off its middle, a right or left when angled, a closeout when lined up with the

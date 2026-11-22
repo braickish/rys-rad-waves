@@ -7,9 +7,9 @@
 import { buildDepth, makeGrid, defaultCoast } from './reef.js';
 import { traceRays, analyse } from './rays.js';
 import { runPE } from './pewave.js';
-import { LOOP, curlAt, defaultLoop, clampLoop, loopInfo, snapEnd, bestLoop, wavePayload } from './loop.js';
+import { LOOP, curlAt, defaultLoop, clampLoop, loopInfo, snapEnd, bestLoop, wavePayload, takeoffStart } from './loop.js';
 import { encodeBuilt, BUILT_KEY } from '../waves/built.js';
-import { BLOCKS, SNAP, ARM_ANGLES, ARM_LENGTHS, ARM_SLOPES, ROTATIONS, reefComponents, newBlock, dynamicPreset, armRot, nearestArm } from './blocks.js';
+import { BLOCKS, SNAP, ARM_ANGLES, ARM_LENGTHS, ARM_SLOPES, BAR_CRESTS, ROTATIONS, reefComponents, newBlock, dynamicPreset, beachPreset, armRot, nearestArm } from './blocks.js';
 
 const canvas = document.getElementById('map'), ctx = canvas.getContext('2d');
 const VIEW = { x0: 600, x1: 1262 }; // (x' shown: the deep water further out is all alike)
@@ -247,7 +247,7 @@ function drawBlock(b) {
     const a = b.angle * Math.PI / 180, L = b.type === 'arm' ? b.length : 100;
     const ex = b.x + Math.sin(a) * L, ey = b.y + b.side * Math.cos(a) * L;
     ctx.beginPath(); ctx.moveTo(X, Y); ctx.lineTo(px(ey), py(ex)); ctx.stroke();
-  } else if (b.type === 'ridge' || b.type === 'channel') {
+  } else if (b.type === 'ridge' || b.type === 'channel' || b.type === 'sandbar') {
     const r = b.rot * Math.PI / 180, h = b.length / 2, ux = Math.cos(r), uy = Math.sin(r);
     ctx.beginPath(); ctx.moveTo(px(b.y - uy * h), py(b.x - ux * h)); ctx.lineTo(px(b.y + uy * h), py(b.x + ux * h)); ctx.stroke();
   }
@@ -371,7 +371,7 @@ for (const type of Object.keys(BLOCKS)) {
     else if (type === 'ridge' && state.blocks.some((q) => q.type === 'arm')) { // (onto the middle of an arm, lined up with it)
       const a = state.blocks.find((q) => q.type === 'arm'), r = a.angle * Math.PI / 180, L = a.length * 0.55;
       b = Object.assign(newBlock('ridge', Math.round(a.x + Math.sin(r) * L), Math.round(a.y + a.side * Math.cos(r) * L)), { rot: armRot(a) });
-    } else b = newBlock(type, snap(type === 'channel' ? 950 : 900), snap((view.Y0 + view.Y1) / 2 + (Math.random() - 0.5) * 120));
+    } else b = newBlock(type, snap(type === 'channel' ? 950 : type === 'sandbar' ? 1040 : 900), snap((view.Y0 + view.Y1) / 2 + (Math.random() - 0.5) * 120)); // (a sandbar near the beach, in ~3 m of water)
     state.blocks.push(b); state.sel = b; state.dirty = true; showSel(); schedule();
   };
   $('palette').appendChild(btn);
@@ -398,10 +398,11 @@ function showSel() {
   }
   if (b.type === 'arm') el.appendChild(opt('Length', ARM_LENGTHS, b.length, (v) => `${v} m`, (v) => { b.length = v; }));
   if (b.type === 'arm' || b.type === 'peak') el.appendChild(opt('Slope', ARM_SLOPES.map(([g]) => g), b.slope || '1:10', (v) => ARM_SLOPES.find(([g]) => g === v)[1], (v) => { b.slope = v; }));
-  if (b.type === 'ridge' || b.type === 'channel') {
+  if (b.type === 'ridge' || b.type === 'channel' || b.type === 'sandbar') {
     el.appendChild(opt('Turn', ROTATIONS, b.rot, (v) => `${v}°`, (v) => { b.rot = v; }));
-    el.appendChild(opt('Length', b.type === 'ridge' ? [50, 80, 120] : [140, 220, 320], b.length, (v) => `${v} m`, (v) => { b.length = v; }));
+    el.appendChild(opt('Length', b.type === 'ridge' ? [50, 80, 120] : b.type === 'sandbar' ? [100, 160, 240] : [140, 220, 320], b.length, (v) => `${v} m`, (v) => { b.length = v; }));
   }
+  if (b.type === 'sandbar') el.appendChild(opt('Crest', BAR_CRESTS.map(([d]) => d), b.crest, (v) => BAR_CRESTS.find(([d]) => d === v)[1], (v) => { b.crest = v; }));
   const del = document.createElement('button'); del.className = 'danger'; del.textContent = 'Remove'; del.style.marginTop = '8px';
   del.onclick = () => { state.blocks = state.blocks.filter((q) => q !== b); state.sel = null; state.dirty = true; showSel(); schedule(); };
   el.appendChild(del);
@@ -411,8 +412,7 @@ function rideStretch() { // (what DROP IN rides: the loop, or the whole ride fro
   const L = state.loop, side = state.wave && state.wave[L.side];
   if (!side) return null;
   if (L.on) return L.info ? { a: L.a, b: L.b } : null;
-  const b = Math.floor(side.ride / LOOP.snap) * LOOP.snap, a = LOOP.edge / 2;
-  return b - a >= LOOP.min ? { a, b } : null;
+  return takeoffStart(side); // (from where the curl can be followed: past an at-once peak, loop.js)
 }
 function dropIn() {
   if (state.dirty) recompute();
@@ -484,11 +484,16 @@ function showZoom() { // (the map's corner: zoom out / in / fit)
     const b = document.createElement('button'); b.textContent = label; b.onclick = fn; el.appendChild(b);
   }
 }
+$('beach').onclick = () => {
+  state.coast = defaultCoast(); state.coast.face = 20; showCoast(); state.blocks = beachPreset(); state.sel = null;
+  state.swell.T = 12; $('T').value = 12; $('Tv').textContent = '12 s'; state.loop.a = state.loop.b = null; state.dirty = true; showSel(); schedule();
+};
 $('reset').onclick = () => { state.coast = defaultCoast(); showCoast(); state.blocks = dynamicPreset(); state.sel = null; state.dirty = true; showSel(); schedule(); };
 $('clear').onclick = () => { state.blocks = []; state.sel = null; state.dirty = true; showSel(); schedule(); };
 window.addEventListener('resize', () => { layout(); draw(); });
 
 restore();
+if (new URLSearchParams(location.search).get('preset') === 'beach') { state.coast = defaultCoast(); state.coast.face = 20; state.blocks = beachPreset(); state.swell.T = 12; $('T').value = 12; $('Tv').textContent = '12 s'; } // (?preset=beach: testing)
 { const q = new URLSearchParams(location.search).get('loop'); if (q) { state.loop.on = true; state.loop.side = q === 'left' ? 'left' : 'right'; } } // (?loop=right|left: start looped, for testing)
 recompute(); layout(); showSel(); showZoom(); showCoast();
 { const zq = Number(new URLSearchParams(location.search).get('zoom')); if (zq > 1 && state.wave) zoomAt(px(state.wave.peak.y), py(state.wave.peak.x), zq); } // (?zoom=2.5: open zoomed on the peak, for testing)
