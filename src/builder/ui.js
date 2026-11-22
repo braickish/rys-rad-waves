@@ -4,12 +4,12 @@
 // onto peaks), the swell, crest lines every 5 s, and the curl from the fast break model (rays.js) coloured by time with
 // ticks every 5 s, marked where it sections, backs off or closes out. Circles mean "you can drag this": only the blocks'
 // handles are circles (the user, 2026-11-22); the curl's time ticks and the break's peak (a diamond) aren't.
-import { buildDepth, makeGrid, defaultCoast } from './reef.js';
+import { buildDepth, makeGrid, defaultCoast, BAY, BAY_DEEP_OFF } from './reef.js';
 import { traceRays, analyse } from './rays.js';
 import { runPE } from './pewave.js';
 import { LOOP, curlAt, defaultLoop, clampLoop, loopInfo, snapEnd, bestLoop, wavePayload, takeoffStart } from './loop.js';
 import { encodeBuilt, BUILT_KEY } from '../waves/built.js';
-import { BLOCKS, SNAP, ARM_ANGLES, ARM_LENGTHS, ARM_SLOPES, BAR_CRESTS, ROTATIONS, reefComponents, newBlock, dynamicPreset, beachPreset, armRot, nearestArm } from './blocks.js';
+import { BLOCKS, SNAP, ARM_ANGLES, ARM_LENGTHS, ARM_SLOPES, BAR_CRESTS, DEPTHS, ROTATIONS, reefComponents, newBlock, dynamicPreset, beachPreset, armRot, nearestArm } from './blocks.js';
 
 const canvas = document.getElementById('map'), ctx = canvas.getContext('2d');
 // Heights and lengths are shown in feet (the user, 2026-11-22); the model works in metres underneath.
@@ -28,7 +28,7 @@ const depthImg = document.createElement('canvas');
 // ---- the model ----
 function recompute() {
   const t0 = performance.now();
-  state.grid = buildDepth(reefComponents(state.blocks), makeGrid(), state.coast);
+  state.grid = buildDepth(reefComponents(state.blocks, !!state.coast.deep), makeGrid(state.coast.deep ? { ...BAY, offDepth: BAY_DEEP_OFF } : BAY), state.coast); // (deep offshore water: a deeper bay and shelf)
   state.rays = traceRays(state.grid, state.swell);
   state.wave = analyse(state.rays, state.grid);
   state.ms = performance.now() - t0;
@@ -404,6 +404,7 @@ function showSel() {
     el.appendChild(opt('Turn', ROTATIONS, b.rot, (v) => `${v}°`, (v) => { b.rot = v; }));
     el.appendChild(opt('Length', b.type === 'ridge' ? [50, 80, 120] : b.type === 'sandbar' ? [100, 160, 240] : [140, 220, 320], b.length, (v) => `${ft(v)} ft`, (v) => { b.length = v; }));
   }
+  if (b.type !== 'sandbar') el.appendChild(opt('Depth', DEPTHS.map(([f]) => f), b.depth || 1, (v) => DEPTHS.find(([f]) => f === v)[1], (v) => { b.depth = v; })); // (deeper reefs for big swells)
   if (b.type === 'sandbar') el.appendChild(opt('Crest', BAR_CRESTS.map(([d]) => d), b.crest, (v) => BAR_CRESTS.find(([d]) => d === v)[1], (v) => { b.crest = v; }));
   const del = document.createElement('button'); del.className = 'danger'; del.textContent = 'Remove'; del.style.marginTop = '8px';
   del.onclick = () => { state.blocks = state.blocks.filter((q) => q !== b); state.sel = null; state.dirty = true; showSel(); schedule(); };
@@ -476,8 +477,13 @@ function showCoast() {
   const row = document.createElement('div'); row.className = 'row';
   for (const [f, label] of BEACH) { const b = document.createElement('button'); b.textContent = label; if (Math.abs(state.coast.face - f) < 0.1) b.className = 'on'; b.onclick = () => { state.coast.face = f; state.dirty = true; showCoast(); schedule(); }; row.appendChild(b); }
   el.appendChild(row);
+  const off = document.createElement('div'); off.className = 'row'; off.style.marginTop = '6px';
+  const lab = document.createElement('span'); lab.textContent = 'Offshore'; lab.style.cssText = 'font-size:13px;color:var(--dim);width:70px;align-self:center'; off.appendChild(lab);
+  for (const [deep, label] of [[false, 'Shelf'], [true, 'Deep']]) { const b = document.createElement('button'); b.textContent = label; if (!!state.coast.deep === deep) b.className = 'on'; b.onclick = () => { state.coast.deep = deep; state.dirty = true; showCoast(); schedule(); }; off.appendChild(b); }
+  el.appendChild(off);
+  const note2 = document.createElement('div'); note2.className = 'note'; note2.textContent = 'Deep offshore water and Deep reef blocks let a big swell break on your reef instead of out on the shelf.'; note2.style.marginTop = '4px'; el.appendChild(note2);
   const st = document.createElement('button'); st.textContent = 'Straighten'; st.style.marginTop = '6px';
-  st.onclick = () => { const face = state.coast.face; state.coast = defaultCoast(); state.coast.face = face; state.dirty = true; schedule(); };
+  st.onclick = () => { const face = state.coast.face, deep = state.coast.deep; state.coast = defaultCoast(); state.coast.face = face; state.coast.deep = deep; state.dirty = true; schedule(); };
   el.appendChild(st);
 }
 function showZoom() { // (the map's corner: zoom out / in / fit)

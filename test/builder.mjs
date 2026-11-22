@@ -124,6 +124,17 @@ check(A.left.xi > 0.5 && A.left.xi < 3.3 && A.right.xi > 0.5 && A.right.xi < 3.3
   console.log(`sandbar lined up with the swell: right ${par ? par.right.ride.toFixed(0) : 0} m, left ${par ? par.left.ride.toFixed(0) : 0} m`);
   check(!par || par.right.ride + par.left.ride < af.right.ride + af.left.ride, 'sandbar: lined up with the swell it rides less (it closes out)');
 }
+// Big swells (the user, 2026-11-22): on the shallow-shelf bay a 4 m swell breaks across the bay at once; with Deep offshore
+// water (25 m, the shelf at 24-16 m, the nearshore dropping 1:25) the Dynamic reef rides it.
+{
+  const { BAY, BAY_DEEP_OFF } = await import('../src/builder/reef.js');
+  const { reefComponents: rc, dynamicPreset: dp } = await import('../src/builder/blocks.js');
+  const big = { H: 4, T: 15, dir: 0 };
+  const bay = (deep) => { const c = defaultCoast(); c.deep = deep; const g = buildDepth(rc(dp(), deep), makeGrid(deep ? { ...BAY, offDepth: BAY_DEEP_OFF } : BAY), c), R2 = traceRays(g, big); return analyse(R2, g, { pe: runPE(g, big) }); };
+  const shelf = bay(false), deep = bay(true);
+  console.log(`4 m swell: shelf bay right ${shelf.right.ride.toFixed(0)} / left ${shelf.left.ride.toFixed(0)} m; deep bay right ${deep.right.ride.toFixed(0)} / left ${deep.left.ride.toFixed(0)} m at ${deep.left.peel.toFixed(0)} deg, ${(deep.left.H * 3.281).toFixed(0)} ft`);
+  check(deep.right.ride + deep.left.ride > 2 * (shelf.right.ride + shelf.left.ride) && deep.left.ride > 60, 'big swell: deep offshore water lets the reef ride a 4 m swell that closes out on the shelf');
+}
 check(tBuild + tRays + tAn < 400, `rebuild + trace under 400 ms in node (${(tBuild + tRays + tAn).toFixed(0)})`);
 console.log(fails ? 'SOME FAILED' : 'all ok');
 process.exitCode = fails ? 1 : 0;

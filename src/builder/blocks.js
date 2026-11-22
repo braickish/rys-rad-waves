@@ -24,25 +24,30 @@ export const BLOCKS = {
 
 // The bay floor under everything: a ramp from 13 m to 8.5 m (as Dynamic's).
 export const FLOOR = [{ type: 'ramp', start_depth_m: 13, end_depth_m: 8.5, x0_m: 300, length_m: 420 }];
+// Deep offshore water (the user, 2026-11-22: big swells, Pipe-like waves): the bay 25 m deep offshore and its shelf down at
+// 24 -> 16 m, so a big swell reaches the reef instead of breaking out on the shelf (a 4.5 m swell's set waves break ~10 m deep).
+export const FLOOR_DEEP = [{ type: 'ramp', start_depth_m: 24, end_depth_m: 16, x0_m: 300, length_m: 420 }];
+// A block's Depth (same day): its depths x 0.7 / 1 / 1.8, so a reef can sit deep enough for a big swell to break on it.
+export const DEPTHS = [[0.7, 'Shallow'], [1, 'Medium'], [1.8, 'Deep']];
 
 export function blockComponents(b) {
-  const rad = (d) => d * Math.PI / 180;
+  const rad = (d) => d * Math.PI / 180, f = b.depth || 1;
   switch (b.type) {
-    case 'peak': return [{ type: 'focus', apex: [b.x, b.y], width_m: 220, convexity: 0.667, depth_m: 3.0, gradient: b.slope || '1:10' }]; // (Slope: the hollowness dial, as the arms')
-    case 'arm': return [{ type: 'wedge', start: [b.x, b.y], side: b.side, length_m: b.length, gradient: b.slope || '1:10', angle_to_swell_deg: b.angle, depth_m: 3.0, top_depth_m: 1.0 }];
+    case 'peak': return [{ type: 'focus', apex: [b.x, b.y], width_m: 220, convexity: 0.667, depth_m: 3.0 * f, gradient: b.slope || '1:10' }]; // (Slope: the hollowness dial, as the arms')
+    case 'arm': return [{ type: 'wedge', start: [b.x, b.y], side: b.side, length_m: b.length, gradient: b.slope || '1:10', angle_to_swell_deg: b.angle, depth_m: 3.0 * f, top_depth_m: 1.0 * f }];
     case 'ridge': {
       const ux = Math.cos(rad(b.rot)), uy = Math.sin(rad(b.rot)), h = b.length / 2;
-      return [{ type: 'ridge', points: [[b.x - ux * h, b.y - uy * h], [b.x + ux * h, b.y + uy * h]], depth_m: 2.6, width_m: 35 }]; // (2.6 m crest, a little shallower than the arm's 3 m toe: a section the curl still makes; 1.8 m closed out)
+      return [{ type: 'ridge', points: [[b.x - ux * h, b.y - uy * h], [b.x + ux * h, b.y + uy * h]], depth_m: 2.6 * f, width_m: 35 }]; // (2.6 m crest, a little shallower than the arm's 3 m toe: a section the curl still makes; 1.8 m closed out)
     }
-    case 'pinnacle': return [{ type: 'pinnacle', center: [b.x, b.y], radius_m: 38, depth_m: 2.2 }];
-    case 'ledge': return [{ type: 'ledge', start: [b.x, b.y], side: b.side, length_m: 100, angle_to_swell_deg: b.angle, depth_m: 1.6, step_m: 4.0, face: '1:3', gradient: '1:15', width_m: 40, back_m: 40, fade_m: 40 }];
+    case 'pinnacle': return [{ type: 'pinnacle', center: [b.x, b.y], radius_m: 38, depth_m: 2.2 * f }];
+    case 'ledge': return [{ type: 'ledge', start: [b.x, b.y], side: b.side, length_m: 100, angle_to_swell_deg: b.angle, depth_m: 1.6 * f, step_m: 4.0 * f, face: '1:3', gradient: '1:15', width_m: 40, back_m: 40, fade_m: 40 }];
     case 'sandbar': {
       const ux = Math.cos(rad(b.rot)), uy = Math.sin(rad(b.rot)), h = b.length / 2;
       return [{ type: 'bar', points: [[b.x - ux * h, b.y - uy * h], [b.x + ux * h, b.y + uy * h]], depth_m: b.crest, slope: '1:40' }];
     }
     case 'channel': {
       const ux = Math.cos(rad(b.rot)), uy = Math.sin(rad(b.rot)), h = b.length / 2;
-      return [{ type: 'channel', points: [[b.x - ux * h, b.y - uy * h], [b.x + ux * h, b.y + uy * h]], depth_m: 9, width_m: 40, fade_m: 20 }];
+      return [{ type: 'channel', points: [[b.x - ux * h, b.y - uy * h], [b.x + ux * h, b.y + uy * h]], depth_m: 9 * f, width_m: 40, fade_m: 20 }];
     }
   }
   return [];
@@ -63,7 +68,7 @@ export function nearestArm(blocks, x, y, near = 35) {
   return best;
 }
 
-export const reefComponents = (blocks) => [...FLOOR, ...blocks.flatMap(blockComponents)];
+export const reefComponents = (blocks, deep = false) => [...(deep ? FLOOR_DEEP : FLOOR), ...blocks.flatMap(blockComponents)];
 
 let nextId = 1;
 export function newBlock(type, x, y) {

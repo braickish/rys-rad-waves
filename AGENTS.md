@@ -269,6 +269,13 @@ section (25-30 deg), backing off (slower than 70 deg, or a gap), or closing out 
   `?zoom=2.5` opens zoomed on the peak (testing).
 - Kept clear so the curl's colour reads (the user, 2026-11-22): block names and shape guides only on hover or selection,
   arm handles set 28 m offshore of their line, the curl drawn over a thin dark casing, no time ticks on the map.
+- Big swells (the user, 2026-11-22: toward Pipe-size waves): swell up to 4.5 m (~15 ft); Coast "Offshore: Shelf / Deep"
+  (Deep: the bay 25 m offshore, `FLOOR_DEEP` shelf 24 -> 16 m, and past the beach face the bottom drops 1:25 instead of 1:67,
+  deep water close in as at Pipeline); reef blocks get Depth Shallow / Medium / Deep (x0.7 / 1 / 1.8 their depths); built
+  waves size up to scale x2.6. A 4 m swell closes out on the shelf bay (Dynamic: 20 / 20 m) but rides on the deep bay
+  (60 / 100 m at 35 deg, ~14 ft). Not yet Pipe-like barrels: deeper blocks alone let big waves pass over and break on the
+  bay; a reef for a 13 ft swell must grow ~2.5x in every direction (Froude scaling), which needs a reef Size option and a
+  bigger bay (the user's call).
 - Units (the user, 2026-11-22): the builder shows heights and lengths in feet (swell, waves, rides, loops, block lengths,
   the scale bar; ui.js `ft`/`ft1`), speeds in mph; the model works in metres underneath and saves metres.
 - Circles only for what you can drag (block handles, loop ends; the user): the curl's time marks are ticks, where it

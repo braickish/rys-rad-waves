@@ -15,6 +15,7 @@ const band = (u, a, b, fade) => smooth01((u - a) / fade + 1) * smooth01((b - u) 
 // The bay: x' from x0 to x1, y' from y0 to y1 (m), cells of dx m.
 // (the model runs 300 m wider each side than the map shows, `view`: with an angled swell many waves come in from beyond the
 // map's sides, and copying its edge rows outward bent them wrong before they got there)
+export const BAY_DEEP_OFF = 25; // (deep offshore water: makeGrid({ ...BAY, offDepth: BAY_DEEP_OFF }))
 export const BAY = { view: { y0: 120, y1: 920 }, x0: 150, x1: 1262, y0: -180, y1: 1220, dx: 4, offDepth: 15, flatTo: 250, shoreX: 1250, edge: 60, blend: 4 };
 
 export function makeGrid(bay = BAY) {
@@ -128,10 +129,14 @@ export function blur(src, M, N, sigma) {
 // straight line at x' 1250 with face 66.7, is exactly the old floor (15 m at x' 250 shoaling 1:66.7 to the beach at 1250).
 export const COAST = { face: 66.7, faceDepth: 5, outer: 66.7, dune: 2.5 };
 export const defaultCoast = (bay = BAY) => ({ face: 66.7, pts: [0.08, 0.31, 0.54, 0.77, 0.92].map((f) => [bay.shoreX, bay.view.y0 + (bay.view.y1 - bay.view.y0) * f]) }); // (handles inside the bay, the line running on past them)
-function coastDepth(n, face) {
+// (deep offshore water: past the beach face the bottom drops away 1:25 instead of 1:66.7, deep water close in, as at
+// Pipeline, where the reef rises out of ~15-20 m a couple of hundred metres out; on the gentle slope a big swell broke all
+// the way across the bay on the straight contours)
+function coastDepth(n, face, deep) {
+  const outer = deep ? 25 : COAST.outer;
   if (n <= 0) return Math.max(-COAST.dune, n / COAST.outer); // (up the beach)
   const nf = COAST.faceDepth * face;
-  return n <= nf ? n / face : COAST.faceDepth + (n - nf) / COAST.outer;
+  return n <= nf ? n / face : COAST.faceDepth + (n - nf) / outer;
 }
 // Signed distance from the coastline: + offshore (smaller x' than the line at that y'), - on the beach. The line runs on
 // straight past its end points.
@@ -151,7 +156,7 @@ function coastDist(pts, x, y) {
 export function buildDepth(components, grid = makeGrid(), coast = null) {
   const { M, N, dx, x0, y0, offDepth, flatTo, shoreX } = grid;
   const baseSlope = offDepth / (shoreX - flatTo);
-  const baseAt = coast ? (x, y) => Math.min(offDepth, coastDepth(coastDist(coast.pts, x, y), coast.face)) : (x) => offDepth - baseSlope * Math.max(0, x - flatTo);
+  const baseAt = coast ? (x, y) => Math.min(offDepth, coastDepth(coastDist(coast.pts, x, y), coast.face, !!coast.deep)) : (x) => offDepth - baseSlope * Math.max(0, x - flatTo);
   const baseGrid = new Float32Array(M * N);
   let depth = new Float32Array(M * N);
   const shallow = components.filter((c) => c.type !== 'channel'), chans = components.filter((c) => c.type === 'channel');
