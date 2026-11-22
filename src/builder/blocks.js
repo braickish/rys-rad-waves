@@ -1,0 +1,74 @@
+// The wave builder's blocks (the user, 2026-11-22: snap-together reef pieces, fun and forgiving, but you can still build
+// a closeout). Each block is one or more of reefgen's surf-reef components (Mead & Black) with sizes picked so it makes a
+// surfable wave on its own; the physics stays the real model (rays.js).
+// Positions in metres in the reef frame (x' toward the beach, y' along it; a right peels toward -y').
+
+export const SNAP = 10; // positions snap to a 10 m grid
+export const ARM_ANGLES = [30, 45, 60]; // between the arm's depth contours and straight-in crests: narrower = faster peel
+export const ARM_LENGTHS = [150, 212, 280];
+export const ROTATIONS = [0, 30, 45, 60, 90, 120, 135, 150]; // ridge / channel direction, degrees from straight in
+
+export const BLOCKS = {
+  peak: { label: 'Peak', blurb: 'A rounded point of reef: focuses the swell into a takeoff peak.' },
+  arm: { label: 'Arm', blurb: 'A sloping reef line off a peak: its angle sets the peel. 30 deg fast, 60 deg mellow.' },
+  ridge: { label: 'Ridge', blurb: 'A bar laid along an arm: the arm stands up steeper there, a fast section you pump through. Turned across the wave it closes out.' },
+  pinnacle: { label: 'Pinnacle', blurb: 'A round bommie: the wave wraps and stands up over it.' },
+  ledge: { label: 'Ledge', blurb: 'A sudden step up from deep water: a heavy section (the fast model over-reads its size).' },
+  channel: { label: 'Channel', blurb: 'Deep water: the wave stops breaking. Ends a ride, or splits a reef in two.' },
+};
+
+// The bay floor under everything: a ramp from 13 m to 8.5 m (as Dynamic's).
+export const FLOOR = [{ type: 'ramp', start_depth_m: 13, end_depth_m: 8.5, x0_m: 300, length_m: 420 }];
+
+export function blockComponents(b) {
+  const rad = (d) => d * Math.PI / 180;
+  switch (b.type) {
+    case 'peak': return [{ type: 'focus', apex: [b.x, b.y], width_m: 220, convexity: 0.667, depth_m: 3.0, gradient: '1:10' }];
+    case 'arm': return [{ type: 'wedge', start: [b.x, b.y], side: b.side, length_m: b.length, gradient: '1:10', angle_to_swell_deg: b.angle, depth_m: 3.0, top_depth_m: 1.0 }];
+    case 'ridge': {
+      const ux = Math.cos(rad(b.rot)), uy = Math.sin(rad(b.rot)), h = b.length / 2;
+      return [{ type: 'ridge', points: [[b.x - ux * h, b.y - uy * h], [b.x + ux * h, b.y + uy * h]], depth_m: 2.6, width_m: 35 }]; // (2.6 m crest, a little shallower than the arm's 3 m toe: a section the curl still makes; 1.8 m closed out)
+    }
+    case 'pinnacle': return [{ type: 'pinnacle', center: [b.x, b.y], radius_m: 38, depth_m: 2.2 }];
+    case 'ledge': return [{ type: 'ledge', start: [b.x, b.y], side: b.side, length_m: 100, angle_to_swell_deg: b.angle, depth_m: 1.6, step_m: 4.0, face: '1:3', gradient: '1:15', width_m: 40, back_m: 40, fade_m: 40 }];
+    case 'channel': {
+      const ux = Math.cos(rad(b.rot)), uy = Math.sin(rad(b.rot)), h = b.length / 2;
+      return [{ type: 'channel', points: [[b.x - ux * h, b.y - uy * h], [b.x + ux * h, b.y + uy * h]], depth_m: 9, width_m: 40, fade_m: 20 }];
+    }
+  }
+  return [];
+}
+
+// The direction of an arm's line as a ridge/channel `rot` (degrees from straight in, 0-180), and the nearest arm whose
+// line passes within `near` m of (x, y), with that spot on it: ridges snap onto arms, lined up with them.
+export const armRot = (a) => ((Math.atan2(a.side * Math.cos(a.angle * Math.PI / 180), Math.sin(a.angle * Math.PI / 180)) * 180 / Math.PI) + 180) % 180;
+export function nearestArm(blocks, x, y, near = 35) {
+  let best = null;
+  for (const a of blocks) {
+    if (a.type !== 'arm') continue;
+    const r = a.angle * Math.PI / 180, tx = Math.sin(r), ty = a.side * Math.cos(r);
+    const s = Math.min(a.length - 30, Math.max(30, (x - a.x) * tx + (y - a.y) * ty));
+    const qx = a.x + tx * s, qy = a.y + ty * s, d = Math.hypot(x - qx, y - qy);
+    if (d < near && (!best || d < best.d)) best = { arm: a, d, x: qx, y: qy };
+  }
+  return best;
+}
+
+export const reefComponents = (blocks) => [...FLOOR, ...blocks.flatMap(blockComponents)];
+
+let nextId = 1;
+export function newBlock(type, x, y) {
+  const b = { id: nextId++, type, x, y };
+  if (type === 'arm') Object.assign(b, { side: -1, angle: 45, length: 212 });
+  if (type === 'ledge') Object.assign(b, { side: -1, angle: 45 });
+  if (type === 'ridge') Object.assign(b, { rot: 135, length: 80 });
+  if (type === 'channel') Object.assign(b, { rot: 0, length: 220 });
+  return b;
+}
+
+// Dynamic's reef as blocks (the start: a working wave to change, not an empty bay).
+export function dynamicPreset() {
+  const p = newBlock('peak', 860, 520);
+  const r = newBlock('arm', 860, 520), l = newBlock('arm', 860, 520); l.side = 1;
+  return [p, r, l];
+}

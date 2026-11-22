@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Build a Break</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bungee&family=Rubik:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0b2233; --panel: #0f2c41; --line: rgba(255,255,255,.14); --text: #eaf6fa; --dim: #9fc1cf;
+    --pink: #ff3d8b; --yellow: #ffd426; --teal: #00c2c7; --red: #ff4b4b; --ink: #0b1a24;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--text); font-family: Rubik, system-ui, sans-serif; }
+  .app { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 20px; padding: 20px; min-height: 100vh; }
+  h1 { font-family: Bungee, sans-serif; font-weight: 400; color: var(--yellow); font-size: 34px; margin: 0; line-height: 1; }
+  .sub { color: var(--dim); margin: 6px 0 14px; font-size: 15px; }
+  .mapwrap { position: relative; }
+  #map { width: 100%; height: calc(100vh - 140px); min-height: 420px; display: block; border-radius: 16px; background: var(--panel); touch-action: none; cursor: default; }
+  .panel { background: var(--panel); border-radius: 16px; padding: 16px; display: flex; flex-direction: column; gap: 16px; align-self: start; }
+  h2 { font-family: Bungee, sans-serif; font-weight: 400; font-size: 15px; margin: 0 0 8px; letter-spacing: .02em; }
+  .row { display: flex; flex-wrap: wrap; gap: 6px; }
+  button { font-family: Rubik, sans-serif; font-weight: 700; font-size: 13px; color: var(--text); background: rgba(255,255,255,.07);
+    border: 2px solid var(--line); border-radius: 18px; padding: 6px 12px; cursor: pointer; }
+  button:hover { border-color: rgba(255,255,255,.4); }
+  button.on { background: var(--teal); color: var(--ink); border-color: #fff; }
+  button.add::before { content: '+ '; }
+  button.danger { border-color: rgba(255,75,75,.6); }
+  .blurb { color: var(--dim); font-size: 13px; margin: 6px 0 8px; line-height: 1.35; }
+  label.sl { display: grid; grid-template-columns: 74px 1fr 52px; align-items: center; gap: 8px; font-size: 13px; color: var(--dim); margin: 4px 0; }
+  label.sl b { color: var(--text); font-weight: 500; text-align: right; }
+  input[type=range] { width: 100%; accent-color: var(--teal); }
+  .res { font-size: 14px; line-height: 1.4; }
+  .res .side { font-family: Bungee, sans-serif; font-size: 13px; color: var(--yellow); }
+  .res .end { color: var(--dim); font-size: 12px; }
+  .res .bad { color: var(--red); }
+  .legend { display: grid; grid-template-columns: 34px 1fr; gap: 6px 10px; align-items: center; font-size: 12px; color: var(--dim); }
+  .sw { height: 6px; border-radius: 3px; }
+  .note { font-size: 12px; color: var(--dim); line-height: 1.4; }
+  .stats { font-size: 11px; color: var(--dim); }
+  @media (max-width: 820px) {
+    .app { grid-template-columns: 1fr; padding: 16px; }
+    #map { height: auto; aspect-ratio: 800 / 760; min-height: 0; } /* (the bay is ~800 m wide x 662 m deep, plus the swell and scale rows) */
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <div>
+    <h1>Build a Break</h1>
+    <p class="sub">Drag reef blocks around the bay and watch where the wave breaks. Prototype: the curl comes from a fast wave-ray model, checked against FUNWAVE on the Dynamic reef.</p>
+    <div class="mapwrap"><canvas id="map"></canvas></div>
+  </div>
+  <div class="panel">
+    <div>
+      <h2>Add a block</h2>
+      <div class="row" id="palette"></div>
+    </div>
+    <div id="sel"></div>
+    <div>
+      <h2>Swell</h2>
+      <label class="sl">Height <input type="range" id="H" min="0.8" max="2.6" step="0.1" value="1.6"><b id="Hv"></b></label>
+      <label class="sl">Period <input type="range" id="T" min="8" max="18" step="1" value="15"><b id="Tv"></b></label>
+      <label class="sl">Direction <input type="range" id="D" min="-30" max="30" step="5" value="0"><b id="Dv"></b></label>
+    </div>
+    <div>
+      <h2>The wave</h2>
+      <div class="res" id="res"></div>
+    </div>
+    <div class="legend">
+      <div class="sw" style="background: linear-gradient(90deg, var(--yellow), var(--pink))"></div><div>the curl, as it peels (dots every 5 s)</div>
+      <div class="sw" style="background: var(--pink); box-shadow: 0 0 6px var(--pink)"></div><div>fast section: steep, you'll need to pump</div>
+      <div class="sw" style="background: repeating-linear-gradient(90deg, #fff 0 5px, transparent 5px 9px); opacity: .7"></div><div>backs off: deeper water, the wave slows or fades</div>
+      <div class="sw" style="background: var(--red)"></div><div>closes out: breaks all at once</div>
+      <div class="sw" style="background: rgba(255,255,255,.35)"></div><div>wave crests every 5 s</div>
+    </div>
+    <div class="row">
+      <button id="reset">Start from Dynamic</button>
+      <button id="clear" class="danger">Clear the reef</button>
+    </div>
+    <div class="stats" id="stats"></div>
+  </div>
+</div>
+<script type="module" src="src/builder/ui.js"></script>
+</body>
+</html>

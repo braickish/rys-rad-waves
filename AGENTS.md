@@ -161,6 +161,29 @@ First named Performance Peak (renamed 2026-11-21, the user).
   An inside barrel section is being designed (reef generator README, "Inside barrel"). `node test/trestles.mjs dynamic`
   runs Trestles's checks on it.
 
+## Build a Break: the wave builder prototype (`builder.html`, `src/builder/`)
+
+2026-11-22, the user: long term, players build breaks from snap-together reef blocks and ride them; fun and forgiving
+(most builds should make a surfable wave) but real physics, so a closeout is still possible. The prototype is a live
+version of the reef "about" card (research/reef-generator/about_map.py, out/about/dynamic.png): a top-down map of the
+bay (offshore at the top, beach at the bottom, so a right peels to the map's left), depth bands, blocks you drag (10 m
+snap; arms snap onto peaks, ridges snap along arms; a peak drags its arms), swell sliders (height, period, direction),
+crest lines every 5 s, and the curl each way from the peak, coloured by time with dots every 5 s and marked as a fast
+section (25-30 deg), backing off (slower than 70 deg, or a gap), or closing out (< 25 deg twice in a row: the ride ends).
+- `reef.js`: reefgen.py's components (ramp, focus, wedge, ledge, ridge, pinnacle, platform, channel) on a cropped bay
+  (x' 150-1262, y' 120-920, 4 m cells), plain min + Gaussian blend, flat offshore strip, edges eased to the mean.
+- `rays.js`: peelrays.py (linear rays stepped together in time, H from shoaling and ray spacing, break at 0.78 h; strips,
+  5-strip median, peel angle per 20 m as asin(c / V_line)) plus the curl rule (running max of break times).
+- `blocks.js`: the palette (Peak, Arm 30/45/60 deg x 150/212/280 m, Ridge, Pinnacle, Ledge, Channel), each sized to
+  work on its own; the bay floor is Dynamic's ramp; the start is Dynamic as blocks.
+- `node test/builder.mjs`: on Dynamic's exact reef, JS 28.5 / 31.6 deg peel and 236 m rides vs peelrays.py 29.5 / 31.7
+  and 220 m (FUNWAVE ~29 deg, 204 m); rebuild + trace ~45 ms in node, ~30-40 ms in the browser. Design checks: 30 deg
+  arms close out, 45 make ~230 m at ~32 deg, 60 slower and longer; an empty bay or a ridge lined up with the swell closes
+  out; a ridge along an arm (2.6 m crest) gives fast sections (1.8 m closed out).
+- Known from the Python work: rays over-read breaker heights on ledges, saturate on very wide wedges, fragment on very
+  gentle ones; pewave.py (heights) isn't ported yet. Not yet: riding a built break (DROP IN), presets, saving/sharing.
+- `PAGE=builder.html node test/drive.mjs test/out/bld "" 2500` screenshots it (drive.mjs's `PAGE`).
+
 ## How it works
 
 - Wave shape between keyframes is a smooth cubic (Catmull-Rom slopes) and the phase rate changes
@@ -799,6 +822,7 @@ node test/pocket.mjs   # where different riding styles spend their time vs. the 
 node test/shuffle.mjs  # shortboard feet: back / middle / forward, turn and speed effects on Raglan and Pipe
 node test/crest.mjs    # holding a line near the crest: the curl catches you above ~0.8 of the face, not mid-face
 node test/idle.mjs     # idle decay: no loss for 2 s, then ~0.5 mph/s growing, none with a key held; Queens untouched
+node test/builder.mjs  # Build a Break's fast break model on Dynamic's reef vs the Python model / FUNWAVE, and its speed
 node test/sections.mjs # Raglan+: trimming vs pumping through the random faster sections (WAVE=point to compare)
 node test/takeoff.mjs  # from the drop-in, nose held at 0 / -20 / -40 / -60 / -80 deg: speed and height over 3 s
 node test/energy.mjs   # energy pocket per wave: trim / peel at three heights, foot spots, drop, lip speed, pocket bot

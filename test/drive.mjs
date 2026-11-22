@@ -43,7 +43,7 @@ if (MOBILE) {
   const retina = !!process.env.RETINA;
   await send('Emulation.setDeviceMetricsOverride', { width: retina ? 1440 : 1280, height: retina ? 900 : 720, deviceScaleFactor: retina ? 2 : 1, mobile: false });
 }
-await send('Page.navigate', { url: `http://127.0.0.1:${process.env.PORT || 8765}/?${query}` });
+await send('Page.navigate', { url: `http://127.0.0.1:${process.env.PORT || 8765}/${process.env.PAGE || ""}?${query}` });
 const t0 = Date.now();
 // Key plan entries: [ms, 'down'|'up', key] or touch: [ms, 'touchStart'|'touchMove'|'touchEnd', x, y]
 const events = [...keyPlan.map(([ms, type, key, y]) => (type === 'eval' ? { ms, kind: 'eval', expr: key } : type.startsWith('touch') ? { ms, kind: 'touch', type, x: key, y } : { ms, kind: 'key', type, key })), ...shots.map((ms, i) => ({ ms, kind: 'shot', i }))].sort((a, b) => a.ms - b.ms);
