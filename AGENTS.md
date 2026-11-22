@@ -269,6 +269,8 @@ section (25-30 deg), backing off (slower than 70 deg, or a gap), or closing out 
   `?zoom=2.5` opens zoomed on the peak (testing).
 - Kept clear so the curl's colour reads (the user, 2026-11-22): block names and shape guides only on hover or selection,
   arm handles set 28 m offshore of their line, the curl drawn over a thin dark casing, no time ticks on the map.
+- Units (the user, 2026-11-22): the builder shows heights and lengths in feet (swell, waves, rides, loops, block lengths,
+  the scale bar; ui.js `ft`/`ft1`), speeds in mph; the model works in metres underneath and saves metres.
 - Circles only for what you can drag (block handles, loop ends; the user): the curl's time marks are ticks, where it
   first breaks a diamond.
 - `PAGE=builder.html node test/drive.mjs test/out/bld "" 2500` screenshots it (drive.mjs's `PAGE`).

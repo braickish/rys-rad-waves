@@ -12,6 +12,8 @@ import { encodeBuilt, BUILT_KEY } from '../waves/built.js';
 import { BLOCKS, SNAP, ARM_ANGLES, ARM_LENGTHS, ARM_SLOPES, BAR_CRESTS, ROTATIONS, reefComponents, newBlock, dynamicPreset, beachPreset, armRot, nearestArm } from './blocks.js';
 
 const canvas = document.getElementById('map'), ctx = canvas.getContext('2d');
+// Heights and lengths are shown in feet (the user, 2026-11-22); the model works in metres underneath.
+const FT = 3.281, ft = (m) => Math.round(m * FT), ft1 = (m) => (m * FT).toFixed(1);
 const VIEW = { x0: 600, x1: 1262 }; // (x' shown: the deep water further out is all alike)
 const BANDS = [[-50, 0, '#efe2bd'], [0, 1, '#e3f3d9'], [1, 2, '#9fe6d6'], [2, 3, '#5ccfcc'], [3, 4, '#2fb2c2'], [4, 5, '#1d95b0'],
   [5, 6, '#177b9c'], [6, 8, '#136486'], [8, 10, '#10506f'], [10, 13, '#0d3f5b'], [13, 40, '#0b3049']];
@@ -160,9 +162,9 @@ function draw() {
   drawSwell(view.left + mw / 2, view.top - 14);
   // scale bar
   ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; const sx = view.left + 6, sy = view.top + mh + 16;
-  const sm = [200, 100, 50, 20, 10].find((m) => m * S * view.z <= 170) || 10, sl = sm * S * view.z; // (a round length that fits, as you zoom)
+  const sm = [500, 200, 100, 50, 20].find((f) => f / FT * S * view.z <= 170) || 20, sl = sm / FT * S * view.z; // (a round length in feet that fits, as you zoom)
   ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(sx + sl, sy); ctx.moveTo(sx, sy - 5); ctx.lineTo(sx, sy + 5); ctx.moveTo(sx + sl, sy - 5); ctx.lineTo(sx + sl, sy + 5); ctx.stroke();
-  ctx.fillStyle = '#fff'; ctx.textAlign = 'left'; ctx.font = '500 12px Rubik'; ctx.fillText(`${sm} m`, sx + sl + 8, sy + 4);
+  ctx.fillStyle = '#fff'; ctx.textAlign = 'left'; ctx.font = '500 12px Rubik'; ctx.fillText(`${sm} ft`, sx + sl + 8, sy + 4);
 }
 function roundRect(x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
 function diamond(x, y, r) {
@@ -208,7 +210,7 @@ function drawLoopHandles() {
   for (const p of [A, B]) dot(px(p.y), py(p.x), 7, '#00c2c7', '#0b1a24', 2.5);
   const out = L.side === 'right' ? -1 : 1, lx = px(B.y) + out * 14, ly = py(B.x) + 24; // (by the far end, clear of the arm's label)
   ctx.font = '400 13px Bungee'; ctx.textAlign = 'center'; ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(11,26,36,.9)'; ctx.fillStyle = '#00c2c7';
-  const txt = `↻ LOOP ${L.info.length.toFixed(0)} m`; ctx.strokeText(txt, lx, ly); ctx.fillText(txt, lx, ly);
+  const txt = `↻ LOOP ${ft(L.info.length)} ft`; ctx.strokeText(txt, lx, ly); ctx.fillText(txt, lx, ly);
 }
 function drawSwell(cx, cy) {
   const a = -state.swell.dir * Math.PI / 180; // (the swell's heading on the map: straight down, turned by its direction)
@@ -216,7 +218,7 @@ function drawSwell(cx, cy) {
   ctx.fillStyle = '#eaf6fa'; ctx.beginPath(); ctx.moveTo(-6, -12); ctx.lineTo(6, -12); ctx.lineTo(6, 2); ctx.lineTo(12, 2); ctx.lineTo(0, 14); ctx.lineTo(-12, 2); ctx.lineTo(-6, 2); ctx.closePath(); ctx.fill();
   ctx.restore();
   ctx.font = '400 15px Bungee'; ctx.fillStyle = '#fff'; ctx.textAlign = 'left';
-  ctx.fillText(`SWELL ${state.swell.H.toFixed(1)} m · ${state.swell.T} s${state.swell.dir ? ` · ${state.swell.dir > 0 ? '+' : ''}${state.swell.dir}°` : ''}`, cx - 50, cy + 6);
+  ctx.fillText(`SWELL ${ft1(state.swell.H)} ft · ${state.swell.T} s${state.swell.dir ? ` · ${state.swell.dir > 0 ? '+' : ''}${state.swell.dir}°` : ''}`, cx - 50, cy + 6);
 }
 function blockLabel(b) {
   if (b.type === 'arm') return `${b.side < 0 ? 'RIGHT' : 'LEFT'} ARM ${b.angle}°`;
@@ -396,11 +398,11 @@ function showSel() {
     el.appendChild(opt('Side', [-1, 1], b.side, (v) => (v < 0 ? 'Right' : 'Left'), (v) => { b.side = v; }));
     el.appendChild(opt('Angle', ARM_ANGLES, b.angle, (v) => `${v}°`, (v) => { b.angle = v; }));
   }
-  if (b.type === 'arm') el.appendChild(opt('Length', ARM_LENGTHS, b.length, (v) => `${v} m`, (v) => { b.length = v; }));
+  if (b.type === 'arm') el.appendChild(opt('Length', ARM_LENGTHS, b.length, (v) => `${ft(v)} ft`, (v) => { b.length = v; }));
   if (b.type === 'arm' || b.type === 'peak') el.appendChild(opt('Slope', ARM_SLOPES.map(([g]) => g), b.slope || '1:10', (v) => ARM_SLOPES.find(([g]) => g === v)[1], (v) => { b.slope = v; }));
   if (b.type === 'ridge' || b.type === 'channel' || b.type === 'sandbar') {
     el.appendChild(opt('Turn', ROTATIONS, b.rot, (v) => `${v}°`, (v) => { b.rot = v; }));
-    el.appendChild(opt('Length', b.type === 'ridge' ? [50, 80, 120] : b.type === 'sandbar' ? [100, 160, 240] : [140, 220, 320], b.length, (v) => `${v} m`, (v) => { b.length = v; }));
+    el.appendChild(opt('Length', b.type === 'ridge' ? [50, 80, 120] : b.type === 'sandbar' ? [100, 160, 240] : [140, 220, 320], b.length, (v) => `${ft(v)} ft`, (v) => { b.length = v; }));
   }
   if (b.type === 'sandbar') el.appendChild(opt('Crest', BAR_CRESTS.map(([d]) => d), b.crest, (v) => BAR_CRESTS.find(([d]) => d === v)[1], (v) => { b.crest = v; }));
   const del = document.createElement('button'); del.className = 'danger'; del.textContent = 'Remove'; del.style.marginTop = '8px';
@@ -432,12 +434,12 @@ function showRide() {
   const note = document.createElement('div'); note.className = 'note'; note.style.marginTop = '8px'; el.appendChild(note);
   const side = state.wave && state.wave[L.side];
   if (!L.on) {
-    note.textContent = side && rideStretch() ? `The whole ${L.side}, from the takeoff until it ends (${side.ride.toFixed(0)} m). Or loop your favourite stretch to surf it forever, like Queens or Raglan.` : '';
+    note.textContent = side && rideStretch() ? `The whole ${L.side}, from the takeoff until it ends (${ft(side.ride)} ft). Or loop your favourite stretch to surf it forever, like Queens or Raglan.` : '';
   } else {
     const I = L.info;
-    if (!I) note.innerHTML = `<span class="bad">The ${L.side} is too short to loop (it needs ${LOOP.min + 2 * LOOP.edge} m).</span>`;
+    if (!I) note.innerHTML = `<span class="bad">The ${L.side} is too short to loop (it needs ${ft(LOOP.min + 2 * LOOP.edge)} ft).</span>`;
     else {
-      note.innerHTML = `Drag the round ends along the curl (they snap to where the seam is smooth).<br><b style="color:var(--text)">${I.length.toFixed(0)} m · ${I.seconds.toFixed(0)} s a lap</b>`
+      note.innerHTML = `Drag the round ends along the curl (they snap to where the seam is smooth).<br><b style="color:var(--text)">${ft(I.length)} ft · ${I.seconds.toFixed(0)} s a lap</b>`
         + ` · curl ${mph(I.vMin) === mph(I.vMax) ? mph(I.vMin) : `${mph(I.vMin)}–${mph(I.vMax)}`} mph along the reef · ${I.sections ? `${I.sections} fast section${I.sections > 1 ? 's' : ''}` : 'no sections'}<br>`
         + (I.closes ? '<span class="bad">It closes out inside the loop.</span> ' : '')
         + (I.seam.ok ? '<span style="color:var(--teal)">Seam: smooth</span> (the end runs back into the start)'
@@ -454,15 +456,15 @@ function showResults() {
   const line = (name, s) => {
     if (!s || s.ride < 20) return `<div><span class="side">${name}</span> <span class="bad">no ride: it ${s ? s.end : 'never breaks'}</span></div>`;
     const bad = s.band === 'closeout' ? ' bad' : '';
-    return `<div><span class="side">${name}</span> ${s.ride.toFixed(0)} m · ${s.seconds.toFixed(0)} s · peels ${s.peel.toFixed(0)}° <span class="${bad}">(${s.band})</span>`
-      + ` · ~${(s.H * 3.28).toFixed(0)} ft<br><span class="end">breaks ${s.how} (ξ ${s.xi.toFixed(2)}) · then it ${s.end}</span></div>`;
+    return `<div><span class="side">${name}</span> ${ft(s.ride)} ft · ${s.seconds.toFixed(0)} s · peels ${s.peel.toFixed(0)}° <span class="${bad}">(${s.band})</span>`
+      + ` · ~${ft(s.H)} ft waves<br><span class="end">breaks ${s.how} (ξ ${s.xi.toFixed(2)}) · then it ${s.end}</span></div>`;
   };
   el.innerHTML = line('Right', w.right) + line('Left', w.left);
   showRide();
   const refined = state.wave.right && state.wave.right.refined;
-  $('stats').textContent = `rays ${state.ms.toFixed(0)} ms · ${refined ? `heights refined (${state.peMs.toFixed(0)} ms)` : 'refining heights…'} · ${state.rays.n} rays · ${state.grid.M}×${state.grid.N} cells of ${state.grid.dx} m`;
+  $('stats').textContent = `rays ${state.ms.toFixed(0)} ms · ${refined ? `heights refined (${state.peMs.toFixed(0)} ms)` : 'refining heights…'} · ${state.rays.n} rays · ${state.grid.M}×${state.grid.N} cells of ${ft(state.grid.dx)} ft`;
 }
-for (const [id, key, fmt] of [['H', 'H', (v) => `${v.toFixed(1)} m`], ['T', 'T', (v) => `${v} s`], ['D', 'dir', (v) => `${v > 0 ? '+' : ''}${v}°`]]) {
+for (const [id, key, fmt] of [['H', 'H', (v) => `${ft1(v)} ft`], ['T', 'T', (v) => `${v} s`], ['D', 'dir', (v) => `${v > 0 ? '+' : ''}${v}°`]]) {
   const input = $(id), out = $(id + 'v');
   const set = () => { state.swell[key] = Number(input.value); out.textContent = fmt(state.swell[key]); state.dirty = true; schedule(); };
   input.addEventListener('input', set); out.textContent = fmt(Number(input.value));
