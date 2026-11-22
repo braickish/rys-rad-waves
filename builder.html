@@ -50,7 +50,7 @@
 <div class="app">
   <div>
     <h1>Build a Break</h1>
-    <p class="sub">Drag reef blocks around the bay and watch where the wave breaks. Prototype: the curl comes from a fast wave-ray model, checked against FUNWAVE on the Dynamic reef.</p>
+    <p class="sub">Drag the reef blocks (the round handles) around the bay and watch where the wave breaks. Prototype: the curl comes from a fast wave-ray model, checked against FUNWAVE on the Dynamic reef.</p>
     <div class="mapwrap"><canvas id="map"></canvas></div>
   </div>
   <div class="panel">
@@ -70,7 +70,7 @@
       <div class="res" id="res"></div>
     </div>
     <div class="legend">
-      <div class="sw" style="background: linear-gradient(90deg, var(--yellow), var(--pink))"></div><div>the curl, as it peels (dots every 5 s)</div>
+      <div class="sw" style="background: linear-gradient(90deg, var(--yellow), var(--pink))"></div><div>the curl, as it peels (a tick every 5 s; ◆ where it first breaks)</div>
       <div class="sw" style="background: var(--pink); box-shadow: 0 0 6px var(--pink)"></div><div>fast section: steep, you'll need to pump</div>
       <div class="sw" style="background: repeating-linear-gradient(90deg, #fff 0 5px, transparent 5px 9px); opacity: .7"></div><div>backs off: deeper water, the wave slows or fades</div>
       <div class="sw" style="background: var(--red)"></div><div>closes out: breaks all at once</div>

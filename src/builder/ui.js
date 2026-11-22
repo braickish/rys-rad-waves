@@ -2,7 +2,8 @@
 // (research/reef-generator/about_map.py): a top-down map of the bay, offshore at the top and the beach at the bottom (so
 // a right peels to the map's left), depth bands, the reef blocks you drag about (snapping to a 10 m grid, arms snapping
 // onto peaks), the swell, crest lines every 5 s, and the curl from the fast break model (rays.js) coloured by time with
-// dots every 5 s, marked where it sections, backs off or closes out.
+// ticks every 5 s, marked where it sections, backs off or closes out. Circles mean "you can drag this": only the blocks'
+// handles are circles (the user, 2026-11-22); the curl's time ticks and the break's peak (a diamond) aren't.
 import { buildDepth, makeGrid } from './reef.js';
 import { traceRays, analyse } from './rays.js';
 import { BLOCKS, SNAP, ARM_ANGLES, ARM_LENGTHS, ROTATIONS, reefComponents, newBlock, dynamicPreset, armRot, nearestArm } from './blocks.js';
@@ -88,7 +89,9 @@ function draw() {
   const w = state.wave;
   if (w) for (const side of ['right', 'left']) drawCurl(w[side].curl, w.peak.t, side === 'right' ? 1 : -1);
   // the peak
-  if (w) { dot(px(w.peak.y), py(w.peak.x), 9, '#ffd426', '#0b1a24', 3); }
+  // (where it first breaks: computed, so a diamond, not a circle; only when it's clear of a block's handle, which it
+  // usually sits right on)
+  if (w && !state.blocks.some((b) => { const h = handle(b); return Math.hypot(px(h.y) - px(w.peak.y), py(h.x) - py(w.peak.x)) < 14; })) diamond(px(w.peak.y), py(w.peak.x), 8);
   // blocks
   for (const b of state.blocks) drawBlock(b);
   // labels: beach, swell
@@ -102,6 +105,10 @@ function draw() {
   ctx.fillStyle = '#fff'; ctx.textAlign = 'left'; ctx.font = '500 12px Rubik'; ctx.fillText('100 m', sx + 100 * S + 8, sy + 4);
 }
 function roundRect(x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+function diamond(x, y, r) {
+  ctx.beginPath(); ctx.moveTo(x, y - r); ctx.lineTo(x + r, y); ctx.lineTo(x, y + r); ctx.lineTo(x - r, y); ctx.closePath();
+  ctx.fillStyle = '#ffd426'; ctx.fill(); ctx.lineWidth = 2.5; ctx.strokeStyle = '#0b1a24'; ctx.stroke();
+}
 function dot(x, y, r, fill, stroke, lw = 2) { ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fillStyle = fill; ctx.fill(); if (stroke) { ctx.lineWidth = lw; ctx.strokeStyle = stroke; ctx.stroke(); } }
 
 function drawCurl(curl, t0, inward) { // (inward: which way the time labels go, toward the middle of the reef)
@@ -121,10 +128,14 @@ function drawCurl(curl, t0, inward) { // (inward: which way the time labels go, 
     ctx.beginPath(); ctx.moveTo(X0, Y0); ctx.lineTo(X1, Y1); ctx.stroke();
   }
   ctx.setLineDash([]); ctx.shadowBlur = 0;
-  // dots every 5 s of the curl's time
+  // a tick across the line every 5 s of the curl's time (not dots: circles are for things you can drag)
   for (let tt = 5, k = 1; k < curl.length; k++) {
     while (k < curl.length && curl[k].t - t0 >= tt) {
-      const p = curl[k]; dot(px(p.y), py(p.x), 5, '#fff', '#0b1a24', 2);
+      const p = curl[k], q = curl[k - 1], X = px(p.y), Y = py(p.x);
+      let ux = X - px(q.y), uy = Y - py(q.x); const l = Math.hypot(ux, uy) || 1; ux /= l; uy /= l;
+      ctx.lineCap = 'round';
+      ctx.strokeStyle = '#0b1a24'; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(X - uy * 8, Y + ux * 8); ctx.lineTo(X + uy * 8, Y - ux * 8); ctx.stroke();
+      ctx.strokeStyle = '#fff'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.moveTo(X - uy * 7, Y + ux * 7); ctx.lineTo(X + uy * 7, Y - ux * 7); ctx.stroke();
       if (Math.hypot(px(p.y) - px(curl[0].y), py(p.x) - py(curl[0].x)) < 34) { tt += 5; continue; } // (no label crowding the peak)
       ctx.font = 'bold 12px Rubik'; ctx.fillStyle = '#fff'; ctx.textAlign = inward > 0 ? 'left' : 'right';
       const lx = px(p.y) + inward * 9, ly = py(p.x) + 4;
