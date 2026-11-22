@@ -206,6 +206,7 @@ section (25-30 deg), backing off (slower than 70 deg, or a gap), or closing out 
 - Circles only for what you can drag (block handles, loop ends; the user): the curl's time marks are ticks, where it
   first breaks a diamond.
 - `PAGE=builder.html node test/drive.mjs test/out/bld "" 2500` screenshots it (drive.mjs's `PAGE`).
+- **Next (agreed 2026-11-22):** shape, size and barrels from the reef, in five steps: plans/2026-11-22-reef-driven-waves.md.
 
 ## How it works
 
