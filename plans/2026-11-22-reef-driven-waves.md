@@ -84,7 +84,7 @@ length, a turn and a crest depth. An A-frame off its middle, a right or left whe
 swell. Uses step 4's heights (gentle slopes are where the rays are weakest). Later idea: sand moves (a "season" that slowly
 reshapes bars while reef stays put).
 
-## 7. Barrel sections
+## 7. Barrel sections (first version done 2026-11-22: Pipe's classic tube shape and rules, switched by the local shape)
 
 - Shapes: Pipe's simulated tube shapes (sim-pipe.js) as the hollow end of step 3's scale, where intensity and height say it
   pitches far enough to make a tube (and the tube is tall enough: tubeMinHeight).

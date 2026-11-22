@@ -251,6 +251,19 @@ section (25-30 deg), backing off (slower than 70 deg, or a gap), or closing out 
   end breaks all at once for ~25 m (the sandbar's left: from 48 m of 90; a pump bot rides it to the end of the wave).
   Known gap: the curl analysis follows one peak, the first to break; several bars make several peaks, only one shows.
   `?preset=beach` (testing).
+  Plan step 7 (2026-11-22): barrel sections. built.js adds `KF_TUBE` (Pipe's classic KF_PIPE, scaled to Raglan+'s section
+  height) as shape 3 of the scale; the builder moves spots onto it from xi0 1.5 (2) to 1.9 (3) (loop.js `shapeIndex`).
+  wave.js `tubeAt(xs)` (u 2.3 -> 2.8: 0 -> 1) says how much tube the shape has there; the built wave has `tube`,
+  `tubeScale`, `tubeMinHeight` 1.3 and Pipe's tube tune (as Trestles takes it). The face's top (Pipe's 5.3 -> 11.9 as the
+  lip throws), the physics foam (Pipe's: whitewater only behind the tube) follow tubeAt at each spot; the GPU table's tube
+  set takes Pipe's foamVisual and thin (`env.SHAPE.a === 3`; wave.js hands built.js `env` to avoid an import loop).
+  rider.js checkHazards: tube rules only where tubeAt >= 0.5 (enter) and the barrel ends when it drops below 0.3;
+  tubeHeight(xs) measures the tube that forms where you are. Pipe's classic tube is about as tall as the face (3 m
+  breakers: 3.4 m inside, 2 m: 2.3), so the 1.3 m fit-in limit only bites on the smallest waves. In the builder: Dynamic
+  has no barrel; + Ledge 30 m on the right; Steep peak and arms + Ledge 140 m; steep arms on an 18 s 2.2 m swell 70 m each
+  side. In the browser the barrel view and tube HUD come on in a built barrel section. test/built.mjs checks the tube is
+  only in the section, a stalling rider gets barrelled and is never in a tube where there's none, and the tube grows with
+  the wave.
 - Zoom (the user, 2026-11-22): wheel / trackpad pinch about the pointer, two-finger pinch, drag the water to pan, and − / + / Fit
   in the map's corner (up to 6x; handles, labels and line widths keep their screen size; the scale bar picks a round length).
   `?zoom=2.5` opens zoomed on the peak (testing).

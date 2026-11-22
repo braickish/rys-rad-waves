@@ -109,7 +109,7 @@ for (const [mode, data] of Object.entries(payloads)) {
     console.log(`-- shape: arms ${slope}: xi0 ${A2.left.xi.toFixed(2)} (${A2.left.how}), shape scale ${Math.min(...u).toFixed(2)}-${Math.max(...u).toFixed(2)} (mean ${us[slope].toFixed(2)})`);
   }
   check(us['1:18'] < us['1:10'] && us['1:10'] < us['1:6'], 'shape: gentle arms sit softer on the scale, steep ones harder');
-  check(shapeIndex(0.3) === 0 && Math.abs(shapeIndex(0.8) - 1) < 1e-9 && shapeIndex(2) === 2, 'shape: crumbly at xi <= 0.4, the wall at 0.8, the section from 1.3');
+  check(shapeIndex(0.3) === 0 && Math.abs(shapeIndex(0.8) - 1) < 1e-9 && shapeIndex(1.4) === 2 && shapeIndex(2) === 3, 'shape: crumbly at xi <= 0.4, the wall at 0.8, the section at 1.3-1.5, the barrel from 1.9');
   const angAt = (frac) => { // (the face's angle at a height on it, at the curl)
     const top = R.topOfFace(0.5), yT = W.surface(0.5, top)[1], yB = W.surface(0.5, R.TUNE.tBottom)[1], y = yB + frac * (yT - yB);
     let t = R.TUNE.tBottom; for (; t > top; t -= 0.01) if (W.surface(0.5, t)[1] >= y) break;
@@ -152,6 +152,43 @@ for (const [mode, data] of Object.entries(payloads)) {
   console.log(`-- beach: the left off the sandbar from ${st.a} m (of ${st.b}), peel ${mph(d.profile[0].peel)} mph at the takeoff; pump bot ${(i * dt).toFixed(1)} s, ${r.stepOff ? 'stepped off: ' + r.wipeReason : r.mode === 'wipe' ? r.wipeReason : 'still riding'}`);
   check(st.a > LOOP.edge / 2 && d.profile[0].peel < 15, 'beach: the ride starts past the at-once peak, where the curl can be followed');
   check(i * dt > 4, 'beach: a pumping rider rides the sandbar\'s left (> 4 s)');
+}
+// Plan step 7: barrel sections. A loop that is the wall, then a barrel section (u 3) for 60 m, then the wall again. The tube
+// shows only there; the tube rules are on only there; a big enough wave has a tube to fit in, a small one clips you.
+{
+  const mk = (H) => { const prof = []; for (let s0 = 0; s0 <= 200; s0 += 10) prof.push({ s: s0, peel: 8, k: 0, H, c: 5.5, u: s0 >= 70 && s0 <= 130 ? 3 : 1 }); return { v: 1, mode: 'loop', side: 'left', length: 200, base: 8, H, c: 5.5, profile: prof }; };
+  applyBuilt(mk(3.0)); R.useWave('built'); S.seedSea(1); S.nextWave();
+  const dt = 1 / 120, tubeAtCurl = [], heights = [];
+  for (let i = 0; i < 30 / dt; i++) { S.stepSea(dt); if (i % 60 === 0) { tubeAtCurl.push([W.RIDGE.c % 200, W.tubeAt(-6)]); heights.push([W.RIDGE.c % 200, R.tubeHeight(-6)]); } }
+  const inSec = tubeAtCurl.filter(([c]) => c - 6 > 85 && c - 6 < 115), outSec = tubeAtCurl.filter(([c]) => (c - 6 + 200) % 200 < 40 || (c - 6 + 200) % 200 > 170);
+  const hIn = heights.filter(([c]) => c - 6 > 85 && c - 6 < 115).map(([, h]) => h);
+  console.log(`-- barrel: tube 6 m behind the curl ${Math.min(...inSec.map((q) => q[1])).toFixed(2)}+ in the section, ${Math.max(...outSec.map((q) => q[1])).toFixed(2)} max outside; tube height there ${Math.min(...hIn).toFixed(2)}-${Math.max(...hIn).toFixed(2)} m (3 m breakers)`);
+  check(inSec.length && inSec.every((q) => q[1] > 0.9) && outSec.length && outSec.every((q) => q[1] < 0.1), 'barrel: the tube is there in the barrel section and nowhere else');
+  check(hIn.length && Math.min(...hIn) > 1.3, 'barrel: on 3 m breakers the tube is tall enough to fit in (> 1.3 m)');
+  // a rider who stalls into the barrel section: gets in, and comes out (or is caught) as the section passes
+  S.seedSea(1); S.nextWave();
+  const r = R.createRider(); R.resetRider(r); r.events = []; R.stepRider(r, {}, 0);
+  let entered = 0, exited = 0, i = 0, inTubeOutside = 0;
+  for (; i < 40 / dt; i++) {
+    S.stepSea(dt);
+    const u = W.shapeU(r.xs);
+    // trim mid-face, slowing (back foot) once the barrel section comes, so the curl catches up
+    const near = (W.RIDGE.c % 200) > 60 && (W.RIDGE.c % 200) < 140;
+    R.stepRider(r, { aim: [1, Math.max(-0.6, Math.min(0.6, 3 * (0.45 - r.height)))], walk: 0 }, dt);
+    if (near && !r.tube && r.xs > 1) r.speed *= 0.995;
+    for (const e of r.events) { if (e.type === 'barrelEnter') entered++; if (e.type === 'barrelExit') exited++; }
+    if (r.tube && W.tubeAt(r.xs) < 0.3) inTubeOutside++;
+    if (r.mode === 'wipe') break;
+  }
+  console.log(`  stalling rider: entered the barrel ${entered}x, came out ${exited}x, ${r.mode === 'wipe' ? r.wipeReason : 'still riding'} at ${(i * dt).toFixed(1)} s`);
+  check(entered > 0, 'barrel: a rider who lets the curl catch up gets barrelled in the section');
+  check(inTubeOutside === 0, 'barrel: never in a tube where the shape has none');
+  // the tube grows with the wave: 2 m breakers' tube is 2/3 of 3 m breakers' (the 1.3 m fit-in limit then bites on waves
+  // below ~1.2 m, where the game's size floor already sits)
+  applyBuilt(mk(2.0)); R.useWave('built'); S.seedSea(1); S.nextWave();
+  let hs = 1e9; for (let k = 0; k < 20 / dt; k++) { S.stepSea(dt); const c = W.RIDGE.c % 200; if (c - 6 > 85 && c - 6 < 115) hs = Math.min(hs, R.tubeHeight(-6)); }
+  console.log(`  2 m breakers: tube ${hs.toFixed(2)} m (3 m: ${Math.min(...hIn).toFixed(2)})`);
+  check(Math.abs(hs / Math.min(...hIn) - 2 / 3) < 0.03, 'barrel: the tube grows with the wave');
 }
 console.log(fails ? 'SOME FAILED' : 'all ok');
 process.exitCode = fails ? 1 : 0;

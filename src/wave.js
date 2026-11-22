@@ -30,6 +30,7 @@ export const FAR = 1500; // flat ocean extent, added by the mesh builder
 // `s` is the wave's phase: negative = unbroken (more negative = smaller),
 // 0 = starting to break, higher = further gone into whitewater.
 import { waveById } from './waves/index.js';
+import { env as builtEnv } from './waves/built.js';
 
 export let WAVE = waveById('point');
 export let WAVE_TYPE = WAVE.kind; // 'crumble' | 'barrel'
@@ -190,6 +191,12 @@ export function shapeU(xs) {
   const P = WAVE.ridges.profile;
   if (P && P[0].u != null) return Math.min(SHAPES.length - 1, Math.max(0, profileAt('u', RIDGE.c + xs)));
   return ridgeAt(xs);
+}
+// How much of a tube the wave's shape has at xs (0-1; plan step 7): a built wave's barrel sections, where its shape scale
+// reaches the tube shape (u 2.3 -> 2.8 of 0-3); waves with `tube` everywhere 1, others 0.
+export function tubeAt(xs) {
+  if (WAVE.tubeScale) { const u = shapeU(xs); return smooth(Math.min(1, Math.max(0, (u - 2.3) / 0.5))); }
+  return WAVE.tube ? 1 : 0;
 }
 export function sizeAt(xs) {
   if (!WAVE.ridges || !WAVE.ridges.profile || !WAVE.built || !(WAVE.built.H > 0) || WAVE.ridges.profile[0].H == null) return 1;
@@ -472,3 +479,6 @@ export function segmentHit(sl, az, ay, bz, by) {
   }
   return best;
 }
+
+// (the built wave's functions need the shape state and tubeAt: handed over here, src/waves/built.js env)
+builtEnv.SHAPE = SHAPE; builtEnv.tubeAt = tubeAt;

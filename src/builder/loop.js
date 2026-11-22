@@ -114,13 +114,16 @@ export function bestLoop(side) {
 // What DROP IN hands the game (src/waves/built.js): the stretch's profile every 10 m (peel speed along the crest, section
 // strength, breaker height), whether it loops, which way it peels, and the wave's base pace (what trimming holds: the
 // median peel outside the sections, as Raglan+'s plain wall).
-// Where a spot sits on the built wave's shape scale (plan step 3), from how it breaks (xi0, rays.js): 0 crumbly at xi 0.4
-// and below (spilling < 0.5), 1 Raglan's wall at 0.8 (a mild plunge), 2 the steep section shape from 1.3 (pitching).
+// Where a spot sits on the built wave's shape scale (plan steps 3 and 7), from how it breaks (xi0, rays.js): 0 crumbly at xi
+// 0.4 and below (spilling < 0.5), 1 Raglan's wall at 0.8 (a mild plunge), 2 the steep section shape at 1.3-1.5 (pitching), 3
+// Pipe's barrel from 1.9 (barrelling).
+// Plan step 7: barrelling (xi0 from 1.5) moves on toward the tube shape, 3 by 1.9.
 export function shapeIndex(xi) {
   if (!isFinite(xi)) return 1;
   if (xi <= 0.4) return 0;
   if (xi <= 0.8) return (xi - 0.4) / 0.4;
-  return Math.min(2, 1 + (xi - 0.8) / 0.5);
+  if (xi <= 1.5) return Math.min(2, 1 + (xi - 0.8) / 0.5);
+  return Math.min(3, 2 + (xi - 1.5) / 0.4);
 }
 export function wavePayload(side, which, mode, a, b, swell) {
   const I = loopInfo(side, a, b);

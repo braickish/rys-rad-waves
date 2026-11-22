@@ -21,7 +21,7 @@
 //  - Turning back into the whitewater, high, turning as you hit: rebound.
 //    Sit in the foam too long and it takes you.
 
-import { surface, slice, phaseAt, verticalHits, segmentHit, PEEL_SPEED, WAVE_SPEED, NP, WAVE, setWave, SCALE, controlPoints, crPoint, SHAPE, withShape, RIDE, sectionGrace, breaksAt, holdPeel } from './wave.js';
+import { surface, slice, phaseAt, verticalHits, segmentHit, PEEL_SPEED, WAVE_SPEED, NP, WAVE, setWave, SCALE, controlPoints, crPoint, SHAPE, withShape, RIDE, sectionGrace, breaksAt, holdPeel, tubeAt } from './wave.js';
 
 export const G = 9.8;
 // The rider's and board's settings. Wave-specific settings (pocket speeds,
@@ -249,7 +249,7 @@ export function physCruise(P, height, power, onFace) {
 
 // How much foam is under the rider (from the wave; the mesh draws the same foam).
 export function foamAt(xs, t) {
-  return WAVE.foam(phaseAt(xs), t);
+  return WAVE.foam(phaseAt(xs), t, xs);
 }
 
 // Surface frame at (xs, t): point, tangents, outward normal, and the unit
@@ -294,7 +294,7 @@ function climbingFoam(r) {
 // Where the rideable face tops out at xs (the barrel's roof starts earlier).
 export function topOfFace(xs) {
   const s = phaseAt(xs);
-  if (!WAVE.tubeReal) return WAVE.faceTop(s);
+  if (!WAVE.tubeReal) return WAVE.faceTop(s, xs);
   // Waves with `tubeReal` (the sim reef) set both lines by real height instead
   // of a fixed place along the curve: on the open face the top is `faceTop`
   // of the way from the trough up to the crest (t 5.3 put you on top of the
@@ -1556,6 +1556,16 @@ function checkHazards(r, dt) {
   }
   if (r.xs < -25) return wipe(r, 'Caught by the whitewater!');
   if (!WAVE.tube) { r.inBarrel = false; return; }
+  // (a built wave's barrel sections, plan step 7: the tube rules only where the shape under you has a tube; ride out of a
+  // barrel section and the tube just ends, as coming out of the barrel)
+  if (WAVE.tubeScale) {
+    const here = tubeAt(r.xs);
+    if (r.tube && here < 0.3) {
+      r.events.push({ type: 'barrelExit', time: r.tube.time, depth: r.tube.depth, avgDepth: r.tube.depthSum / Math.max(r.tube.time, 1e-3) });
+      r.tube = null; r.inBarrel = false; r.barrelTime = 0; return;
+    }
+    if (!r.tube && here < 0.5) { r.inBarrel = false; return; }
+  }
   // The barrel: once the curl has passed you, you're in the tube, surfing
   // the face inside it as normal. Too deep = pinched; up into the lip = over
   // the falls; way down past the bottom = the lip lands on you; forward out
@@ -1564,7 +1574,7 @@ function checkHazards(r, dt) {
   // (`tubeMinHeight` waves, Trestles: the tube is only there to ride when it's tall enough to fit in (the user, 2026-11-19:
   // it may be too small to ride, and then you have to go around it). Too small, and getting caught in under the lip,
   // above where it lands, means it hits you; low on the face ahead of where it lands, or out ahead, you're clear.)
-  if (!r.tube && WAVE.tubeMinHeight && tubeHeight() < WAVE.tubeMinHeight) {
+  if (!r.tube && WAVE.tubeMinHeight && tubeHeight(WAVE.tubeScale ? r.xs : undefined) < WAVE.tubeMinHeight) {
     if (ph > T.tubeEnter + 0.2 && ph < T.tubeCollapse && (!WAVE.tubeFloor || r.t < WAVE.tubeFloor.t) && r.t > topOfFace(r.xs) - 0.5
       && r.pos[2] <= lipTipZ(r.xs) - WAVE.tubeReal.enterIn && !sectionGrace(r.xs)) {
       return wipe(r, 'Clipped by the lip! (the tube was too small to fit in: go around it)');
@@ -1622,7 +1632,8 @@ function enterTube(r) {
 // The tube's real height (m) once the lip has landed: from where it lands up to the roof, for the wave's current
 // shape and size (Trestles changes from section to section; a set wave's tube is bigger).
 let _tubeH = { ver: -1, scale: 0, h: 0 };
-export function tubeHeight() {
+export function tubeHeight(xs) {
+  if (xs !== undefined) { controlPoints(0.8, _lipCp, undefined, xs); return _lipCp[11 * 2 + 1] - _lipCp[8 * 2 + 1]; } // (a built wave: the tube that forms where you are)
   if (_tubeH.ver !== SHAPE.ver || _tubeH.scale !== SCALE) {
     controlPoints(0.8, _lipCp);
     _tubeH = { ver: SHAPE.ver, scale: SCALE, h: _lipCp[11 * 2 + 1] - _lipCp[8 * 2 + 1] };
