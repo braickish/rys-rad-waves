@@ -114,10 +114,11 @@ export default {
     airMinSpeed: 6, airCurlZone: 2.5, airBoostZone: 2.5, airIntoCurl: 0.6, airBoostUp: 3.0, // (airIntoCurl: airs reach 0.6 m into the breaking curl, the user, 2026-11-18) // (boost zone 0.6 -> 2.5 m, the same as airCurlZone: the user, 2026-11-18, wanted a bigger zone for the boosted air; 0.6 m was a ~0.1 s window at the curl)
     tTop: 5.3, tBottom: 13.9, tFlats: 14.6,
     shoulderReach: 3.5, shoulderFade: 1.6, // speed carries ~3.5 m further out toward the shoulder before it fades, and fades over a longer stretch (was 2 m and the pocket's own length; the user asked for more speed into the shoulder)
-    // After 2 s with no key and no change of direction you lose ~0.5 mph every second, and the pocket stops topping you up
-    // (the user, 2026-11-22: slight, but so no setting lets you ride on forever; was 1 mph/s; shortboards: Pipe, Trestles
-    // and Dynamic inherit it). Letting go settled at 3/4 of the face: caught ~9 s later (~60 s without the decay).
-    idleDecay: 0.22, idleDelay: 2,
+    // After 2 s with no key and no change of direction you start losing speed: ~0.5 mph/s, growing by ~0.5 mph/s with each
+    // further idle second up to ~3 mph/s (from 7 s idle), and the pocket stops topping you up (the user, 2026-11-22: slight
+    // at first, never a setting that lets you ride on forever, and a long spell of doing nothing really slows you down).
+    // Lost by 5 s idle ~3.8 mph, by 7 s ~8.8, then 3 mph more each second. Pipe, Trestles and Dynamic inherit it.
+    idleDecay: 0.22, idleRamp: 0.22, idleDecayMax: 1.34, idleDelay: 2,
     faceFlowK: 0.46, // water flowing up the face: 0.46 x the wave's speed, measured live (rider.js faceFlow; ~4.3 m/s here, c 9.4)
   },
 };

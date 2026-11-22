@@ -1,5 +1,5 @@
 // Idle decay (the user, 2026-11-22): on the shortboard waves, after 2 s with no key pressed and no change of direction
-// you lose ~0.5 mph every second (steady, not growing), and the pocket doesn't top you back up, until you work the board.
+// you lose ~0.5 mph/s, growing ~0.5 mph/s each further idle second up to ~3 mph/s, and the pocket doesn't top you back up, until you work the board.
 // Not on Queens (longboard trim and noseriding are no-key moves) and not in the tube.
 // A rider trims mid-face along the line in the pocket: idle (no input) vs holding the line with a key.
 //   node test/idle.mjs [wave ...]
@@ -39,7 +39,7 @@ for (const w of waves) {
   const n = Math.min(idle.v.length, idle0.v.length) - 1, at = (a, i) => a[Math.min(i, a.length - 1)];
   check(Math.abs(at(idle.v, 1) - at(idle0.v, 1)) < 0.2, `${w}: nothing lost in the first 2 s`);
   check(held.v.every((x, i) => Math.abs(x - held0.v[i]) < 0.05), `${w}: holding a key, no decay`);
-  if (decay) { const lost = at(idle0.v, n) - at(idle.v, n), want = mph(decay) * (n + 1 - TUNE.idleDelay);
+  if (decay) { const lost = at(idle0.v, n) - at(idle.v, n), T0 = n + 1 - TUNE.idleDelay, want = mph(decay * T0 + (TUNE.idleRamp || 0) * T0 * T0 / 2);
     check(lost > 0.5 * want && lost < 1.5 * want, // (it stacks on losses already under way: drifting up into the crest fade, the bleed above the cruise)
     `${w}: idle loses ~${want.toFixed(1)} mph by ${n + 1} s (${lost.toFixed(1)})`); }
 }

@@ -1043,8 +1043,9 @@ function stepSurf(r, input, dt) {
 
   // --- speed ---
   // Idle decay (waves with `idleDecay`: the shortboards; the user, 2026-11-22): after `idleDelay` s with no key pressed
-  // and no change of direction, you lose `idleDecay` m/s every second, steadily (not growing), and the pocket doesn't top
-  // you back up meanwhile, until you work the board again. Not in the tube.
+  // and no change of direction, you lose `idleDecay` m/s every second, growing by `idleRamp` with each further idle second
+  // up to `idleDecayMax` (the user: a long spell of doing nothing really slows you down), and the pocket doesn't top you
+  // back up meanwhile, until you work the board again. Not in the tube.
   let idleNow = false;
   if (T.idleDecay) {
     const keys = !!(input.turn || input.tilt || input.walk || input.crouch || input.pump || (input.aim && (input.aim[0] || input.aim[1])));
@@ -1163,7 +1164,7 @@ function stepSurf(r, input, dt) {
   // Sliding sideways in a slash scrubs speed, and nothing builds it meanwhile.
   else if (r.slide > 0) r.speed = Math.min(r.speed, speedAtStart) * (1 - (r.tube ? T.slashTube.slashDrag : T.slashDrag) * Math.sin(Math.min(r.slide, Math.PI / 2)) * dt);
   if (sBack > 0) r.speed *= 1 - T.backScrub * sBack * r.turnRate * dt; // (back foot: turning scrubs a little speed)
-  if (idleNow) r.speed -= T.idleDecay * dt; // (idle decay, above)
+  if (idleNow) r.speed -= Math.min(T.idleDecayMax ?? Infinity, T.idleDecay + (T.idleRamp || 0) * (r.idle - T.idleDelay)) * dt; // (idle decay, above: grows by `idleRamp` each idle second, up to `idleDecayMax`)
   r.speed = clamp(r.speed, T.minSpeed, T.maxSpeed);
 
   // --- move ---
