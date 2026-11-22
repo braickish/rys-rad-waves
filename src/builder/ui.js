@@ -6,7 +6,8 @@
 // handles are circles (the user, 2026-11-22); the curl's time ticks and the break's peak (a diamond) aren't.
 import { buildDepth, makeGrid } from './reef.js';
 import { traceRays, analyse } from './rays.js';
-import { LOOP, curlAt, defaultLoop, clampLoop, loopInfo } from './loop.js';
+import { LOOP, curlAt, defaultLoop, clampLoop, loopInfo, snapEnd, bestLoop, wavePayload } from './loop.js';
+import { encodeBuilt, BUILT_KEY } from '../waves/built.js';
 import { BLOCKS, SNAP, ARM_ANGLES, ARM_LENGTHS, ROTATIONS, reefComponents, newBlock, dynamicPreset, armRot, nearestArm } from './blocks.js';
 
 const canvas = document.getElementById('map'), ctx = canvas.getContext('2d');
@@ -29,11 +30,24 @@ function recompute() {
   state.wave = analyse(state.rays, state.grid);
   state.ms = performance.now() - t0;
   fitLoop();
+  save();
   paintDepth();
   state.dirty = false;
   showResults();
 }
 // Keep the loop on the ride as the wave changes (a new stretch if it has none, or it no longer fits).
+// The design is remembered (in this browser) so coming back from riding it finds it as you left it.
+const SAVE_KEY = 'rys-rad-waves-builder';
+function save() {
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify({ blocks: state.blocks, swell: state.swell, loop: { on: state.loop.on, side: state.loop.side, a: state.loop.a, b: state.loop.b } })); } catch {}
+}
+function restore() {
+  try {
+    const j = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null'); if (!j || !Array.isArray(j.blocks)) return;
+    state.blocks = j.blocks; Object.assign(state.swell, j.swell || {}); Object.assign(state.loop, j.loop || {});
+    for (const [id, key] of [['H', 'H'], ['T', 'T'], ['D', 'dir']]) document.getElementById(id).value = state.swell[key];
+  } catch {}
+}
 function fitLoop() {
   const L = state.loop, side = state.wave && state.wave[L.side];
   L.info = null;
@@ -253,9 +267,10 @@ canvas.addEventListener('pointermove', (e) => {
   if (drag.loop) { // (a loop end: to the nearest spot on the curl, 10 m snap, the loop at least LOOP.min long, inside the ride)
     const L = state.loop, side = state.wave[L.side];
     let best = null; for (let s = 0; s <= side.ride; s += 2) { const q = curlAt(side.curl, s), d = Math.hypot(px(q.y) - cx, py(q.x) - cy); if (!best || d < best.d) best = { s, d }; }
-    const v = Math.round(best.s / LOOP.snap) * LOOP.snap;
-    if (drag.loop === 'a') L.a = Math.max(0, Math.min(v, L.b - LOOP.min)); else L.b = Math.min(Math.floor(side.ride / LOOP.snap) * LOOP.snap, Math.max(v, L.a + LOOP.min));
-    L.info = loopInfo(side, L.a, L.b); showRide(); draw(); return;
+    // (snaps to a nearby spot where the seam is smooth: the end matching the start, loop.js snapEnd)
+    const sn = snapEnd(side, drag.loop, best.s, drag.loop === 'a' ? L.b : L.a);
+    if (drag.loop === 'a') L.a = sn.s; else L.b = sn.s;
+    L.info = loopInfo(side, L.a, L.b); save(); showRide(); draw(); return;
   }
   const p = toReef(cx, cy), b = drag.b;
   let nx = snap(p.x + drag.dx), ny = snap(p.y + drag.dy);
@@ -328,30 +343,44 @@ function showSel() {
   el.appendChild(del);
 }
 const mph = (v) => (v * 2.237).toFixed(0);
+function rideStretch() { // (what DROP IN rides: the loop, or the whole ride from just past the peak)
+  const L = state.loop, side = state.wave && state.wave[L.side];
+  if (!side) return null;
+  if (L.on) return L.info ? { a: L.a, b: L.b } : null;
+  const b = Math.floor(side.ride / LOOP.snap) * LOOP.snap, a = LOOP.edge / 2;
+  return b - a >= LOOP.min ? { a, b } : null;
+}
+function dropIn() {
+  const L = state.loop, st = rideStretch(); if (!st) return;
+  const data = wavePayload(state.wave[L.side], L.side, L.on ? 'loop' : 'full', st.a, st.b, state.swell);
+  try { localStorage.setItem(BUILT_KEY, JSON.stringify(data)); } catch {}
+  save();
+  location.href = `index.html?wave=built&play#built=${encodeBuilt(data)}`;
+}
 function showRide() {
   const el = $('ride'), L = state.loop; el.innerHTML = '';
-  const mode = document.createElement('div'); mode.className = 'row';
-  for (const [on, label] of [[false, 'Full ride'], [true, '↻ Loop']]) {
-    const b = document.createElement('button'); b.textContent = label; if (L.on === on) b.className = 'on';
-    b.onclick = () => { L.on = on; fitLoop(); showRide(); draw(); }; mode.appendChild(b);
+  const row = (items) => { const r = document.createElement('div'); r.className = 'row'; r.style.marginTop = '8px'; items.forEach((i) => r.appendChild(i)); el.appendChild(r); return r; };
+  const btn = (label, on, fn, cls = '') => { const b = document.createElement('button'); b.textContent = label; b.className = (on ? 'on ' : '') + cls; b.onclick = fn; return b; };
+  row([btn('Full ride', !L.on, () => { L.on = false; fitLoop(); save(); showRide(); draw(); }), btn('↻ Loop', L.on, () => { L.on = true; fitLoop(); save(); showRide(); draw(); })]).style.marginTop = '0';
+  row(['right', 'left'].map((sd) => btn(sd === 'right' ? 'Right' : 'Left', L.side === sd, () => { L.side = sd; L.a = L.b = null; fitLoop(); save(); showRide(); draw(); })));
+  const note = document.createElement('div'); note.className = 'note'; note.style.marginTop = '8px'; el.appendChild(note);
+  const side = state.wave && state.wave[L.side];
+  if (!L.on) {
+    note.textContent = side && rideStretch() ? `The whole ${L.side}, from the takeoff until it ends (${side.ride.toFixed(0)} m). Or loop your favourite stretch to surf it forever, like Queens or Raglan.` : '';
+  } else {
+    const I = L.info;
+    if (!I) note.innerHTML = `<span class="bad">The ${L.side} is too short to loop (it needs ${LOOP.min + 2 * LOOP.edge} m).</span>`;
+    else {
+      note.innerHTML = `Drag the round ends along the curl (they snap to where the seam is smooth).<br><b style="color:var(--text)">${I.length.toFixed(0)} m · ${I.seconds.toFixed(0)} s a lap</b>`
+        + ` · curl ${mph(I.vMin) === mph(I.vMax) ? mph(I.vMin) : `${mph(I.vMin)}–${mph(I.vMax)}`} mph along the reef · ${I.sections ? `${I.sections} fast section${I.sections > 1 ? 's' : ''}` : 'no sections'}<br>`
+        + (I.closes ? '<span class="bad">It closes out inside the loop.</span> ' : '')
+        + (I.seam.ok ? '<span style="color:var(--teal)">Seam: smooth</span> (the end runs back into the start)'
+          : `<span style="color:#ffaa28">Seam: rough</span>: the end is ${(Math.max(I.seam.dv, I.seam.dH) * 100).toFixed(0)}% off the start in ${I.seam.dv > LOOP.seamSpeed ? 'speed' : 'height'}; it'll be blended, but try Best loop`);
+      row([btn('★ Best loop', false, () => { const bl = bestLoop(side); if (bl) { L.a = bl.a; L.b = bl.b; L.info = loopInfo(side, L.a, L.b); save(); showRide(); draw(); } else { note.innerHTML += '<br><span class="bad">No stretch here has a smooth seam.</span>'; } })]);
+    }
   }
-  el.appendChild(mode);
-  const note = document.createElement('div'); note.className = 'note'; note.style.marginTop = '8px';
-  if (!L.on) { note.textContent = 'Ride it from the takeoff until it ends, or loop your favourite stretch to surf it forever, like Queens or Raglan.'; el.appendChild(note); return; }
-  const sides = document.createElement('div'); sides.className = 'row'; sides.style.marginTop = '8px';
-  for (const sd of ['right', 'left']) {
-    const b = document.createElement('button'); b.textContent = sd === 'right' ? 'Right' : 'Left'; if (L.side === sd) b.className = 'on';
-    b.onclick = () => { L.side = sd; L.a = L.b = null; fitLoop(); showRide(); draw(); }; sides.appendChild(b);
-  }
-  el.appendChild(sides);
-  const I = L.info;
-  if (!I) { note.innerHTML = `<span class="bad">The ${L.side} is too short to loop (it needs ${LOOP.min + 2 * LOOP.edge} m).</span>`; el.appendChild(note); return; }
-  note.innerHTML = `Drag the round ends along the curl.<br><b style="color:var(--text)">${I.length.toFixed(0)} m · ${I.seconds.toFixed(0)} s a lap</b>`
-    + ` · curl ${mph(I.vMin) === mph(I.vMax) ? mph(I.vMin) : `${mph(I.vMin)}–${mph(I.vMax)}`} mph along the reef · ${I.sections ? `${I.sections} fast section${I.sections > 1 ? 's' : ''}` : 'no sections'}<br>`
-    + (I.closes ? '<span class="bad">It closes out inside the loop.</span> ' : '')
-    + (I.seam.ok ? '<span style="color:var(--teal)">Seam: smooth</span> (the end runs back into the start)'
-      : `<span style="color:#ffaa28">Seam: rough</span>: the end is ${(I.seam.dv * 100).toFixed(0)}% ${I.seam.dv > LOOP.seamSpeed ? 'off in speed' : ''}${I.seam.dv > LOOP.seamSpeed && I.seam.dH > LOOP.seamHeight ? ' and ' : ''}${I.seam.dH > LOOP.seamHeight ? `${(I.seam.dH * 100).toFixed(0)}% off in height` : ''} from the start; move an end to where they match`);
-  el.appendChild(note);
+  const go = btn('DROP IN', false, dropIn, 'go'); go.disabled = !rideStretch();
+  const r = row([go]); r.style.marginTop = '12px';
 }
 function showResults() {
   const w = state.wave, el = $('res');
@@ -375,6 +404,7 @@ $('reset').onclick = () => { state.blocks = dynamicPreset(); state.sel = null; s
 $('clear').onclick = () => { state.blocks = []; state.sel = null; state.dirty = true; showSel(); schedule(); };
 window.addEventListener('resize', () => { layout(); draw(); });
 
+restore();
 { const q = new URLSearchParams(location.search).get('loop'); if (q) { state.loop.on = true; state.loop.side = q === 'left' ? 'left' : 'right'; } } // (?loop=right|left: start looped, for testing)
 recompute(); layout(); showSel(); draw();
 document.fonts?.ready.then(() => draw());

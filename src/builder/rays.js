@@ -148,7 +148,7 @@ export function analyse(R, grid, { binM = 4, step = 20 } = {}) {
       if (s[k] > ride && closed) kind = 'closeout';
       else if (gaps.includes(k) || (sg && sg.a > 70 && s[k] > step)) kind = 'backoff';
       else if (sg && sg.a < 30 && s[k] > step) kind = 'section';
-      return { x: p[2], y: p[0], t: tc, s: s[k], H: p[4], kind };
+      return { x: p[2], y: p[0], t: tc, s: s[k], H: p[4], c: p[3], kind }; // (c: the wave's speed at breaking there)
     });
     const inRide = segs.filter((q) => q.e0 < ride && q.e0 >= step).map((q) => q.a).sort((a, b) => a - b);
     const med = inRide.length ? inRide[Math.floor(inRide.length / 2)] : NaN;

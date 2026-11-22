@@ -189,6 +189,20 @@ section (25-30 deg), backing off (slower than 70 deg, or a gap), or closing out 
   the curl's speed along the reef, sections, closeouts, and the seam (end vs start: speed within 15%, height within 20%),
   plus its `profile` (curl speed, height, kind every 10 m): the data an endless wave would repeat, the same shape as
   Raglan+'s ridges (a curl speed and section strength along the beach). Not wired into riding yet. `?loop=right|left`.
+- **Seam snapping and Best loop** (the user, 2026-11-22): dragging a loop end snaps it to the nearest spot within 20 m
+  where the seam is smooth (`snapEnd`); ★ Best loop finds the longest stretch with a smooth seam and no closeout
+  (`bestLoop`). Right / Left apply to a full ride too.
+- **DROP IN** (the user, 2026-11-22: start testing): `wavePayload` (the stretch's profile every 10 m: the game's peel speed
+  along the crest, sqrt(v^2 - c^2) = c / tan(alpha), from the curl's speed v along the reef and the wave's speed c at
+  breaking; section strength 1 where it's a section; breaker height; base pace = median peel outside sections; side;
+  loop or full) goes to `index.html?wave=built&play#built=<base64 JSON>` (also kept in localStorage, `rys-rad-waves-built`).
+  `src/waves/built.js` (hidden: in the picker only while you're on it, with "✎ Edit your break" back to the builder):
+  Raglan+'s wave and riding, scaled to the breakers (scale 1.25 x H / 3.5 m), a right = `dir: -1`, regular foot, driven by
+  the profile (wave.js `ridges.profile`, `profileAt`): looped, the last 20-30 m crossfade into the start (smoothstep) and
+  it repeats forever; a full ride runs once, backs off over 30 m past the end, and you step off 3 s later ("You rode it to
+  the end of the wave!", rider.js checkHazards). The builder remembers your design in localStorage
+  (`rys-rad-waves-builder`). `applyBuilt(data)` swaps the wave in place (tests). Not yet: the breaker height along the
+  stretch (one size for the whole wave), the reef's own breaking intensity (it's Raglan+'s shapes). `node test/built.mjs`.
 - Circles only for what you can drag (block handles, loop ends; the user): the curl's time marks are ticks, where it
   first breaks a diamond.
 - `PAGE=builder.html node test/drive.mjs test/out/bld "" 2500` screenshots it (drive.mjs's `PAGE`).
@@ -831,6 +845,7 @@ node test/pocket.mjs   # where different riding styles spend their time vs. the 
 node test/shuffle.mjs  # shortboard feet: back / middle / forward, turn and speed effects on Raglan and Pipe
 node test/crest.mjs    # holding a line near the crest: the curl catches you above ~0.8 of the face, not mid-face
 node test/idle.mjs     # idle decay: no loss for 2 s, then ~0.5 mph/s growing, none with a key held; Queens untouched
+node test/built.mjs    # DROP IN: a builder loop peels forever with no jump at the seam, a full ride ends at the end of the wave
 node test/builder.mjs  # Build a Break's fast break model on Dynamic's reef vs the Python model / FUNWAVE, and its speed
 node test/sections.mjs # Raglan+: trimming vs pumping through the random faster sections (WAVE=point to compare)
 node test/takeoff.mjs  # from the drop-in, nose held at 0 / -20 / -40 / -60 / -80 deg: speed and height over 3 s

@@ -583,7 +583,8 @@ async function main() {
   const picker = $('waves');
   const drawPicker = () => {
     picker.innerHTML = '';
-    for (const w of WAVES) {
+    // (a hidden wave you're on, the wave builder's `built`, shows too, with a way back to the builder)
+    for (const w of WAVE.hidden ? [...WAVES, WAVE] : WAVES) {
       const b = document.createElement('button');
       b.textContent = w.name;
       b.className = w.id === WAVE.id ? 'on' : '';
@@ -599,6 +600,12 @@ async function main() {
         drawPicker();
       });
       picker.appendChild(b);
+    }
+    if (WAVE.id === 'built') {
+      const e = document.createElement('button'); e.textContent = '✎ Edit your break';
+      e.addEventListener('pointerdown', (ev) => ev.stopPropagation());
+      e.addEventListener('click', (ev) => { ev.stopPropagation(); location.href = 'builder.html'; });
+      picker.appendChild(e);
     }
   };
   drawPicker();

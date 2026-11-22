@@ -153,14 +153,36 @@ function mulberry32(seed) {
 }
 function layRidges() {
   RIDGE.c = 0; RIDGE.list.length = 0; RIDGE.at = 0;
-  const R = WAVE.ridges; if (!R) return;
+  const R = WAVE.ridges; if (!R || R.profile) return; // (a built wave's profile needs no layout)
   const pick = ([a, b]) => a + (b - a) * ridgeRnd();
   for (let x = pick(R.first); x < 3000; x += pick(R.gap)) RIDGE.list.push({ x, w: pick(R.width), k: pick(R.strength) });
 }
 // The ridge strength under the spot xs m ahead of the curl (0 = the plain wave, 1 = a full section): each ridge a smooth
 // bump `w` m either side of its middle.
+// A built wave (src/waves/built.js, from the wave builder; `ridges.profile`): the curl's speed and section strength come
+// from the stretch you marked, every 10 m along it, instead of laid-out ridges. Looped (`ridges.loop`), it repeats forever,
+// the last `seam` m crossfading into the start so the end runs smoothly back into it (the user, 2026-11-22); a full ride
+// runs once and past its end the wave backs off (the curl slows to a stop over 30 m) and the ride ends.
+function profileAt(key, X) {
+  const R = WAVE.ridges, P = R.profile, L = R.length;
+  const lin = (u) => {
+    if (u <= 0) return P[0][key];
+    for (let i = 1; i < P.length; i++) if (u <= P[i].s) { const f = (u - P[i - 1].s) / Math.max(1e-6, P[i].s - P[i - 1].s); return P[i - 1][key] + (P[i][key] - P[i - 1][key]) * f; }
+    return P[P.length - 1][key];
+  };
+  if (R.loop) {
+    const u = ((X % L) + L) % L, B = R.seam ?? Math.max(20, Math.min(30, 0.15 * L));
+    if (u <= L - B) return lin(u);
+    const w = smooth((u - (L - B)) / B);
+    return lin(u) * (1 - w) + P[0][key] * w;
+  }
+  if (X <= L) return lin(Math.max(0, X));
+  const fade = Math.max(0, 1 - (X - L) / 30); // (past the end: backing off)
+  return key === 'peel' ? lin(L) * fade : 0;
+}
 export function ridgeAt(xs) {
   if (!WAVE.ridges) return 0;
+  if (WAVE.ridges.profile) return profileAt('k', RIDGE.c + xs);
   const X = RIDGE.c + xs; let k = 0;
   for (const r of RIDGE.list) { const d = (X - r.x) / r.w; if (d > -1 && d < 1) k += r.k * (0.5 + 0.5 * Math.cos(Math.PI * d)); }
   return Math.min(1, k);
@@ -172,6 +194,15 @@ export const holdPeel = () => (WAVE.ridges ? WAVE.peelSpeed * Math.sqrt(SIZE) : 
 // The curl's speed with ridges: the wave's own peel (by size) x up to `ridges.fast` where the curl is on a full ridge.
 // The curl advances by its speed, added up (never time x speed: anything varying the peel must integrate).
 function stepRidges(dt) {
+  if (WAVE.ridges.profile) { // (a built wave: the curl's speed from the stretch you marked)
+    RIDE.time += dt;
+    RIDGE.at = ridgeAt(0);
+    PEEL_SPEED = profileAt('peel', RIDGE.c) * Math.sqrt(SIZE);
+    RIDGE.c += PEEL_SPEED * dt;
+    if (!WAVE.ridges.loop && !RIDE.done && RIDGE.c >= WAVE.ridges.length) RIDE.done = { time: RIDE.time, c: RIDGE.c };
+    SHAPE.ver++;
+    return;
+  }
   const base = WAVE.peelSpeed * Math.sqrt(SIZE);
   RIDGE.at = ridgeAt(0);
   PEEL_SPEED = base * (1 + (WAVE.ridges.fast - 1) * RIDGE.at);
@@ -232,7 +263,7 @@ export function setWaveSize(k) {
   PEEL_SPEED = WAVE.peelSpeed * Math.sqrt(k);
   WAVE_SPEED = WAVE.waveSpeed * Math.sqrt(k);
   if (WAVE.bar) { PEEL_SPEED = 0; applyBar(); } // (the bar's map moves the curl; a set wave may have its own shapes)
-  if (WAVE.ridges) PEEL_SPEED *= 1 + (WAVE.ridges.fast - 1) * ridgeAt(0);
+  if (WAVE.ridges) PEEL_SPEED = WAVE.ridges.profile ? profileAt('peel', RIDGE.c) * Math.sqrt(k) : PEEL_SPEED * (1 + (WAVE.ridges.fast - 1) * ridgeAt(0));
 }
 
 // Sections: places along the wave that break differently for a while (a
