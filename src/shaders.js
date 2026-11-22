@@ -90,7 +90,7 @@ struct VO {
 struct WaterInfo { cols: u32, nx: u32, rows: u32, setA: u32, sMin: f32, sMax: f32, scale: f32, turquoise: f32, green: f32, blend: f32, setB: u32, ridges: f32 };
 @group(0) @binding(1) var<uniform> W: WaterInfo;
 @group(0) @binding(2) var<storage, read> table: array<vec4f>;   // [z, y, foam, thin] per (row, col)
-@group(0) @binding(3) var<storage, read> slices: array<vec4f>;  // [xs, phase, ridge, size] per slice
+@group(0) @binding(3) var<storage, read> slices: array<vec4f>;  // [xs, phase, shape, size] per slice
 
 fn tableSet(si: u32, s: f32, j: u32) -> vec4f {
   let f = clamp((s - W.sMin) / (W.sMax - W.sMin), 0.0, 1.0) * f32(W.rows - 1u);
@@ -102,10 +102,11 @@ fn tableSet(si: u32, s: f32, j: u32) -> vec4f {
 // (a wave with shape sets, Trestles: set A blended toward set B, as wave.js controlPoints does)
 // (a wave with ridges, Raglan+: set 0 blended toward the section shape, set 1, by this slice's ridge, as wave.js does)
 fn tableAt(s: f32, j: u32, ridge: f32) -> vec4f {
-  if (W.ridges > 0.5) {
-    let p = tableSet(0u, s, j);
-    if (ridge <= 0.0001) { return p; }
-    return mix(p, tableSet(1u, s, j), ridge);
+  if (W.ridges > 0.5) { // (the place on the shape scale: two neighbouring sets mixed; the CPU keeps it within the sets)
+    let i = u32(floor(ridge)); let f = ridge - floor(ridge);
+    let p = tableSet(i, s, j);
+    if (f <= 0.0001) { return p; }
+    return mix(p, tableSet(i + 1u, s, j), f);
   }
   let a = tableSet(W.setA, s, j);
   if (W.blend <= 0.0 || W.setB == W.setA) { return a; }

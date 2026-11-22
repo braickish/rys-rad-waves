@@ -38,7 +38,7 @@ A built wave is one size now; the builder knows the breaker height every 10 m.
 - Test: test/built.mjs: a profile with a step in H shows the face height following it smoothly (no jump), the loop seam
   included; other waves' tests unchanged.
 
-## 3. Mellow <-> steep by intensity (no tube yet)
+## 3. Mellow <-> steep by intensity (no tube yet) (done 2026-11-22; with a Slope option on arms)
 
 - Shapes: three sets on a scale, chosen by intensity: crumbly (Queens/KF_CRUMBLE-like, for spilling), Raglan's wall
   (mild plunging), Raglan+'s section shape (steep plunging). The per-slice blend becomes a position on that scale (two

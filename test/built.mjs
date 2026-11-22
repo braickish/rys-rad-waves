@@ -93,5 +93,46 @@ for (const [mode, data] of Object.entries(payloads)) {
   console.log(`  pump bot through it: ${(i * dt).toFixed(1)} s (${(W.RIDGE.c / 200).toFixed(1)} laps), ${r.mode === 'wipe' ? r.wipeReason : 'still riding'}, airs ${airs}`);
   check(i * dt > 15, 'size: a pumping rider rides through the size change (> 15 s)');
 }
+// Plan step 3: the shape follows how it breaks. The builder places each spot on the scale (u 0 crumbly, 1 Raglan's wall,
+// 2 the steep section) from xi; gentle / medium / steep arm slopes move it; the game's face steepens along the scale; riders
+// cope at both ends.
+{
+  const { shapeIndex } = await import('../src/builder/loop.js');
+  const { newBlock } = await import('../src/builder/blocks.js');
+  const us = {};
+  for (const slope of ['1:18', '1:10', '1:6']) {
+    const bl = dynamicPreset(); for (const b of bl) if (b.type === 'arm') b.slope = slope;
+    const g2 = buildDepth(reefComponents(bl), makeGrid()), A2 = analyse(traceRays(g2, swell), g2), lp2 = bestLoop(A2.left) || defaultLoop(A2.left);
+    const d2 = wavePayload(A2.left, 'left', 'loop', lp2.a, lp2.b, swell), u = d2.profile.map((p) => p.u);
+    us[slope] = u.reduce((x, y) => x + y, 0) / u.length;
+    console.log(`-- shape: arms ${slope}: xi0 ${A2.left.xi.toFixed(2)} (${A2.left.how}), shape scale ${Math.min(...u).toFixed(2)}-${Math.max(...u).toFixed(2)} (mean ${us[slope].toFixed(2)})`);
+  }
+  check(us['1:18'] < us['1:10'] && us['1:10'] < us['1:6'], 'shape: gentle arms sit softer on the scale, steep ones harder');
+  check(shapeIndex(0.3) === 0 && Math.abs(shapeIndex(0.8) - 1) < 1e-9 && shapeIndex(2) === 2, 'shape: crumbly at xi <= 0.4, the wall at 0.8, the section from 1.3');
+  const angAt = (frac) => { // (the face's angle at a height on it, at the curl)
+    const top = R.topOfFace(0.5), yT = W.surface(0.5, top)[1], yB = W.surface(0.5, R.TUNE.tBottom)[1], y = yB + frac * (yT - yB);
+    let t = R.TUNE.tBottom; for (; t > top; t -= 0.01) if (W.surface(0.5, t)[1] >= y) break;
+    const a = W.surface(0.5, t + 0.03), b = W.surface(0.5, t - 0.03); return Math.atan2(b[1] - a[1], Math.abs(b[2] - a[2])) * 57.3;
+  };
+  const res = {};
+  for (const u of [0, 1, 2]) {
+    const prof = []; for (let s0 = 0; s0 <= 200; s0 += 10) prof.push({ s: s0, peel: 8, k: 0, H: 2.1, c: 5.2, u });
+    applyBuilt({ v: 1, mode: 'loop', side: 'left', length: 200, base: 8, H: 2.1, c: 5.2, profile: prof }); R.useWave('built'); S.seedSea(1); S.nextWave();
+    const angles = [0.5, 0.75].map(angAt);
+    const r = R.createRider(); R.resetRider(r); r.events = []; R.stepRider(r, {}, 0);
+    let up = false, i = 0; const moves = {}; const dt = 1 / 120;
+    for (; i < 40 / dt; i++) {
+      S.stepSea(dt);
+      if (up && r.height > 0.8) up = false; if (!up && r.height < 0.15) up = true;
+      R.stepRider(r, Math.cos(r.phi) < 0 ? { aim: [1, -0.3] } : r.xs < -1 ? { aim: [1, 0.6] } : r.xs > 6 ? { aim: [-0.2, up ? 1 : -1] } : { tilt: up ? 1 : -1 }, dt);
+      for (const e of r.events) if (e.type === 'move' && e.move !== 'bottomTurn' || e.type === 'launch') moves[e.move || 'air'] = (moves[e.move || 'air'] || 0) + 1;
+      if (r.mode === 'wipe') break;
+    }
+    res[u] = { angles, t: i * dt };
+    console.log(`  u ${u}: face ${angles.map((a) => a.toFixed(0)).join(' / ')} deg at half / 3/4 height; pump bot ${(i * dt).toFixed(1)} s ${r.mode === 'wipe' ? '(' + r.wipeReason + ')' : 'still riding'}, moves ${JSON.stringify(moves)}`);
+  }
+  check(res[0].angles[0] < res[1].angles[0] && res[1].angles[0] < res[2].angles[0], 'shape: the face steepens along the scale (crumbly < wall < section)');
+  check(res[0].t > 15 && res[2].t > 15, 'shape: a pumping rider rides both the crumbly and the steep wave (> 15 s)');
+}
 console.log(fails ? 'SOME FAILED' : 'all ok');
 process.exitCode = fails ? 1 : 0;

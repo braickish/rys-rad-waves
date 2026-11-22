@@ -8,7 +8,7 @@ import { buildDepth, makeGrid } from './reef.js';
 import { traceRays, analyse } from './rays.js';
 import { LOOP, curlAt, defaultLoop, clampLoop, loopInfo, snapEnd, bestLoop, wavePayload } from './loop.js';
 import { encodeBuilt, BUILT_KEY } from '../waves/built.js';
-import { BLOCKS, SNAP, ARM_ANGLES, ARM_LENGTHS, ROTATIONS, reefComponents, newBlock, dynamicPreset, armRot, nearestArm } from './blocks.js';
+import { BLOCKS, SNAP, ARM_ANGLES, ARM_LENGTHS, ARM_SLOPES, ROTATIONS, reefComponents, newBlock, dynamicPreset, armRot, nearestArm } from './blocks.js';
 
 const canvas = document.getElementById('map'), ctx = canvas.getContext('2d');
 const VIEW = { x0: 600, x1: 1262 }; // (x' shown: the deep water further out is all alike)
@@ -369,6 +369,7 @@ function showSel() {
     el.appendChild(opt('Angle', ARM_ANGLES, b.angle, (v) => `${v}°`, (v) => { b.angle = v; }));
   }
   if (b.type === 'arm') el.appendChild(opt('Length', ARM_LENGTHS, b.length, (v) => `${v} m`, (v) => { b.length = v; }));
+  if (b.type === 'arm') el.appendChild(opt('Slope', ARM_SLOPES.map(([g]) => g), b.slope || '1:10', (v) => ARM_SLOPES.find(([g]) => g === v)[1], (v) => { b.slope = v; }));
   if (b.type === 'ridge' || b.type === 'channel') {
     el.appendChild(opt('Turn', ROTATIONS, b.rot, (v) => `${v}°`, (v) => { b.rot = v; }));
     el.appendChild(opt('Length', b.type === 'ridge' ? [50, 80, 120] : [140, 220, 320], b.length, (v) => `${v} m`, (v) => { b.length = v; }));

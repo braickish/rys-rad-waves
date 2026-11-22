@@ -207,7 +207,16 @@ section (25-30 deg), backing off (slower than 70 deg, or a gap), or closing out 
   controlPoints(.., xs), the GPU via the slice's 4th float, shaders.js surfacePoint). The takeoff and the wave's speed come
   from the builder (the user): you drop in at the curl's speed where the stretch starts (dropInSpeed = PEEL_SPEED there),
   and `waveSpeed` is the builder's median c at breaking (was Raglan's fixed 5 m/s). Best loop now starts past the takeoff
-  (a lap through the peak's slow first metres stalled each time). Not yet: the reef's own breaking intensity (step 3).
+  (a lap through the peak's slow first metres stalled each time).
+  Plan step 3 (2026-11-22): the shape follows how it breaks. A built wave has three shapes on a scale (built.js `shapes`):
+  `KF_CRUMBLY` (raglan-plus.js `sectionKF` the other way: face drawn out 1.45x, 0.92 tall, lip held back), Raglan's wall,
+  `KF_SECTION`. The builder places each 10 m on it (loop.js `shapeIndex`: u 0 at xi0 <= 0.4, 1 at 0.8, 2 from 1.3; xi
+  averaged over +-20 m) and the game blends the two neighbouring shapes there (wave.js `shapeU`, controlPoints; the GPU
+  slice's 3rd float, shaders.js tableAt mixes table i and i+1; Raglan+ is the same blend with its ridges, 0-1). The
+  section strength `k` still only drives the curl's speed. Face at half height: crumbly 41, wall 54, section 67 deg. Arms
+  have a Slope (Gentle 1:18 / Medium 1:10 / Steep 1:6: the hollowness dial; 1:16 and gentler broke up in the rays): on
+  Dynamic xi0 0.66 / 0.88 / 1.11, scale 0.65 / 1.31 / 1.73. Reefs are steep, so truly crumbly waves need gentle slopes and
+  short-period swell (9 s on 1:18 arms: 0.52).
 - Zoom (the user, 2026-11-22): wheel / trackpad pinch about the pointer, two-finger pinch, drag the water to pan, and − / + / Fit
   in the map's corner (up to 6x; handles, labels and line widths keep their screen size; the scale bar picks a round length).
   `?zoom=2.5` opens zoomed on the peak (testing).

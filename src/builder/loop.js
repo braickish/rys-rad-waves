@@ -14,7 +14,7 @@ export function curlAt(curl, s) {
   if (s <= curl[0].s) return curl[0];
   for (let k = 1; k < curl.length; k++) {
     const p = curl[k - 1], q = curl[k];
-    if (s <= q.s) { const f = (s - p.s) / Math.max(1e-6, q.s - p.s); return { x: p.x + (q.x - p.x) * f, y: p.y + (q.y - p.y) * f, t: p.t + (q.t - p.t) * f, H: p.H + (q.H - p.H) * f, c: p.c + (q.c - p.c) * f, s, kind: q.kind }; }
+    if (s <= q.s) { const f = (s - p.s) / Math.max(1e-6, q.s - p.s); return { x: p.x + (q.x - p.x) * f, y: p.y + (q.y - p.y) * f, t: p.t + (q.t - p.t) * f, H: p.H + (q.H - p.H) * f, c: p.c + (q.c - p.c) * f, xi: p.xi + (q.xi - p.xi) * f, s, kind: q.kind }; }
   }
   return curl[curl.length - 1];
 }
@@ -42,7 +42,8 @@ export function loopInfo(side, a, b, step = 10) {
     // (the game's peel speed is the curl's speed along the crest, in the wave's own frame: the break point runs along the
     // reef at v = c / sin(alpha) while the wave carries it in at c, so along the crest it's sqrt(v^2 - c^2) = c / tan(alpha))
     const peel = Math.sqrt(Math.max(0, v * v - p.c * p.c));
-    prof.push({ s: s - a, v, peel, c: p.c, H: p.H, kind: p.kind });
+    let xs = 0, xn = 0; for (let d = -20; d <= 20; d += 5) { const q2 = curlAt(side.curl, Math.min(b, Math.max(a, s + d))); if (q2 && isFinite(q2.xi)) { xs += q2.xi; xn++; } }
+    prof.push({ s: s - a, v, peel, c: p.c, H: p.H, xi: xn ? xs / xn : NaN, kind: p.kind }); // (xi: how it breaks, averaged over +-20 m)
   }
   const vs = prof.map((p) => p.v), mean = vs.reduce((x, y) => x + y, 0) / vs.length;
   let sections = 0, inSec = false;
@@ -101,6 +102,14 @@ export function bestLoop(side) {
 // What DROP IN hands the game (src/waves/built.js): the stretch's profile every 10 m (peel speed along the crest, section
 // strength, breaker height), whether it loops, which way it peels, and the wave's base pace (what trimming holds: the
 // median peel outside the sections, as Raglan+'s plain wall).
+// Where a spot sits on the built wave's shape scale (plan step 3), from how it breaks (xi0, rays.js): 0 crumbly at xi 0.4
+// and below (spilling < 0.5), 1 Raglan's wall at 0.8 (a mild plunge), 2 the steep section shape from 1.3 (pitching).
+export function shapeIndex(xi) {
+  if (!isFinite(xi)) return 1;
+  if (xi <= 0.4) return 0;
+  if (xi <= 0.8) return (xi - 0.4) / 0.4;
+  return Math.min(2, 1 + (xi - 0.8) / 0.5);
+}
 export function wavePayload(side, which, mode, a, b, swell) {
   const I = loopInfo(side, a, b);
   const plain = I.profile.filter((p) => p.kind !== 'section').map((p) => p.peel).sort((x, y) => x - y);
@@ -111,6 +120,6 @@ export function wavePayload(side, which, mode, a, b, swell) {
     // (H: the reference height the wave is sized to, and per point the size along it (plan step 2); c: the wave's speed
     // toward the shore at breaking, for the game's wave speed; the takeoff speed is the curl's at the stretch's start)
     v: 1, mode, side: which, length: I.length, base, H: med('H'), c: med('c'), swell,
-    profile: I.profile.map((p) => ({ s: p.s, peel: +p.peel.toFixed(2), k: p.kind === 'section' ? 1 : 0, H: +p.H.toFixed(2), c: +p.c.toFixed(2) })),
+    profile: I.profile.map((p) => ({ s: p.s, peel: +p.peel.toFixed(2), k: p.kind === 'section' ? 1 : 0, H: +p.H.toFixed(2), c: +p.c.toFixed(2), u: +shapeIndex(p.xi).toFixed(3) })),
   };
 }

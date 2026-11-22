@@ -5,7 +5,8 @@
 // `ridges.profile`), sized to the breakers, peeling the way you chose.
 // The payload comes in the page's hash (#built=<base64 JSON>, so a link carries the wave) or, failing that, from
 // localStorage (the last break you dropped into). With neither, a plain Raglan+-like wall at 17 mph.
-import raglanPlus from './raglan-plus.js';
+import raglanPlus, { KF_SECTION, KF_CRUMBLY } from './raglan-plus.js';
+import point from './point.js';
 
 const FALLBACK = { v: 1, mode: 'loop', side: 'left', length: 200, base: 7.6, H: 2.1, profile: [{ s: 0, peel: 7.6, k: 0, H: 2.1 }, { s: 200, peel: 7.6, k: 0, H: 2.1 }] };
 export const BUILT_KEY = 'rys-rad-waves-built';
@@ -24,7 +25,9 @@ export function readBuilt() {
 }
 export const encodeBuilt = (data) => encodeURIComponent(btoa(unescape(encodeURIComponent(JSON.stringify(data)))));
 
-const wave = { ...raglanPlus, id: 'built', name: 'Your break', hidden: true }; // (hidden: not on the title screen's list)
+// (hidden: not on the title screen's list). Shapes on a scale by how it breaks (plan step 3): crumbly (spilling), Raglan's
+// wall (a mild plunge), Raglan+'s section shape (pitching); the profile's `u` (0-2) places each spot on it.
+const wave = { ...raglanPlus, id: 'built', name: 'Your break', hidden: true, shapes: [KF_CRUMBLY, point.keyframes, KF_SECTION] };
 
 // Set the wave from a builder payload (at load from the hash / localStorage; tests and a later in-game swap call it too,
 // then useWave('built')).

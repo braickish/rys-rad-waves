@@ -178,11 +178,19 @@ function profileAt(key, X) {
   }
   if (X <= L) return lin(Math.max(0, X));
   const fade = Math.max(0, 1 - (X - L) / 30); // (past the end: backing off; the size stays as it was at the end)
-  return key === 'peel' ? lin(L) * fade : key === 'H' ? lin(L) : 0;
+  return key === 'peel' ? lin(L) * fade : key === 'H' || key === 'u' ? lin(L) : 0;
 }
 // The wave's size at xs (plan step 2): a built wave grows and shrinks along its stretch with the breakers the builder found
 // there, against the height it's scaled to (WAVE.built.H); 1 everywhere else. Applied to the whole cross-section, so the
 // face keeps its shape and angles and just gets taller or smaller.
+// Where on its shape scale the wave is at xs (0 .. SHAPES.length - 1): a built wave by how it breaks there (plan step 3: the
+// builder's profile `u`, from the surf-similarity number), Raglan+ by its ridges (plain 0, section 1).
+export function shapeU(xs) {
+  if (!WAVE.ridges) return 0;
+  const P = WAVE.ridges.profile;
+  if (P && P[0].u != null) return Math.min(SHAPES.length - 1, Math.max(0, profileAt('u', RIDGE.c + xs)));
+  return ridgeAt(xs);
+}
 export function sizeAt(xs) {
   if (!WAVE.ridges || !WAVE.ridges.profile || !WAVE.built || !(WAVE.built.H > 0) || WAVE.ridges.profile[0].H == null) return 1;
   return Math.min(1.8, Math.max(0.5, profileAt('H', RIDGE.c + xs) / WAVE.built.H));
@@ -318,9 +326,10 @@ const _cpB = new Float64Array(NP * 2);
 export function controlPoints(s, out = new Float64Array(NP * 2), scale = SCALE, xs) {
   // (a wave with `ridges`, Raglan+: the plain shape blended toward the section shape by the reef ridge under xs)
   if (WAVE.ridges && xs !== undefined && SHAPE.a === SHAPE.b) {
-    kfPoints(SHAPES[0], s, out, scale);
-    const w = ridgeAt(xs);
-    if (w > 1e-4) { kfPoints(SHAPES[1], s, _cpB, scale); for (let i = 0; i < NP * 2; i++) out[i] += (_cpB[i] - out[i]) * w; }
+    // (the place on the wave's shape scale: Raglan+ 0-1 plain -> section by the ridge; a built wave 0-2 by how it breaks)
+    const u = shapeU(xs), i = Math.min(SHAPES.length - 2, Math.floor(u)), w = u - i;
+    kfPoints(SHAPES[i], s, out, scale);
+    if (w > 1e-4) { kfPoints(SHAPES[i + 1], s, _cpB, scale); for (let q = 0; q < NP * 2; q++) out[q] += (_cpB[q] - out[q]) * w; }
     const f = sizeAt(xs); // (a built wave's size along its stretch)
     if (f !== 1) for (let i = 0; i < NP * 2; i++) out[i] *= f;
     return out;

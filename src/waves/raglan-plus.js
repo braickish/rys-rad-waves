@@ -11,7 +11,7 @@ import point from './point.js';
 // outer points pushed a touch forward (`pitch`, m). Fades out toward the far swell (nothing at s -9, full from -3.5), so
 // the steeper wall stands up as the wave nears breaking. Points keep their order (no overhang on the face).
 const C = 4, TROUGH = 14; // control point indices (wave.js I.CREST, I.TROUGH)
-function sectionKF(kf, { narrow = 0.66, tall = 1.1, pitch = 0.35 } = {}) {
+export function sectionKF(kf, { narrow = 0.66, tall = 1.1, pitch = 0.35 } = {}) {
   return kf.map(({ s, p }) => {
     const k = Math.min(1, Math.max(0, (s + 9) / 5.5)) * (s > 1.2 ? 0.5 : 1); // (the whitewater behind stays closer to plain)
     const n = 1 - (1 - narrow) * k, h = 1 + (tall - 1) * k;
@@ -25,7 +25,10 @@ function sectionKF(kf, { narrow = 0.66, tall = 1.1, pitch = 0.35 } = {}) {
   });
 }
 
-const KF_SECTION = sectionKF(point.keyframes);
+export const KF_SECTION = sectionKF(point.keyframes);
+// The softer end (built waves, plan step 3): the same transform the other way, the face drawn out (1.45x) and a little lower,
+// the lip held back: a crumbly, spilling wall.
+export const KF_CRUMBLY = sectionKF(point.keyframes, { narrow: 1.45, tall: 0.92, pitch: -0.15 });
 
 export default {
   ...point,

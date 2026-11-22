@@ -6,11 +6,14 @@
 export const SNAP = 10; // positions snap to a 10 m grid
 export const ARM_ANGLES = [30, 45, 60]; // between the arm's depth contours and straight-in crests: narrower = faster peel
 export const ARM_LENGTHS = [150, 212, 280];
+// The reef line's slope (plan step 3): the hollowness dial, leaving the peel alone (research/reef-generator's sweep):
+// gentle breaks softer, steep pitches. (1:16 and gentler broke into pieces in the ray model.)
+export const ARM_SLOPES = [['1:18', 'Gentle'], ['1:10', 'Medium'], ['1:6', 'Steep']];
 export const ROTATIONS = [0, 30, 45, 60, 90, 120, 135, 150]; // ridge / channel direction, degrees from straight in
 
 export const BLOCKS = {
   peak: { label: 'Peak', blurb: 'A rounded point of reef: focuses the swell into a takeoff peak.' },
-  arm: { label: 'Arm', blurb: 'A sloping reef line off a peak: its angle sets the peel. 30 deg fast, 60 deg mellow.' },
+  arm: { label: 'Arm', blurb: 'A sloping reef line off a peak: its angle sets the peel (30 deg fast, 60 deg mellow), its slope how hollow it breaks (gentle crumbles, steep pitches).' },
   ridge: { label: 'Ridge', blurb: 'A bar laid along an arm: the arm stands up steeper there, a fast section you pump through. Turned across the wave it closes out.' },
   pinnacle: { label: 'Pinnacle', blurb: 'A round bommie: the wave wraps and stands up over it.' },
   ledge: { label: 'Ledge', blurb: 'A sudden step up from deep water: a heavy section (the fast model over-reads its size).' },
@@ -24,7 +27,7 @@ export function blockComponents(b) {
   const rad = (d) => d * Math.PI / 180;
   switch (b.type) {
     case 'peak': return [{ type: 'focus', apex: [b.x, b.y], width_m: 220, convexity: 0.667, depth_m: 3.0, gradient: '1:10' }];
-    case 'arm': return [{ type: 'wedge', start: [b.x, b.y], side: b.side, length_m: b.length, gradient: '1:10', angle_to_swell_deg: b.angle, depth_m: 3.0, top_depth_m: 1.0 }];
+    case 'arm': return [{ type: 'wedge', start: [b.x, b.y], side: b.side, length_m: b.length, gradient: b.slope || '1:10', angle_to_swell_deg: b.angle, depth_m: 3.0, top_depth_m: 1.0 }];
     case 'ridge': {
       const ux = Math.cos(rad(b.rot)), uy = Math.sin(rad(b.rot)), h = b.length / 2;
       return [{ type: 'ridge', points: [[b.x - ux * h, b.y - uy * h], [b.x + ux * h, b.y + uy * h]], depth_m: 2.6, width_m: 35 }]; // (2.6 m crest, a little shallower than the arm's 3 m toe: a section the curl still makes; 1.8 m closed out)
@@ -59,7 +62,7 @@ export const reefComponents = (blocks) => [...FLOOR, ...blocks.flatMap(blockComp
 let nextId = 1;
 export function newBlock(type, x, y) {
   const b = { id: nextId++, type, x, y };
-  if (type === 'arm') Object.assign(b, { side: -1, angle: 45, length: 212 });
+  if (type === 'arm') Object.assign(b, { side: -1, angle: 45, length: 212, slope: '1:10' });
   if (type === 'ledge') Object.assign(b, { side: -1, angle: 45 });
   if (type === 'ridge') Object.assign(b, { rot: 135, length: 80 });
   if (type === 'channel') Object.assign(b, { rot: 0, length: 220 });
