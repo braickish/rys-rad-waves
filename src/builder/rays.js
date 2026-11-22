@@ -15,6 +15,12 @@ import { blur } from './reef.js';
 const g = 9.81;
 export const RAYS = { gamma: 0.78, closeout: 25, jump: 40, kw: 10, maxGap: 6, spacing: 2, dt: 0.2, tmax: 320, x0: 160 };
 
+// How it breaks, by the surf-similarity number xi0 = tan(beta) / sqrt(H0 / L0) (Iribarren; Battjes 1974: spilling < 0.5,
+// plunging 0.5-3.3, surging above). Mead & Black (2001) tie reef breaking intensity to the same seabed slope along the
+// wave's path. Within plunging our split (provisional, to tune against shapes in steps 3-5 of the plan): steep (a mild
+// plunge) to 0.9, pitching to 1.5, barrelling above.
+export const BREAK_TYPES = [[0.5, 'crumbly'], [0.9, 'steep'], [1.5, 'pitching'], [Infinity, 'barrelling']];
+export const breakType = (xi) => BREAK_TYPES.find(([lim]) => xi < lim)[1];
 export const skillBand = (a) => (a < RAYS.closeout ? 'closeout' : a < 30 ? 'expert' : a < 50 ? 'advanced' : a < 70 ? 'intermediate' : 'beginner');
 
 function kOf(h, T) {
@@ -44,6 +50,14 @@ export function traceRays(grid, swell) {
     Cx[q] = (C[j * M + Math.min(M - 1, i + 1)] - C[j * M + Math.max(0, i - 1)]) / ((Math.min(M - 1, i + 1) - Math.max(0, i - 1)) * dx);
     Cy[q] = (C[Math.min(N - 1, j + 1) * M + i] - C[Math.max(0, j - 1) * M + i]) / ((Math.min(N - 1, j + 1) - Math.max(0, j - 1)) * dx);
   }
+  // the seabed's gradient (depth smoothed over 4 m, as research/reef-generator's ray_zone.py), for the slope the wave
+  // breaks on (breaking intensity)
+  const h4 = blur(grid.depth.map((d) => Math.max(d, 0.05)), M, N, 4 / dx), Hx = new Float32Array(M * N), Hy = new Float32Array(M * N);
+  for (let j = 0; j < N; j++) for (let i = 0; i < M; i++) {
+    const i0 = Math.max(0, i - 1), i1 = Math.min(M - 1, i + 1), j0 = Math.max(0, j - 1), j1 = Math.min(N - 1, j + 1);
+    Hx[j * M + i] = (h4[j * M + i1] - h4[j * M + i0]) / ((i1 - i0) * dx);
+    Hy[j * M + i] = (h4[j1 * M + i] - h4[j0 * M + i]) / ((j1 - j0) * dx);
+  }
   // bilinear sample at (x', y') in metres (cell centres at +0.5)
   const samp = (F, x, y) => {
     let u = (x - gx0) / dx - 0.5, v = (y - gy0) / dx - 0.5;
@@ -54,7 +68,7 @@ export function traceRays(grid, swell) {
   const sp = RAYS.spacing, n = Math.floor((N * dx) / sp), th0 = -swell.dir * Math.PI / 180; // (peelrays: theta0 = -dir)
   const x = new Float64Array(n), y = new Float64Array(n), th = new Float64Array(n), alive = new Uint8Array(n).fill(1);
   const tb = new Float64Array(n).fill(NaN), xb = new Float64Array(n).fill(NaN), yb = new Float64Array(n).fill(NaN);
-  const hb = new Float64Array(n).fill(NaN), Hb = new Float64Array(n).fill(NaN), cb = new Float64Array(n).fill(NaN);
+  const hb = new Float64Array(n).fill(NaN), Hb = new Float64Array(n).fill(NaN), cb = new Float64Array(n).fill(NaN), sb = new Float64Array(n).fill(NaN);
   for (let r = 0; r < n; r++) { x[r] = RAYS.x0; y[r] = gy0 + (r + 0.5) * sp; th[r] = th0; }
   const cg0 = look(cgT, samp(hs, RAYS.x0, y[0])), b0 = sp * Math.cos(th0), kw = Math.max(1, Math.round(RAYS.kw / sp));
   const H = new Float64Array(n), crests = [];
@@ -67,7 +81,9 @@ export function traceRays(grid, swell) {
       const Kr = Math.sqrt(Math.min(6.25, Math.max(0, b0 / Math.max(b, 1e-3))));
       const h = samp(hs, x[r], y[r]);
       H[r] = swell.H * Math.sqrt(cg0 / look(cgT, h)) * Kr;
-      if (H[r] >= RAYS.gamma * h || h < 0.3) { tb[r] = t; xb[r] = x[r]; yb[r] = y[r]; hb[r] = h; Hb[r] = H[r]; cb[r] = samp(C, x[r], y[r]); alive[r] = 0; nAlive--; }
+      if (H[r] >= RAYS.gamma * h || h < 0.3) { tb[r] = t; xb[r] = x[r]; yb[r] = y[r]; hb[r] = h; Hb[r] = H[r]; cb[r] = samp(C, x[r], y[r]);
+        sb[r] = -(samp(Hx, x[r], y[r]) * Math.cos(th[r]) + samp(Hy, x[r], y[r]) * Math.sin(th[r])); // (the bottom rising in the wave's direction)
+        alive[r] = 0; nAlive--; }
     }
     if (step % 25 === 0) crests.push({ t, x: Float32Array.from(x), y: Float32Array.from(y), alive: Uint8Array.from(alive) }); // (every 5 s: the crest lines)
     for (let r = 0; r < n; r++) {
@@ -79,7 +95,8 @@ export function traceRays(grid, swell) {
     }
     t += RAYS.dt; step++;
   }
-  return { tb, xb, yb, hb, Hb, cb, crests, n };
+  const L0 = g * T * T / (2 * Math.PI);
+  return { tb, xb, yb, hb, Hb, cb, sb, crests, n, H0: swell.H, L0 };
 }
 
 // When each 4 m strip along the reef first breaks (5-strip running median), then from the earliest spot (the peak) both
@@ -93,9 +110,9 @@ export function analyse(R, grid, { binM = 4, step = 20 } = {}) {
   for (let e = yLo; e < yHi; e += binM) {
     let best = -1;
     for (let r = 0; r < R.n; r++) if (R.hb[r] > 0.4 && R.yb[r] >= e && R.yb[r] < e + binM && (best < 0 || R.tb[r] < R.tb[best])) best = r;
-    strips.push(best < 0 ? [e + binM / 2, NaN, NaN, NaN, NaN] : [e + binM / 2, R.tb[best], R.xb[best], R.cb[best], R.Hb[best]]);
+    strips.push(best < 0 ? [e + binM / 2, NaN, NaN, NaN, NaN, NaN] : [e + binM / 2, R.tb[best], R.xb[best], R.cb[best], R.Hb[best], R.sb[best]]);
   }
-  for (let col = 1; col <= 4; col++) { // (running median over 5 strips: where rays cross a strip breaks a second or two off)
+  for (let col = 1; col <= 5; col++) { // (running median over 5 strips: where rays cross a strip breaks a second or two off)
     const v = strips.map((s) => s[col]);
     for (let i = 0; i < v.length; i++) {
       if (!isFinite(v[i])) continue;
@@ -148,12 +165,15 @@ export function analyse(R, grid, { binM = 4, step = 20 } = {}) {
       if (s[k] > ride && closed) kind = 'closeout';
       else if (gaps.includes(k) || (sg && sg.a > 70 && s[k] > step)) kind = 'backoff';
       else if (sg && sg.a < 30 && s[k] > step) kind = 'section';
-      return { x: p[2], y: p[0], t: tc, s: s[k], H: p[4], c: p[3], kind }; // (c: the wave's speed at breaking there)
+      const xi = Math.max(0, p[5]) / Math.sqrt(R.H0 / R.L0); // (surf-similarity, Battjes' xi0: the slope it breaks on / sqrt(H0 / L0))
+      return { x: p[2], y: p[0], t: tc, s: s[k], H: p[4], c: p[3], slope: p[5], xi, how: breakType(xi), kind }; // (c: the wave's speed at breaking there)
     });
     const inRide = segs.filter((q) => q.e0 < ride && q.e0 >= step).map((q) => q.a).sort((a, b) => a - b);
     const med = inRide.length ? inRide[Math.floor(inRide.length / 2)] : NaN;
     const Hs = segs.filter((q) => q.e0 < ride).map((q) => q.H).sort((a, b) => a - b);
-    out[side] = { curl, segs, ride, line: s[s.length - 1], peel: med, band: isFinite(med) ? skillBand(med) : '-', H: Hs.length ? Hs[Math.floor(Hs.length / 2)] : NaN, end, seconds: curl.length ? curl[curl.length - 1].t - curl[0].t : 0 };
+    const xis = curl.filter((p) => p.s >= step && p.s <= ride).map((p) => p.xi).sort((a, b) => a - b);
+    const xiMed = xis.length ? xis[Math.floor(xis.length / 2)] : NaN;
+    out[side] = { xi: xiMed, how: isFinite(xiMed) ? breakType(xiMed) : '-', curl, segs, ride, line: s[s.length - 1], peel: med, band: isFinite(med) ? skillBand(med) : '-', H: Hs.length ? Hs[Math.floor(Hs.length / 2)] : NaN, end, seconds: curl.length ? curl[curl.length - 1].t - curl[0].t : 0 };
   }
   return out;
 }

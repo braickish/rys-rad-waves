@@ -43,6 +43,21 @@ for (const side of ['right', 'left']) {
   check(I && I.profile.length === Math.floor(I.length / 10) + 1, `${side}: the loop's profile has a point every 10 m`);
 }
 check(clampLoop(A.right, 0, 9999).b <= A.right.ride && clampLoop(A.right, 200, 210) === null || clampLoop(A.right, 200, 210)?.b - clampLoop(A.right, 200, 210)?.a >= LOOP.min, 'a loop stays inside the ride and at least LOOP.min long');
+// Breaking intensity (plan step 1): xi0 = the seabed slope along the wave / sqrt(H0 / L0). Python's ray_zone.py on this
+// reef: the right arm ~0.9-1.5 (plunging). Steeper reef lines and longer periods break harder; the peel barely changes.
+console.log(`intensity: right xi0 ${A.right.xi.toFixed(2)} (${A.right.how}), left ${A.left.xi.toFixed(2)} (${A.left.how})`);
+check(A.left.xi > 0.5 && A.left.xi < 3.3 && A.right.xi > 0.5 && A.right.xi < 3.3, 'both arms plunge (xi0 0.5-3.3, as the Python model)');
+{
+  const arms = (grad, T = 15) => {
+    const D = [DYNAMIC[0], { ...DYNAMIC[1], gradient: grad }, { ...DYNAMIC[3], gradient: grad }];
+    const g = buildDepth(D, makeGrid()); return analyse(traceRays(g, { ...swell, T }), g).left;
+  };
+  const x6 = arms('1:6'), x10 = arms('1:10'), x15 = arms('1:15'), t10 = arms('1:10', 10), t18 = arms('1:10', 18);
+  console.log(`  arm line 1:6 / 1:10 / 1:15: xi0 ${x6.xi.toFixed(2)} / ${x10.xi.toFixed(2)} / ${x15.xi.toFixed(2)} (peel ${x6.peel.toFixed(0)} / ${x10.peel.toFixed(0)} / ${x15.peel.toFixed(0)}); 10 / 18 s: ${t10.xi.toFixed(2)} / ${t18.xi.toFixed(2)}`);
+  check(x6.xi > x10.xi && x10.xi > x15.xi, 'a steeper reef line breaks harder');
+  check(Math.abs(x6.peel - x15.peel) < 5, 'the reef line\'s gradient leaves the peel alone (within 5 deg)');
+  check(t18.xi > t10.xi, 'a longer-period swell breaks harder on the same reef');
+}
 check(tBuild + tRays + tAn < 400, `rebuild + trace under 400 ms in node (${(tBuild + tRays + tAn).toFixed(0)})`);
 console.log(fails ? 'SOME FAILED' : 'all ok');
 process.exitCode = fails ? 1 : 0;

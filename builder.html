@@ -18,6 +18,8 @@
   h1 { font-family: Bungee, sans-serif; font-weight: 400; color: var(--yellow); font-size: 34px; margin: 0; line-height: 1; }
   .sub { color: var(--dim); margin: 6px 0 14px; font-size: 15px; }
   .mapwrap { position: relative; }
+  .mapctl { position: absolute; top: 12px; right: 12px; background: rgba(11,26,36,.6); border-radius: 22px; padding: 4px; }
+  .mapctl button { padding: 5px 11px; font-size: 12px; }
   #map { width: 100%; height: calc(100vh - 140px); min-height: 420px; display: block; border-radius: 16px; background: var(--panel); touch-action: none; cursor: default; }
   .panel { background: var(--panel); border-radius: 16px; padding: 16px; display: flex; flex-direction: column; gap: 16px; align-self: start; }
   h2 { font-family: Bungee, sans-serif; font-weight: 400; font-size: 15px; margin: 0 0 8px; letter-spacing: .02em; }
@@ -38,6 +40,7 @@
   .res .side { font-family: Bungee, sans-serif; font-size: 13px; color: var(--yellow); }
   .res .end { color: var(--dim); font-size: 12px; }
   .res .bad { color: var(--red); }
+  .legend[hidden] { display: none; }
   .legend { display: grid; grid-template-columns: 34px 1fr; gap: 6px 10px; align-items: center; font-size: 12px; color: var(--dim); }
   .sw { height: 6px; border-radius: 3px; }
   .note { font-size: 12px; color: var(--dim); line-height: 1.4; }
@@ -54,7 +57,7 @@
   <div>
     <h1>Build a Break</h1>
     <p class="sub">Drag the reef blocks (the round handles) around the bay and watch where the wave breaks. Prototype: the curl comes from a fast wave-ray model, checked against FUNWAVE on the Dynamic reef.</p>
-    <div class="mapwrap"><canvas id="map"></canvas></div>
+    <div class="mapwrap"><canvas id="map"></canvas><div class="row mapctl" id="colorby"></div></div>
   </div>
   <div class="panel">
     <div>
@@ -76,12 +79,20 @@
       <h2>Ride it</h2>
       <div id="ride"></div>
     </div>
-    <div class="legend">
+    <div class="legend" id="legend-time">
       <div class="sw" style="background: linear-gradient(90deg, var(--yellow), var(--pink))"></div><div>the curl, as it peels (a tick every 5 s; ◆ where it first breaks)</div>
       <div class="sw" style="background: var(--pink); box-shadow: 0 0 6px var(--pink)"></div><div>fast section: steep, you'll need to pump</div>
       <div class="sw" style="background: repeating-linear-gradient(90deg, #fff 0 5px, transparent 5px 9px); opacity: .7"></div><div>backs off: deeper water, the wave slows or fades</div>
       <div class="sw" style="background: var(--red)"></div><div>closes out: breaks all at once</div>
       <div class="sw" style="background: rgba(255,255,255,.35)"></div><div>wave crests every 5 s</div>
+    </div>
+    <div class="legend" id="legend-break" hidden>
+      <div class="sw" style="background: #bdf5e6"></div><div>crumbly: spills down the face, soft and forgiving</div>
+      <div class="sw" style="background: #ffd426"></div><div>steep: stands up and plunges a little</div>
+      <div class="sw" style="background: #ff7a2f"></div><div>pitching: the lip throws, hollow</div>
+      <div class="sw" style="background: #c13bff"></div><div>barrelling: throws far enough to make a tube</div>
+      <div class="sw" style="background: linear-gradient(90deg, var(--red) 0 45%, transparent 45% 55%, rgba(255,255,255,.7) 55%)"></div><div>closes out (red) / backs off (dashed), as before</div>
+      <div class="note" style="grid-column: 1 / -1">How it breaks comes from the reef's slope under the wave against the swell's steepness (the surf-similarity number ξ). The split between steep, pitching and barrelling is provisional.</div>
     </div>
     <div class="row">
       <button id="reset">Start from Dynamic</button>

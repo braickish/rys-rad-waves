@@ -18,7 +18,7 @@ const BAND_RGB = BANDS.map(([a, b, c]) => [a, b, parseInt(c.slice(1, 3), 16), pa
 const COL = { yellow: [255, 212, 38], pink: [255, 61, 139], red: '#ff4b4b' };
 
 const state = { blocks: dynamicPreset(), sel: null, swell: { H: 1.6, T: 15, dir: 0 }, grid: null, rays: null, wave: null, dirty: true, ms: 0,
-  loop: { on: false, side: 'right', a: null, b: null, info: null } }; // (loop: a stretch of one side to surf on repeat, loop.js)
+  loop: { on: false, side: 'right', a: null, b: null, info: null }, colorBy: 'time' }; // (loop: a stretch of one side to surf on repeat, loop.js)
 let view = null; // the map's placement on the canvas
 const depthImg = document.createElement('canvas');
 
@@ -39,12 +39,12 @@ function recompute() {
 // The design is remembered (in this browser) so coming back from riding it finds it as you left it.
 const SAVE_KEY = 'rys-rad-waves-builder';
 function save() {
-  try { localStorage.setItem(SAVE_KEY, JSON.stringify({ blocks: state.blocks, swell: state.swell, loop: { on: state.loop.on, side: state.loop.side, a: state.loop.a, b: state.loop.b } })); } catch {}
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify({ blocks: state.blocks, swell: state.swell, loop: { on: state.loop.on, side: state.loop.side, a: state.loop.a, b: state.loop.b }, colorBy: state.colorBy })); } catch {}
 }
 function restore() {
   try {
     const j = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null'); if (!j || !Array.isArray(j.blocks)) return;
-    state.blocks = j.blocks; Object.assign(state.swell, j.swell || {}); Object.assign(state.loop, j.loop || {});
+    state.blocks = j.blocks; Object.assign(state.swell, j.swell || {}); Object.assign(state.loop, j.loop || {}); if (j.colorBy) state.colorBy = j.colorBy;
     for (const [id, key] of [['H', 'H'], ['T', 'T'], ['D', 'dir']]) document.getElementById(id).value = state.swell[key];
   } catch {}
 }
@@ -88,6 +88,14 @@ const px = (y) => view.left + (y - view.Y0) * view.S;
 const py = (x) => view.top + (x - VIEW.x0) * view.S;
 const toReef = (cx, cy) => ({ x: VIEW.x0 + (cy - view.top) / view.S, y: view.Y0 + (cx - view.left) / view.S });
 const snap = (v) => Math.round(v / SNAP) * SNAP;
+// How it breaks, as a colour: crumbly mint -> steep yellow -> pitching orange -> barrelling violet, by xi0 (rays.js BREAK_TYPES)
+const XI_STOPS = [[0.3, [189, 245, 230]], [0.7, [255, 212, 38]], [1.2, [255, 122, 47]], [1.8, [193, 59, 255]]];
+function xiColor(xi) {
+  if (!isFinite(xi)) return 'rgba(255,255,255,.6)';
+  if (xi <= XI_STOPS[0][0]) return lerpCol(XI_STOPS[0][1], XI_STOPS[0][1], 0);
+  for (let i = 1; i < XI_STOPS.length; i++) if (xi <= XI_STOPS[i][0]) return lerpCol(XI_STOPS[i - 1][1], XI_STOPS[i][1], (xi - XI_STOPS[i - 1][0]) / (XI_STOPS[i][0] - XI_STOPS[i - 1][0]));
+  return lerpCol(XI_STOPS[3][1], XI_STOPS[3][1], 0);
+}
 const lerpCol = (a, b, f) => `rgb(${a.map((v, i) => Math.round(v + (b[i] - v) * f)).join(',')})`;
 
 function draw() {
@@ -150,9 +158,12 @@ function drawCurl(curl, t0, inward) { // (inward: which way the time labels go, 
     if (b.kind === 'closeout') { ctx.strokeStyle = COL.red; ctx.lineWidth = 6; }
     else if (b.kind === 'backoff') { ctx.strokeStyle = 'rgba(255,255,255,.8)'; ctx.lineWidth = 3; ctx.setLineDash([5, 5]); }
     else {
-      ctx.strokeStyle = lerpCol(COL.yellow, COL.pink, Math.min(1, (b.t - t0) / span));
-      ctx.lineWidth = b.kind === 'section' ? 7 : 4.5;
-      if (b.kind === 'section') { ctx.shadowColor = '#ff3d8b'; ctx.shadowBlur = 12; }
+      if (state.colorBy === 'break') { ctx.strokeStyle = xiColor((a.xi + b.xi) / 2); ctx.lineWidth = b.kind === 'section' ? 7 : 5; }
+      else {
+        ctx.strokeStyle = lerpCol(COL.yellow, COL.pink, Math.min(1, (b.t - t0) / span));
+        ctx.lineWidth = b.kind === 'section' ? 7 : 4.5;
+        if (b.kind === 'section') { ctx.shadowColor = '#ff3d8b'; ctx.shadowBlur = 12; }
+      }
     }
     ctx.beginPath(); ctx.moveTo(X0, Y0); ctx.lineTo(X1, Y1); ctx.stroke();
   }
@@ -389,7 +400,7 @@ function showResults() {
     if (!s || s.ride < 20) return `<div><span class="side">${name}</span> <span class="bad">no ride: it ${s ? s.end : 'never breaks'}</span></div>`;
     const bad = s.band === 'closeout' ? ' bad' : '';
     return `<div><span class="side">${name}</span> ${s.ride.toFixed(0)} m · ${s.seconds.toFixed(0)} s · peels ${s.peel.toFixed(0)}° <span class="${bad}">(${s.band})</span>`
-      + ` · ~${(s.H * 3.28).toFixed(0)} ft<br><span class="end">then it ${s.end}</span></div>`;
+      + ` · ~${(s.H * 3.28).toFixed(0)} ft<br><span class="end">breaks ${s.how} (ξ ${s.xi.toFixed(2)}) · then it ${s.end}</span></div>`;
   };
   el.innerHTML = line('Right', w.right) + line('Left', w.left);
   showRide();
@@ -400,12 +411,21 @@ for (const [id, key, fmt] of [['H', 'H', (v) => `${v.toFixed(1)} m`], ['T', 'T',
   const set = () => { state.swell[key] = Number(input.value); out.textContent = fmt(state.swell[key]); state.dirty = true; schedule(); };
   input.addEventListener('input', set); out.textContent = fmt(Number(input.value));
 }
+function showColorBy() {
+  const el = $('colorby'); el.innerHTML = '';
+  for (const [k, label] of [['time', 'Time'], ['break', 'How it breaks']]) {
+    const b = document.createElement('button'); b.textContent = label; if (state.colorBy === k) b.className = 'on';
+    b.onclick = () => { state.colorBy = k; save(); showColorBy(); draw(); }; el.appendChild(b);
+  }
+  $('legend-time').hidden = state.colorBy !== 'time'; $('legend-break').hidden = state.colorBy !== 'break';
+}
 $('reset').onclick = () => { state.blocks = dynamicPreset(); state.sel = null; state.dirty = true; showSel(); schedule(); };
 $('clear').onclick = () => { state.blocks = []; state.sel = null; state.dirty = true; showSel(); schedule(); };
 window.addEventListener('resize', () => { layout(); draw(); });
 
 restore();
+if (new URLSearchParams(location.search).has('break')) state.colorBy = 'break'; // (?break: colour by how it breaks, for testing)
 { const q = new URLSearchParams(location.search).get('loop'); if (q) { state.loop.on = true; state.loop.side = q === 'left' ? 'left' : 'right'; } } // (?loop=right|left: start looped, for testing)
-recompute(); layout(); showSel(); draw();
+recompute(); layout(); showSel(); showColorBy(); draw();
 document.fonts?.ready.then(() => draw());
 window.__builder = state; // (tests)
