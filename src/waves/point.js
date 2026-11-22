@@ -34,7 +34,10 @@ export default {
   green: 1, // cold, green water (shaders.js)
   outfit: 'wetsuit', // cold water: a black full wetsuit (main.js)
   scale: 1.25, rippleK: 2.0, // (ripples 2x finer than the base, like Queens: real ripples are set by the wind, not the wave's size; at 1 they read as coarse blotches; the user asked)
-  peelSpeed: 6.0, // m/s the breaking point runs along the beach
+  // m/s the breaking point runs along the beach: ~18.6 mph on a normal wave of the set (17.6 / 19.9 on the small / big
+  // ones). Was 6.0 (13 mph): a slow, easy peel, ~57 deg, more Whale Bay than Indicators. The user, 2026-11-22: Raglan
+  // felt oddly slow; the main walls on a good swell probably run ~17-21 mph (c / tan(peel angle), ~45-50 deg, c ~9 m/s).
+  peelSpeed: 8.3,
   waveSpeed: 5.0, // m/s the wave moves toward shore
   phase: { ahead: 10, behind: 8.5 }, // metres per unit of phase ahead of / behind the curl
 

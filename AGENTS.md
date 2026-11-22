@@ -287,7 +287,10 @@ First named Performance Peak (renamed 2026-11-21, the user).
     your height change over the face (g sin(face) x sin(pointing), uncapped by `maxAccel`); pointing down pays only beyond
     cancelling the water's lift (`faceFlow`), so holding a line is neutral, and climbing costs only your own climb (the
     lift is free). Drag (`bleed`) pulls extra speed back to the peel. You drop in at 1.0x the peel (`dropInSpeed`; bar
-    waves: the takeoff's average curl speed over its first 30 m). Air thresholds are lift-off physics: 16 mph at the
+    waves: the takeoff's average curl speed over its first 30 m). You drop in 3/4 of the way up the face on every wave (`dropInHeight`,
+    default 0.75; was a fixed spot, mid-face on Raglan), so the drop's height gets you up to speed and pointing down
+    pays from the start (2026-11-22, the user). Raglan's peel is 8.3 m/s (~18.6 mph; was 6.0, 13 mph): the user found it
+    oddly slow, and Indicators/Manu Bay walls on a good swell are ~45-50 deg peels, ~17-21 mph. `node test/takeoff.mjs`. Air thresholds are lift-off physics: 16 mph at the
     curl, 18 out. Foot spots as ratios of that speed: longboard middle 1.0x / nose 0.95x / tail 0.85x (a stall);
     shortboard back 0.95x / forward 1.04x. A longboard tail turn drives by its split (rail share in full, pivot share
     `pivotDriveK` 0.75), and the pivot share falls with speed (`pivotFastSpeeds`: 85% / 50% away from / toward the face at
@@ -762,6 +765,7 @@ node test/moves.mjs    # audit every move: peak acceleration, speed before/after
 node test/controls.mjs # human-style inputs on both waves: no glitches, Up/Down never flips you
 node test/pocket.mjs   # where different riding styles spend their time vs. the curl
 node test/shuffle.mjs  # shortboard feet: back / middle / forward, turn and speed effects on Raglan and Pipe
+node test/takeoff.mjs  # from the drop-in, nose held at 0 / -20 / -40 / -60 / -80 deg: speed and height over 3 s
 node test/energy.mjs   # energy pocket per wave: trim / peel at three heights, foot spots, drop, lip speed, pocket bot
 node test/pivotshare.mjs # longboard tail turns at 7 / 11 / 15 mph: pivot share, turn time, speed (vs the middle)
 node test/skid.mjs     # shortboard bottom turns at 10 / 13 / 17 mph: skid share and drive (NOSKID=1 to compare)

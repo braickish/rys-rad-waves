@@ -436,6 +436,10 @@ export const faceFlow = () => (TUNE.faceFlowK ? TUNE.faceFlowK * waveC() : TUNE.
 export function resetRider(r) {
   Object.assign(r, createRider());
   if (TUNE.startXs != null) r.xs = TUNE.startXs; // where this wave drops you in
+  // You drop in high, 3/4 of the way up the face (the user, 2026-11-22: as on a real takeoff, the drop's height is what
+  // gets you up to speed, so pointing down pays from the start; was a fixed spot, mid-face on Raglan and Queens).
+  const top = topOfFace(r.xs);
+  r.t = TUNE.tBottom - (TUNE.dropInHeight ?? 0.75) * (TUNE.tBottom - top);
   if (TUNE.energy) r.speed = dropInSpeed(); // (energy pocket: you drop in keeping pace with the curl; the drop adds the rest)
   syncPose(r, frameAt(r.xs, r.t));
 }
