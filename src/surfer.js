@@ -165,6 +165,7 @@ export function surferObjects(pose, rider, info, dt) {
   const bc = rider.mode === 'surf' ? rider.barrelCrouch || 0 : 0;
   const inB = clamp(bc / 0.3, 0, 1), deep = sstepS(0.3, 1, bc);
   const fl = rider.mode === 'surf' ? rider.frontLean || 0 : 0;
+  const tt = rider.mode === 'surf' ? rider.tubeTight || 0 : 0; // (a small tube: tucked tighter still, rider.js)
   // Noseriding (rider.js): nr walks 0 (normal stance) -> 1 (on the nose).
   const nr = rider.mode === 'surf' ? rider.nose || 0 : 0;
   // Dropknee turn (the longboard's roundhouse): the back knee drops toward the deck.
@@ -220,7 +221,7 @@ export function surferObjects(pose, rider, info, dt) {
   if (info.pump) kneeT = vUp > 0.3 ? 0.75 : 0.05; // compress going up, extend driving down
   if (rider.crouch && !rider.tube) kneeT = 0.85;
   // In the tube: a compact, athletic crouch going in, right down deep in the barrel.
-  if (bc > 0.01) kneeT = Math.max(kneeT, inB * (0.42 + 0.58 * deep));
+  if (bc > 0.01) kneeT = Math.max(kneeT, Math.min(1, inB * (0.42 + 0.58 * deep + 0.15 * tt)));
   if (nr > 0.01) kneeT = kneeT * (1 - nr) + 0.22 * nr; // standing tall and relaxed walking up and on the nose
   if (ten > 0.01) kneeT = kneeT * (1 - ten) + 0.18 * ten; // (hang ten: tall, knees soft)
   // A longboarder stands more upright than on a shortboard (the user, 2026-11-18), unless all the way back on the tail.
@@ -341,7 +342,7 @@ export function surferObjects(pose, rider, info, dt) {
   const mid = (st[0] + st[1]) / 2;
   // Hips drop and slide back over the heels as the knees bend.
   // (deep in the barrel the hips sink further, and leaning onto the front foot moves them forward)
-  const hipH = (0.92 - 0.44 * knee - 0.1 * deep - 0.12 * dk) * (1 - 0.4 * tuck) * (1 - 0.22 * aTuck); // (an air's tuck: knees up toward the chest)
+  const hipH = (0.92 - 0.44 * knee - 0.1 * deep - 0.08 * tt - 0.12 * dk) * (1 - 0.4 * tuck) * (1 - 0.22 * aTuck); // (an air's tuck: knees up toward the chest)
   const hip = add(B, v3.mul(bf, mid + 0.1 * fl - 0.08 * aReach), v3.mul(bodyUp, hipH), v3.mul(chest, -0.12 * knee)); // (an air's reach: hips back over the tail, the front leg straightens)
   const hipAx = ten > 0.001 ? v3.norm(lerp3(f, v3.mul(T, -1), ten)) : f; // (hips square to the nose in a hang ten)
   const hipBack = add(hip, v3.mul(hipAx, -0.12)), hipFront = add(hip, v3.mul(hipAx, 0.12));
@@ -367,7 +368,7 @@ export function surferObjects(pose, rider, info, dt) {
   const legF = ik(hipFront, frontFoot, THIGH, SHIN, kneePole(1));
 
   // Torso leans forward (toward the chest side) as you crouch.
-  const torsoDir0 = v3.norm(add(bodyUp, v3.mul(chest, (0.1 + 0.6 * knee) * (1 - 0.45 * upr) + 0.35 * inB + 0.45 * deep), v3.mul(f, 0.1 * deep + 0.22 * fl))); // leaning into the tube (and onto the front foot)
+  const torsoDir0 = v3.norm(add(bodyUp, v3.mul(chest, (0.1 + 0.6 * knee) * (1 - 0.45 * upr) + 0.35 * inB + 0.45 * deep + 0.2 * tt), v3.mul(f, 0.1 * deep + 0.22 * fl))); // leaning into the tube (and onto the front foot)
   const torsoDir1 = v3.norm(add(lerp3(torsoDir0, v3.norm(add(v3.mul(bodyUp, 0.45), chest)), 0.65 * aTuck), v3.mul(f, -0.15 * aReach))); // (an air: folded over the knees at the top, upright and back over the tail coming down)
   const torsoDir = v3.norm(lerp3(torsoDir1, v3.norm(add(v3.mul(bodyUp, 0.45), chest)), tuck)); // (folded over the knees in a tuck)
   const neck = add(hip, v3.mul(torsoDir, 0.58));

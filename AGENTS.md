@@ -324,6 +324,12 @@ section (25-30 deg), backing off (slower than 70 deg, or a gap), or closing out 
   half way down the upper arm; the hood covers head and neck but a face oval (brow to chin) and turns the hair cap into the
   hood's crown (no long hair); the top is dark teal (navy matched the guy's blue shorts), long-sleeved, to the waistband.
   Checked in the browser on the guy (built waves); the girl (Queens only) gets the same outfits but isn't on a built wave.
+- Tighter crouch in small tubes (the user, 2026-11-22): rider.js `tubeTight` = sstep(3.0, 1.5, tubeHeight) (the surfer ~1.75 m,
+  the barrel stance ~1.2 m): from a 3 m tube down to 1.5 m the full barrel stance comes on as soon as you're in (barrelCrouch
+  target max(depth-based, 0.3 + 0.7 tight)) and surfer.js sinks the hips further (-0.08), bends the knees more (+0.15, capped)
+  and folds the chest over the front knee (+0.2). 15% in: 1.7 m tube crouch 0.89 (was ~0.35), 2.3 m 0.58, 3.4 m+ unchanged.
+  Barrel view switching: main.js updateTubeView (on with rider.tube, off when it clears, VIEW_HOLD 1 s); the tube itself:
+  rider.js checkHazards / enterTube.
 - Barrel speed (the user, 2026-11-22: a bit more in the barrel; 100% of a section's speed-up there): `tubeHold` 1.08 -> 1.12.
   In the tube the hold was already the curl's full speed (sections included) x tubeHold, not the open face's SECTION_HOLD share.
   Placed riders trimming: built barrels 2-3 m mostly come out in 4-11 s (1.08: most held station); Pipe 0.4 line 1.7-4.4 s.

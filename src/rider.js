@@ -977,7 +977,12 @@ function stepSurf(r, input, dt) {
   // slight lean onto the front foot (which drives you forward a little; see
   // the trim drive below). Both build up gradually.
   const tdep = r.tube ? tubeDepth(r) : 0;
-  const crouchT = r.tube ? 0.3 + 0.7 * sstep(0.05, 0.55, tdep) : 0;
+  // (and lower the smaller the tube, the user, 2026-11-22: the stance measured against the tube's real height (tubeHeight; the
+  // surfer stands ~1.75 m, the barrel stance ~1.2 m): a tube of 3 m or more leaves room, as before; from there down to 1.5 m
+  // `tight` rises to 1: the full barrel stance as soon as you're in, and the hips sink further (surfer.js))
+  const tight = r.tube ? sstep(3.0, 1.5, tubeHeight(WAVE.tubeScale ? r.xs : undefined)) : 0;
+  r.tubeTight = (r.tubeTight || 0) + (tight - (r.tubeTight || 0)) * (1 - Math.exp(-dt * (tight > (r.tubeTight || 0) ? 3 : 4)));
+  const crouchT = r.tube ? Math.max(0.3 + 0.7 * sstep(0.05, 0.55, tdep), 0.3 + 0.7 * tight) : 0;
   r.barrelCrouch += (crouchT - r.barrelCrouch) * (1 - Math.exp(-dt * (crouchT > r.barrelCrouch ? 2.5 : 4)));
   const leanFT = r.tube ? sstep(0.4, 0.85, tdep) : 0;
   r.frontLean += (leanFT - r.frontLean) * (1 - Math.exp(-dt * (leanFT > r.frontLean ? 1.5 : 4)));
