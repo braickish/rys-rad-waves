@@ -163,6 +163,18 @@ check(A.left.xi > 0.5 && A.left.xi < 3.3 && A.right.xi > 0.5 && A.right.xi < 3.3
   check(ins && ins.left.xi >= 0.5, 'stacked: the inside wave breaks by its own height (not crumbly from the swell\'s)');
   check(lag.waves[0].tier === 'outside' && Math.abs(lag.left.ride - flat.left.ride) < 30, 'stacked: the outside wave is the main one and the lagoon leaves it alone');
 }
+// No crawling waves (the user, 2026-11-22: an inside wave listed at 90 deg, "curl ~0 mph"): on Dynamic with a 10 ft 9 s swell
+// from +35 a reformed wave reaching the beach breaks along its own path (90 deg); it isn't listed, and no extra wave is
+// listed without a ride between a closeout and a back-off (25-70 deg).
+{
+  const { BAY, BAY_DEEP_OFF, defaultCoast: dc } = await import('../src/builder/reef.js');
+  const { reefComponents: rc, dynamicPreset: dp } = await import('../src/builder/blocks.js');
+  const { isRide } = await import('../src/builder/rays.js');
+  const sw = { H: 3, T: 9, dir: 35 }, g = buildDepth(rc(dp(), true), makeGrid({ ...BAY, offDepth: BAY_DEEP_OFF }), Object.assign(dc(), { deep: true }));
+  const A = analyse(traceRays(g, sw), g, { pe: runPE(g, sw) });
+  console.log(`crawl check: ${A.waves.map((w) => `${w.name} ${w.tier} ${['right', 'left'].map((sd) => `${sd[0]} ${isFinite(w[sd].peelAll) ? w[sd].peelAll.toFixed(0) : '-'} deg`).join(' ')}`).join(' | ')}`);
+  check(A.waves.slice(1).every((w) => isRide(w.right) || isRide(w.left)), 'no crawling waves: every extra wave has a ride peeling 25-70 deg');
+}
 check(tBuild + tRays + tAn < 400, `rebuild + trace under 400 ms in node (${(tBuild + tRays + tAn).toFixed(0)})`);
 console.log(fails ? 'SOME FAILED' : 'all ok');
 process.exitCode = fails ? 1 : 0;

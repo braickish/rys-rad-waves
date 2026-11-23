@@ -5,7 +5,7 @@
 // ticks every 5 s, marked where it sections, backs off or closes out. Circles mean "you can drag this": only the blocks'
 // handles are circles (the user, 2026-11-22); the curl's time ticks and the break's peak (a diamond) aren't.
 import { buildDepth, makeGrid, defaultCoast, BAY, BAY_DEEP_OFF } from './reef.js';
-import { traceRays, analyse } from './rays.js';
+import { traceRays, analyse, tooSlow } from './rays.js';
 import { runPE } from './pewave.js';
 import { LOOP, curlAt, defaultLoop, clampLoop, loopInfo, snapEnd, bestLoop, wavePayload, takeoffStart } from './loop.js';
 import { encodeBuilt, BUILT_KEY } from '../waves/built.js';
@@ -455,7 +455,7 @@ function showSel() {
 const mph = (v) => (v * 2.237).toFixed(0);
 function rideStretch() { // (what DROP IN rides: the loop, or the whole ride from just past the peak)
   const L = state.loop, side = cur() && cur()[L.side];
-  if (!side) return null;
+  if (!side || tooSlow(side)) return null; // (nothing to ride: it barely peels)
   if (L.on) return L.info ? { a: L.a, b: L.b } : null;
   return takeoffStart(side); // (from where the curl can be followed: past an at-once peak, loop.js)
 }
@@ -502,6 +502,7 @@ function showResults() {
   const w = state.wave, el = $('res');
   if (!w) { el.innerHTML = '<span class="bad">Nothing breaks: the swell rolls in to the beach.</span>'; return; }
   const line = (name, s) => {
+    if (tooSlow(s)) return `<div><span class="side">${name}</span> <span class="bad">no ride: it barely peels (the break creeps along slower than the wave comes in)</span></div>`; // (the user, 2026-11-22: a curl of ~0 mph)
     if (!s || s.ride < 20 || !isFinite(s.peelAll)) return `<div><span class="side">${name}</span> <span class="bad">no ride: it ${s ? s.end : 'never breaks'}</span></div>`; // (a side that closes out straight away has no peel to show)
     const bad = s.bandAll === 'closeout' ? ' bad' : '';
     return `<div><span class="side">${name}</span> ${ft(s.ride)} ft · ${s.seconds.toFixed(0)} s · peels ${s.peelAll.toFixed(0)}° overall <span class="${bad}">(${s.bandAll})</span>${isFinite(s.peelFast) ? ` · fastest ${s.peelFast.toFixed(0)}°` : ''}${isFinite(s.curlSpeed) ? ` · curl ~${(s.curlSpeed * 2.237).toFixed(0)} mph` : ''}`

@@ -283,7 +283,11 @@ section (25-30 deg), backing off (slower than 70 deg, or a gap), or closing out 
   length and height) under The wave; every wave drawn, the others at 40%; a letter over each takeoff line; reformed waves'
   crests fainter. `state.pick` saved; DROP IN rides the picked wave (its button reads "DROP IN · B"). The pick follows the wave, not
   its list index (the user, 2026-11-22: B seemed to ride with A's speed): ui.js `repick` finds it again after every analysis by
-  tier and peak spot (`pickKey`, saved), so a re-analysis with a different wave count can't drop you onto A. `stackedPreset` (`?preset=stacked`, `?pick=1`):
+  tier and peak spot (`pickKey`, saved), so a re-analysis with a different wave count can't drop you onto A.
+  A ride (rays.js `isRide`; the user, 2026-11-22: an inside wave showed "peels 90°, curl ~0 mph"): 40 m+, peeling 25-70 deg overall
+  (`RAYS.backoff` 70, the same line the curl's back-off stretches use). Slower, the panel says "no ride: it barely peels" and
+  DROP IN is off; an extra wave with no ride either way isn't listed (a reformed wave reaching the beach along its own path
+  breaks at 90 deg: Dynamic, 10 ft 9 s from +35). `stackedPreset` (`?preset=stacked`, `?pick=1`):
   a 1.5x deep outer reef with a lagoon + a 1x reef inside, 10 ft 15 s: A outside 10 ft pitching; with a reef flat nothing
   reforms, with the lagoon B inside 5 ft steep at x' 1012. Dynamic now also lists two ~2 ft inside reforms on the beach
   behind its reef flat; the user's 2.5x sandbar (turn 135, 9.8 ft 12 s -20) a second outside peak (right 328 ft, left 394

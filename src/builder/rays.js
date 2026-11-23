@@ -13,7 +13,7 @@
 import { blur } from './reef.js';
 
 const g = 9.81;
-export const RAYS = { gamma: 0.78, closeout: 25, jump: 40, kw: 10, maxGap: 6, spacing: 2, dt: 0.2, tmax: 320, x0: 160,
+export const RAYS = { gamma: 0.78, closeout: 25, backoff: 70, jump: 40, kw: 10, maxGap: 6, spacing: 2, dt: 0.2, tmax: 320, x0: 160,
   // Stacked reefs (plan step 8): after it breaks, a wave carries on as a broken wave (a bore) losing height toward a stable
   // height over the depth (Dally, Dean & Dalrymple 1985: d(E cg b)/ds = -(K / h) (E cg b - E_s cg b), E_s from H = Gamma h,
   // K 0.15, Gamma 0.4). Over a rising reef flat it keeps breaking; where the water deepens (a lagoon, a trough behind a
@@ -28,6 +28,11 @@ export const RAYS = { gamma: 0.78, closeout: 25, jump: 40, kw: 10, maxGap: 6, sp
 // plunge) to 0.9, pitching to 1.5, barrelling above.
 export const BREAK_TYPES = [[0.5, 'crumbly'], [0.9, 'steep'], [1.5, 'pitching'], [Infinity, 'barrelling']];
 export const breakType = (xi) => BREAK_TYPES.find(([lim]) => xi < lim)[1];
+// A ride (the user, 2026-11-22: hide waves whose curl shows ~0 mph): 40 m or more, peeling no faster than a closeout and no
+// slower than a back-off overall (over 70 deg the break creeps along at under a third of the wave's speed: a line running in
+// the wave's own direction, as a reformed wave reaching the beach along it, breaks at 90 deg, a curl of ~0 mph).
+export const isRide = (sd, step = 20) => !!sd && sd.ride >= 2 * step && sd.peelAll >= RAYS.closeout && sd.peelAll <= RAYS.backoff;
+export const tooSlow = (sd) => !!sd && sd.peelAll > RAYS.backoff;
 export const skillBand = (a) => (a < RAYS.closeout ? 'closeout' : a < 30 ? 'expert' : a < 50 ? 'advanced' : a < 70 ? 'intermediate' : 'beginner');
 
 function kOf(h, T) {
@@ -167,7 +172,7 @@ export function traceRays(grid, swell) {
 // reach, and so on. The inside waves are waves that broke outside, reformed over deeper water and broke again (traceRays'
 // later breaks): per strip the earliest such break, or where no wave reformed there, its first break (the same swell line
 // reaching that part of the inside unbroken, a beach beside a reef). Past the main wave, a wave only counts if one way from
-// its peak is a ride (40 m or more, peeling slower than a closeout).
+// its peak is a ride (isRide: 40 m or more, peeling between a closeout and a back-off).
 // Returns the first outside wave's { peak, right, left } (as before: the main wave) and `waves`, all of them, each
 // { name (A, B, ..), tier ('outside' | 'inside'), peak, right, left }.
 export function analyse(R, grid, opts = {}) {
@@ -203,7 +208,7 @@ export function analyse(R, grid, opts = {}) {
     return best || first(e0, e1);
   };
   const waves = [], MAXW = 4;
-  const rideable = (w) => ['right', 'left'].some((sd) => w[sd].ride >= 2 * (opts.step || 20) && w[sd].peelAll >= RAYS.closeout); // (a ride: two stretches or more, peeling slower than a closeout)
+  const rideable = (w) => ['right', 'left'].some((sd) => isRide(w[sd], opts.step || 20)); // (a ride: two stretches or more, between a closeout and a back-off)
   const findAll = (strips, tier, okPeak) => {
     const used = new Uint8Array(strips.length);
     for (let n = 0; n < 8 && waves.length < MAXW; n++) {
@@ -271,7 +276,7 @@ function walkWave(strips, ip, R, grid, { step = 20, pe = null } = {}) {
       const sg = segs.find((q) => s[k] >= q.e0 && s[k] <= q.e0 + step) || segs[segs.length - 1];
       let kind = 'ride';
       if (s[k] > ride && closed) kind = 'closeout';
-      else if (gaps.includes(k) || (sg && sg.am > 70 && s[k] > step)) kind = 'backoff';
+      else if (gaps.includes(k) || (sg && sg.am > RAYS.backoff && s[k] > step)) kind = 'backoff';
       else if (sg && sg.am < 30 && s[k] > step) kind = 'section';
       return { x: p[2], y: p[0], t: tc, s: s[k], H: p[4], Hray: p[4], c: p[3], slope: p[5], th: p[6], from: p[7], kind }; // (c: the wave's speed at breaking there; th: the wave's direction there)
     });
