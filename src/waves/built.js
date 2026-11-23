@@ -22,6 +22,10 @@ const pipeFaceTop = (s) => 5.3 + (11.9 - 5.3) * sstep(-0.3, 0.2, s); // (Pipe's 
 
 const FALLBACK = { v: 1, mode: 'loop', side: 'left', length: 200, base: 7.6, H: 2.1, profile: [{ s: 0, peel: 7.6, k: 0, H: 2.1 }, { s: 200, peel: 7.6, k: 0, H: 2.1 }] };
 export const BUILT_KEY = 'rys-rad-waves-built';
+// What the surfer wears by the water's temperature (the user, 2026-11-22: Build a Break's Water slider; looks only), °F:
+// [up to, outfit (main.js bodyColors), name]. Usual surf guides' bands.
+export const OUTFITS = [[54, 'hood', 'wetsuit + hood'], [63, 'wetsuit', 'wetsuit'], [69, 'shortsleeve', 'short-sleeve wetsuit'], [75, 'topper', 'swimsuit + top'], [Infinity, '', 'swimsuit']];
+export const outfitFor = (f) => OUTFITS.find(([max]) => f <= max);
 
 export function readBuilt() {
   try {
@@ -91,6 +95,7 @@ export function applyBuilt(data) {
     // hard to make it back out of the tube)
     pocket: (xs) => { const a = raglanPlus.pocket(xs / k), tk = env.tubeAt(xs); return tk > 0 ? a + (reef.pocket(xs / k) - a) * tk : a; },
     board: data.board === 'gun' ? 'gun' : raglanPlus.board, // (the board you chose at DROP IN)
+    outfit: data.water != null ? outfitFor(data.water)[1] : raglanPlus.outfit, // (what the water's temperature calls for; older links: Raglan's wetsuit)
     tune: { ...T, curlZone: T.curlZone.map((x) => x * k), startXs: 4 * k, shoulderReach: T.shoulderReach * k, snapIntoLip: T.snapIntoLip * k,
       airCurlZone: T.airCurlZone * k, airBoostZone: T.airBoostZone * k, airIntoCurl: T.airIntoCurl * k, ...(data.board === 'gun' ? GUN : {}) },
     peelSpeed: data.base, // (what trimming holds: the plain wall's pace, wave.js holdPeel)

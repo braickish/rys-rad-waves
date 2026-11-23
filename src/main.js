@@ -49,6 +49,7 @@ const BODY_LOOKS = {
     hair: [0.43, 0.29, 0.17, 0.25], hairMid: [0.48, 0.33, 0.2], hairHi: [0.56, 0.39, 0.24] }, // (long brown hair: hana-likeness.jpg, 2026-11-18)
 };
 const WETSUIT = [0.045, 0.047, 0.055, 0.4];
+const TOPPER = [0.06, 0.3, 0.32, 0.3]; // (a dark teal neoprene long-sleeve top: navy matched the blue boardshorts)
 function bodyColors(m, which, outfit) {
   const L = BODY_LOOKS[which], dom = dominantBones(m), hs = headStats(m, dom);
   const shorts = [0.22, 0.33, 0.5, 0.08], band = [0.08, 0.08, 0.1, 0.08];
@@ -63,16 +64,7 @@ function bodyColors(m, which, outfit) {
     const bone = dom[v], x = m.pos[v * 3], y = m.pos[v * 3 + 1], z = m.pos[v * 3 + 2];
     let col = L.skin;
     const hipBone = /^(pelvis|spine_01|thigh_[lr]|Root)$/.test(bone) || (bone.startsWith('calf') && y > kneeY + 0.06);
-    if (outfit === 'wetsuit') {
-      // A black full wetsuit (WAVE.outfit, Raglan: cold water; the user, 2026-11-18): neck to wrists and ankles,
-      // a little sheen to the neoprene so it still shows its shape; head, hands and feet bare.
-      const suit = /^(Root|pelvis|spine_0[123]|clavicle_[lr]|upperarm_[lr]|lowerarm_[lr]|thigh_[lr]|calf_[lr])$/.test(bone)
-        || (bone === 'neck_01' && y < neckY + 0.045);
-      let bare = false;
-      if (bone.startsWith('lowerarm')) { const h = m.rest['hand_' + bone.slice(-1)].head; bare = Math.hypot(x - h[0], y - h[1], z - h[2]) < 0.025; }
-      if (bone.startsWith('calf')) bare = y < m.rest['foot_' + bone.slice(-1)].head[1] + 0.015;
-      if (suit && !bare) col = WETSUIT;
-    } else if (which === 'guy') {
+    if (which === 'guy') {
       if (hipBone && y < waistY && y > kneeY + 0.07) col = y > waistY - 0.035 ? band : shorts;
     } else {
       // After the user's reference (hana-likeness.jpg, 2026-11-18): a light-blue floral bralette top with thin
@@ -103,8 +95,32 @@ function bodyColors(m, which, outfit) {
         if (d > 0.015 && d < 0.075) col = cuffBlack;
       }
     }
+    // Outfits by the water's temperature (the user, 2026-11-22; Build a Break's Water slider, looks only): over the swimsuit
+    // above, a long-sleeve top ('topper'), a short-sleeve full suit ('shortsleeve': bare forearms and the lower half of the
+    // upper arm), a full suit ('wetsuit': Raglan's, the user, 2026-11-18: neck to wrists and ankles, a little sheen so it still
+    // shows its shape) or a full suit with a hood ('hood': head and neck too, the face open). Hands and feet stay bare.
+    if (outfit === 'wetsuit' || outfit === 'shortsleeve' || outfit === 'hood' || outfit === 'topper') {
+      const top = outfit === 'topper';
+      const suit = (top ? /^(spine_0[23]|clavicle_[lr]|upperarm_[lr]|lowerarm_[lr])$/ : /^(Root|pelvis|spine_0[123]|clavicle_[lr]|upperarm_[lr]|lowerarm_[lr]|thigh_[lr]|calf_[lr])$/).test(bone)
+        || (top && (bone === 'spine_01' || hipBone) && y > waistY - 0.01) // (down to the waistband, all round: a gap of skin showed at the lower back)
+        || (bone === 'neck_01' && y < neckY + 0.045);
+      let bare = false;
+      if (bone.startsWith('lowerarm')) { const h = m.rest['hand_' + bone.slice(-1)].head; bare = outfit === 'shortsleeve' || Math.hypot(x - h[0], y - h[1], z - h[2]) < 0.025; }
+      if (bone.startsWith('upperarm') && outfit === 'shortsleeve') { // (sleeves to half way down the upper arm)
+        const a = m.rest['upperarm_' + bone.slice(-1)].head, e = m.rest['lowerarm_' + bone.slice(-1)].head;
+        const ex = e[0] - a[0], ey = e[1] - a[1], ez = e[2] - a[2];
+        bare = ((x - a[0]) * ex + (y - a[1]) * ey + (z - a[2]) * ez) / (ex * ex + ey * ey + ez * ez) > 0.5;
+      }
+      if (bone.startsWith('calf')) bare = y < m.rest['foot_' + bone.slice(-1)].head[1] + 0.015;
+      if (suit && !bare) col = top ? TOPPER : WETSUIT;
+    }
     // hair painted on the scalp: the hairline high at the forehead, above the ears at the sides, low at the nape
-    if (bone === 'head' || bone === 'neck_01') {
+    if (outfit === 'hood' && (bone === 'head' || bone === 'neck_01')) {
+      // (the hood: all of the head and neck but an oval for the face, from the brow to the chin)
+      const zf = z - (hs.front - 0.177), t = hs.top - 0.98;
+      const face = zf > 0.1 && y > t + 0.755 && y < t + 0.9 && Math.abs(x) < 0.068 * Math.sqrt(Math.max(0, 1 - ((y - (t + 0.83)) / 0.085) ** 2)) + 0.012;
+      if (!face) col = WETSUIT;
+    } else if (bone === 'head' || bone === 'neck_01') {
       const zf = z - (hs.front - 0.177); // (positions relative to the measured face, like the guy's head it was tuned on)
       const t = hs.top - 0.98;
       const line = t + (zf > 0.08 ? 0.915 : zf > 0 ? 0.86 + (0.915 - 0.86) * (zf / 0.08) : Math.max(which === 'girl' ? 0.74 : 0.79, 0.86 + zf * 1.4));
@@ -120,8 +136,9 @@ function bodyColors(m, which, outfit) {
 function hairObjects(b, mats) {
   const h = b.body.model.rest.head.index, M = Array.from(mats.subarray(h * 16, h * 16 + 16)), hs = b.head, L = BODY_LOOKS[b.which];
   const ell = (cx, cy, cz, rx, ry, rz) => [rx * 2, 0, 0, 0, 0, ry * 2, 0, 0, 0, 0, rz * 2, 0, cx, cy, cz, 1];
-  const out = [{ mesh: 'sphere', model: mul(M, ell(0, hs.capY, hs.capZ, hs.capRx, 0.085, hs.capRz)), color: L.hair.slice(0, 3), spec: 0.25, outline: 0 }];
-  if (b.which === 'girl') {
+  const hood = WAVE.outfit === 'hood'; // (under a hood: the cap is the hood's crown, black neoprene, and no long hair)
+  const out = [{ mesh: 'sphere', model: mul(M, ell(0, hs.capY, hs.capZ, hs.capRx, 0.085, hs.capRz)), color: hood ? WETSUIT.slice(0, 3) : L.hair.slice(0, 3), spec: hood ? 0.4 : 0.25, outline: 0 }];
+  if (b.which === 'girl' && !hood) {
     // long, lighter-brown hair falling loose down her back (the user, 2026-11-18; the ponytail is gone): layers lying
     // just behind the measured back of her head, neck and shoulders, wider over the shoulders, lighter toward the
     // ends, and flowing: they lag behind the head's movement on a spring, more the further down they hang.

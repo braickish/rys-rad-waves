@@ -8,7 +8,7 @@ import { buildDepth, makeGrid, defaultCoast, BAY, BAY_DEEP_OFF } from './reef.js
 import { traceRays, analyse, tooSlow, isRide } from './rays.js';
 import { runPE } from './pewave.js';
 import { LOOP, curlAt, defaultLoop, clampLoop, loopInfo, snapEnd, bestLoop, wavePayload, takeoffStart } from './loop.js';
-import { encodeBuilt, BUILT_KEY } from '../waves/built.js';
+import { encodeBuilt, BUILT_KEY, outfitFor } from '../waves/built.js';
 import { BLOCKS, SNAP, ARM_ANGLES, ARM_LENGTHS, ARM_SLOPES, BAR_CRESTS, DEPTHS, SIZES, BACKS, blockLength, ROTATIONS, reefComponents, newBlock, dynamicPreset, beachPreset, stackedPreset, armRot, nearestArm } from './blocks.js';
 
 const canvas = document.getElementById('map'), ctx = canvas.getContext('2d');
@@ -24,7 +24,7 @@ const COL = { yellow: [255, 212, 38], pink: [255, 61, 139], red: '#ff4b4b' };
 // ones; on the research site's shallow shelf a big swell closed out across the bay. The beach break keeps the gentle shelf.)
 const reefCoast = () => Object.assign(defaultCoast(), { deep: true });
 const state = { blocks: dynamicPreset(), coast: reefCoast(), sel: null, swell: { H: 1.6, T: 15, dir: 0 }, grid: null, rays: null, wave: null, dirty: true, ms: 0,
-  loop: { on: false, side: 'right', a: null, b: null, info: null }, hover: null, board: 'shortboard', pick: 0 }; // (pick: which wave, when the design makes more than one (plan step 8))
+  loop: { on: false, side: 'right', a: null, b: null, info: null }, hover: null, board: 'shortboard', pick: 0, water: 66 }; // (water: its temperature, °F: what the surfer wears, looks only) // (pick: which wave, when the design makes more than one (plan step 8))
 // The wave you're looking at and would ride: one of the design's waves (rays.js analyse: A the main one, then other peaks and
 // waves that reform inside).
 const cur = () => (state.wave ? state.wave.waves[state.pick] || state.wave.waves[0] : null);
@@ -62,12 +62,12 @@ function recompute() {
 // The design is remembered (in this browser) so coming back from riding it finds it as you left it.
 const SAVE_KEY = 'rys-rad-waves-builder';
 function save() {
-  try { localStorage.setItem(SAVE_KEY, JSON.stringify({ blocks: state.blocks, coast: state.coast, swell: state.swell, board: state.board, pick: state.pick, pickKey: state.pickKey, loop: { on: state.loop.on, side: state.loop.side, a: state.loop.a, b: state.loop.b }})); } catch {}
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify({ blocks: state.blocks, coast: state.coast, swell: state.swell, board: state.board, water: state.water, pick: state.pick, pickKey: state.pickKey, loop: { on: state.loop.on, side: state.loop.side, a: state.loop.a, b: state.loop.b }})); } catch {}
 }
 function restore() {
   try {
     const j = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null'); if (!j || !Array.isArray(j.blocks)) return;
-    state.blocks = j.blocks; if (j.coast && Array.isArray(j.coast.pts)) state.coast = j.coast; if (j.board) state.board = j.board; if (j.pick) state.pick = j.pick; if (j.pickKey) state.pickKey = j.pickKey; Object.assign(state.swell, j.swell || {}); Object.assign(state.loop, j.loop || {}); 
+    state.blocks = j.blocks; if (j.coast && Array.isArray(j.coast.pts)) state.coast = j.coast; if (j.board) state.board = j.board; if (Number.isFinite(j.water)) state.water = j.water; if (j.pick) state.pick = j.pick; if (j.pickKey) state.pickKey = j.pickKey; Object.assign(state.swell, j.swell || {}); Object.assign(state.loop, j.loop || {}); 
   } catch {}
 }
 function fitLoop() {
@@ -463,7 +463,7 @@ function dropIn() {
   if (state.dirty) recompute();
   clearTimeout(refineTimer); refine(); // (the wave you ride is always the refined one)
   const L = state.loop, st = rideStretch(); if (!st) return;
-  const data = wavePayload(cur()[L.side], L.side, L.on ? 'loop' : 'full', st.a, st.b, state.swell, state.board);
+  const data = { ...wavePayload(cur()[L.side], L.side, L.on ? 'loop' : 'full', st.a, st.b, state.swell, state.board), water: state.water }; // (the water's temperature: the outfit)
   try { localStorage.setItem(BUILT_KEY, JSON.stringify(data)); } catch {}
   save();
   location.href = `index.html?wave=built&play#built=${encodeBuilt(data)}`;
@@ -544,7 +544,11 @@ for (const [id, key, fmt] of SWELL_CTL) {
 // again once the page has fully loaded and on the next frame.
 function syncSwell() {
   for (const [id, key, fmt] of SWELL_CTL) { const el = $(id), v = String(state.swell[key]); el.defaultValue = v; el.setAttribute('value', v); el.value = v; $(id + 'v').textContent = fmt(state.swell[key]); }
+  { const el = $('WT'), v = String(state.water); el.defaultValue = v; el.setAttribute('value', v); el.value = v; showWater(); }
 }
+// The water's temperature (the user, 2026-11-22): what the surfer wears, looks only; it doesn't change the wave.
+function showWater() { $('WTv').textContent = `${state.water}°F`; $('WTo').textContent = `The surfer wears: ${outfitFor(state.water)[2]}`; }
+$('WT').addEventListener('input', () => { state.water = Number($('WT').value); $('WT').defaultValue = $('WT').value; showWater(); save(); });
 const resync = () => { syncSwell(); requestAnimationFrame(syncSwell); setTimeout(syncSwell, 250); };
 window.addEventListener('pageshow', () => { resync(); draw(); });
 window.addEventListener('load', resync);

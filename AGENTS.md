@@ -317,6 +317,13 @@ section (25-30 deg), backing off (slower than 70 deg, or a gap), or closing out 
 - Swell sliders (the user, 2026-11-22: numbers right, thumbs not): syncSwell makes the value each slider's default too
   (`defaultValue` / the attribute: what a browser restores) and re-syncs on load, pageshow, the next frame and 250 ms on;
   Safari can put back an old slider position after the script has run.
+- Water temperature (the user, 2026-11-22; looks only): a Water slider under Swell, 48-86 °F (default 66), saved with the
+  design and sent with DROP IN (`water`); built.js `OUTFITS` / `outfitFor`: up to 54 wetsuit + hood ('hood'), 63 wetsuit
+  ('wetsuit', Raglan's), 69 short-sleeve wetsuit ('shortsleeve'), 75 swimsuit + top ('topper'), above that swimsuit ('');
+  older links keep Raglan+'s wetsuit. main.js bodyColors paints the swimsuit first, then the suit over it: short sleeves to
+  half way down the upper arm; the hood covers head and neck but a face oval (brow to chin) and turns the hair cap into the
+  hood's crown (no long hair); the top is dark teal (navy matched the guy's blue shorts), long-sleeved, to the waistband.
+  Checked in the browser on the guy (built waves); the girl (Queens only) gets the same outfits but isn't on a built wave.
 - Zoom (the user, 2026-11-22): wheel / trackpad pinch about the pointer, two-finger pinch, drag the water to pan, and − / + / Fit
   in the map's corner (up to 6x; handles, labels and line widths keep their screen size; the scale bar picks a round length).
   `?zoom=2.5` opens zoomed on the peak (testing).
