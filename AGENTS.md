@@ -311,7 +311,8 @@ section (25-30 deg), backing off (slower than 70 deg, or a gap), or closing out 
   (Iribarren / Battjes; Mead & Black tie reef breaking intensity to the same slope), 5-strip median, and a type
   (`BREAK_TYPES`: crumbly < 0.5 spilling; within plunging, our provisional split steep < 0.9, pitching < 1.5, barrelling).
   The curl is coloured by how it breaks (mint / yellow / orange / violet; one view, no seconds on the map: the user
-  dropped the Time view; a fast section is thicker and glowing); each side's summary reads "breaks steep (ξ 0.88)". Dynamic's arms 0.88 (the right ~1.5 over its ledge shelf; Python's ray_zone.py 0.9-1.5);
+  dropped the Time view; a fast section is thicker and glowing; a closeout dashed in its own colour, the dashes carried
+  along the line; backing off has no mark: the user, 2026-11-22, dropped the red and the dashed white); each side's summary reads "breaks steep (ξ 0.88)". Dynamic's arms 0.88 (the right ~1.5 over its ledge shelf; Python's ray_zone.py 0.9-1.5);
   1:6 / 1:10 / 1:15 lines 1.14 / 0.88 / 0.72 at the same peel; 10 / 18 s swell 0.67 / 1.00.
 - **Next (agreed 2026-11-22):** shape, size and barrels from the reef, in five steps: plans/2026-11-22-reef-driven-waves.md.
 

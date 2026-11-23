@@ -182,19 +182,18 @@ function drawCurl(curl) {
   // a thin dark casing under the whole line first, so its colour reads against the teal reef
   ctx.strokeStyle = 'rgba(11,26,36,.75)'; ctx.lineWidth = 8.5; ctx.setLineDash([]);
   ctx.beginPath(); curl.forEach((p, k) => (k ? ctx.lineTo(px(p.y), py(p.x)) : ctx.moveTo(px(p.y), py(p.x)))); ctx.stroke();
+  let run = 0; // (how far along the line, px: the dashes carry on from segment to segment instead of restarting on each)
   for (let k = 1; k < curl.length; k++) {
     const a = curl[k - 1], b = curl[k], X0 = px(a.y), Y0 = py(a.x), X1 = px(b.y), Y1 = py(b.x);
-    ctx.setLineDash([]); ctx.shadowBlur = 0;
-    if (b.kind === 'closeout') { ctx.strokeStyle = COL.red; ctx.lineWidth = 6; }
-    else if (b.kind === 'backoff') { ctx.strokeStyle = 'rgba(255,255,255,.8)'; ctx.lineWidth = 3; ctx.setLineDash([5, 5]); }
-    else {
-      // (one view, the user: the curl coloured by how it breaks; a fast section thicker and glowing)
-      ctx.strokeStyle = xiColor((a.xi + b.xi) / 2); ctx.lineWidth = b.kind === 'section' ? 7.5 : 5;
-      if (b.kind === 'section') { ctx.shadowColor = 'rgba(255,255,255,.9)'; ctx.shadowBlur = 10; }
-    }
+    ctx.setLineDash([]); ctx.shadowBlur = 0; ctx.lineDashOffset = -run; run += Math.hypot(X1 - X0, Y1 - Y0);
+    // (the curl coloured by how it breaks everywhere, the user, 2026-11-22; a closeout dashed in that colour, a fast section
+    // thicker and glowing; backing off has no mark of its own)
+    ctx.strokeStyle = xiColor((a.xi + b.xi) / 2); ctx.lineWidth = b.kind === 'section' ? 7.5 : 5;
+    if (b.kind === 'closeout') ctx.setLineDash([7, 6]);
+    else if (b.kind === 'section') { ctx.shadowColor = 'rgba(255,255,255,.9)'; ctx.shadowBlur = 10; }
     ctx.beginPath(); ctx.moveTo(X0, Y0); ctx.lineTo(X1, Y1); ctx.stroke();
   }
-  ctx.setLineDash([]); ctx.shadowBlur = 0;
+  ctx.setLineDash([]); ctx.shadowBlur = 0; ctx.lineDashOffset = 0;
 }
 // The loop: a wide teal band under its stretch of the curl, round handles at each end (you drag them along the curl).
 function loopPath(a, b) { const c = state.wave[state.loop.side].curl, pts = [curlAt(c, a)]; for (const p of c) if (p.s > a && p.s < b) pts.push(p); pts.push(curlAt(c, b)); return pts; }
@@ -464,7 +463,7 @@ function showResults() {
   const w = state.wave, el = $('res');
   if (!w) { el.innerHTML = '<span class="bad">Nothing breaks: the swell rolls in to the beach.</span>'; return; }
   const line = (name, s) => {
-    if (!s || s.ride < 20) return `<div><span class="side">${name}</span> <span class="bad">no ride: it ${s ? s.end : 'never breaks'}</span></div>`;
+    if (!s || s.ride < 20 || !isFinite(s.peel)) return `<div><span class="side">${name}</span> <span class="bad">no ride: it ${s ? s.end : 'never breaks'}</span></div>`; // (a side that closes out straight away has no peel to show)
     const bad = s.band === 'closeout' ? ' bad' : '';
     return `<div><span class="side">${name}</span> ${ft(s.ride)} ft · ${s.seconds.toFixed(0)} s · peels ${s.peel.toFixed(0)}° <span class="${bad}">(${s.band})</span>`
       + ` · ~${ft(s.H)} ft waves<br><span class="end">breaks ${s.how} (ξ ${s.xi.toFixed(2)}) · then it ${s.end}</span></div>`;
