@@ -217,7 +217,9 @@ export function ridgeAt(xs) {
 // trimming also holds a share of the section's extra speed: up to SECTION_HOLD of it, by how steep the wall is at the curl
 // (Raglan+: its ridge strength; a built wave: its shape past Raglan's wall, the steep section or the barrel). Pumping still
 // makes the rest.
-export const SECTION_HOLD = 0.5;
+// (then 0.85, the user, 2026-11-22: more of a boost when the section speeds up; on Raglan+ trimming alone makes ~4 of 7
+// sections, pumping all of them; 1.0 let trimming make nearly all, and pumping stopped mattering)
+export const SECTION_HOLD = 0.85;
 function sectionSteep() {
   if (!WAVE.ridges) return 0;
   const P = WAVE.ridges.profile;

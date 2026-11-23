@@ -324,6 +324,9 @@ section (25-30 deg), backing off (slower than 70 deg, or a gap), or closing out 
   half way down the upper arm; the hood covers head and neck but a face oval (brow to chin) and turns the hair cap into the
   hood's crown (no long hair); the top is dark teal (navy matched the guy's blue shorts), long-sleeved, to the waistband.
   Checked in the browser on the guy (built waves); the girl (Queens only) gets the same outfits but isn't on a built wave.
+- Section hold (the user, 2026-11-22: more boost when a section speeds up): wave.js `SECTION_HOLD` 0.5 -> 0.85 (trimming holds
+  85% of a section's extra speed, by its steepness). Raglan+ sections test: trimming makes 4 of 7, pumping 10 of 10 (0.5: 2 / 6
+  and 9 / 9; 1.0: trimming 6 of 7, pumping no longer mattered). test/sections.mjs allows trimming up to 70%.
 - Zoom (the user, 2026-11-22): wheel / trackpad pinch about the pointer, two-finger pinch, drag the water to pan, and − / + / Fit
   in the map's corner (up to 6x; handles, labels and line widths keep their screen size; the scale bar picks a round length).
   `?zoom=2.5` opens zoomed on the peak (testing).
