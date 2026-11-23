@@ -293,7 +293,13 @@ section (25-30 deg), backing off (slower than 70 deg, or a gap), or closing out 
   each strip's reformed breaks are grouped by spot (a gap over 12 m starts a new group, its earliest break stands for it) and
   a wave takes, strip by strip from its peak, the group nearest its line so far (5-strip median after). Any wave's ride ends
   at water that broke before its peak did (q.t < peak.t - 1.5, besides the step-to-step check; never bites the main wave,
-  whose peak breaks first), and an extra wave whose ride runs mostly (> 50%) along an earlier wave's curl isn't listed. `stackedPreset` (`?preset=stacked`, `?pick=1`):
+  whose peak breaks first), and an extra wave whose ride runs mostly (> 50%) along an earlier wave's curl isn't listed.
+  Every listed wave can be ridden (the user, 2026-11-22: DROP IN was off for every wave but A): loop.js `takeoffStart` needs
+  a 40 m ride (as `isRide`; it needed a loop's 60) and keeps at least 20 m after the takeoff; the takeoff skips spots slower
+  than a back-off (v < c / sin 70) as well as closeout-fast ones; `wavePayload` floors each point's peel at a back-off's pace,
+  c / tan 70 (where the break barely moves along the reef it came out 0 and the game's curl, which advances by it, stopped
+  for good). Picking a wave switches Right / Left to the side that rides if the chosen one doesn't. test/built.mjs "every
+  wave": stacked, steep beach, 10 ft 9 s from -35: each wave droppable, each ride ends. `stackedPreset` (`?preset=stacked`, `?pick=1`):
   a 1.5x deep outer reef with a lagoon + a 1x reef inside, 10 ft 15 s: A outside 10 ft pitching; with a reef flat nothing
   reforms, with the lagoon B inside 5 ft steep at x' 1012. Dynamic now also lists two ~2 ft inside reforms on the beach
   behind its reef flat; the user's 2.5x sandbar (turn 135, 9.8 ft 12 s -20) a second outside peak (right 328 ft, left 394

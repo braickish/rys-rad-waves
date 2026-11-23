@@ -254,5 +254,29 @@ for (const [mode, data] of Object.entries(payloads)) {
   console.log(`-- tube exit (30% in, trimming low): ${rows.join(' | ')}`);
   check(ok, 'tube: trimming in a built barrel, small or fast, you hold your place or come out (not pinched)');
 }
+// Every listed wave can be ridden (the user, 2026-11-22: DROP IN was off for every wave but A, full rides needed a loop's 60 m;
+// then a short inside wave's curl started where it barely moves along the reef, peel 0, and stalled for good). Stacked reefs,
+// steep beach, 10 ft 9 s from -35: every wave has a side with a takeoff, and each of those rides ends (steps off or wipes).
+{
+  const { BAY, BAY_DEEP_OFF, defaultCoast } = await import('../src/builder/reef.js');
+  const { stackedPreset } = await import('../src/builder/blocks.js');
+  const sw = { H: 3, T: 9, dir: -35 }, g = buildDepth(reefComponents(stackedPreset(), true), makeGrid({ ...BAY, offDepth: BAY_DEEP_OFF }), Object.assign(defaultCoast(), { deep: true, face: 12 }));
+  const A = analyse(traceRays(g, sw), g, { pe: runPE(g, sw) }), dt = 1 / 120, rows = []; let every = true, ends = true;
+  for (const w of A.waves) {
+    const sides = ['right', 'left'].filter((sd) => takeoffStart(w[sd]));
+    if (!sides.length) every = false;
+    for (const sd of sides) {
+      const st = takeoffStart(w[sd]), d = wavePayload(w[sd], sd, 'full', st.a, st.b, sw);
+      applyBuilt(d); R.useWave('built'); S.seedSea(1); S.nextWave();
+      const r = R.createRider(); R.resetRider(r); r.events = []; R.stepRider(r, {}, 0);
+      let i = 0; for (; i < 60 / dt; i++) { S.stepSea(dt); R.stepRider(r, { aim: [1, Math.max(-0.6, Math.min(0.6, 3 * (0.5 - r.height)))] }, dt); if (r.mode !== 'surf' && r.mode !== 'air') break; }
+      if (r.mode === 'surf' || r.mode === 'air') ends = false;
+      rows.push(`${w.name} ${sd} ${st.a}-${st.b} m: ${(i * dt).toFixed(1)} s`);
+    }
+  }
+  console.log(`-- every wave: ${rows.join(' | ')}`);
+  check(every, 'every listed wave has a side you can DROP IN on');
+  check(ends, 'every one of those rides ends (no curl stalled at a spot that barely peels)');
+}
 console.log(fails ? 'SOME FAILED' : 'all ok');
 process.exitCode = fails ? 1 : 0;

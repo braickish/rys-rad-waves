@@ -6,6 +6,7 @@
 // looped stretch can drive an endless wave. The seam (where the end runs back into the start) should match, or the wave
 // jumps there: curl speed and height within 15% / 20%.
 
+export const BACKOFF = 70; // (rays.js RAYS.backoff: slower than this a stretch backs off)
 export const LOOP = { snap: 10, min: 60, edge: 20, seamSpeed: 0.15, seamHeight: 0.2 };
 
 // The point on a curl at distance s along it (interpolated).
@@ -22,13 +23,17 @@ export function curlAt(curl, s) {
 // Where a full ride starts (plan step 6, the sandbar): the first spot past the peak where the curl can be followed (its speed
 // along the line no more than c / sin 25 deg, the closeout limit), not inside the peak itself, which often breaks all at
 // once (a sandbar's curved end: its first ~25 m go together); at least LOOP.edge / 2 in.
+// Any listed ride can be ridden (the user, 2026-11-22: DROP IN was off for every wave but A): a ride is 40 m (rays.js isRide),
+// so a full ride needs 40 m, not a loop's 60, and at least 20 m from its takeoff (the takeoff moves no further in than that).
 export function takeoffStart(side) {
   const end = Math.floor(side.ride / LOOP.snap) * LOOP.snap;
-  if (end < LOOP.min) return null;
-  const I = loopInfo(side, 0, end, 2), lim = 1 / Math.sin(25 * Math.PI / 180);
-  const p = I.profile.find((q) => q.s >= LOOP.edge / 2 && q.v <= lim * q.c);
-  const a = p ? Math.ceil(p.s / 2) * 2 : LOOP.edge / 2;
-  return end - a >= LOOP.min / 2 ? { a, b: end } : null;
+  if (end < 40) return null;
+  const I = loopInfo(side, 0, end, 2), lim = 1 / Math.sin(25 * Math.PI / 180), slow = 1 / Math.sin(BACKOFF * Math.PI / 180);
+  // (and not where it barely peels: a spot slower than a back-off, where the curl along the crest is ~0, stalled the game's
+  // curl at the takeoff)
+  const p = I.profile.find((q) => q.s >= LOOP.edge / 2 && q.v <= lim * q.c && q.v >= slow * q.c);
+  const a = Math.min(p ? Math.ceil(p.s / 2) * 2 : LOOP.edge / 2, end - 20);
+  return { a, b: end };
 }
 
 // A good default stretch: past the takeoff, up to just before the ride ends; null if the ride is too short to loop.
@@ -135,6 +140,8 @@ export function wavePayload(side, which, mode, a, b, swell, board = 'shortboard'
     // (H: the reference height the wave is sized to, and per point the size along it (plan step 2); c: the wave's speed
     // toward the shore at breaking, for the game's wave speed; the takeoff speed is the curl's at the stretch's start)
     v: 1, mode, side: which, length: I.length, base, H: med('H'), c: med('c'), swell, board,
-    profile: I.profile.map((p) => ({ s: p.s, peel: +p.peel.toFixed(2), k: p.kind === 'section' ? 1 : 0, H: +p.H.toFixed(2), c: +p.c.toFixed(2), u: +shapeIndex(p.xi).toFixed(3) })),
+    // (the curl's speed along the crest no slower than a back-off's, c / tan 70 deg: where the break barely moves along the reef
+    // (v <= c) it came out 0, and the game's curl, which advances by it, stopped there for good)
+    profile: I.profile.map((p) => ({ s: p.s, peel: +Math.max(p.peel, p.c / Math.tan(BACKOFF * Math.PI / 180)).toFixed(2), k: p.kind === 'section' ? 1 : 0, H: +p.H.toFixed(2), c: +p.c.toFixed(2), u: +shapeIndex(p.xi).toFixed(3) })),
   };
 }

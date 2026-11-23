@@ -5,7 +5,7 @@
 // ticks every 5 s, marked where it sections, backs off or closes out. Circles mean "you can drag this": only the blocks'
 // handles are circles (the user, 2026-11-22); the curl's time ticks and the break's peak (a diamond) aren't.
 import { buildDepth, makeGrid, defaultCoast, BAY, BAY_DEEP_OFF } from './reef.js';
-import { traceRays, analyse, tooSlow } from './rays.js';
+import { traceRays, analyse, tooSlow, isRide } from './rays.js';
 import { runPE } from './pewave.js';
 import { LOOP, curlAt, defaultLoop, clampLoop, loopInfo, snapEnd, bestLoop, wavePayload, takeoffStart } from './loop.js';
 import { encodeBuilt, BUILT_KEY } from '../waves/built.js';
@@ -509,6 +509,9 @@ function showResults() {
       + ` · ~${ft(s.H)} ft waves<br><span class="end">breaks ${s.how} (ξ ${s.xi.toFixed(2)}) · then it ${s.end}</span></div>`;
   };
   const pw = cur();
+  // (the side to ride: if the one chosen has no ride on this wave and the other does, switch; the user, 2026-11-22: a B
+  // inside wave often rides one way only)
+  { const L = state.loop, o = L.side === 'right' ? 'left' : 'right'; if (pw && !isRide(pw[L.side]) && isRide(pw[o])) { L.side = o; L.a = L.b = null; fitLoop(); } }
   el.innerHTML = '';
   if (w.waves.length > 1) { // (plan step 8: the design makes more than one wave; pick the one to look at and ride)
     const r = document.createElement('div'); r.className = 'row'; r.style.marginBottom = '8px';
