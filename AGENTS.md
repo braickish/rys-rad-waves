@@ -393,6 +393,25 @@ section (25-30 deg), backing off (slower than 70 deg, or a gap), or closing out 
   1:6 / 1:10 / 1:15 lines 1.14 / 0.88 / 0.72 at the same peel; 10 / 18 s swell 0.67 / 1.00.
 - **Next (agreed 2026-11-22):** shape, size and barrels from the reef, in steps: plans/2026-11-22-reef-driven-waves.md (step 8: stacked reefs).
 
+## Competition judging (`?judge`, src/judging.js; the user, 2026-11-22: a start, later heats against other players)
+
+WSL-style: five judges score each wave 0-10, the high and low dropped, the middle three averaged; a heat keeps the best two
+waves (20 is perfect); grades poor < 2, fair < 5, good < 6.5, very good < 8, excellent. With `?judge` main.js keeps a ride
+log (`createRideLog` / `logStep` after each physics step: maneuvers with where on the wave (pocket, height), speed in and 0.6
+s later, stalls since the last; airs from launch to landing (spins, backwards); barrels made (time, depth) or caught inside;
+noserides; how it ended) and at the end shows the score sheet (`#judge` panel): the judges' shorthand ("BT – snap – cutback
+– air rev – out"), the five scores (high and low struck out), the result and grade, the heat (the session: best two).
+`scoreRide`: per maneuver base value (MOVE_VALUES; airs 4 / 6.5 / 9 / 11 / 13 by spin, big x1.25; barrels (2.5 + 2.6 s) x
+(0.7 + 0.9 depth), caught inside x0.3) x criticality (0.6 shoulder .. 1.3 in the pocket at the lip) x execution (a fall
+within 0.6 s voids it; backwards landing x0.5; speed kept: losing half x0.7) x variety (repeats 1 / 0.7 / 0.4 / 0.2 / 0) x
+innovation (x1.1 new this session, x1.1 rare: rebound 180, 360+ airs, barrel slash, deep barrel) x combination (different
+major maneuvers within 2 s: x1.12 per link up to x1.5, a stall breaks it), the sum x flow (0.8-1.15: average speed vs the
+curl, less stalled time). Raw points -> S curve s / (10 - s) = (R / R0)^1.75, R0 9.4 x (0.7 + 0.3 size, 0.75-1.3): two
+hits ~3.4 fair, snap - cutback - snap 5.0, straight air + snap + floater + air ~7.6, air reverse + three hits ~7.7, a 360
+air + deep barrel + three linked hits ~9.5. Judges: J1 airs x1.18, J2 power x1.15 (and flow), J3 barrels x1.18, J4 flow,
+J5 by the book; seeded gaussian spread 0.15-0.22. test/judging.mjs checks each criterion and the scale, and judges a pump
+bot's real ride. Not yet: a heat timer, priority / interference, other players.
+
 ## How it works
 
 - Wave shape between keyframes is a smooth cubic (Catmull-Rom slopes) and the phase rate changes
@@ -1032,6 +1051,7 @@ node test/shuffle.mjs  # shortboard feet: back / middle / forward, turn and spee
 node test/crest.mjs    # holding a line near the crest: the curl catches you above ~0.8 of the face, not mid-face
 node test/idle.mjs     # idle decay: no loss for 2 s, then ~0.5 mph/s growing, none with a key held; Queens untouched
 node test/built.mjs    # DROP IN: a builder loop peels forever with no jump at the seam, a full ride ends at the end of the wave
+node test/judging.mjs  # competition judging: each criterion, the scale, a real ride judged
 node test/builder.mjs  # Build a Break's fast break model on Dynamic's reef vs the Python model / FUNWAVE, and its speed
 node test/sections.mjs # Raglan+: trimming vs pumping through the random faster sections (WAVE=point to compare)
 node test/takeoff.mjs  # from the drop-in, nose held at 0 / -20 / -40 / -60 / -80 deg: speed and height over 3 s

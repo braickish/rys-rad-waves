@@ -1,6 +1,7 @@
 import { createRenderer } from './renderer.js';
 import { createRider, resetRider, stepRider, groundSpeed, frameAt, v3, TUNE, useWave, tubeDepth, airSpeedAt, bigAirSpeedAt } from './rider.js';
-import { PEEL_SPEED, slice, verticalHits, WAVE, phaseAt, toWorld, waveDir, stepRide, RIDE } from './wave.js';
+import { PEEL_SPEED, slice, verticalHits, WAVE, phaseAt, toWorld, waveDir, stepRide, RIDE, SIZE } from './wave.js';
+import { createRideLog, logStep, scoreRide, heatTotal } from './judging.js';
 import { WAVES } from './waves/index.js';
 import { SEA, nextWave, stepSea, seedSea } from './sea.js';
 import { perspective, lookAt, mul, invert } from './math.js';
@@ -9,6 +10,11 @@ import { loadSkinnedGLB } from './glb.js';
 import { createBody } from './body.js';
 
 const params = new URLSearchParams(location.search);
+// Competition judging (?judge; the user, 2026-11-22): every wave scored by a five-judge panel (judging.js), the score sheet
+// after each one, the session a heat (best two waves).
+const JUDGE = params.has('judge');
+const heat = { scores: [], seen: new Set() };
+let rideLog = null;
 // Crumbling wave by default; ?wave=barrel for the barreling one. Must be set
 // before the renderer builds the wave mesh.
 let savedWave = null;
@@ -258,6 +264,7 @@ let stickId = null, stickStart = [0, 0];
 const SWIPE_PX = 45; // full turn at this far from where the swipe started
 // The title and game-over panels cover the canvas, so taps land on them.
 $('over').addEventListener('pointerdown', (e) => { e.preventDefault(); startOrRestart(); });
+$('judge').addEventListener('pointerdown', (e) => { e.preventDefault(); startOrRestart(); });
 $('start').addEventListener('click', (e) => { e.preventDefault(); startOrRestart(); });
 // The walk buttons (longboard wave): walk up toward the nose / back toward the tail, one spot per press.
 $('walk-up').addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); walkPress = 1; });
@@ -313,12 +320,31 @@ function startOrRestart() {
   // (testing a wave with a bar: ?ridet=<s> runs the wave on that long before you drop in, e.g. to see its closeout)
   if (params.has('ridet') && WAVE.bar) { for (let i = 0; i < Number(params.get('ridet')) * 120; i++) stepRide(1 / 120); resetRider(rider); }
   score = 0; rideTime = 0;
+  rideLog = JUDGE ? createRideLog() : null;
   $('title').hidden = true;
   $('over').hidden = true;
+  $('judge').hidden = true;
   // (no wave-of-set count or face size: the user, 2026-11-18; sets still vary the waves. A simulated wave (a bar)
   // names which one it is and its swell: the user, 2026-11-19, to compare them)
   const m = WAVE.bar && RIDE.map;
   flash('Drop in!', m ? `Wave ${m.wave}${m.swell ? ` · ${m.swell}` : ''}` : '');
+}
+
+// The score sheet after a judged wave: the maneuvers in the judges' shorthand, the five scores (the high and low struck out),
+// the result and its grade, and the heat so far (best two waves).
+function showScoreSheet() {
+  const res = scoreRide(rideLog, { size: (WAVE.sizeK || 1) * SIZE, seed: heat.scores.length + 1, seen: heat.seen });
+  for (const it of res.items) heat.seen.add(it.key);
+  heat.scores.push(res.score);
+  const n = heat.scores.length, h = heatTotal(heat.scores), f2 = (x) => x.toFixed(2);
+  $('judge-wave').textContent = `Wave ${n}`;
+  $('judge-score').textContent = f2(res.score);
+  $('judge-grade').textContent = res.grade;
+  $('judge-moves').textContent = res.sheet;
+  $('judge-reason').textContent = rider.wipeReason || '';
+  $('judge-panel').innerHTML = res.judges.map((j) => `<div class="jd${j.dropped ? ' drop' : ''}"><b>${j.score.toFixed(1)}</b><small>${j.name} · ${j.likes}</small></div>`).join('');
+  $('judge-heat').innerHTML = `Heat <b>${f2(h.total)}</b> <small>best two: ${h.top.map(f2).join(' + ')}${n > 2 ? ` · all: ${heat.scores.map(f2).join(', ')}` : ''}</small>`;
+  $('judge').hidden = false;
 }
 
 function flash(text, sub = '') {
@@ -645,6 +671,7 @@ async function main() {
         stepRider(rider, input, STEP);
         input.walk = 0; // (a press counts once, not once per physics step this frame)
         handleEvents();
+        if (rideLog) logStep(rideLog, rider, STEP, PEEL_SPEED);
         for (const e of SEA.events) {
           if (e.type === 'section') flash(e.kind === 'closeout' ? 'Section closing out ahead!' : "It's throwing ahead!", e.kind === 'closeout' ? 'race it, or float over it' : 'get in there');
         }
@@ -659,7 +686,7 @@ async function main() {
         $('over-reason').textContent = rider.wipeReason;
         $('over-time').textContent = rideTime.toFixed(1);
         $('best').textContent = best;
-        $('over').hidden = false;
+        if (JUDGE && rideLog) showScoreSheet(); else $('over').hidden = false;
       }
     } else if (state === 'title') {
       // Attract mode: the autopilot surfs behind the title card.
