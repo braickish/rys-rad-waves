@@ -181,7 +181,11 @@ const ENERGY_TUNE = { energy: true, pocketHold: 1.0, airSpeedCurl: 7.15, airSpee
   // section's extra, left you ~0.9x the curl there, and you can't pump in a barrel) and a touch more, `tubeHold`: the wall
   // inside is the wave at its steepest, so gravity along a trimming line carries you just faster than the curl. A small
   // tube is short, so any shortfall pinched you there first.
-  tubeHold: 1.08 };
+  // Then 1.12 (the user, 2026-11-22: a bit more barrel speed; and 100% of a section's speed-up while in the barrel, which this
+  // already is: in the tube the hold is the curl's own speed, sections and all, not the open face's 85% share). Placed 30-50%
+  // in and trimming, built barrels 2-3 m at 8-10 m/s now mostly come out in 4-11 s (at 1.08 most held station); Pipe on a
+  // 0.4 line in 1.7-4.4 s; 1.15 made coming out automatic. The back foot (0.85x) still stalls you deeper.
+  tubeHold: 1.12 };
 
 
 const v3 = {
