@@ -153,13 +153,16 @@ function draw() {
   for (const b of state.blocks) drawBlock(b);
   drawCoast();
   if (w && state.loop.info) drawLoopHandles();
-  // where it first breaks (the takeoff): computed, so a diamond, not a circle; always shown (the user, 2026-11-22: it came and
+  // where it first breaks (the takeoff): computed, so a white line, not a handle; always shown (the user, 2026-11-22: it came and
   // went), drawn over the handles, and nudged just above a handle it would sit on (it usually starts right at the Peak)
   if (w) {
     const X = px(w.peak.y), Y = py(w.peak.x);
     const onHandle = state.blocks.some((b) => { const h = handle(b); return Math.hypot(px(h.y) - X, py(h.x) - Y) < 14; });
-    if (onHandle) { ctx.strokeStyle = '#ffd426'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(X, Y - 6); ctx.lineTo(X, Y - 12); ctx.stroke(); }
-    diamond(X, onHandle ? Y - 19 : Y, 7);
+    // (a short white vertical line, not a shape you might try to grab: the user, 2026-11-22)
+    const y0 = onHandle ? Y - 26 : Y - 9, y1 = onHandle ? Y - 9 : Y + 9;
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = '#0b1a24'; ctx.lineWidth = 6; ctx.beginPath(); ctx.moveTo(X, y0); ctx.lineTo(X, y1); ctx.stroke();
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(X, y0); ctx.lineTo(X, y1); ctx.stroke();
   }
   // labels: beach, swell
   ctx.restore();
@@ -173,10 +176,6 @@ function draw() {
   ctx.fillStyle = '#fff'; ctx.textAlign = 'left'; ctx.font = '500 12px Rubik'; ctx.fillText(`${sm} ft`, sx + sl + 8, sy + 4);
 }
 function roundRect(x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
-function diamond(x, y, r) {
-  ctx.beginPath(); ctx.moveTo(x, y - r); ctx.lineTo(x + r, y); ctx.lineTo(x, y + r); ctx.lineTo(x - r, y); ctx.closePath();
-  ctx.fillStyle = '#ffd426'; ctx.fill(); ctx.lineWidth = 2.5; ctx.strokeStyle = '#0b1a24'; ctx.stroke();
-}
 function dot(x, y, r, fill, stroke, lw = 2) { ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fillStyle = fill; ctx.fill(); if (stroke) { ctx.lineWidth = lw; ctx.strokeStyle = stroke; ctx.stroke(); } }
 
 function drawCurl(curl) {
