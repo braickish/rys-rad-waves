@@ -264,7 +264,11 @@ function drawBlock(b) {
   if (!show) return;
   ctx.font = '400 12px Bungee'; ctx.textAlign = 'center'; ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(11,26,36,.8)'; ctx.fillStyle = on ? '#ffd426' : '#fff';
   let lx = HX, ly = HY - 14;
-  if (b.type === 'arm' || b.type === 'ledge') { lx = HX + b.side * 14; ly = HY + 4; ctx.textAlign = b.side < 0 ? 'right' : 'left'; } // (out to the side)
+  if (b.type === 'arm' || b.type === 'ledge') { // (out to the side; flipped to the other side near the map's edge, where it was cut off)
+    const w = ctx.measureText(blockLabel(b)).width; let sd = b.side;
+    if (sd < 0 && HX - 14 - w < view.left) sd = 1; else if (sd > 0 && HX + 14 + w > view.left + view.mw) sd = -1;
+    lx = HX + sd * 14; ly = HY + 4; ctx.textAlign = sd < 0 ? 'right' : 'left';
+  }
   ctx.strokeText(blockLabel(b), lx, ly); ctx.fillText(blockLabel(b), lx, ly);
 }
 
