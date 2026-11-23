@@ -14,6 +14,8 @@
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; background: var(--bg); color: var(--text); font-family: Rubik, system-ui, sans-serif; }
+  /* (no double-tap zoom on the page: tapping a zoom button or any control twice zoomed the whole screen on phones; pinch-zoom still works) */
+  html, body, button, input, label, .panel { touch-action: manipulation; }
   .app { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 20px; padding: 20px; min-height: 100vh; }
   h1 { font-family: Bungee, sans-serif; font-weight: 400; color: var(--yellow); font-size: 34px; margin: 0; line-height: 1; }
   .sub { color: var(--dim); margin: 6px 0 14px; font-size: 15px; }
