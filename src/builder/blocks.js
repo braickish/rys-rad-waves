@@ -1,6 +1,7 @@
 // The wave builder's blocks (the user, 2026-11-22: snap-together reef pieces, fun and forgiving, but you can still build
 // a closeout). Each block is one or more of reefgen's surf-reef components (Mead & Black) with sizes picked so it makes a
 // surfable wave on its own; the physics stays the real model (rays.js).
+import { slopeOf } from './reef.js';
 // Positions in metres in the reef frame (x' toward the beach, y' along it; a right peels toward -y').
 
 export const SNAP = 10; // positions snap to a 10 m grid
@@ -34,12 +35,18 @@ export const DEPTHS = [[0.7, 'Shallow'], [1, 'Medium'], [1.8, 'Deep']];
 // unchanged. Waves scale the same way (Froude: a wave and a reef both 2.5x bigger break alike), so a reef that breaks a 5 ft
 // swell well breaks a ~13 ft swell the same way at 2.5x. (Depth still scales the depths alone.)
 export const SIZES = [[1, '1x'], [1.5, '1.5x'], [2.5, '2.5x']];
+// What's behind a Peak or an Arm (plan step 8, stacked reefs; the user, 2026-11-22): a reef flat (as always: the reef top runs
+// on ~150 m behind its edge and broken waves die across it) or a lagoon (the reef is a narrow ridge falling back into the
+// bay's floor behind its crest, so the broken waves can reform over the deep water and break again on a reef or a bar inside).
+export const BACKS = [['flat', 'Reef flat'], ['lagoon', 'Lagoon']];
 export const blockLength = (b) => (b.length ?? (b.type === 'ledge' ? 100 : 0)) * (b.size || 1); // (an arm's / ledge's / ridge's ... length on the reef)
 export function blockComponents(b) {
   const rad = (d) => d * Math.PI / 180, z = b.size || 1, f = (b.depth || 1) * z; // (z: size, every length and depth; f: depths)
   switch (b.type) {
-    case 'peak': return [{ type: 'focus', apex: [b.x, b.y], width_m: 220 * z, tip_radius_m: 20 * z, fade_m: 40 * z, convexity: 0.667, depth_m: 3.0 * f, gradient: b.slope || '1:10' }]; // (Slope: the hollowness dial, as the arms')
-    case 'arm': return [{ type: 'wedge', start: [b.x, b.y], side: b.side, length_m: b.length * z, width_m: 200 * z, back_m: 150 * z, fade_m: 40 * z, gradient: b.slope || '1:10', angle_to_swell_deg: b.angle, depth_m: 3.0 * f, top_depth_m: 1.0 * f }];
+    // (Slope: the hollowness dial, as the arms'. A lagoon behind: the reef's top runs 20 m behind its edge (an arm's: the width
+    // of its slope up to the top, plus 10 m), then falls to the floor over its 40 m fade)
+    case 'peak': return [{ type: 'focus', apex: [b.x, b.y], width_m: 220 * z, tip_radius_m: 20 * z, fade_m: 40 * z, convexity: 0.667, depth_m: 3.0 * f, gradient: b.slope || '1:10', ...(b.back === 'lagoon' ? { back_m: 20 * z } : {}) }];
+    case 'arm': return [{ type: 'wedge', start: [b.x, b.y], side: b.side, length_m: b.length * z, width_m: 200 * z, back_m: b.back === 'lagoon' ? 2 * f / slopeOf(b.slope || '1:10') + 10 * z : 150 * z, fade_m: 40 * z, gradient: b.slope || '1:10', angle_to_swell_deg: b.angle, depth_m: 3.0 * f, top_depth_m: 1.0 * f }];
     case 'ridge': {
       const ux = Math.cos(rad(b.rot)), uy = Math.sin(rad(b.rot)), h = b.length * z / 2;
       return [{ type: 'ridge', points: [[b.x - ux * h, b.y - uy * h], [b.x + ux * h, b.y + uy * h]], depth_m: 2.6 * f, width_m: 35 * z }]; // (2.6 m crest, a little shallower than the arm's 3 m toe: a section the curl still makes; 1.8 m closed out)
@@ -95,3 +102,10 @@ export function dynamicPreset() {
 
 // A beach break (plan step 6): one sandbar pointing out to sea on a medium (1:20) beach, an A-frame; a 12 s swell suits it.
 export function beachPreset() { return [newBlock('sandbar', 1040, 520)]; }
+// Stacked reefs (plan step 8): an outer reef (1.5x, deep) with a lagoon behind it and a smaller reef inside; a ~10 ft 15 s
+// swell breaks outside, reforms over the lagoon and breaks again on the inside reef.
+export function stackedPreset() {
+  const outer = [newBlock('peak', 760, 520), newBlock('arm', 760, 520), Object.assign(newBlock('arm', 760, 520), { side: 1 })];
+  for (const b of outer) Object.assign(b, { size: 1.5, depth: 1.8, back: 'lagoon' });
+  return [...outer, newBlock('peak', 1000, 520), newBlock('arm', 1000, 520), Object.assign(newBlock('arm', 1000, 520), { side: 1 })];
+}

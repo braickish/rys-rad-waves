@@ -251,7 +251,7 @@ section (25-30 deg), backing off (slower than 70 deg, or a gap), or closing out 
   left 96 m at 34 deg (xi0 0.29); lined up with the swell it closes out. A full ride now starts where the curl can be
   followed (loop.js `takeoffStart`: its speed along the line <= c / sin 25 deg), not inside the peak: a sandbar's curved
   end breaks all at once for ~25 m (the sandbar's left: from 48 m of 90; a pump bot rides it to the end of the wave).
-  Known gap: the curl analysis follows one peak, the first to break; several bars make several peaks, only one shows.
+  (The one-peak gap noted here was closed by plan step 8, stacked reefs.)
   `?preset=beach` (testing).
   Plan step 7 (2026-11-22): barrel sections. built.js adds `KF_TUBE` (Pipe's classic KF_PIPE, scaled to Raglan+'s section
   height) as shape 3 of the scale; the builder moves spots onto it from xi0 1.5 (2) to 1.9 (3) (loop.js `shapeIndex`).
@@ -266,6 +266,26 @@ section (25-30 deg), backing off (slower than 70 deg, or a gap), or closing out 
   side. In the browser the barrel view and tube HUD come on in a built barrel section. test/built.mjs checks the tube is
   only in the section, a stalling rider gets barrelled and is never in a tube where there's none, and the tube grows with
   the wave.
+- **Stacked reefs** (plan step 8, 2026-11-22; the user asked after a big swell on a sandbar gave nothing on either side):
+  rays.js no longer stops a ray at its first break. A broken wave goes on losing height toward 0.4 h (Dally, Dean &
+  Dalrymple 1985: energy flux decays at K / h = 0.15 / h toward the stable H = 0.4 h; `RAYS.ddK`, `ddGamma`); where the water
+  deepens it drops under 0.45 h and has reformed (`RAYS.reform`), shoals again on its own energy flux and breaks again at
+  0.78 h (up to `RAYS.breaks` 3). Every break is in `R.ev` ({ r, k, t, x, y, h, H, c, s, th, from }); the first breaks are
+  exactly as before (the unbroken rays' spread still sees broken neighbours where they broke), so every earlier number is
+  unchanged. `analyse` returns the main wave as before plus `waves` [{ name A.., tier 'outside' | 'inside', peak, right,
+  left }]: outside waves one peak after another (the earliest strip no curl reached yet), inside waves from the reformed
+  breaks (per strip the earliest, else its first break: a beach beside the reef); past the main wave one counts only if a
+  side rides 40 m+ slower than a closeout, and not if an earlier wave's curl already ran through its peak. With the height
+  model a reformed spot's break is searched from its earlier break inward (Hs / h back under 0.47, then over again). A
+  reformed wave's xi0 uses the deep-water height that would break at its own breaker height (Komar & Gaughan 1972), not the
+  swell's. Peak and Arm get "Behind: Reef flat / Lagoon" (blocks.js `BACKS`; lagoon: the reef top runs 20 m behind its edge,
+  then falls to the floor over 40 m; a peak passes it to its arms). Builder: a wave picker (A main, B peak / inside, with
+  length and height) under The wave; every wave drawn, the others at 40%; a letter over each takeoff line; reformed waves'
+  crests fainter. `state.pick` saved; DROP IN rides the picked wave. `stackedPreset` (`?preset=stacked`, `?pick=1`):
+  a 1.5x deep outer reef with a lagoon + a 1x reef inside, 10 ft 15 s: A outside 10 ft pitching; with a reef flat nothing
+  reforms, with the lagoon B inside 5 ft steep at x' 1012. Dynamic now also lists two ~2 ft inside reforms on the beach
+  behind its reef flat; the user's 2.5x sandbar (turn 135, 9.8 ft 12 s -20) a second outside peak (right 328 ft, left 394
+  ft) and an inside wave. Not yet: three tiers apart (each strip's inside is its first reformed break), sand that moves.
 - Zoom (the user, 2026-11-22): wheel / trackpad pinch about the pointer, two-finger pinch, drag the water to pan, and − / + / Fit
   in the map's corner (up to 6x; handles, labels and line widths keep their screen size; the scale bar picks a round length).
   `?zoom=2.5` opens zoomed on the peak (testing).
@@ -321,7 +341,7 @@ section (25-30 deg), backing off (slower than 70 deg, or a gap), or closing out 
   dropped the Time view; a fast section is thicker and glowing; a closeout dashed in its own colour, the dashes carried
   along the line; backing off has no mark: the user, 2026-11-22, dropped the red and the dashed white); each side's summary reads "breaks steep (ξ 0.88)". Dynamic's arms 0.88 (the right ~1.5 over its ledge shelf; Python's ray_zone.py 0.9-1.5);
   1:6 / 1:10 / 1:15 lines 1.14 / 0.88 / 0.72 at the same peel; 10 / 18 s swell 0.67 / 1.00.
-- **Next (agreed 2026-11-22):** shape, size and barrels from the reef, in five steps: plans/2026-11-22-reef-driven-waves.md.
+- **Next (agreed 2026-11-22):** shape, size and barrels from the reef, in steps: plans/2026-11-22-reef-driven-waves.md (step 8: stacked reefs).
 
 ## How it works
 

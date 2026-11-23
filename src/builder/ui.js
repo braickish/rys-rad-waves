@@ -9,7 +9,7 @@ import { traceRays, analyse } from './rays.js';
 import { runPE } from './pewave.js';
 import { LOOP, curlAt, defaultLoop, clampLoop, loopInfo, snapEnd, bestLoop, wavePayload, takeoffStart } from './loop.js';
 import { encodeBuilt, BUILT_KEY } from '../waves/built.js';
-import { BLOCKS, SNAP, ARM_ANGLES, ARM_LENGTHS, ARM_SLOPES, BAR_CRESTS, DEPTHS, SIZES, blockLength, ROTATIONS, reefComponents, newBlock, dynamicPreset, beachPreset, armRot, nearestArm } from './blocks.js';
+import { BLOCKS, SNAP, ARM_ANGLES, ARM_LENGTHS, ARM_SLOPES, BAR_CRESTS, DEPTHS, SIZES, BACKS, blockLength, ROTATIONS, reefComponents, newBlock, dynamicPreset, beachPreset, stackedPreset, armRot, nearestArm } from './blocks.js';
 
 const canvas = document.getElementById('map'), ctx = canvas.getContext('2d');
 // Heights and lengths are shown in feet (the user, 2026-11-22); the model works in metres underneath.
@@ -24,7 +24,10 @@ const COL = { yellow: [255, 212, 38], pink: [255, 61, 139], red: '#ff4b4b' };
 // ones; on the research site's shallow shelf a big swell closed out across the bay. The beach break keeps the gentle shelf.)
 const reefCoast = () => Object.assign(defaultCoast(), { deep: true });
 const state = { blocks: dynamicPreset(), coast: reefCoast(), sel: null, swell: { H: 1.6, T: 15, dir: 0 }, grid: null, rays: null, wave: null, dirty: true, ms: 0,
-  loop: { on: false, side: 'right', a: null, b: null, info: null }, hover: null, board: 'shortboard' }; // (loop: a stretch of one side to surf on repeat, loop.js)
+  loop: { on: false, side: 'right', a: null, b: null, info: null }, hover: null, board: 'shortboard', pick: 0 }; // (pick: which wave, when the design makes more than one (plan step 8))
+// The wave you're looking at and would ride: one of the design's waves (rays.js analyse: A the main one, then other peaks and
+// waves that reform inside).
+const cur = () => (state.wave ? state.wave.waves[state.pick] || state.wave.waves[0] : null); // (loop: a stretch of one side to surf on repeat, loop.js)
 let view = null; // the map's placement on the canvas
 const depthImg = document.createElement('canvas');
 
@@ -46,16 +49,16 @@ function recompute() {
 // The design is remembered (in this browser) so coming back from riding it finds it as you left it.
 const SAVE_KEY = 'rys-rad-waves-builder';
 function save() {
-  try { localStorage.setItem(SAVE_KEY, JSON.stringify({ blocks: state.blocks, coast: state.coast, swell: state.swell, board: state.board, loop: { on: state.loop.on, side: state.loop.side, a: state.loop.a, b: state.loop.b }})); } catch {}
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify({ blocks: state.blocks, coast: state.coast, swell: state.swell, board: state.board, pick: state.pick, loop: { on: state.loop.on, side: state.loop.side, a: state.loop.a, b: state.loop.b }})); } catch {}
 }
 function restore() {
   try {
     const j = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null'); if (!j || !Array.isArray(j.blocks)) return;
-    state.blocks = j.blocks; if (j.coast && Array.isArray(j.coast.pts)) state.coast = j.coast; if (j.board) state.board = j.board; Object.assign(state.swell, j.swell || {}); Object.assign(state.loop, j.loop || {}); 
+    state.blocks = j.blocks; if (j.coast && Array.isArray(j.coast.pts)) state.coast = j.coast; if (j.board) state.board = j.board; if (j.pick) state.pick = j.pick; Object.assign(state.swell, j.swell || {}); Object.assign(state.loop, j.loop || {}); 
   } catch {}
 }
 function fitLoop() {
-  const L = state.loop, side = state.wave && state.wave[L.side];
+  const L = state.loop, side = cur() && cur()[L.side];
   L.info = null;
   if (!L.on || !side) return;
   let st = L.a == null ? defaultLoop(side) : clampLoop(side, L.a, L.b);
@@ -144,10 +147,21 @@ function draw() {
       if (pen) ctx.lineTo(X, Y); else ctx.moveTo(X, Y); pen = true;
     }
     ctx.stroke();
+    if (c.re) { // (waves that reformed after breaking: their crests again, fainter)
+      ctx.strokeStyle = 'rgba(255,255,255,.22)'; ctx.beginPath(); pen = false;
+      for (let r = 0; r < c.rx.length; r++) {
+        if (!c.re[r] || c.rx[r] < VIEW.x0 || (r && Math.hypot(c.rx[r] - c.rx[r - 1], c.ry[r] - c.ry[r - 1]) > 12)) { pen = false; if (!c.re[r]) continue; }
+        const X = px(c.ry[r]), Y = py(c.rx[r]);
+        if (pen) ctx.lineTo(X, Y); else ctx.moveTo(X, Y); pen = true;
+      }
+      ctx.stroke(); ctx.strokeStyle = 'rgba(255,255,255,.35)';
+    }
   }
   // the curl, each way from the peak
-  const w = state.wave;
+  const w = cur(), all = state.wave ? state.wave.waves : [];
   if (w && state.loop.info) drawLoopBand();
+  // (every wave the design makes; the others fainter than the one you've picked)
+  for (const o of all) if (o !== w) { ctx.globalAlpha = 0.4; for (const side of ['right', 'left']) drawCurl(o[side].curl); ctx.globalAlpha = 1; }
   if (w) for (const side of ['right', 'left']) drawCurl(w[side].curl);
   // blocks
   for (const b of state.blocks) drawBlock(b);
@@ -155,14 +169,19 @@ function draw() {
   if (w && state.loop.info) drawLoopHandles();
   // where it first breaks (the takeoff): computed, so a white line, not a handle; always shown (the user, 2026-11-22: it came and
   // went), drawn over the handles, and nudged just above a handle it would sit on (it usually starts right at the Peak)
-  if (w) {
-    const X = px(w.peak.y), Y = py(w.peak.x);
+  for (const o of all) {
+    const X = px(o.peak.y), Y = py(o.peak.x);
     const onHandle = state.blocks.some((b) => { const h = handle(b); return Math.hypot(px(h.y) - X, py(h.x) - Y) < 14; });
     // (a short white vertical line, not a shape you might try to grab: the user, 2026-11-22)
     const y0 = onHandle ? Y - 26 : Y - 9, y1 = onHandle ? Y - 9 : Y + 9;
-    ctx.lineCap = 'round';
+    ctx.globalAlpha = o === w ? 1 : 0.55; ctx.lineCap = 'round';
     ctx.strokeStyle = '#0b1a24'; ctx.lineWidth = 6; ctx.beginPath(); ctx.moveTo(X, y0); ctx.lineTo(X, y1); ctx.stroke();
     ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(X, y0); ctx.lineTo(X, y1); ctx.stroke();
+    if (all.length > 1) { // (each wave's letter by its takeoff, as in the panel)
+      ctx.font = '400 13px Bungee'; ctx.textAlign = 'center'; ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(11,26,36,.9)'; ctx.fillStyle = '#fff';
+      ctx.strokeText(o.name, X, y0 - 6); ctx.fillText(o.name, X, y0 - 6);
+    }
+    ctx.globalAlpha = 1;
   }
   // labels: beach, swell
   ctx.restore();
@@ -198,7 +217,7 @@ function drawCurl(curl) {
   ctx.setLineDash([]); ctx.shadowBlur = 0; ctx.lineDashOffset = 0;
 }
 // The loop: a wide teal band under its stretch of the curl, round handles at each end (you drag them along the curl).
-function loopPath(a, b) { const c = state.wave[state.loop.side].curl, pts = [curlAt(c, a)]; for (const p of c) if (p.s > a && p.s < b) pts.push(p); pts.push(curlAt(c, b)); return pts; }
+function loopPath(a, b) { const c = cur()[state.loop.side].curl, pts = [curlAt(c, a)]; for (const p of c) if (p.s > a && p.s < b) pts.push(p); pts.push(curlAt(c, b)); return pts; }
 function drawLoopBand() {
   const L = state.loop, pts = loopPath(L.a, L.b);
   ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
@@ -208,7 +227,7 @@ function drawLoopBand() {
   ctx.strokeStyle = 'rgba(11,34,51,.82)'; ctx.lineWidth = 23; path(); ctx.stroke();
   ctx.restore();
 }
-function loopEnds() { const L = state.loop, c = state.wave[L.side].curl; return [curlAt(c, L.a), curlAt(c, L.b)]; }
+function loopEnds() { const L = state.loop, c = cur()[L.side].curl; return [curlAt(c, L.a), curlAt(c, L.b)]; }
 function drawLoopHandles() {
   const L = state.loop, [A, B] = loopEnds();
   for (const p of [A, B]) dot(px(p.y), py(p.x), 7, '#00c2c7', '#0b1a24', 2.5);
@@ -325,7 +344,7 @@ canvas.addEventListener('pointermove', (e) => {
   if (drag && drag.pan) { view.panX = drag.px0 - (cx - drag.sx); view.panY = drag.py0 - (cy - drag.sy); clampPan(); draw(); return; }
   if (!drag) { const h = hit(cx, cy) || (hitCoast(cx, cy) >= 0 ? 'coast' : null); canvas.style.cursor = h || hitLoop(cx, cy) || view.z > 1 ? 'grab' : 'default'; if (h !== state.hover) { state.hover = h; draw(); } return; }
   if (drag.loop) { // (a loop end: to the nearest spot on the curl, 10 m snap, the loop at least LOOP.min long, inside the ride)
-    const L = state.loop, side = state.wave[L.side];
+    const L = state.loop, side = cur()[L.side];
     let best = null; for (let s = 0; s <= side.ride; s += 2) { const q = curlAt(side.curl, s), d = Math.hypot(px(q.y) - cx, py(q.x) - cy); if (!best || d < best.d) best = { s, d }; }
     // (snaps to a nearby spot where the seam is smooth: the end matching the start, loop.js snapEnd)
     const sn = snapEnd(side, drag.loop, best.s, drag.loop === 'a' ? L.b : L.a);
@@ -413,6 +432,7 @@ function showSel() {
     el.appendChild(opt('Length', b.type === 'ridge' ? [50, 80, 120] : b.type === 'sandbar' ? [100, 160, 240] : [140, 220, 320], b.length, (v) => `${ft(v * (b.size || 1))} ft`, (v) => { b.length = v; }));
   }
   el.appendChild(opt('Size', SIZES.map(([z]) => z), b.size || 1, (v) => SIZES.find(([z]) => z === v)[1], (v) => { b.size = v; if (b.type === 'peak') for (const q of state.blocks) if ((q.type === 'arm' || q.type === 'ledge') && q.x === b.x && q.y === b.y) q.size = v; })); // (a peak's size goes to its arms too)
+  if (b.type === 'peak' || b.type === 'arm') el.appendChild(opt('Behind', BACKS.map(([k]) => k), b.back || 'flat', (v) => BACKS.find(([k]) => k === v)[1], (v) => { b.back = v; if (b.type === 'peak') for (const q of state.blocks) if (q.type === 'arm' && q.x === b.x && q.y === b.y) q.back = v; })); // (a lagoon behind: broken waves reform and break again inside; a peak's goes to its arms)
   if (b.type !== 'sandbar') el.appendChild(opt('Depth', DEPTHS.map(([f]) => f), b.depth || 1, (v) => DEPTHS.find(([f]) => f === v)[1], (v) => { b.depth = v; })); // (deeper reefs for big swells)
   if (b.type === 'sandbar') el.appendChild(opt('Crest', BAR_CRESTS.map(([d]) => d), b.crest, (v) => BAR_CRESTS.find(([d]) => d === v)[1], (v) => { b.crest = v; }));
   const del = document.createElement('button'); del.className = 'danger'; del.textContent = 'Remove'; del.style.marginTop = '8px';
@@ -421,7 +441,7 @@ function showSel() {
 }
 const mph = (v) => (v * 2.237).toFixed(0);
 function rideStretch() { // (what DROP IN rides: the loop, or the whole ride from just past the peak)
-  const L = state.loop, side = state.wave && state.wave[L.side];
+  const L = state.loop, side = cur() && cur()[L.side];
   if (!side) return null;
   if (L.on) return L.info ? { a: L.a, b: L.b } : null;
   return takeoffStart(side); // (from where the curl can be followed: past an at-once peak, loop.js)
@@ -430,7 +450,7 @@ function dropIn() {
   if (state.dirty) recompute();
   clearTimeout(refineTimer); refine(); // (the wave you ride is always the refined one)
   const L = state.loop, st = rideStretch(); if (!st) return;
-  const data = wavePayload(state.wave[L.side], L.side, L.on ? 'loop' : 'full', st.a, st.b, state.swell, state.board);
+  const data = wavePayload(cur()[L.side], L.side, L.on ? 'loop' : 'full', st.a, st.b, state.swell, state.board);
   try { localStorage.setItem(BUILT_KEY, JSON.stringify(data)); } catch {}
   save();
   location.href = `index.html?wave=built&play#built=${encodeBuilt(data)}`;
@@ -442,7 +462,7 @@ function showRide() {
   row([btn('Full ride', !L.on, () => { L.on = false; fitLoop(); save(); showRide(); draw(); }), btn('↻ Loop', L.on, () => { L.on = true; fitLoop(); save(); showRide(); draw(); })]).style.marginTop = '0';
   row(['right', 'left'].map((sd) => btn(sd === 'right' ? 'Right' : 'Left', L.side === sd, () => { L.side = sd; L.a = L.b = null; fitLoop(); save(); showRide(); draw(); })));
   const note = document.createElement('div'); note.className = 'note'; note.style.marginTop = '8px'; el.appendChild(note);
-  const side = state.wave && state.wave[L.side];
+  const side = cur() && cur()[L.side];
   if (!L.on) {
     note.textContent = side && rideStretch() ? `The whole ${L.side}, from the takeoff until it ends (${ft(side.ride)} ft). Or loop your favourite stretch to surf it forever, like Queens or Raglan.` : '';
   } else {
@@ -474,7 +494,22 @@ function showResults() {
     return `<div><span class="side">${name}</span> ${ft(s.ride)} ft · ${s.seconds.toFixed(0)} s · peels ${s.peelAll.toFixed(0)}° overall <span class="${bad}">(${s.bandAll})</span>${isFinite(s.peelFast) ? ` · fastest ${s.peelFast.toFixed(0)}°` : ''}${isFinite(s.curlSpeed) ? ` · curl ~${(s.curlSpeed * 2.237).toFixed(0)} mph` : ''}`
       + ` · ~${ft(s.H)} ft waves<br><span class="end">breaks ${s.how} (ξ ${s.xi.toFixed(2)}) · then it ${s.end}</span></div>`;
   };
-  el.innerHTML = line('Right', w.right) + line('Left', w.left);
+  if (state.pick >= w.waves.length) state.pick = 0;
+  const pw = cur();
+  el.innerHTML = '';
+  if (w.waves.length > 1) { // (plan step 8: the design makes more than one wave; pick the one to look at and ride)
+    const r = document.createElement('div'); r.className = 'row'; r.style.marginBottom = '8px';
+    w.waves.forEach((o, k) => {
+      const b = document.createElement('button'); b.className = k === state.pick ? 'on' : '';
+      const best = Math.max(o.right.ride, o.left.ride), Hh = (o.right.ride >= o.left.ride ? o.right : o.left).H;
+      b.innerHTML = `<b>${o.name}</b> ${o.tier === 'inside' ? 'inside' : k ? 'peak' : 'main'}<span style="opacity:.7"> · ${ft(best)} ft${isFinite(Hh) ? ` · ${ft(Hh)} ft high` : ''}</span>`;
+      b.onclick = () => { state.pick = k; state.loop.a = state.loop.b = null; fitLoop(); save(); showResults(); draw(); };
+      r.appendChild(b);
+    });
+    el.appendChild(r);
+    if (pw.tier === 'inside') { const n = document.createElement('div'); n.className = 'note'; n.style.marginBottom = '6px'; n.textContent = 'An inside wave: it broke outside, reformed over the deeper water and breaks again here.'; el.appendChild(n); }
+  }
+  el.insertAdjacentHTML('beforeend', line('Right', pw.right) + line('Left', pw.left));
   showRide();
   const refined = state.wave.right && state.wave.right.refined;
   $('stats').textContent = `rays ${state.ms.toFixed(0)} ms · ${refined ? `heights refined (${state.peMs.toFixed(0)} ms)` : 'refining heights…'} · ${state.rays.n} rays · ${state.grid.M}×${state.grid.N} cells of ${ft(state.grid.dx)} ft`;
@@ -521,11 +556,13 @@ window.addEventListener('resize', () => { layout(); draw(); });
 
 restore();
 { const dq = new URLSearchParams(location.search).get('dir'); if (dq != null) { state.swell.dir = Number(dq); $('D').value = dq; $('Dv').textContent = `${dq > 0 ? '+' : ''}${dq}°`; } } // (?dir=: testing)
+{ const pk = Number(new URLSearchParams(location.search).get('pick')); if (pk > 0) state.pick = pk; } // (?pick=1: open on the second wave, for testing)
+if (new URLSearchParams(location.search).get('preset') === 'stacked') { state.coast = reefCoast(); state.blocks = stackedPreset(); Object.assign(state.swell, { H: 3, T: 15, dir: 0 }); syncSwell(); state.dirty = true; } // (?preset=stacked: testing)
 if (new URLSearchParams(location.search).get('preset') === 'beach') { state.coast = defaultCoast(); state.coast.face = 20; state.blocks = beachPreset(); state.swell.T = 12; $('T').value = 12; $('Tv').textContent = '12 s'; } // (?preset=beach: testing)
 { const q = new URLSearchParams(location.search).get('loop'); if (q) { state.loop.on = true; state.loop.side = q === 'left' ? 'left' : 'right'; } } // (?loop=right|left: start looped, for testing)
 syncSwell();
 recompute(); layout(); showSel(); showZoom(); showCoast();
-{ const zq = Number(new URLSearchParams(location.search).get('zoom')); if (zq > 1 && state.wave) zoomAt(px(state.wave.peak.y), py(state.wave.peak.x), zq); } // (?zoom=2.5: open zoomed on the peak, for testing)
+{ const zq = Number(new URLSearchParams(location.search).get('zoom')); if (zq > 1 && cur()) zoomAt(px(cur().peak.y), py(cur().peak.x), zq); } // (?zoom=2.5: open zoomed on the peak, for testing)
 draw();
 document.fonts?.ready.then(() => draw());
 window.__builder = state; // (tests)

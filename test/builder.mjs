@@ -147,6 +147,22 @@ check(A.left.xi > 0.5 && A.left.xi < 3.3 && A.right.xi > 0.5 && A.right.xi < 3.3
   console.log(`13 ft 18 s: reef 1x right ${s1.right.ride.toFixed(0)} m ${s1.right.how}, left ${s1.left.ride.toFixed(0)} m; reef 2.5x right ${s25.right.ride.toFixed(0)} m at ${s25.right.peel.toFixed(0)} deg ${s25.right.how}, left ${s25.left.ride.toFixed(0)} m at ${s25.left.peel.toFixed(0)} deg`);
   check(s25.right.ride > 2 * s1.right.ride && s25.left.ride > 2 * s1.left.ride && s25.right.xi > 0.9, 'size: a 2.5x reef rides a 13 ft swell long and pitching, as the 1x reef rides 5 ft');
 }
+// Stacked reefs (plan step 8): a broken wave loses height toward 0.4 h (Dally, Dean & Dalrymple) and reforms where the water
+// deepens. Behind an outer reef with a reef flat it never does (the inner reef gets no wave of its own); with a lagoon it
+// reforms and breaks again on the inner reef: a second, smaller wave, steeper than the swell's own height would say.
+{
+  const { BAY, BAY_DEEP_OFF, defaultCoast: dc } = await import('../src/builder/reef.js');
+  const { reefComponents: rc, stackedPreset } = await import('../src/builder/blocks.js');
+  const sw = { H: 3, T: 15, dir: 0 };
+  const run = (back) => { const bl = stackedPreset(); for (const b of bl) if (b.back) b.back = back; const g = buildDepth(rc(bl, true), makeGrid({ ...BAY, offDepth: BAY_DEEP_OFF }), Object.assign(dc(), { deep: true })); return analyse(traceRays(g, sw), g, { pe: runPE(g, sw) }); };
+  const flat = run('flat'), lag = run('lagoon'), ins = lag.waves.find((w) => w.tier === 'inside');
+  const desc = (A) => A.waves.map((w) => `${w.name} ${w.tier} at x' ${w.peak.x.toFixed(0)} (${(Math.max(w.right.H, w.left.H) * 3.281).toFixed(0)} ft, ${w.left.how})`).join(', ');
+  console.log(`stacked, 10 ft 15 s: reef flat behind: ${desc(flat)}; lagoon: ${desc(lag)}`);
+  check(!flat.waves.some((w) => w.tier === 'inside'), 'stacked: behind a reef flat the broken waves never reform');
+  check(ins && ins.peak.x > 950 && ins.left.ride >= 60 && ins.left.H < 0.7 * lag.left.H, 'stacked: over a lagoon they reform and break again on the inside reef, smaller');
+  check(ins && ins.left.xi >= 0.5, 'stacked: the inside wave breaks by its own height (not crumbly from the swell\'s)');
+  check(lag.waves[0].tier === 'outside' && Math.abs(lag.left.ride - flat.left.ride) < 30, 'stacked: the outside wave is the main one and the lagoon leaves it alone');
+}
 check(tBuild + tRays + tAn < 400, `rebuild + trace under 400 ms in node (${(tBuild + tRays + tAn).toFixed(0)})`);
 console.log(fails ? 'SOME FAILED' : 'all ok');
 process.exitCode = fails ? 1 : 0;

@@ -97,6 +97,18 @@ reshapes bars while reef stays put).
   offline to confirm the chain end to end.
 - Test: test/tube.mjs-style riders through a built barrel section; all other waves unchanged.
 
+## 8. Stacked reefs (added 2026-11-22, the user; first version done 2026-11-22)
+
+A big swell on a bar breaks outside, reforms over the deeper water behind it and breaks again inside; a bay can hold several
+reefs, each its own peak. The builder showed only the first break's one peak.
+
+- Rays: broken waves carry on and lose height (Dally, Dean & Dalrymple 1985), reform where the water deepens, break again.
+- Analysis: every wave (outside peaks one after another; inside waves from the reformed breaks), each with its right and left.
+- Blocks: Peak and Arm "Behind: Reef flat / Lagoon", so a reef can drop back into deep water.
+- Builder: pick the wave to look at, loop and DROP IN; all drawn.
+- Check: the main wave's numbers unchanged (test/builder.mjs and test/built.mjs output identical); a stacked design reforms
+  with a lagoon and not over a reef flat. Later: a FUNWAVE run of a stacked design to check the reformed heights.
+
 ## Along the way
 
 - Finer curl speed (the loop profile averages over ~40 m; sections soften).
