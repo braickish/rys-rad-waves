@@ -517,13 +517,21 @@ function showResults() {
 const SWELL_CTL = [['H', 'H', (v) => `${ft1(v)} ft`], ['T', 'T', (v) => `${v} s`], ['D', 'dir', (v) => `${v > 0 ? '+' : ''}${v}°`]];
 for (const [id, key, fmt] of SWELL_CTL) {
   const input = $(id), out = $(id + 'v');
-  input.addEventListener('input', () => { state.swell[key] = Number(input.value); out.textContent = fmt(state.swell[key]); state.dirty = true; schedule(); });
+  input.addEventListener('input', () => { state.swell[key] = Number(input.value); input.defaultValue = input.value; out.textContent = fmt(state.swell[key]); state.dirty = true; schedule(); });
 }
 // Every swell slider and its number from the current state (the user, 2026-11-22: after a reload the direction slider showed
 // 0 while the map said otherwise: the labels were set before the saved design was restored, and a browser can put back stale
 // slider values when it restores the page from its back/forward cache).
-function syncSwell() { for (const [id, key, fmt] of SWELL_CTL) { $(id).value = state.swell[key]; $(id + 'v').textContent = fmt(state.swell[key]); } }
-window.addEventListener('pageshow', () => { syncSwell(); draw(); });
+// Then (the user, 2026-11-22: the numbers right but a slider's thumb in the wrong place): some browsers (Safari) put back a
+// slider's old position after the page's script has run, on a reload or coming back to it, without telling it. So the
+// current value is also made each slider's own default (what a browser restores and resets to), and the sliders are synced
+// again once the page has fully loaded and on the next frame.
+function syncSwell() {
+  for (const [id, key, fmt] of SWELL_CTL) { const el = $(id), v = String(state.swell[key]); el.defaultValue = v; el.setAttribute('value', v); el.value = v; $(id + 'v').textContent = fmt(state.swell[key]); }
+}
+const resync = () => { syncSwell(); requestAnimationFrame(syncSwell); setTimeout(syncSwell, 250); };
+window.addEventListener('pageshow', () => { resync(); draw(); });
+window.addEventListener('load', resync);
 // The coast panel: the beach face's slope (the Skeleton Bay research: it sets the hollowness, not the peel), and straighten.
 const BEACH = [[12, 'Steep 1:12'], [20, 'Medium 1:20'], [35, 'Gentle 1:35'], [66.7, 'Flat 1:67']];
 function showCoast() {
@@ -555,10 +563,10 @@ $('clear').onclick = () => { state.blocks = []; state.sel = null; state.dirty = 
 window.addEventListener('resize', () => { layout(); draw(); });
 
 restore();
-{ const dq = new URLSearchParams(location.search).get('dir'); if (dq != null) { state.swell.dir = Number(dq); $('D').value = dq; $('Dv').textContent = `${dq > 0 ? '+' : ''}${dq}°`; } } // (?dir=: testing)
+{ const dq = new URLSearchParams(location.search).get('dir'); if (dq != null) { state.swell.dir = Number(dq); syncSwell(); } } // (?dir=: testing)
 { const pk = Number(new URLSearchParams(location.search).get('pick')); if (pk > 0) state.pick = pk; } // (?pick=1: open on the second wave, for testing)
 if (new URLSearchParams(location.search).get('preset') === 'stacked') { state.coast = reefCoast(); state.blocks = stackedPreset(); Object.assign(state.swell, { H: 3, T: 15, dir: 0 }); syncSwell(); state.dirty = true; } // (?preset=stacked: testing)
-if (new URLSearchParams(location.search).get('preset') === 'beach') { state.coast = defaultCoast(); state.coast.face = 20; state.blocks = beachPreset(); state.swell.T = 12; $('T').value = 12; $('Tv').textContent = '12 s'; } // (?preset=beach: testing)
+if (new URLSearchParams(location.search).get('preset') === 'beach') { state.coast = defaultCoast(); state.coast.face = 20; state.blocks = beachPreset(); state.swell.T = 12; syncSwell(); } // (?preset=beach: testing)
 { const q = new URLSearchParams(location.search).get('loop'); if (q) { state.loop.on = true; state.loop.side = q === 'left' ? 'left' : 'right'; } } // (?loop=right|left: start looped, for testing)
 syncSwell();
 recompute(); layout(); showSel(); showZoom(); showCoast();

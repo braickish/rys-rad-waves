@@ -286,6 +286,19 @@ section (25-30 deg), backing off (slower than 70 deg, or a gap), or closing out 
   reforms, with the lagoon B inside 5 ft steep at x' 1012. Dynamic now also lists two ~2 ft inside reforms on the beach
   behind its reef flat; the user's 2.5x sandbar (turn 135, 9.8 ft 12 s -20) a second outside peak (right 328 ft, left 394
   ft) and an inside wave. Not yet: three tiers apart (each strip's inside is its first reformed break), sand that moves.
+- Out of the tube (the user, 2026-11-22: a bit more boost in the tube; hard to make it out, especially in small tubes): two
+  causes. A built wave's pocket was Raglan+'s, which ends at the curl, so behind it in a barrel the wave fed you nothing
+  (pocket 0, cruise ~0.85x the curl); built.js `pocket` now blends in Pipe's (which carries on ~9 m behind the curl) by
+  `tubeAt`, as the face top and foam already did. And in the tube trimming now holds the curl's own speed x `tubeHold` 1.08
+  (rider.js ENERGY_TUNE, every tube wave): a built barrel is usually a fast section, where the open face's hold (wall pace
+  plus half the section's extra) left you ~0.9x the curl with no pumping possible, and a small tube is short, so a
+  shortfall pinched you first there. Placed 30% in, trimming low: built barrels 2-3 m at 8-10 m/s were all pinched in
+  7-17 s, now they hold their place or come out (test/built.mjs "tube exit"); Pipe on a 0.4 line comes out in 2.6-6.5 s
+  (held station at 1.00x before), 0.5 stays in. (test/tube.mjs and tubetrim.mjs's pull-in bots no longer get into Pipe's
+  tube, before and after this change: their output didn't move.)
+- Swell sliders (the user, 2026-11-22: numbers right, thumbs not): syncSwell makes the value each slider's default too
+  (`defaultValue` / the attribute: what a browser restores) and re-syncs on load, pageshow, the next frame and 250 ms on;
+  Safari can put back an old slider position after the script has run.
 - Zoom (the user, 2026-11-22): wheel / trackpad pinch about the pointer, two-finger pinch, drag the water to pan, and − / + / Fit
   in the map's corner (up to 6x; handles, labels and line widths keep their screen size; the scale bar picks a round length).
   `?zoom=2.5` opens zoomed on the peak (testing).

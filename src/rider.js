@@ -175,7 +175,13 @@ const ENERGY_TUNE = { energy: true, pocketHold: 1.0, airSpeedCurl: 7.15, airSpee
   // In the tube (the user, 2026-11-21): no tube engine (`tubeDrive`) or speed holder (`trimCap`): the tube is the
   // pocket at its steepest, 1.0x the peel, a high line fast by gravity, a climb toward the roof costly; deep in, the
   // front-foot lean trims 1.04x (was a push); the back foot is the stall, 0.85x (0.95x on the open face).
-  tubeLeanSpeed: 1.04, tubeBackSpeed: 0.85 };
+  tubeLeanSpeed: 1.04, tubeBackSpeed: 0.85,
+  // Then (the user, 2026-11-22: hard to make it back out, especially in small tubes): in the tube trimming holds the curl's
+  // own speed (a built wave's barrel is usually a fast section: the open face's hold, its wall pace plus a share of the
+  // section's extra, left you ~0.9x the curl there, and you can't pump in a barrel) and a touch more, `tubeHold`: the wall
+  // inside is the wave at its steepest, so gravity along a trimming line carries you just faster than the curl. A small
+  // tube is short, so any shortfall pinched you there first.
+  tubeHold: 1.08 };
 
 
 const v3 = {
@@ -1073,7 +1079,7 @@ function stepSurf(r, input, dt) {
   const pkReach = r.xs > 0 ? pocketPower(Math.max(0, r.xs - T.shoulderReach) / (T.shoulderFade || 1)) : pk; // (shoulderFade: fades over this many times the pocket's own length)
   const pkSpeed = Math.max(pkReach, wall); // (a steep wall anywhere feeds you too: `wallK`)
   let target = T.vLow + (T.vPocket - T.vLow) * pkSpeed * steep * (T.heightSpeed[0] + T.heightSpeed[1] * height);
-  if (T.energy) target = T.vLow + (T.pocketHold * holdPeel() - T.vLow) * pkSpeed * steepAny * crestFade(r, height); // (energy pocket: 1.0x the peel at any height up to the crest, where it fades; Raglan+'s sections: the wave's own peel, wave.js holdPeel)
+  if (T.energy) target = T.vLow + ((r.tube && T.tubeHold ? T.tubeHold * PEEL_SPEED : T.pocketHold * holdPeel()) - T.vLow) * pkSpeed * steepAny * crestFade(r, height); // (energy pocket: 1.0x the peel at any height up to the crest, where it fades; Raglan+'s sections: the wave's own peel, wave.js holdPeel)
   else if (T.physPocket) target = physCruise(T.physPocket, height, pkSpeed, steepAny);
   r.cruise = target; // (the wave's cruising speed for you here, before feet and foam: tests)
   if (r.foot < 0) target *= 1 - (1 - (T.tailSpeed ?? 1)) * -r.foot; // (standing on the tail the board drags: slower than from the middle)

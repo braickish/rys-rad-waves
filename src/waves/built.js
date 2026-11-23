@@ -86,7 +86,10 @@ export function applyBuilt(data) {
     sizeK: k, // (the riding camera pulls back with it, main.js)
     scale: raglanPlus.scale * k,
     phase: { ...p, ahead: p.ahead * k, behind: p.behind * k },
-    pocket: (xs) => raglanPlus.pocket(xs / k),
+    // (the pocket: Raglan+'s, which ends at the curl; where the shape has a tube, Pipe's, which carries on in behind the curl:
+    // in a barrel you ride behind the curl, and on Raglan+'s pocket the wave fed you nothing there; the user, 2026-11-22:
+    // hard to make it back out of the tube)
+    pocket: (xs) => { const a = raglanPlus.pocket(xs / k), tk = env.tubeAt(xs); return tk > 0 ? a + (reef.pocket(xs / k) - a) * tk : a; },
     board: data.board === 'gun' ? 'gun' : raglanPlus.board, // (the board you chose at DROP IN)
     tune: { ...T, curlZone: T.curlZone.map((x) => x * k), startXs: 4 * k, shoulderReach: T.shoulderReach * k, snapIntoLip: T.snapIntoLip * k,
       airCurlZone: T.airCurlZone * k, airBoostZone: T.airBoostZone * k, airIntoCurl: T.airIntoCurl * k, ...(data.board === 'gun' ? GUN : {}) },

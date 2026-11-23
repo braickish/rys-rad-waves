@@ -229,5 +229,30 @@ for (const [mode, data] of Object.entries(payloads)) {
   applyBuilt(mk('shortboard')); R.useWave('built');
   check(W.WAVE.board !== 'gun' && R.TUNE.airs !== false, 'gun: a shortboard drop-in is still a shortboard');
 }
+// Getting back out of the tube (the user, 2026-11-22: hard to make it out, especially in small tubes). A rider placed 30% of
+// the way in toward the pinch, at the curl's speed, holding a line a quarter up the face, in a barrel section that runs at the
+// wall's pace or faster. It was pinched in all of these (Raglan+'s pocket ended at the curl, so behind it in the tube the wave
+// fed you nothing; and the open face's hold left ~0.9x the curl in a fast section); now it holds its place or comes out.
+{
+  const mkB = (H, ps) => { const prof = []; for (let s0 = 0; s0 <= 300; s0 += 10) { const inS = s0 >= 40 && s0 <= 260; prof.push({ s: s0, peel: inS ? ps : 8, k: 0, H, c: 5.5, u: inS ? 3 : 1 }); } return { v: 1, mode: 'loop', side: 'left', length: 300, base: 8, H, c: 5.5, profile: prof }; };
+  const dt = 1 / 120, rows = []; let ok = true;
+  for (const H of [2, 3]) for (const ps of [8, 10]) {
+    applyBuilt(mkB(H, ps)); R.useWave('built'); S.seedSea(1); S.nextWave();
+    while (W.RIDGE.c < 70) S.stepSea(dt);
+    const T = R.TUNE, want = T.tubeExit + (T.tubeCollapse - T.tubeExit) * 0.3; let xs = 0; while (W.phaseAt(xs) < want && xs > -40) xs -= 0.05;
+    let t = T.tBottom; for (; t > 4; t -= 0.05) { const q = R.createRider(); R.resetRider(q); Object.assign(q, { xs, phi: 0, speed: W.PEEL_SPEED, t }); q.events = []; R.stepRider(q, {}, 0); if (q.height >= 0.25 || q.mode !== 'surf') break; }
+    const r = R.createRider(); R.resetRider(r); Object.assign(r, { xs, phi: 0, speed: W.PEEL_SPEED, t }); r.events = []; R.stepRider(r, {}, 0);
+    let st = 'still in after 15 s', tIn = 0;
+    for (let i = 0; i < 15 / dt; i++) {
+      S.stepSea(dt); R.stepRider(r, { aim: [1, Math.max(-0.6, Math.min(0.3, 3 * (0.25 - r.height)))] }, dt);
+      if (r.tube) tIn += dt;
+      if (r.events.some((e) => e.type === 'barrelExit')) { st = `out after ${tIn.toFixed(1)} s`; break; }
+      if (r.mode === 'wipe') { st = `${r.wipeReason.replace(/!.*/, '')} after ${tIn.toFixed(1)} s`; ok = false; break; }
+    }
+    rows.push(`${H} m ${ps} m/s: ${st}`);
+  }
+  console.log(`-- tube exit (30% in, trimming low): ${rows.join(' | ')}`);
+  check(ok, 'tube: trimming in a built barrel, small or fast, you hold your place or come out (not pinched)');
+}
 console.log(fails ? 'SOME FAILED' : 'all ok');
 process.exitCode = fails ? 1 : 0;
