@@ -87,7 +87,7 @@ function layout() {
   canvas.width = Math.round(r.width * dpr); canvas.height = Math.round(r.height * dpr);
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   const g = state.grid || makeGrid(), Y0 = g.view.y0, Y1 = g.view.y1; // (the map shows `view`; the model runs wider)
-  const pad = 14, w = r.width - 2 * pad, h = r.height - 2 * pad - 30 - 26; // (30 above for the swell, 26 below for the scale)
+  const pad = 14, w = r.width - 2 * pad, h = r.height - 2 * pad - 30 - 44; // (30 above for the swell, 44 below for the scale and the zoom buttons)
   const S = Math.min(w / (Y1 - Y0), h / (VIEW.x1 - VIEW.x0));
   const z = view ? view.z : 1, panX = view ? view.panX : 0, panY = view ? view.panY : 0;
   view = { S, Y0, Y1, left: pad + (w - (Y1 - Y0) * S) / 2, top: pad + 30 + (h - (VIEW.x1 - VIEW.x0) * S) / 2, W: r.width, H: r.height, z, panX, panY };
@@ -164,7 +164,7 @@ function draw() {
   { const yb = (state.coast.pts[2][1] + state.coast.pts[3][1]) / 2, xb = (state.coast.pts[2][0] + state.coast.pts[3][0]) / 2 + 9, bxp = px(yb), byp = py(xb); if (byp < view.top + mh - 2 && bxp > view.left && bxp < view.left + mw) ctx.fillText('BEACH', bxp, byp); } // (on the sand, between two coastline handles; moves with the zoom)
   drawSwell(view.left + mw / 2, view.top - 14);
   // scale bar
-  ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; const sx = view.left + 6, sy = view.top + mh + 16;
+  ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; const sx = view.left + 6, sy = view.top + mh + 24;
   const sm = [500, 200, 100, 50, 20].find((f) => f / FT * S * view.z <= 170) || 20, sl = sm / FT * S * view.z; // (a round length in feet that fits, as you zoom)
   ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(sx + sl, sy); ctx.moveTo(sx, sy - 5); ctx.lineTo(sx, sy + 5); ctx.moveTo(sx + sl, sy - 5); ctx.lineTo(sx + sl, sy + 5); ctx.stroke();
   ctx.fillStyle = '#fff'; ctx.textAlign = 'left'; ctx.font = '500 12px Rubik'; ctx.fillText(`${sm} ft`, sx + sl + 8, sy + 4);
@@ -216,7 +216,7 @@ function drawLoopHandles() {
   const txt = `↻ LOOP ${ft(L.info.length)} ft`; ctx.strokeText(txt, lx, ly); ctx.fillText(txt, lx, ly);
 }
 function drawSwell(cx, cy) {
-  const a = -state.swell.dir * Math.PI / 180; // (the swell's heading on the map: straight down, turned by its direction)
+  const a = state.swell.dir * Math.PI / 180; // (the swell's heading on the map: straight down, turned the way the waves travel: rays.js th0 = -dir, + toward +y' (the map's right) for a negative dir; canvas rotations turn clockwise. It was the wrong way round: the user, 2026-11-22)
   ctx.save(); ctx.translate(cx - 70, cy); ctx.rotate(a);
   ctx.fillStyle = '#eaf6fa'; ctx.beginPath(); ctx.moveTo(-6, -12); ctx.lineTo(6, -12); ctx.lineTo(6, 2); ctx.lineTo(12, 2); ctx.lineTo(0, 14); ctx.lineTo(-12, 2); ctx.lineTo(-6, 2); ctx.closePath(); ctx.fill();
   ctx.restore();
@@ -228,13 +228,13 @@ function blockLabel(b) {
   if (b.type === 'ledge') return `LEDGE ${b.angle}°`;
   return BLOCKS[b.type].label.toUpperCase();
 }
-// Where a block's handle sits: arms and ledges half way along their line (their start is often on a peak, which has its
-// own handle there), everything else at its position.
+// Where a block's handle sits: arms and ledges at their far end, on their line (their start is often on a peak, which has
+// its own handle there), everything else at its position.
 function handle(b) {
   if (b.type !== 'arm' && b.type !== 'ledge') return { x: b.x, y: b.y };
-  // (half way along, set 28 m offshore of the line so it doesn't sit on the curl and hide its colour)
-  const a = b.angle * Math.PI / 180, L = blockLength(b) / 2, off = 28;
-  return { x: b.x + Math.sin(a) * L - Math.cos(a) * off, y: b.y + b.side * Math.cos(a) * L + b.side * Math.sin(a) * off };
+  // (on the feature, the user, 2026-11-22: at the arm's far end, on its line; its start is the peak's own handle)
+  const a = b.angle * Math.PI / 180, L = blockLength(b);
+  return { x: b.x + Math.sin(a) * L, y: b.y + b.side * Math.cos(a) * L };
 }
 // The coastline's handles (plan step 5): round, on the waterline; you drag them in and out. Its name shows on hover.
 function drawCoast() {
@@ -510,6 +510,7 @@ $('clear').onclick = () => { state.blocks = []; state.sel = null; state.dirty = 
 window.addEventListener('resize', () => { layout(); draw(); });
 
 restore();
+{ const dq = new URLSearchParams(location.search).get('dir'); if (dq != null) { state.swell.dir = Number(dq); $('D').value = dq; $('Dv').textContent = `${dq > 0 ? '+' : ''}${dq}°`; } } // (?dir=: testing)
 if (new URLSearchParams(location.search).get('preset') === 'beach') { state.coast = defaultCoast(); state.coast.face = 20; state.blocks = beachPreset(); state.swell.T = 12; $('T').value = 12; $('Tv').textContent = '12 s'; } // (?preset=beach: testing)
 { const q = new URLSearchParams(location.search).get('loop'); if (q) { state.loop.on = true; state.loop.side = q === 'left' ? 'left' : 'right'; } } // (?loop=right|left: start looped, for testing)
 recompute(); layout(); showSel(); showZoom(); showCoast();

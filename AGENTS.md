@@ -268,7 +268,9 @@ section (25-30 deg), backing off (slower than 70 deg, or a gap), or closing out 
   in the map's corner (up to 6x; handles, labels and line widths keep their screen size; the scale bar picks a round length).
   `?zoom=2.5` opens zoomed on the peak (testing).
 - Kept clear so the curl's colour reads (the user, 2026-11-22): block names and shape guides only on hover or selection,
-  arm handles set 28 m offshore of their line, the curl drawn over a thin dark casing, no time ticks on the map.
+  arm and ledge handles at their far end on their line (the user, 2026-11-22: on the feature, not offset; their start is
+  the peak's handle), the curl drawn over a thin dark casing, no time ticks on the map; the zoom buttons in the row under
+  the map. The swell arrow turns the way the waves travel (it was mirrored; `?dir=` for tests).
 - Big swells (the user, 2026-11-22: toward Pipe-size waves): swell up to 4.5 m (~15 ft); Coast "Offshore: Shelf / Deep"
   (Deep: the bay 25 m offshore, `FLOOR_DEEP` shelf 24 -> 16 m, and past the beach face the bottom drops 1:25 instead of 1:67,
   deep water close in as at Pipeline); reef blocks get Depth Shallow / Medium / Deep (x0.7 / 1 / 1.8 their depths); built
