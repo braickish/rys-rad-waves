@@ -27,7 +27,20 @@ const state = { blocks: dynamicPreset(), coast: reefCoast(), sel: null, swell: {
   loop: { on: false, side: 'right', a: null, b: null, info: null }, hover: null, board: 'shortboard', pick: 0 }; // (pick: which wave, when the design makes more than one (plan step 8))
 // The wave you're looking at and would ride: one of the design's waves (rays.js analyse: A the main one, then other peaks and
 // waves that reform inside).
-const cur = () => (state.wave ? state.wave.waves[state.pick] || state.wave.waves[0] : null); // (loop: a stretch of one side to surf on repeat, loop.js)
+const cur = () => (state.wave ? state.wave.waves[state.pick] || state.wave.waves[0] : null);
+// (the pick follows the wave, not its place in the list: the user, 2026-11-22, B's ride seemed to get A's speed. After every
+// analysis the picked wave is found again by its tier and where its peak is, so a quick re-analysis while dragging, or the
+// first on page load, that finds a different number of waves can't leave you on another one; `pickKey` remembers it until
+// it comes back)
+function repick() {
+  if (!state.wave) return;
+  const W = state.wave.waves, k = state.pickKey;
+  if (!k) { if (state.pick >= W.length) state.pick = 0; state.pickKey = keyOf(W[state.pick]); return; }
+  let best = -1, bd = 80;
+  W.forEach((w, i) => { if (w.tier !== k.tier) return; const d = Math.hypot(w.peak.x - k.x, w.peak.y - k.y); if (d < bd) { bd = d; best = i; } });
+  if (best >= 0) { state.pick = best; state.pickKey = keyOf(W[best]); } else state.pick = 0; // (gone for now: show the main wave, keep the key)
+}
+const keyOf = (w) => (w ? { tier: w.tier, x: w.peak.x, y: w.peak.y } : null); // (loop: a stretch of one side to surf on repeat, loop.js)
 let view = null; // the map's placement on the canvas
 const depthImg = document.createElement('canvas');
 
@@ -36,7 +49,7 @@ function recompute() {
   const t0 = performance.now();
   state.grid = buildDepth(reefComponents(state.blocks, !!state.coast.deep), makeGrid(state.coast.deep ? { ...BAY, offDepth: BAY_DEEP_OFF } : BAY), state.coast); // (deep offshore water: a deeper bay and shelf)
   state.rays = traceRays(state.grid, state.swell);
-  state.wave = analyse(state.rays, state.grid);
+  state.wave = analyse(state.rays, state.grid); repick();
   state.ms = performance.now() - t0;
   state.peMs = null; scheduleRefine();
   fitLoop();
@@ -49,12 +62,12 @@ function recompute() {
 // The design is remembered (in this browser) so coming back from riding it finds it as you left it.
 const SAVE_KEY = 'rys-rad-waves-builder';
 function save() {
-  try { localStorage.setItem(SAVE_KEY, JSON.stringify({ blocks: state.blocks, coast: state.coast, swell: state.swell, board: state.board, pick: state.pick, loop: { on: state.loop.on, side: state.loop.side, a: state.loop.a, b: state.loop.b }})); } catch {}
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify({ blocks: state.blocks, coast: state.coast, swell: state.swell, board: state.board, pick: state.pick, pickKey: state.pickKey, loop: { on: state.loop.on, side: state.loop.side, a: state.loop.a, b: state.loop.b }})); } catch {}
 }
 function restore() {
   try {
     const j = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null'); if (!j || !Array.isArray(j.blocks)) return;
-    state.blocks = j.blocks; if (j.coast && Array.isArray(j.coast.pts)) state.coast = j.coast; if (j.board) state.board = j.board; if (j.pick) state.pick = j.pick; Object.assign(state.swell, j.swell || {}); Object.assign(state.loop, j.loop || {}); 
+    state.blocks = j.blocks; if (j.coast && Array.isArray(j.coast.pts)) state.coast = j.coast; if (j.board) state.board = j.board; if (j.pick) state.pick = j.pick; if (j.pickKey) state.pickKey = j.pickKey; Object.assign(state.swell, j.swell || {}); Object.assign(state.loop, j.loop || {}); 
   } catch {}
 }
 function fitLoop() {
@@ -382,7 +395,7 @@ function refine() {
   if (!state.rays || (state.wave && state.wave.right && state.wave.right.refined)) return;
   const t0 = performance.now();
   const pe = runPE(state.grid, state.swell);
-  state.wave = analyse(state.rays, state.grid, { pe });
+  state.wave = analyse(state.rays, state.grid, { pe }); repick();
   state.peMs = performance.now() - t0;
   fitLoop(); showResults(); draw();
 }
@@ -482,7 +495,7 @@ function showRide() {
   const br = row([btn('Shortboard', state.board === 'shortboard', () => { state.board = 'shortboard'; save(); showRide(); }), btn('Gun', state.board === 'gun', () => { state.board = 'gun'; save(); showRide(); })]);
   br.insertBefore(Object.assign(document.createElement('span'), { textContent: 'Board', style: 'font-size:13px;color:var(--dim);width:70px;align-self:center' }), br.firstChild);
   if (big && state.board !== 'gun') { const n = document.createElement('div'); n.className = 'note'; n.style.marginTop = '4px'; n.textContent = `These are ~${ft(side.H)} ft waves: a gun holds the speed they need.`; el.appendChild(n); }
-  const go = btn('DROP IN', false, dropIn, 'go'); go.disabled = !rideStretch();
+  const go = btn(state.wave && state.wave.waves.length > 1 && cur() ? `DROP IN · ${cur().name}` : 'DROP IN', false, dropIn, 'go'); // (which wave, when there's more than one) go.disabled = !rideStretch();
   const r = row([go]); r.style.marginTop = '12px';
 }
 function showResults() {
@@ -494,7 +507,6 @@ function showResults() {
     return `<div><span class="side">${name}</span> ${ft(s.ride)} ft · ${s.seconds.toFixed(0)} s · peels ${s.peelAll.toFixed(0)}° overall <span class="${bad}">(${s.bandAll})</span>${isFinite(s.peelFast) ? ` · fastest ${s.peelFast.toFixed(0)}°` : ''}${isFinite(s.curlSpeed) ? ` · curl ~${(s.curlSpeed * 2.237).toFixed(0)} mph` : ''}`
       + ` · ~${ft(s.H)} ft waves<br><span class="end">breaks ${s.how} (ξ ${s.xi.toFixed(2)}) · then it ${s.end}</span></div>`;
   };
-  if (state.pick >= w.waves.length) state.pick = 0;
   const pw = cur();
   el.innerHTML = '';
   if (w.waves.length > 1) { // (plan step 8: the design makes more than one wave; pick the one to look at and ride)
@@ -503,7 +515,7 @@ function showResults() {
       const b = document.createElement('button'); b.className = k === state.pick ? 'on' : '';
       const best = Math.max(o.right.ride, o.left.ride), Hh = (o.right.ride >= o.left.ride ? o.right : o.left).H;
       b.innerHTML = `<b>${o.name}</b> ${o.tier === 'inside' ? 'inside' : k ? 'peak' : 'main'}<span style="opacity:.7"> · ${ft(best)} ft${isFinite(Hh) ? ` · ${ft(Hh)} ft high` : ''}</span>`;
-      b.onclick = () => { state.pick = k; state.loop.a = state.loop.b = null; fitLoop(); save(); showResults(); draw(); };
+      b.onclick = () => { state.pick = k; state.pickKey = keyOf(o); state.loop.a = state.loop.b = null; fitLoop(); save(); showResults(); draw(); };
       r.appendChild(b);
     });
     el.appendChild(r);
@@ -564,7 +576,7 @@ window.addEventListener('resize', () => { layout(); draw(); });
 
 restore();
 { const dq = new URLSearchParams(location.search).get('dir'); if (dq != null) { state.swell.dir = Number(dq); syncSwell(); } } // (?dir=: testing)
-{ const pk = Number(new URLSearchParams(location.search).get('pick')); if (pk > 0) state.pick = pk; } // (?pick=1: open on the second wave, for testing)
+{ const pk = Number(new URLSearchParams(location.search).get('pick')); if (pk > 0) { state.pick = pk; state.pickKey = null; } } // (?pick=1: open on the second wave, for testing)
 if (new URLSearchParams(location.search).get('preset') === 'stacked') { state.coast = reefCoast(); state.blocks = stackedPreset(); Object.assign(state.swell, { H: 3, T: 15, dir: 0 }); syncSwell(); state.dirty = true; } // (?preset=stacked: testing)
 if (new URLSearchParams(location.search).get('preset') === 'beach') { state.coast = defaultCoast(); state.coast.face = 20; state.blocks = beachPreset(); state.swell.T = 12; syncSwell(); } // (?preset=beach: testing)
 { const q = new URLSearchParams(location.search).get('loop'); if (q) { state.loop.on = true; state.loop.side = q === 'left' ? 'left' : 'right'; } } // (?loop=right|left: start looped, for testing)
