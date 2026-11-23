@@ -303,6 +303,10 @@ section (25-30 deg), backing off (slower than 70 deg, or a gap), or closing out 
   unchanged; Froude scaling; a peak passes its size to its arms; `blockLength` for handles and snapping). A 13 ft 18 s swell
   on Dynamic at 1x: 80 / 80 m, steep; at 2.5x with its peak 160 m further out (so its 530 m arms fit): 240 / 280 m at 27 /
   31 deg, pitching, ~14 ft. At its normal spot the 2.5x reef runs into the beach.
+- The summary's peel (the user, 2026-11-22: a slow ride read "advanced"): "peels N° overall" from the ride's pace (length /
+  time along the line, asin(c / V); `peelAll`, its skill band `bandAll`), "fastest" = the quickest stretch (3-stretch median), and
+  "curl ~N mph" = the curl's speed along the wave, what you race in the game (c / tan). The 20 m median (`peel`) stays for the
+  peelrays.py comparisons; it weighs stretches by length, not time. `seconds` is the ride's own time.
 - Units (the user, 2026-11-22): the builder shows heights and lengths in feet (swell, waves, rides, loops, block lengths,
   the scale bar; ui.js `ft`/`ft1`), speeds in mph; the model works in metres underneath and saves metres.
 - Circles only for what you can drag (block handles, loop ends; the user): the curl's time marks are ticks, where it

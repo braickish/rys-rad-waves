@@ -209,7 +209,18 @@ export function analyse(R, grid, { binM = 4, step = 20, pe = null } = {}) {
     const Hs = (pe ? curl.filter((p) => p.s <= ride).map((p) => p.H) : segs.filter((q) => q.e0 < ride).map((q) => q.H)).sort((a, b) => a - b);
     const xis = curl.filter((p) => p.s >= step && p.s <= ride).map((p) => p.xi).sort((a, b) => a - b);
     const xiMed = xis.length ? xis[Math.floor(xis.length / 2)] : NaN;
-    out[side] = { refined: !!pe, xi: xiMed, how: isFinite(xiMed) ? breakType(xiMed) : '-', curl, segs, ride, line: s[s.length - 1], peel: med, band: isFinite(med) ? skillBand(med) : '-', H: Hs.length ? Hs[Math.floor(Hs.length / 2)] : NaN, end, seconds: curl.length ? curl[curl.length - 1].t - curl[0].t : 0 };
+    // The ride's overall peel (the user, 2026-11-22: a slow ride still read "advanced"): from its pace, the curl's average
+    // speed along the line over the whole ride (length / time) and the wave's speed there, asin(c / V). The median of the
+    // 20 m stretches (`peel`, kept for the comparisons with peelrays.py) weighs a stretch by its length, not by the time it
+    // takes to ride, and the 20 m readings jitter. And the fastest stretch (the 3-stretch median, as the closeout rule).
+    const rideCurl = curl.filter((p) => p.s <= ride);
+    const tRide = rideCurl.length > 1 ? rideCurl[rideCurl.length - 1].t - rideCurl[0].t : 0, cMean = rideCurl.reduce((a, p) => a + p.c, 0) / Math.max(1, rideCurl.length);
+    const peelAll = tRide > 1 && ride >= 2 * step ? Math.asin(Math.min(1, cMean * tRide / ride)) * 180 / Math.PI : NaN; // (a ride shorter than two stretches, or over in a second, has no pace: it closes out)
+    const fastSegs = segs.filter((q) => q.e0 >= step && q.e0 < ride).map((q) => q.am);
+    const peelFast = fastSegs.length ? Math.min(...fastSegs) : NaN;
+    // (and the curl's speed along the wave, what you race in the game: c / tan(alpha), from the overall pace)
+    const curlSpeed = isFinite(peelAll) && peelAll > 0.5 ? cMean / Math.tan(peelAll * Math.PI / 180) : NaN;
+    out[side] = { refined: !!pe, peelAll, peelFast, curlSpeed, bandAll: isFinite(peelAll) ? skillBand(peelAll) : '-', xi: xiMed, how: isFinite(xiMed) ? breakType(xiMed) : '-', curl, segs, ride, line: s[s.length - 1], peel: med, band: isFinite(med) ? skillBand(med) : '-', H: Hs.length ? Hs[Math.floor(Hs.length / 2)] : NaN, end, seconds: tRide }; // (the ride's own time, as its length: it included the curl's tail past the ride's end)
   }
   return out;
 }

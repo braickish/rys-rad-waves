@@ -466,9 +466,9 @@ function showResults() {
   const w = state.wave, el = $('res');
   if (!w) { el.innerHTML = '<span class="bad">Nothing breaks: the swell rolls in to the beach.</span>'; return; }
   const line = (name, s) => {
-    if (!s || s.ride < 20 || !isFinite(s.peel)) return `<div><span class="side">${name}</span> <span class="bad">no ride: it ${s ? s.end : 'never breaks'}</span></div>`; // (a side that closes out straight away has no peel to show)
-    const bad = s.band === 'closeout' ? ' bad' : '';
-    return `<div><span class="side">${name}</span> ${ft(s.ride)} ft · ${s.seconds.toFixed(0)} s · peels ${s.peel.toFixed(0)}° <span class="${bad}">(${s.band})</span>`
+    if (!s || s.ride < 20 || !isFinite(s.peelAll)) return `<div><span class="side">${name}</span> <span class="bad">no ride: it ${s ? s.end : 'never breaks'}</span></div>`; // (a side that closes out straight away has no peel to show)
+    const bad = s.bandAll === 'closeout' ? ' bad' : '';
+    return `<div><span class="side">${name}</span> ${ft(s.ride)} ft · ${s.seconds.toFixed(0)} s · peels ${s.peelAll.toFixed(0)}° overall <span class="${bad}">(${s.bandAll})</span>${isFinite(s.peelFast) ? ` · fastest ${s.peelFast.toFixed(0)}°` : ''}${isFinite(s.curlSpeed) ? ` · curl ~${(s.curlSpeed * 2.237).toFixed(0)} mph` : ''}`
       + ` · ~${ft(s.H)} ft waves<br><span class="end">breaks ${s.how} (ξ ${s.xi.toFixed(2)}) · then it ${s.end}</span></div>`;
   };
   el.innerHTML = line('Right', w.right) + line('Left', w.left);
