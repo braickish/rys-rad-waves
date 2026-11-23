@@ -52,7 +52,6 @@ function restore() {
   try {
     const j = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null'); if (!j || !Array.isArray(j.blocks)) return;
     state.blocks = j.blocks; if (j.coast && Array.isArray(j.coast.pts)) state.coast = j.coast; if (j.board) state.board = j.board; Object.assign(state.swell, j.swell || {}); Object.assign(state.loop, j.loop || {}); 
-    for (const [id, key] of [['H', 'H'], ['T', 'T'], ['D', 'dir']]) document.getElementById(id).value = state.swell[key];
   } catch {}
 }
 function fitLoop() {
@@ -473,11 +472,16 @@ function showResults() {
   const refined = state.wave.right && state.wave.right.refined;
   $('stats').textContent = `rays ${state.ms.toFixed(0)} ms · ${refined ? `heights refined (${state.peMs.toFixed(0)} ms)` : 'refining heights…'} · ${state.rays.n} rays · ${state.grid.M}×${state.grid.N} cells of ${ft(state.grid.dx)} ft`;
 }
-for (const [id, key, fmt] of [['H', 'H', (v) => `${ft1(v)} ft`], ['T', 'T', (v) => `${v} s`], ['D', 'dir', (v) => `${v > 0 ? '+' : ''}${v}°`]]) {
+const SWELL_CTL = [['H', 'H', (v) => `${ft1(v)} ft`], ['T', 'T', (v) => `${v} s`], ['D', 'dir', (v) => `${v > 0 ? '+' : ''}${v}°`]];
+for (const [id, key, fmt] of SWELL_CTL) {
   const input = $(id), out = $(id + 'v');
-  const set = () => { state.swell[key] = Number(input.value); out.textContent = fmt(state.swell[key]); state.dirty = true; schedule(); };
-  input.addEventListener('input', set); out.textContent = fmt(Number(input.value));
+  input.addEventListener('input', () => { state.swell[key] = Number(input.value); out.textContent = fmt(state.swell[key]); state.dirty = true; schedule(); });
 }
+// Every swell slider and its number from the current state (the user, 2026-11-22: after a reload the direction slider showed
+// 0 while the map said otherwise: the labels were set before the saved design was restored, and a browser can put back stale
+// slider values when it restores the page from its back/forward cache).
+function syncSwell() { for (const [id, key, fmt] of SWELL_CTL) { $(id).value = state.swell[key]; $(id + 'v').textContent = fmt(state.swell[key]); } }
+window.addEventListener('pageshow', () => { syncSwell(); draw(); });
 // The coast panel: the beach face's slope (the Skeleton Bay research: it sets the hollowness, not the peel), and straighten.
 const BEACH = [[12, 'Steep 1:12'], [20, 'Medium 1:20'], [35, 'Gentle 1:35'], [66.7, 'Flat 1:67']];
 function showCoast() {
@@ -502,7 +506,7 @@ function showZoom() { // (the map's corner: zoom out / in / fit)
 }
 $('beach').onclick = () => {
   state.coast = defaultCoast(); state.coast.face = 20; showCoast(); state.blocks = beachPreset(); state.sel = null;
-  state.swell.T = 12; $('T').value = 12; $('Tv').textContent = '12 s'; state.loop.a = state.loop.b = null; state.dirty = true; showSel(); schedule();
+  state.swell.T = 12; syncSwell(); state.loop.a = state.loop.b = null; state.dirty = true; showSel(); schedule();
 };
 $('reset').onclick = () => { state.coast = reefCoast(); showCoast(); state.blocks = dynamicPreset(); state.sel = null; state.dirty = true; showSel(); schedule(); };
 $('clear').onclick = () => { state.blocks = []; state.sel = null; state.dirty = true; showSel(); schedule(); };
@@ -512,6 +516,7 @@ restore();
 { const dq = new URLSearchParams(location.search).get('dir'); if (dq != null) { state.swell.dir = Number(dq); $('D').value = dq; $('Dv').textContent = `${dq > 0 ? '+' : ''}${dq}°`; } } // (?dir=: testing)
 if (new URLSearchParams(location.search).get('preset') === 'beach') { state.coast = defaultCoast(); state.coast.face = 20; state.blocks = beachPreset(); state.swell.T = 12; $('T').value = 12; $('Tv').textContent = '12 s'; } // (?preset=beach: testing)
 { const q = new URLSearchParams(location.search).get('loop'); if (q) { state.loop.on = true; state.loop.side = q === 'left' ? 'left' : 'right'; } } // (?loop=right|left: start looped, for testing)
+syncSwell();
 recompute(); layout(); showSel(); showZoom(); showCoast();
 { const zq = Number(new URLSearchParams(location.search).get('zoom')); if (zq > 1 && state.wave) zoomAt(px(state.wave.peak.y), py(state.wave.peak.x), zq); } // (?zoom=2.5: open zoomed on the peak, for testing)
 draw();
