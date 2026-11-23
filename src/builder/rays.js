@@ -202,10 +202,53 @@ export function analyse(R, grid, opts = {}) {
     return best < 0 ? null : { t: R.tb[best], x: R.xb[best], c: R.cb[best], H: R.Hb[best], s: R.sb[best], th: R.thb[best], from: NaN };
   };
   const later = ev.filter((q) => q.k > 0 && q.h > 0.4);
-  const inside = (e0, e1) => {
-    let best = null;
-    for (const q of later) if (q.y >= e0 && q.y < e1 && (!best || q.t < best.t)) best = q;
-    return best || first(e0, e1);
+  // (inside: a strip can hold more than one reformed break, in at different spots, a wave breaking again back on the outer
+  // reef, on the inside reef and at the beach; the user, 2026-11-22: taking the earliest per strip made the curl zig-zag
+  // between them. So each strip's reformed breaks are grouped by where they are (a gap of more than 12 m in toward the
+  // beach starts a new group, its earliest break standing for it), and a wave follows the group nearest its own line.)
+  const cand = [];
+  for (let e = yLo; e < yHi; e += binM) {
+    const here = later.filter((q) => q.y >= e && q.y < e + binM).sort((a, b) => a.x - b.x), groups = [];
+    for (const q of here) { const gp = groups[groups.length - 1]; if (gp && q.x - gp.xEnd <= 12) { gp.xEnd = q.x; if (q.t < gp.q.t) gp.q = q; } else groups.push({ xEnd: q.x, q }); }
+    const f = groups.length ? null : first(e, e + binM); // (no wave reformed here: its first break, a beach beside the reef)
+    cand.push({ y: e + binM / 2, list: groups.map((gp) => gp.q).concat(f ? [{ ...f, first: true }] : []) });
+  }
+  const row = (y, q) => (q ? [y, q.t, q.x, q.c, q.H, q.s, q.th, q.from] : [y, NaN, NaN, NaN, NaN, NaN, NaN, NaN]);
+  const med5 = (strips) => { // (running median over 5 strips, as stripsOf)
+    for (let col = 1; col <= 5; col++) {
+      const v = strips.map((s) => s[col]);
+      for (let i = 0; i < v.length; i++) { if (!isFinite(v[i])) continue; const wv = v.slice(Math.max(0, i - 2), i + 3).filter(isFinite).sort((a, b) => a - b); strips[i][col] = wv[Math.floor(wv.length / 2)]; }
+    }
+    return strips;
+  };
+  const findInside = () => {
+    const used = cand.map((c) => new Uint8Array(c.list.length));
+    for (let n = 0; n < 8 && waves.length < MAXW; n++) {
+      let pi = -1, pk = -1; // (the earliest reformed break not yet in a wave)
+      cand.forEach((c, i) => c.list.forEach((q, k) => { if (!used[i][k] && !q.first && (pi < 0 || q.t < cand[pi].list[pk].t)) { pi = i; pk = k; } }));
+      if (pi < 0) return;
+      // this wave's strips: from the peak each way, in each strip the group nearest the line so far
+      const pick = new Int16Array(cand.length).fill(-1); pick[pi] = pk;
+      for (const d of [-1, 1]) {
+        let x = cand[pi].list[pk].x;
+        for (let i = pi + d; i >= 0 && i < cand.length; i += d) {
+          let bk = -1; cand[i].list.forEach((q, k) => { if (bk < 0 || Math.abs(q.x - x) < Math.abs(cand[i].list[bk].x - x)) bk = k; });
+          if (bk >= 0) { pick[i] = bk; x = cand[i].list[bk].x; }
+        }
+      }
+      const strips = med5(cand.map((c, i) => row(c.y, pick[i] >= 0 ? c.list[pick[i]] : null)));
+      const w = walkWave(strips, pi, R, grid, opts);
+      for (const j of [pi, ...w.used]) if (pick[j] >= 0) used[j][pick[j]] = 1;
+      if (!rideable(w) || overlaps(w)) continue;
+      waves.push({ tier: 'inside', ...w });
+    }
+  };
+  // (a wave whose ride mostly runs along an earlier wave's curl is that wave again)
+  const overlaps = (w) => {
+    const pts = ['right', 'left'].flatMap((sd) => w[sd].curl.filter((p) => p.s <= w[sd].ride));
+    if (!pts.length) return true;
+    const near = pts.filter((p) => waves.some((o) => ['right', 'left'].some((sd) => o[sd].curl.some((q) => Math.abs(q.y - p.y) < binM && Math.abs(q.x - p.x) < 10)))).length;
+    return near > 0.5 * pts.length;
   };
   const waves = [], MAXW = 4;
   const rideable = (w) => ['right', 'left'].some((sd) => isRide(w[sd], opts.step || 20)); // (a ride: two stretches or more, between a closeout and a back-off)
@@ -225,7 +268,7 @@ export function analyse(R, grid, opts = {}) {
   };
   findAll(stripsOf(first), 'outside', () => true);
   if (!waves.length) return null;
-  if (later.length) findAll(stripsOf(inside), 'inside', (s) => isFinite(s[7]));
+  if (later.length) findInside();
   waves.forEach((w, k) => { w.name = String.fromCharCode(65 + k); delete w.used; });
   return { ...waves[0], waves };
 }
@@ -240,7 +283,7 @@ function walkWave(strips, ip, R, grid, { step = 20, pe = null } = {}) {
       if (!isFinite(q[1])) { gap++; if (gap > RAYS.maxGap) { end = 'backs off'; break; } continue; }
       const pr = pts[pts.length - 1];
       if (Math.abs(q[2] - pr[2]) > RAYS.jump * (1 + gap)) { end = 'reaches the end of the reef'; break; }
-      if (q[1] < pr[1] - 1.5) { end = 'meets water breaking the other way'; break; }
+      if (q[1] < pr[1] - 1.5 || q[1] < out.peak.t - 1.5) { end = 'meets water breaking the other way'; break; } // (or that broke before its peak did, a little at a time: the user, 2026-11-22, an inside wave ran on along a line breaking toward it; never for the main wave, whose peak breaks first)
       if (gap) gaps.push(pts.length); // (a short gap the curl jumps: a back-off)
       pts.push(q); out.used.push(j); gap = 0;
     }

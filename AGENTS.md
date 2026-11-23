@@ -287,7 +287,13 @@ section (25-30 deg), backing off (slower than 70 deg, or a gap), or closing out 
   A ride (rays.js `isRide`; the user, 2026-11-22: an inside wave showed "peels 90°, curl ~0 mph"): 40 m+, peeling 25-70 deg overall
   (`RAYS.backoff` 70, the same line the curl's back-off stretches use). Slower, the panel says "no ride: it barely peels" and
   DROP IN is off; an extra wave with no ride either way isn't listed (a reformed wave reaching the beach along its own path
-  breaks at 90 deg: Dynamic, 10 ft 9 s from +35). `stackedPreset` (`?preset=stacked`, `?pick=1`):
+  breaks at 90 deg: Dynamic, 10 ft 9 s from +35).
+  Inside waves follow one line (the user, 2026-11-22: an inside curl zig-zagged in to the beach and back out to another
+  wave's takeoff): a strip can hold several reformed breaks (back on the outer reef, on the inside reef, at the beach), so
+  each strip's reformed breaks are grouped by spot (a gap over 12 m starts a new group, its earliest break stands for it) and
+  a wave takes, strip by strip from its peak, the group nearest its line so far (5-strip median after). Any wave's ride ends
+  at water that broke before its peak did (q.t < peak.t - 1.5, besides the step-to-step check; never bites the main wave,
+  whose peak breaks first), and an extra wave whose ride runs mostly (> 50%) along an earlier wave's curl isn't listed. `stackedPreset` (`?preset=stacked`, `?pick=1`):
   a 1.5x deep outer reef with a lagoon + a 1x reef inside, 10 ft 15 s: A outside 10 ft pitching; with a reef flat nothing
   reforms, with the lagoon B inside 5 ft steep at x' 1012. Dynamic now also lists two ~2 ft inside reforms on the beach
   behind its reef flat; the user's 2.5x sandbar (turn 135, 9.8 ft 12 s -20) a second outside peak (right 328 ft, left 394
