@@ -149,14 +149,18 @@ function draw() {
   const w = state.wave;
   if (w && state.loop.info) drawLoopBand();
   if (w) for (const side of ['right', 'left']) drawCurl(w[side].curl);
-  // the peak
-  // (where it first breaks: computed, so a diamond, not a circle; only when it's clear of a block's handle, which it
-  // usually sits right on)
-  if (w && !state.blocks.some((b) => { const h = handle(b); return Math.hypot(px(h.y) - px(w.peak.y), py(h.x) - py(w.peak.x)) < 14; })) diamond(px(w.peak.y), py(w.peak.x), 8);
   // blocks
   for (const b of state.blocks) drawBlock(b);
   drawCoast();
   if (w && state.loop.info) drawLoopHandles();
+  // where it first breaks (the takeoff): computed, so a diamond, not a circle; always shown (the user, 2026-11-22: it came and
+  // went), drawn over the handles, and nudged just above a handle it would sit on (it usually starts right at the Peak)
+  if (w) {
+    const X = px(w.peak.y), Y = py(w.peak.x);
+    const onHandle = state.blocks.some((b) => { const h = handle(b); return Math.hypot(px(h.y) - X, py(h.x) - Y) < 14; });
+    if (onHandle) { ctx.strokeStyle = '#ffd426'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(X, Y - 6); ctx.lineTo(X, Y - 12); ctx.stroke(); }
+    diamond(X, onHandle ? Y - 19 : Y, 7);
+  }
   // labels: beach, swell
   ctx.restore();
   ctx.font = '700 13px Rubik'; ctx.textAlign = 'center'; ctx.fillStyle = '#8a6a2a';

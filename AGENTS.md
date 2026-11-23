@@ -306,7 +306,8 @@ section (25-30 deg), backing off (slower than 70 deg, or a gap), or closing out 
 - Units (the user, 2026-11-22): the builder shows heights and lengths in feet (swell, waves, rides, loops, block lengths,
   the scale bar; ui.js `ft`/`ft1`), speeds in mph; the model works in metres underneath and saves metres.
 - Circles only for what you can drag (block handles, loop ends; the user): the curl's time marks are ticks, where it
-  first breaks a diamond.
+  first breaks (the takeoff) a diamond, always shown, nudged just above a handle it would sit on (the user, 2026-11-22: it
+  came and went).
 - `PAGE=builder.html node test/drive.mjs test/out/bld "" 2500` screenshots it (drive.mjs's `PAGE`).
 - **How it breaks** (plan step 1, 2026-11-22): rays.js records the seabed slope along each ray where it breaks (depth
   smoothed over 4 m, the bottom rising in the wave's direction) and the curl carries xi0 = slope / sqrt(H0 / L0)
