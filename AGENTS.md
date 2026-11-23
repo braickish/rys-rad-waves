@@ -49,7 +49,9 @@ and the curl runs `fast` 1.45x faster by the ridge where the curl is (base peel 
 mph), added up as it goes (`RIDGE.c`). Ridges are fixed to the reef, so a section walls up ahead before the curl gets
 there. Each wave lays out its own (`ridges` ranges: first 40-90 m, then every 70-140 m, 15-30 m either side, strength
 0.75-1.0; seeded with the sea). Trimming holds the wave's own pace through a section (wave.js `holdPeel`; the user: as it
-speeds up you need to pump), and carving the steep wall pays (`wallK` 0.65, `wallAngles` [55, 63]). `node
+speeds up you need to pump) plus, since 2026-11-22 (the user: sections were hard to make), up to `SECTION_HOLD` 0.5 of the
+section's extra curl speed by how steep the wall is at the curl (Raglan+: the ridge strength; built waves: the shape past
+Raglan's wall): the steeper face pulls you along harder; sections.mjs: pumping makes 9 of 9 (was 6 of 9), trimming 2 of 6, and carving the steep wall pays (`wallK` 0.65, `wallAngles` [55, 63]). `node
 test/sections.mjs`: a mid-face trimmer makes 1 of 6 sections (caught ~10 s in), the pocket-pumping bot 6 of 9 (~23 s
 rides). crest.mjs runs Raglan+ without ridges. GPU ~+1 ms.
 

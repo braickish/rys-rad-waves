@@ -50,4 +50,9 @@ if (wave === 'raglanPlus') {
   const ok = totals.pump.made > totals.trim.made && totals.pump.rode > totals.trim.rode;
   console.log(`${ok ? 'ok  ' : 'FAIL'} pumping makes more sections and rides longer than trimming`);
   if (!ok) process.exitCode = 1;
+  // (the user, 2026-11-22: sections were hard to make; trimming now holds up to half a section's extra speed by its
+  // steepness: pumping should make most sections, trimming alone still shouldn't)
+  const ok2 = totals.pump.made >= 0.8 * totals.pump.met && totals.trim.made <= 0.5 * totals.trim.met;
+  console.log(`${ok2 ? 'ok  ' : 'FAIL'} pumping makes most sections (${totals.pump.made}/${totals.pump.met}), trimming alone not (${totals.trim.made}/${totals.trim.met})`);
+  if (!ok2) process.exitCode = 1;
 }

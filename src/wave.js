@@ -212,7 +212,23 @@ export function ridgeAt(xs) {
 // The speed the pocket holds you at when you trim (rider.js energy pocket): the curl's speed, except through a ridge's
 // faster section, where it stays the wave's own (the user, 2026-11-22: as a section speeds up you need to pump to keep
 // up; trimming holds the plain wall's pace, and the extra comes from working the steeper face).
-export const holdPeel = () => (WAVE.ridges ? WAVE.peelSpeed * Math.sqrt(SIZE) : PEEL_SPEED);
+// Then (the user, 2026-11-22: sections were hard to make): a section's wall stands steeper (the ridge that makes it fast
+// makes it steep), and on a steeper face gravity pulls harder along your line and the wave carries you more as you trim, so
+// trimming also holds a share of the section's extra speed: up to SECTION_HOLD of it, by how steep the wall is at the curl
+// (Raglan+: its ridge strength; a built wave: its shape past Raglan's wall, the steep section or the barrel). Pumping still
+// makes the rest.
+export const SECTION_HOLD = 0.5;
+function sectionSteep() {
+  if (!WAVE.ridges) return 0;
+  const P = WAVE.ridges.profile;
+  if (P && P[0].u != null) return Math.min(1, Math.max(0, shapeU(0) - 1)); // (built: 1 = Raglan's wall, 2+ = steep section / barrel)
+  return ridgeAt(0);
+}
+export const holdPeel = () => {
+  if (!WAVE.ridges) return PEEL_SPEED;
+  const base = WAVE.peelSpeed * Math.sqrt(SIZE);
+  return base + SECTION_HOLD * sectionSteep() * Math.max(0, PEEL_SPEED - base);
+};
 // The curl's speed with ridges: the wave's own peel (by size) x up to `ridges.fast` where the curl is on a full ridge.
 // The curl advances by its speed, added up (never time x speed: anything varying the peel must integrate).
 function stepRidges(dt) {
