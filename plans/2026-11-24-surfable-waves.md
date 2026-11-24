@@ -141,13 +141,33 @@ how rides end: reaches the end of the reef 41% · meets water breaking the other
   mph/s), peel angles 19-51 deg (9-70). Watch: on small waves many slow stretches now sit at the 10 mph floor, rideable but
   flat. Shape limbo, leads and size drift are steps 5-7.
 
-## 5. Fun: clear shape zones
+## 5. Fun: clear shape zones (done 2026-11-24, with the almond barrel)
 
 - Snap `u` toward its kinds (crumbly 0, wall 1, steep section 2, barrel 3) with short blends between, so a wave isn't a
   half-barrel the whole way; a barrel at least ~3 s of curl long (shorter: it becomes the steep section), and where a
   barrel is shown, tall enough to fit in (else the steep section).
 - Tests: time spent between kinds (from step 2's survey) down to brief transitions; barrels long enough and tall enough;
   the user's 2.6-2.75 wave becomes barrel or steep section, not limbo.
+- Done (fun.js `snapKind`, `barrelRules`): the shape snapped toward its kinds (only the middle 30% of a gap stays a blend),
+  then a barrel under 3 s of curl, or with a tube under 1.3 m, becomes the steep section; the shape may change 0.6 of the
+  scale a second (a change of kind ~1.5 s; step 3 had 0.25). The user's 2.6-2.75 right is a barrel the whole way
+  (2.93-3.0). Survey, Fun (FUN=1), after step 5:
+
+```
+time between shape kinds                           0      0      0      0     21  %
+barrels: each one's length                       3.2    4.9    5.9   11.1   22.5  s
+barrels: smallest tube on the ride              1.31   1.48   1.61   2.02   2.58  m
+rides with a barrel 2% · a barrel under 2 s 0% · a tube under 1.3 m 0%
+```
+
+  (was 34-39% of the ride between kinds at the 75th percentile, 88-91% at the 95th). Fewer rides have a barrel (7% -> 4%):
+  the too short and too small ones are steep sections now.
+- **The almond barrel** (the user, same day: we were missing it, and the built barrel looked unrealistic), shapes.js
+  `KF_ALMOND_HEAD`, the built waves' tube set (Real and Fun: it's the barrel's shape, not the wave's numbers; Pipe keeps its
+  simulated tube): KF_PIPE's tube was a tall hairpin (the lip a straight curtain beside a vertical back wall, the floor
+  sagging under the water); now the lip throws out and curves down to land in front, the back wall rises concave, and the
+  opening is an almond, rounder up under the roof, pointed where the lip lands, leaning forward. Its opening is shorter: a
+  built tube is ~0.89x the breakers (2.66 m on 3 m; was 1.13x, 3.41 m), so it fits from ~1.5 m breakers (was ~1.15).
 
 ## 6. Fun: size along the ride
 

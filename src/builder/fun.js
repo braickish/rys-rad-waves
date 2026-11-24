@@ -9,7 +9,10 @@ export const FUN = {
   smooth: 1.5, // (s of curl: a light smoothing, just the ray noise; ~3 s cut a short section's peak, and the rate limit below
   // spreads the real changes out without cutting)
   rate: 6 / MPH, // (m/s of curl speed per s of curl, at 3.5 m breakers: x sqrt(size))
-  uRate: 0.25, // (of the shape scale per s of curl)
+  uRate: 0.6, // (of the shape scale per s of curl: a change of kind blends over ~1.5 s; step 3 had 0.25)
+  barrelMin: 3, // (step 5: a barrel lasts at least this many s of curl ...)
+  tubeMin: 1.3, tubeK: 0.89, // (... and its tube is at least this tall, m: else the steep section; rider.js tubeMinHeight. tubeK: a built tube
+  // is ~0.89x the breakers, the almond barrel: test/built.mjs, 2.66 m on 3 m)
   pace: 8.3, // (m/s: the comfortable curl, Raglan's own on its ~3.5 m breakers; x sqrt(size))
   band: [0.75, 1.6], // (the curl's speed within these x the comfortable pace ...)
   floor: 4.5, // (... and never under this, m/s: the rider's slowest trim, rider.js vLow, ~10 mph)
@@ -61,6 +64,21 @@ function limitRate(v, P, rate) {
   return v;
 }
 
+// step 5: the shape snapped toward its kinds (crumbly 0, wall 1, steep section 2, barrel 3): between two kinds it moves to the
+// nearer, only the middle of the gap left a blend; then a barrel that's too short (under barrelMin s of curl) or too small to fit
+// in (a built tube is ~0.89x the breakers, the almond: test/built.mjs, 2.66 m on 3 m) becomes the steep section.
+const snapKind = (u) => { const i = Math.floor(u), f = u - i, g = Math.min(1, Math.max(0, (f - 0.35) / 0.3)); return i + g * g * (3 - 2 * g); };
+function barrelRules(P) {
+  const T = stepTimes(P);
+  for (let i = 0; i < P.length;) {
+    if (P[i].u < 2.5) { i++; continue; }
+    let j = i, t = 0; while (j < P.length && P[j].u >= 2.5) { if (j > i) t += T[j - 1]; j++; }
+    const small = P.slice(i, j).some((p) => p.H != null && FUN.tubeK * p.H < FUN.tubeMin);
+    if (t < FUN.barrelMin || small) for (let k = i; k < j; k++) P[k].u = Math.min(P[k].u, 2);
+    i = j;
+  }
+}
+
 // The Fun version of a payload (a copy; Real passes through untouched).
 export function funPayload(data) {
   if (!data || !data.fun || data.funApplied || !Array.isArray(data.profile) || data.profile.length < 3) return data; // (funApplied: already the Fun version, set up again from WAVE.built)
@@ -73,6 +91,8 @@ export function funPayload(data) {
   const T0 = stepTimes(P);
   const peel = smoothAlong(P, 'peel', T0), u = P[0].u != null ? smoothAlong(P, 'u', T0) : null;
   P.forEach((p, i) => { p.peel = peel[i]; if (u) p.u = u[i]; });
+  // step 5: clear shape zones
+  if (u) { P.forEach((p) => { p.u = snapKind(p.u); }); barrelRules(P); }
   const v = limitRate(P.map((p) => p.peel), P, FUN.rate * size);
   P.forEach((p, i) => { p.peel = v[i]; });
   if (u) {

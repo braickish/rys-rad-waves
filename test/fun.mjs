@@ -49,6 +49,21 @@ const left = (fun) => ({ v: 1, mode: 'full', side: 'left', length: 250, base: 11
   const slow = funPayload({ v: 1, mode: 'full', side: 'right', length: 100, base: 8.16, H: 2.19, c: 6.08, fun: true, profile: [3.31, 3.6, 3.76, 5.32, 7.29, 8.56, 8.48, 8.63, 9.81, 11.7, 13.99].map((peel, i) => ({ s: i * 10, peel, k: 0, H: 2.2, c: 6, u: 2.7 })) });
   check(slow.profile[0].peel * MPH >= 10 - 0.05, `step 4: the slow hollow right's takeoff moves (7 -> ${(slow.profile[0].peel * MPH).toFixed(0)} mph)`);
 }
+// step 5: clear shape zones: a wave that sat between kinds the whole way (the user's 2026-11-23 right, 2.6-2.75) becomes one kind;
+// a barrel too short or too small to fit in becomes the steep section
+{
+  const right = (Hb, us) => funPayload({ v: 1, mode: 'full', side: 'right', length: (us.length - 1) * 10, base: 8, H: Hb, c: 6, fun: true, profile: us.map((u, i) => ({ s: i * 10, peel: 8, k: 0, H: Hb, c: 6, u })) });
+  const limbo = (P) => P.filter((p) => { const f = p.u - Math.floor(p.u); return f > 0.2 && f < 0.8; }).length / P.length;
+  const halfway = right(2.2, Array.from({ length: 25 }, (_, i) => 2.675 + 0.075 * Math.sin(i / 3)));
+  console.log(`between kinds: the 2.6-2.75 right ${(limbo(halfway.profile) * 100).toFixed(0)}% of the ride (was 100%), u ${Math.min(...halfway.profile.map((p) => p.u)).toFixed(2)}-${Math.max(...halfway.profile.map((p) => p.u)).toFixed(2)}`);
+  check(limbo(halfway.profile) < 0.1, 'step 5: a wave between two kinds the whole way becomes one kind');
+  const short = right(2.2, [1, 1, 1, 1, 1, 3, 3, 1, 1, 1, 1, 1, 1, 1]); // (a barrel ~20 m long at 8 m/s: ~2.5 s)
+  check(Math.max(...short.profile.map((p) => p.u)) <= 2.01, 'step 5: a barrel shorter than 3 s of curl becomes the steep section');
+  const tiny = right(1.2, [1, 1, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 1, 1]); // (1.2 m breakers: a ~1.07 m tube, too small to fit in)
+  check(Math.max(...tiny.profile.map((p) => p.u)) <= 2.01, 'step 5: a barrel too small to fit in becomes the steep section');
+  const long = right(2.5, [1, 1, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 1, 1]);
+  check(long.profile.filter((p) => p.u >= 2.9).length >= 6, 'step 5: a long, big enough barrel stays a barrel');
+}
 // the game applies it: a Fun link rides the Fun profile, a Real one (or an older link, no `fun`) the builder's
 {
   // (applyBuilt sets up the one built wave and returns it: read each before the next)

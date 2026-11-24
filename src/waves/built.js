@@ -8,7 +8,7 @@
 import raglanPlus, { KF_SECTION, KF_CRUMBLY } from './raglan-plus.js';
 import point from './point.js';
 import reef from './reef.js';
-import { KF_PIPE_HEAD, sstep, withBore, matchTs } from './shapes.js';
+import { KF_PIPE_HEAD, KF_ALMOND_HEAD, sstep, withBore, matchTs } from './shapes.js';
 import { funPayload } from '../builder/fun.js';
 // (the wave model's shape state and tubeAt, handed over by wave.js once it has them: importing wave.js here would loop,
 // since it loads the wave list, which loads this)
@@ -20,7 +20,7 @@ const peak = (kf, s0) => Math.max(...kf.find((k) => k.s === s0).p.map((q) => q[1
 const kTube = peak(KF_SECTION, -0.25) / peak(KF_PIPE_HEAD, -0.25);
 // (then collapsing into whitewater where the lip lands, at Raglan+'s rate: 8.5 m of phase at 7.6 m/s, 1.12 s per unit; its
 // bore laid out as the section set's, which it blends with point by point on a half-barrel)
-export const KF_TUBE = withBore(KF_PIPE_HEAD.map(({ s, p }) => ({ s, p: p.map(([z, y]) => [z * kTube, y * kTube]) })),
+export const KF_TUBE = withBore(KF_ALMOND_HEAD.map(({ s, p }) => ({ s, p: p.map(([z, y]) => [z * kTube, y * kTube]) })), // (the almond barrel, shapes.js)
   { from: 1.3, collapse: 1.65, sOf: (t) => t * 7.6 / 8.5, ts: matchTs(KF_SECTION.filter((k) => k.s <= 1.2).pop()) });
 const pipeFaceTop = (s) => 5.3 + (11.9 - 5.3) * sstep(-0.3, 0.2, s); // (Pipe's classic: the rideable face tops out under the roof once the lip throws)
 

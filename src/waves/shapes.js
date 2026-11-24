@@ -128,6 +128,21 @@ export function withBore(kf, { from, sOf, collapse, ts: tsOver }) {
   return out;
 }
 
+// The almond barrel (the user, 2026-11-24: we were missing it, and the built barrel looked unrealistic: KF_PIPE's tube is a tall
+// hairpin, the lip a straight curtain dropping beside a vertical back wall, the floor sagging well under the water). Real
+// tubes: the lip throws out and curves down to land in front, the back wall rises concave from the trough, and the opening is
+// an almond about 1.4x taller than wide, pointed where the lip lands and rounder up under the roof, leaning forward a little.
+// KF_PIPE_HEAD's stages with the pitch, the full tube and the closing tube redrawn that way (same units: crest ~4.2).
+const ALMOND_FULL = [[-40, 0], [-30, 0], [-8, 0.4], [-2.5, 2.7], [0, 4.2], [1.45, 4.5], [2.95, 4.05], [4.1, 2.75], [4.6, 0.05], [4.3, 0.1], [3.6, 2.1], [2.3, 3.5], [1.05, 2.85], [0.9, 1.05], [2.1, -0.3], [22, 0]];
+export const KF_ALMOND_HEAD = KF_PIPE_HEAD.map((k) => {
+  if (k.s === 0.25) return { s: 0.25, p: [[-40, 0], [-30, 0], [-8, 0.4], [-2.5, 2.6], [0, 4.1], [1.4, 4.45], [2.85, 4.2], [3.95, 3.5], [4.5, 2.8], [4.22, 2.74], [3.45, 3.3], [2.4, 3.72], [1.6, 3.05], [1.45, 1.35], [2.7, -0.5], [22, 0]] };
+  if (k.s === 0.8) return { s: 0.8, p: ALMOND_FULL };
+  if (k.s === 1.3) { // (closing: the full tube scaled to 80% about the foot of the back wall, as KF_PIPE's)
+    const o = [0.85, -0.2];
+    return { s: 1.3, p: ALMOND_FULL.map(([z, y], i) => (i < 3 || i === 15 ? [z, y] : [o[0] + (z - o[0]) * 0.8, o[1] + (y - o[1]) * 0.8])) };
+  }
+  return k;
+});
 // Pipe's phase t s after a spot broke (reef.js: 13 m per phase at 10.5 m/s up to phase 1.3, then 22 m: behindFar).
 export const pipeSOf = (t) => (t <= 1.61 ? t * 10.5 / 13 : 1.3 + (t - 1.61) * 10.5 / 22);
 export const KF_PIPE = withBore(KF_PIPE_HEAD, { from: 1.3, collapse: 1.65, sOf: pipeSOf });

@@ -55,7 +55,7 @@ function survey(name, blocks, swell, deep = false) {
       if (P[i].u >= 2.5) run += dt; else if (run) { barrels.push(run); run = 0; }
     }
     if (run) barrels.push(run);
-    const tubeH = P.filter((p) => p.u >= 2.5).map((p) => 1.13 * p.H); // (a built tube is ~1.13x the breakers: test/built.mjs)
+    const tubeH = P.filter((p) => p.u >= 2.5).map((p) => 0.89 * p.H); // (a built tube is ~0.89x the breakers, the almond barrel: test/built.mjs)
     const Hs = P.map((p) => p.H), lead = Math.max(0, ...P.map((p) => p.e || 0));
     const take = P.filter((p) => p.s <= 30);
     rides.push({ name, side: sd, wave: w.name, len: d.length, peelMin: Math.min(...P.map((p) => p.peel)) * MPH, peelMax: Math.max(...P.map((p) => p.peel)) * MPH, peelMed: P.map((p) => p.peel).sort((a, b) => a - b)[Math.floor(P.length / 2)] * MPH,
