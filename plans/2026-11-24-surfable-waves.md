@@ -23,8 +23,9 @@ then the fast stretch, then the inside), and its relative difficulty (a hard ree
   override only scales the wave you ride, the way Pipe's `?size` does (sizes, lengths and speeds by the usual rules).
 - Payload: `fun: true|false`, `scale: k` (v stays 1; missing = Real, 1x, so older links ride as before).
 - Game: built.js `applyBuilt` applies `scale` on top of the breaker height (`sizeK`); `fun` is read but does nothing yet.
-- Done: the ride panel's Wave row (Fun / Real, a line saying what each is) and a Size slider (0.5-2x, shown as the height
-  you'll ride; the gun suggestion follows it). The payload carries `fun` and `scale` (the panel adds them; older links have
+- Done: the ride panel's Wave row (Fun / Real, a line saying what each is) and a **Scale** slider (renamed from Size, the
+  user: it scales the wave the swell makes, down as well as up; 0.5-2x, shown as "1.5x · ~9 ft"; the gun suggestion
+  follows it). The payload carries `fun` and `scale` (the panel adds them; older links have
   neither). built.js scales the breakers by `scale` and the speeds (profile peel and `c`, `base`, the leads `e`) by
   sqrt(scale); the reef's lengths stay. test/built.mjs: 1.5x makes the face 1.5x taller (2.45 -> 3.68 m) and the curl and
   the wave sqrt(1.5)x faster; 1x or none is the wave as before.

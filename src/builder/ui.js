@@ -531,9 +531,9 @@ function showRide() {
   const fr = row([btn('Fun', state.fun, () => { state.fun = true; save(); showRide(); }), btn('Real', !state.fun, () => { state.fun = false; save(); showRide(); })]);
   fr.insertBefore(Object.assign(document.createElement('span'), { textContent: 'Wave', style: 'font-size:13px;color:var(--dim);width:70px;align-self:center' }), fr.firstChild);
   { const n = document.createElement('div'); n.className = 'note'; n.style.marginTop = '4px'; n.textContent = state.fun ? 'Fun: your reef\'s wave, its extremes tamed so it\'s surfable.' : 'Real: exactly the wave your reef makes.'; el.appendChild(n); }
-  const sz = document.createElement('label'); sz.className = 'sl'; sz.style.marginTop = '8px'; sz.append('Size');
+  const sz = document.createElement('label'); sz.className = 'sl'; sz.style.marginTop = '8px'; sz.style.gridTemplateColumns = '74px 1fr 96px'; sz.append('Scale'); // (the user, 2026-11-24: Scale, not Size: it scales the wave the swell makes, down as well as up)
   const szR = Object.assign(document.createElement('input'), { type: 'range', min: 0.5, max: 2, step: 0.1, value: state.scale, autocomplete: 'off' }), szV = document.createElement('b');
-  const showSz = () => { szV.textContent = side && isFinite(side.H) ? (state.scale === 1 ? `~${ft(side.H)} ft` : `~${ft(side.H * state.scale)} ft`) : `${state.scale.toFixed(1)}x`; szV.title = side && isFinite(side.H) ? `the swell makes ~${ft(side.H)} ft waves here; ${state.scale.toFixed(1)}x` : ''; };
+  const showSz = () => { szV.textContent = side && isFinite(side.H) ? `${state.scale.toFixed(1)}x · ~${ft(side.H * state.scale)} ft` : `${state.scale.toFixed(1)}x`; szV.title = side && isFinite(side.H) ? `the swell makes ~${ft(side.H)} ft waves here` : ''; };
   szR.oninput = () => { state.scale = +szR.value; showSz(); save(); };
   szR.onchange = () => showRide();
   sz.append(szR, szV); showSz(); el.appendChild(sz);
