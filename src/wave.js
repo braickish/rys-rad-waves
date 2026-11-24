@@ -159,7 +159,7 @@ function mulberry32(seed) {
   return () => { seed = (seed + 0x6d2b79f5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 }
 function layRidges() {
-  RIDGE.c = 0; RIDGE.list.length = 0; RIDGE.at = 0; PASSED.length = 0;
+  RIDGE.c = 0; RIDGE.list.length = 0; RIDGE.at = 0; PASSED.length = 0; SCHED.tc.length = 0; SCHED.tb.length = 0;
   const R = WAVE.ridges; if (!R || R.profile) return; // (a built wave's profile needs no layout)
   const pick = ([a, b]) => a + (b - a) * ridgeRnd();
   for (let x = pick(R.first); x < 3000; x += pick(R.gap)) RIDGE.list.push({ x, w: pick(R.width), k: pick(R.strength) });
@@ -246,7 +246,11 @@ function passedAt(X, vRef) {
 function behindDist(xs) {
   if (xs >= 0 || !WAVE.ridges) return -xs;
   const vRef = WAVE.peelSpeed * Math.sqrt(SIZE);
-  const d = (RIDE.time - passedAt(RIDGE.c + xs, vRef)) * vRef, w = smooth(Math.min(1, -xs / 8));
+  // (a built wave: by the curl's schedule from its profile, not where the frame went: the frame follows the edge of the broken
+  // water, which jumps across a section, and the time since the schedule plus the spot's lead (earlyPhase) is the time since
+  // it broke)
+  const tPass = WAVE.ridges.profile ? curlTime(RIDGE.c + xs) : passedAt(RIDGE.c + xs, vRef);
+  const d = (RIDE.time - tPass) * vRef, w = smooth(Math.min(1, -xs / 8));
   return -xs + (d + xs) * w;
 }
 
@@ -256,12 +260,56 @@ function behindDist(xs) {
 // section's peak on the near side and falls away on the far side: open at both ends). The builder's curl runs along the
 // break line at v = sqrt(peel^2 + c^2), the game's along the crest at `peel`, so the game's clock runs v / peel times slower
 // there; then into phase at the wave's own rate (behindDist's: `phase.behind` m at its own pace).
-function earlyPhase(xs) {
+// How long before the game's curl gets to X the spot breaks (s of the game's clock). By place, not by seconds: the builder's
+// curl runs along the break line at v = sqrt(peel^2 + c^2) and stands still through a section (its time is the running
+// latest of the break times), the game's runs along the crest at `peel` and still takes time to cross one, so their clocks
+// don't keep a fixed ratio. A spot that broke `e` s before the builder's curl got there broke when the builder's curl was
+// where its clock read that much earlier: the game's spot breaks when the game's curl is there.
+function earlyLead(X) {
   const R = WAVE.ridges; if (!R || !R.early) return 0;
-  const X = RIDGE.c + xs, e = profileAt('e', X); if (!(e > 0)) return 0;
-  const peel = Math.max(0.5, profileAt('peel', X)), c = profileAt('c', X) || 0;
-  return e * Math.sqrt(1 + (c / peel) ** 2) * WAVE.peelSpeed * Math.sqrt(SIZE) / WAVE.phase.behind;
+  const e = profileAt('e', X); if (!(e > 0)) return 0;
+  return curlTime(X) - curlTime(builderAt(builderTime(X) - e));
 }
+function earlyPhase(xs) {
+  const L = earlyLead(RIDGE.c + xs); // (s)
+  return L > 0 ? L * WAVE.peelSpeed * Math.sqrt(SIZE) / WAVE.phase.behind : 0;
+}
+// The curl's schedule on a built wave: when, by its profile, the curl reaches X (s after the ride starts; the builder's curl,
+// sections crossed at once, in the game's clock). Added up step by step as the ride goes (loops run on for ever). A spot
+// breaks at that time less its lead: breaksAtBuilt.
+// (tb: the builder's own clock, its curl along the break line at v = sqrt(peel^2 + c^2), for earlyLead)
+const SCHED = { tc: [], tb: [], size: 1 }, SCHED_STEP = 0.1; // (every 0.1 m: coarser, the curl's speed came out in steps, jerking at each)
+function schedTo(u) {
+  if (SCHED.size !== SIZE) { SCHED.tc.length = 0; SCHED.tb.length = 0; SCHED.size = SIZE; }
+  const T = SCHED.tc, B = SCHED.tb, k = Math.sqrt(SIZE), h = SCHED_STEP;
+  if (!T.length) { T.push(0); B.push(0); }
+  const need = Math.min(Math.ceil(u) + 1, 2000000);
+  while (T.length <= need) {
+    const i = T.length - 1, x = (i + 0.5) * h, p = profileAt('peel', x), c = profileAt('c', x) || 0;
+    T.push(T[i] + h / Math.max(0.05, p * k)); B.push(B[i] + h / Math.max(0.05, Math.hypot(p, c)));
+  }
+}
+function curlTime(X) {
+  const h = SCHED_STEP;
+  if (X <= 0) return X / Math.max(0.5, profileAt('peel', 0) * Math.sqrt(SIZE));
+  const u = X / h; schedTo(u); const T = SCHED.tc;
+  const i = Math.min(Math.floor(u), T.length - 2), f = u - i;
+  return T[i] + (T[i + 1] - T[i]) * f;
+}
+function builderTime(X) {
+  const h = SCHED_STEP; if (X <= 0) return 0;
+  const u = X / h; schedTo(u); const B = SCHED.tb;
+  const i = Math.min(Math.floor(u), B.length - 2), f = u - i;
+  return B[i] + (B[i + 1] - B[i]) * f;
+}
+// (where the builder's curl was at its time t: the table inverted; it only ever runs forward)
+function builderAt(t) {
+  const B = SCHED.tb, h = SCHED_STEP; if (t <= 0 || B.length < 2) return 0;
+  let lo = 0, hi = B.length - 1; if (t >= B[hi]) return hi * h;
+  while (hi - lo > 1) { const m = (lo + hi) >> 1; if (B[m] <= t) lo = m; else hi = m; }
+  return (lo + (t - B[lo]) / Math.max(1e-9, B[hi] - B[lo])) * h;
+}
+const breaksAtBuilt = (X) => curlTime(X) - earlyLead(X);
 
 // The speed the pocket holds you at when you trim (rider.js energy pocket): the curl's speed, except through a ridge's
 // faster section, where it stays the wave's own (the user, 2026-11-22: as a section speeds up you need to pump to keep
@@ -285,13 +333,25 @@ export const holdPeel = () => {
   const base = WAVE.peelSpeed * Math.sqrt(SIZE);
   return base + SECTION_HOLD * sectionSteep() * Math.max(0, PEEL_SPEED - base);
 };
+const CURL_MAX = 25; // (m/s at size 1: builder loop.js CURL_MAX, Trestles' frameMax)
 // The curl's speed with ridges: the wave's own peel (by size) x up to `ridges.fast` where the curl is on a full ridge.
 // The curl advances by its speed, added up (never time x speed: anything varying the peel must integrate).
 function stepRidges(dt) {
   if (WAVE.ridges.profile) { // (a built wave: the curl's speed from the stretch you marked)
+    // The curl is the edge of the broken water, as on Trestles (open-barrel plan step 3, the user's option 1, 2026-11-23):
+    // from where it is, on while the water just ahead has broken (breaksAtBuilt: the schedule less each spot's lead). With no
+    // section that's the schedule itself, the profile's speed. A section breaking ahead peels back toward it; once its near
+    // side meets the curl, the curl crosses the broken stretch (at up to CURL_MAX, catching up smoothly) and runs on along the
+    // section's far side at its own pace: the tube you ride through is measured from it.
     RIDE.time += dt;
     RIDGE.at = ridgeAt(0);
-    PEEL_SPEED = profileAt('peel', RIDGE.c) * Math.sqrt(SIZE);
+    const t = RIDE.time;
+    let f = RIDE.front;
+    const h = SCHED_STEP, step = (x) => (Math.floor(x / h + 1e-9) + 1) * h; // (in the schedule's own steps: by whole metres its speed came in steps)
+    for (let n = 0; n < 40000 && breaksAtBuilt(step(f)) <= t; n++) f = step(f);
+    { const i = step(f) - h, a = breaksAtBuilt(i), b = breaksAtBuilt(i + h); if (b > a && t > a) f = Math.max(f, i + h * Math.min(1, (t - a) / (b - a))); }
+    RIDE.front = Math.max(RIDE.front, f);
+    PEEL_SPEED = Math.min(CURL_MAX * Math.sqrt(SIZE), Math.max(0, (RIDE.front - RIDGE.c) / dt));
     RIDGE.c += PEEL_SPEED * dt;
     notePassed();
     if (WAVE.section && PEEL_SPEED > WAVE_SPEED / Math.tan(WAVE.section.closeout * Math.PI / 180)) RIDE.sectionT = RIDE.time; // (a section going: forgiving whitewater)

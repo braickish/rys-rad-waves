@@ -80,6 +80,20 @@ factors (fix causes); the other waves stay unchanged.
      section's: in from its near end, out its far end. Biggest change, most faithful.
   2. **The curl crosses at your pace while you're in the tube:** the frame waits for a barrelled rider (up to the tube's
      life), so the tube stays measured around you. Smaller change; less true to how the section breaks.
+- **Option 1 (the user's pick), done 2026-11-23.** wave.js: a built wave's curl is the edge of the broken water, as on
+  Trestles: from where it is, on while the water just ahead has broken (`breaksAtBuilt`), catching up at up to CURL_MAX.
+  A spot's break time comes from the curl's schedule (`curlTime`: the profile's speeds added up every 0.1 m, the game's
+  clock) less its lead, and the lead is mapped **by place**, not seconds (`earlyLead`): a spot that broke `e` s before the
+  builder's curl got there broke when the builder's curl was where its own clock (`builderTime`, along the break line at
+  v = sqrt(peel^2 + c^2)) read that much earlier, so the game's spot breaks when the game's curl is there. (Subtracting
+  seconds was wrong: the builder's curl stands still through a section, the game's still takes time to cross it.) The water
+  behind the curl goes by that schedule too (behindDist), not by where the frame went. With no section the curl is the
+  schedule exactly (test/sectionride.mjs: 0.00 m apart over 20 s), so every wave without one plays as before.
+  On the pinnacle wave the curl runs normally to ~75 m, waits for the section to connect, crosses the 39 m that broke on its
+  own at the cap, then follows the far side at its own pace (2-4 m/s in the pinnacle's lee, as the profile has it), and it
+  never runs over unbroken water (the old schedule did). test/sectionride.mjs checks that, and riders holding a line get
+  past sections of 0.4-1.5 s lead. Still to see in play: a tube ridden through a section, in at its near end and out the
+  far end (the test bots sit at the curl and don't get barrelled on these waves).
 
 ## 4. Raglan+ (optional, the user's call)
 
