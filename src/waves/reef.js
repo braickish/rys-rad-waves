@@ -99,7 +99,7 @@ const reef = {
     slashTube: { slashSlideMax: 0.26, slashCarve: 0.22 }, // (merged over the rider's slashTube, rider.js useWave)
     tubeDrive: 5.2, // in the barrel, trimming flat or down the line adds this much acceleration (m/s^2) (+15%, the user) ...
     tubeLeanOver: 0.45, tubeLeanDrive: 1.1, // really deep, leaning onto the front foot: up to this much faster (m/s, ~1 mph) and more push (the user: halved from 0.6/1.5, then up a bit to here, 2026-11-17)
-    tubeTurnDamp: 0.6, // in the barrel turning is damped, up to this much (60% slower turns) by about half depth (rider.js r.tubeDamp; was 0.45 by 70%)
+    tubeTurnDamp: 0.7, tubeCrouchDamp: 0.35, // in the barrel turning is damped, up to this much (70% slower turns; was 60%, the user, 2026-11-24: a bit more) by about half depth, and holding crouch in there damps what's left by 35% more (~80% in all) (rider.js r.tubeDamp; was 0.45 by 70%)
     tubeClimbDamp: 0.45, // ... and heading up the face is slowed by up to this much (30% going in, 45% deep), so a turn up doesn't suck you into the roof
     tubeTrimOver: 0.29, // ... up to this much faster than the wave peels (m/s) (+15%) ...
     tubeTrimOverHigh: 1.32, // ... or this much in the top half of the barrel (+15%)

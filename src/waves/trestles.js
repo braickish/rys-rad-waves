@@ -112,7 +112,7 @@ export default {
   tune: {
     ...point.tune, // Raglan's shortboard feel (speed, turns, moves, airs)
     // ... with Pipe's tube riding (rider.js stepTube)
-    ...Object.fromEntries(['tubeEnter', 'tubeExit', 'tubeCollapse', 'tubeDrive', 'tubeLeanOver', 'tubeLeanDrive', 'tubeTurnDamp',
+    ...Object.fromEntries(['tubeEnter', 'tubeExit', 'tubeCollapse', 'tubeDrive', 'tubeLeanOver', 'tubeLeanDrive', 'tubeTurnDamp', 'tubeCrouchDamp',
       'tubeClimbDamp', 'tubeTrimOver', 'tubeTrimOverHigh', 'tubeEnterLow', 'tubeFallHeight', 'tubeTooHigh', 'roofCrash', 'slashTube']
       .map((k) => [k, reef.tune[k]])),
     tubeLow: 0.6,

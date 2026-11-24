@@ -624,10 +624,16 @@ function stepFalls(r, dt) {
 }
 
 // input: { turn: -1..1 (Left = +1), tilt: -1..1 (Up = +1), aim: [x, y] | null, pump, crouch }
+// How much of your turning the barrel leaves you: damped by up to `tubeTurnDamp` by about half depth (r.tubeDamp), and holding
+// crouch in there by `tubeCrouchDamp` of what's left (the user, 2026-11-24: a bit more in the barrel, further crouched).
+export const tubeTurnK = (r, T) => (1 - (T.tubeTurnDamp || 0) * r.tubeDamp) * (1 - (T.tubeCrouchDamp || 0) * (r.tubeCrouchK || 0));
 export function stepRider(r, input, dt) {
   r.events.length = 0;
   r.time += dt;
   r.crouch = !!input.crouch || !!r.tube;
+  // (holding crouch in the barrel damps turning further, `tubeCrouchDamp` (the user, 2026-11-24): r.crouch is always on in the
+  // tube (the barrel stance), so this follows the key itself, easing in and out)
+  r.tubeCrouchK = (r.tubeCrouchK || 0) + ((r.tube && input.crouch ? 1 : 0) - (r.tubeCrouchK || 0)) * (1 - Math.exp(-dt * 6));
   r.pumping = false;
   if (r.mode === 'wipe') {
     r.wipeTimer -= dt; r.wipeAge += dt;
@@ -762,13 +768,13 @@ function stepSurf(r, input, dt) {
   const shufR = 1 + (T.backRadius - 1) * sBack + (T.fwdRadius - 1) * sFwd, shufT = 1 + (T.backTurn - 1) * sBack + (T.fwdTurn - 1) * sFwd;
   const radius = (T.rTop + (T.rBottom - T.rTop) * low) * (r.bottomCarve ? T.bottomCarveRadius : 1 - (1 - T.hardRadius) * hard) * shufR;
   const rateCap = T.turn * (1 + (T.hardRate - 1) * hard) * shufT;
-  let rate = (1 - (T.tubeTurnDamp || 0) * r.tubeDamp) * (1 - (T.noseTurnDamp || 0) * r.nose) * clamp(r.speed / radius, T.minTurn, rateCap); // (damped in the barrel: subtler turns the deeper you are)
-  if (sBack > 0) rate += (rateCap * (1 - (T.tubeTurnDamp || 0) * r.tubeDamp) - rate) * T.backPivot * sBack; // (back foot: a little more pivot, less tied to speed)
+  let rate = tubeTurnK(r, T) * (1 - (T.noseTurnDamp || 0) * r.nose) * clamp(r.speed / radius, T.minTurn, rateCap); // (damped in the barrel: subtler turns the deeper you are)
+  if (sBack > 0) rate += (rateCap * tubeTurnK(r, T) - rate) * T.backPivot * sBack; // (back foot: a little more pivot, less tied to speed)
   // (energy pocket, shortboards, `skidDriveK`: the share of this turn's rate beyond what a carve at this speed can make,
   // speed / radius, comes from the minimum turn rate and the back foot's pivot: the tail skidding round, not the rail.
   // It drives at `skidDriveK` of a carve, like a longboard's pivot share; the user, 2026-11-21)
   if (T.skidDriveK != null && !T.pivotRate) {
-    const carve = (1 - (T.tubeTurnDamp || 0) * r.tubeDamp) * (1 - (T.noseTurnDamp || 0) * r.nose) * r.speed / radius;
+    const carve = tubeTurnK(r, T) * (1 - (T.noseTurnDamp || 0) * r.nose) * r.speed / radius;
     r.skid = rate > carve ? 1 - carve / rate : 0;
   } else r.skid = 0;
   // Fin pivot (longboard, `pivotRate`): stepped back on the tail, the board swings round
