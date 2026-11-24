@@ -220,6 +220,7 @@ export function surferObjects(pose, rider, info, dt) {
   let kneeT = 0.25 + 0.45 * turnAmt + 0.15 * clamp(vUp / 3, 0, 1) + 0.2 * (rider.hard || 0);
   if (info.pump) kneeT = vUp > 0.3 ? 0.75 : 0.05; // compress going up, extend driving down
   if (rider.crouch && !rider.tube) kneeT = 0.85;
+  if (rider.stallK > 0.01) kneeT = Math.max(kneeT, 0.35 + 0.35 * rider.stallK); // (the stall: knees bent, sitting back on the tail)
   // In the tube: a compact, athletic crouch going in, right down deep in the barrel.
   if (bc > 0.01) kneeT = Math.max(kneeT, Math.min(1, inB * (0.42 + 0.58 * deep + 0.15 * tt)));
   if (nr > 0.01) kneeT = kneeT * (1 - nr) + 0.22 * nr; // standing tall and relaxed walking up and on the nose
@@ -343,7 +344,7 @@ export function surferObjects(pose, rider, info, dt) {
   // Hips drop and slide back over the heels as the knees bend.
   // (deep in the barrel the hips sink further, and leaning onto the front foot moves them forward)
   const hipH = (0.92 - 0.44 * knee - 0.1 * deep - 0.08 * tt - 0.12 * dk) * (1 - 0.4 * tuck) * (1 - 0.22 * aTuck); // (an air's tuck: knees up toward the chest)
-  const hip = add(B, v3.mul(bf, mid + 0.1 * fl - 0.08 * aReach), v3.mul(bodyUp, hipH), v3.mul(chest, -0.12 * knee)); // (an air's reach: hips back over the tail, the front leg straightens)
+  const hip = add(B, v3.mul(bf, mid + 0.1 * fl - 0.08 * aReach - 0.12 * (rider.stallK || 0)), v3.mul(bodyUp, hipH), v3.mul(chest, -0.12 * knee)); // (an air's reach: hips back over the tail, the front leg straightens)
   const hipAx = ten > 0.001 ? v3.norm(lerp3(f, v3.mul(T, -1), ten)) : f; // (hips square to the nose in a hang ten)
   const hipBack = add(hip, v3.mul(hipAx, -0.12)), hipFront = add(hip, v3.mul(hipAx, 0.12));
   // (deep in the barrel the back knee drops in toward the deck, pointing at the front foot)

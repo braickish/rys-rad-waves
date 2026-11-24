@@ -258,6 +258,7 @@ function readInput() {
     turn: d * (touch.turn || turn), tilt: d * (touch.tilt || tilt),
     crouch: k('ShiftLeft', 'ShiftRight', 'KeyJ') || touch.crouch,
     walk,
+    stallHold: WAVE.walkKeys && k('ArrowDown', 'KeyS'), // (holding back keeps a stall going, rider.js)
   };
 }
 
@@ -432,6 +433,7 @@ function handleEvents() {
       score += pts;
       flash(e.time > 3 ? 'LONG NOSERIDE!' : 'Noseride', `${e.time.toFixed(1)}s on the nose${e.tenTime > 0.3 ? `, ${e.tenTime.toFixed(1)}s hang ten` : ''}  +${pts}`);
     }
+    if (e.type === 'stall') flash('Stall', 'scrubbing speed off the tail');
     if (e.type === 'barrelEnter') flash('In the barrel!', 'drop from high to drive forward · stay off the roof');
     if (e.type === 'barrelExit' && e.time > 0.4) {
       // Time in the tube, more the deeper you got.
