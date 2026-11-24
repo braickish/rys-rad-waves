@@ -66,9 +66,9 @@ const BODY_LOOKS = {
 };
 const WETSUIT = [0.045, 0.047, 0.055, 0.4];
 const TOPPER = [0.06, 0.3, 0.32, 0.3]; // (a dark teal neoprene long-sleeve top: navy matched the blue boardshorts)
-// The competition jersey (heats, the user 2026-11-24): a sleeveless lycra vest in the heat colour, over whatever the
-// water calls for (trunks, top, short-sleeve, full suit or hood), from the shoulders to just over the waistband, with a
-// darker hem and armholes. jersey: '#rrggbb' or null.
+// The competition jersey (heats, the user 2026-11-24): a short-sleeve lycra jersey in the heat colour (short sleeves, not
+// a vest: the user), over whatever the water calls for (trunks, top, short-sleeve, full suit or hood), from the shoulders
+// to just over the waistband, with a darker hem, cuffs and neckline. jersey: '#rrggbb' or null.
 const hexRgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255);
 function bodyColors(m, which, outfit, jersey = null) {
   // (a black jersey vanished on a black wetsuit: dark ones go charcoal with light trim)
@@ -141,8 +141,13 @@ function bodyColors(m, which, outfit, jersey = null) {
         && y < neckY - 0.03) {
       const ax = Math.abs(x), front = z > 0;
       const neckline = front && ax < 0.07 && y > neckY - 0.03 - 0.06 * (1 - ax / 0.07); // (a scoop at the front of the neck)
-      const armhole = ax > 0.15 && y > neckY - 0.2; // (the shoulders out to the arms stay as they were: a vest, no sleeves)
-      if (!neckline && !armhole) col = (y < waistY - 0.035 || ax > 0.135 || (front && ax < 0.08 && y > neckY - 0.11)) ? Jtrim : J;
+      if (!neckline) col = (y < waistY - 0.035 || (front && ax < 0.08 && y > neckY - 0.11)) ? Jtrim : J;
+    }
+    if (J && bone.startsWith('upperarm')) { // short sleeves: a little under half way down the upper arm, a darker cuff
+      const a = m.rest['upperarm_' + bone.slice(-1)].head, e = m.rest['lowerarm_' + bone.slice(-1)].head;
+      const ex = e[0] - a[0], ey = e[1] - a[1], ez = e[2] - a[2];
+      const t = ((x - a[0]) * ex + (y - a[1]) * ey + (z - a[2]) * ez) / (ex * ex + ey * ey + ez * ez);
+      if (t < 0.45) col = t > 0.39 ? Jtrim : J;
     }
     // hair painted on the scalp: the hairline high at the forehead, above the ears at the sides, low at the nape
     if (outfit === 'hood' && (bone === 'head' || bone === 'neck_01')) {
