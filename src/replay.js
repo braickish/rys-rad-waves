@@ -16,7 +16,7 @@
 export const REPLAY_VERSION = 1;
 // Bump when a physics change would make old recordings play differently (they still play: checkpoints keep them on track,
 // but the drift shows and a score check would flag them).
-export const SIM_VERSION = 1;
+export const SIM_VERSION = 2; // (2: 2026-11-24, the tube holds its speed at any depth)
 export const CHECK_EVERY = 120; // steps (1 s at 1/120 s)
 
 // meta: { wave (id), built (a built break's payload, or null), seed, n, params ({ size, map, moveaccel, nosea } when set) }

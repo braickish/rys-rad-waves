@@ -363,6 +363,15 @@ section (25-30 deg), backing off (slower than 70 deg, or a gap), or closing out 
 - Barrel speed (the user, 2026-11-22: a bit more in the barrel; 100% of a section's speed-up there): `tubeHold` 1.08 -> 1.12.
   In the tube the hold was already the curl's full speed (sections included) x tubeHold, not the open face's SECTION_HOLD share.
   Placed riders trimming: built barrels 2-3 m mostly come out in 4-11 s (1.08: most held station); Pipe 0.4 line 1.7-4.4 s.
+- Speed at any depth in the tube (the user, 2026-11-24: slowing down deeper in; keep it, or add some to help make it out).
+  The tube's hold was scaled by the pocket's power and the face's steepness where you are, and both fade behind the curl,
+  where deep in the tube is: Pipe held 1.12x the curl to half way, then 0.69x at 70%, 0.62x at 80-90% (a low line 1.32 ->
+  0.69); Dynamic's target fell to 0.97x; built barrels were fine (their `tubeCarry`). In the tube the pocket now counts as
+  full at any depth (rider.js target: `pkT`, `stT`), and `tubeDeepBoost` 0.08 raises the hold from 40% depth to the pinch
+  (rider.js `tubeHoldAt`: 1.12x mid-tube unchanged, where 1.15 made coming out automatic; ~1.20x at 90%), in the carry too.
+  Now Pipe 1.13 -> 1.24x on a 0.45 line, 1.28-1.32x low; built 1.12 -> 1.25x. `node test/tubedepth.mjs` (puts riders in the tube
+  at each depth: test/tube.mjs and tubetrim.mjs script their way in and haven't got into Pipe's tube for a while).
+  replay.js `SIM_VERSION` 2.
 - Section hold (the user, 2026-11-22: more boost when a section speeds up): wave.js `SECTION_HOLD` 0.5 -> 0.85 (trimming holds
   85% of a section's extra speed, by its steepness). Raglan+ sections test: trimming makes 4 of 7, pumping 10 of 10 (0.5: 2 / 6
   and 9 / 9; 1.0: trimming 6 of 7, pumping no longer mattered). test/sections.mjs allows trimming up to 70%.
@@ -1121,6 +1130,7 @@ bot's real ride. Not yet: a heat timer, priority / interference, other players.
 ```sh
 node test/determinism.mjs # a ride is the same whatever came before (wave addresses; contests and replays need it)
 node test/replay.mjs   # record, save, replay: the same ride bit for bit; checkpoints put a knocked-off replay back
+node test/tubedepth.mjs # tube speed by depth: never slower deeper (Pipe, Dynamic, a built barrel)
 node test/heat.mjs     # heats: the seed's waves in order, best two, places and tie-breaks, needs, the horn, wave counts, bots
 node test/heat-browser.mjs [shots] # in headless Chrome: a 1 min heat (board, sheet, horn, results, watch your best wave) and a 2 wave heat
 node test/replay-browser.mjs # in headless Chrome: ride, "Watch it" at 4x slower CPU, ?replay=<file>: all the same (WAVE=trestles ...)

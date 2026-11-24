@@ -186,7 +186,20 @@ const ENERGY_TUNE = { energy: true, pocketHold: 1.0, airSpeedCurl: 7.15, airSpee
   // already is: in the tube the hold is the curl's own speed, sections and all, not the open face's 85% share). Placed 30-50%
   // in and trimming, built barrels 2-3 m at 8-10 m/s now mostly come out in 4-11 s (at 1.08 most held station); Pipe on a
   // 0.4 line in 1.7-4.4 s; 1.15 made coming out automatic. The back foot (0.85x) still stalls you deeper.
-  tubeHold: 1.12 };
+  // Then (the user, 2026-11-24: slowing down deeper in the tube; keep the speed, or even add some to help make it out): the
+  // hold was scaled by the pocket's power and the face's steepness where you are, and both fade behind the curl, which is
+  // where deep in the tube is (Pipe held 1.12x to half way, then 0.69x at 70%, 0.62x by 80%). In the tube the tube is the
+  // pocket: it holds at any depth now (rider.js target). And deep in, a little more: `tubeDeepBoost` from 40% depth to the
+  // pinch (+8% there, 1.12 -> 1.21x), so working your line deep in moves you toward the exit; the tuned 1.12 mid-tube
+  // (where 1.15 made it automatic) is unchanged.
+  tubeHold: 1.12, tubeDeepBoost: 0.08 };
+
+// The tube's hold (x the curl's speed) at depth d (0 at the exit, 1 at the pinch): `tubeHold`, rising by `tubeDeepBoost`
+// from 40% depth in.
+function tubeHoldAt(d) {
+  const T = TUNE;
+  return (T.tubeHold || 1) * (1 + (T.tubeDeepBoost || 0) * sstep(0.4, 1, d));
+}
 
 
 const v3 = {
@@ -1110,9 +1123,12 @@ function stepSurf(r, input, dt) {
   // (speed fades a little further out than the pocket itself: shoulderReach)
   const pkReach = r.xs > 0 ? pocketPower(Math.max(0, r.xs - T.shoulderReach) / (T.shoulderFade || 1)) : pk; // (shoulderFade: fades over this many times the pocket's own length)
   const pkSpeed = Math.max(pkReach, wall); // (a steep wall anywhere feeds you too: `wallK`)
-  let target = T.vLow + (T.vPocket - T.vLow) * pkSpeed * steep * (T.heightSpeed[0] + T.heightSpeed[1] * height);
-  if (T.energy) target = T.vLow + ((r.tube && T.tubeHold ? T.tubeHold * PEEL_SPEED : T.pocketHold * holdPeel()) - T.vLow) * pkSpeed * steepAny * crestFade(r, height); // (energy pocket: 1.0x the peel at any height up to the crest, where it fades; Raglan+'s sections: the wave's own peel, wave.js holdPeel)
-  else if (T.physPocket) target = physCruise(T.physPocket, height, pkSpeed, steepAny);
+  // (in the tube the tube is the pocket: full power and a steep face at any depth, not the pocket's fade behind the curl,
+  // where deep in the tube is; TUNE.tubeDeepBoost)
+  const pkT = r.tube ? 1 : pkSpeed, stT = r.tube ? 1 : steepAny;
+  let target = T.vLow + (T.vPocket - T.vLow) * pkT * (r.tube ? 1 : steep) * (T.heightSpeed[0] + T.heightSpeed[1] * height);
+  if (T.energy) target = T.vLow + ((r.tube && T.tubeHold ? tubeHoldAt(tdep) * PEEL_SPEED : T.pocketHold * holdPeel()) - T.vLow) * pkT * stT * crestFade(r, height); // (energy pocket: 1.0x the peel at any height up to the crest, where it fades; Raglan+'s sections: the wave's own peel, wave.js holdPeel)
+  else if (T.physPocket) target = physCruise(T.physPocket, height, pkT, stT);
   r.cruise = target; // (the wave's cruising speed for you here, before feet and foam: tests)
   if (r.stallK > 0.01) target *= 1 - (1 - T.stallHold) * r.stallK; // (stalling: the pocket barely tops you up)
   if (r.foot < 0) target *= 1 - (1 - (T.tailSpeed ?? 1)) * -r.foot; // (standing on the tail the board drags: slower than from the middle)
@@ -1231,7 +1247,7 @@ function stepSurf(r, input, dt) {
   // stopping at once: spat out of a barrel you keep its speed a moment, not bled from 46 to 30 mph in half a second)
   r.carry = r.mode === 'surf' ? Math.max(0, (r.carry || 0) - (T.tubeCarryFade ?? 4) * dt) : 0;
   if (r.tube && T.tubeCarry && Math.cos(r.phi) > 0.3 && r.mode === 'surf') {
-    const carry = T.tubeCarry * (T.tubeHold || 1) * PEEL_SPEED * (1 + ((T.tubeBackSpeed ?? 1) - 1) * sBack) * (1 + ((T.tubeLeanSpeed ?? 1) - 1) * r.frontLean) * (1 - (1 - T.stallHold) * (r.stallK || 0));
+    const carry = T.tubeCarry * tubeHoldAt(tdep) * PEEL_SPEED * (1 + ((T.tubeBackSpeed ?? 1) - 1) * sBack) * (1 + ((T.tubeLeanSpeed ?? 1) - 1) * r.frontLean) * (1 - (1 - T.stallHold) * (r.stallK || 0));
     if (r.speed < carry) r.speed = Math.min(carry, r.speed + (T.tubeCarryAccel ?? 8) * dt);
     r.carry = Math.max(r.carry, carry);
   }
