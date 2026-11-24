@@ -66,9 +66,23 @@ const rp = await waitFor('window.__replayResult && JSON.stringify(window.__repla
 const r = rp && JSON.parse(rp);
 const bestScore = Math.max(...m.waves.map((w) => w.score));
 check(r && r.same && r.judged === bestScore, `"Watch your best wave": ${r ? `judged ${r.judged} (best ${bestScore}), same ride: ${r.same}` : 'never finished'}`);
-// Space after it: the results again (the heat is over), then a new heat.
-await send('Input.dispatchKeyEvent', { type: 'rawKeyDown', code: 'Space', key: ' ', windowsVirtualKeyCode: 32 }); await send('Input.dispatchKeyEvent', { type: 'keyUp', code: 'Space', key: ' ', windowsVirtualKeyCode: 32 });
-check(!!(await waitFor(`!document.getElementById('results').hidden`, 5000)), 'Space after the replay: back to the results');
+const back1 = await waitFor(`!document.getElementById('results').hidden && document.getElementById('results-note').textContent`, 5000);
+check(!!back1, `the replay ends back on the results: "${back1}"`);
+await shot('4-back');
+// Again, and leave part way with Esc: the results card is gone while it plays, and comes back.
+await evaluate(`window.__replayResult = null; document.getElementById('results-watch').click()`);
+await sleep(1500);
+const during = await evaluate(`JSON.stringify({ results: document.getElementById('results').hidden, badge: document.getElementById('replay-badge').hidden, exit: document.getElementById('replay-exit').textContent, state: window.__dbg.state })`);
+const d = JSON.parse(during);
+check(d.results && !d.badge && d.exit === '✕ Back to results' && d.state === 'play', `while it plays: results hidden, the badge says "${d.exit}"`);
+await shot('5-during');
+await send('Input.dispatchKeyEvent', { type: 'rawKeyDown', code: 'Escape', key: 'Escape', windowsVirtualKeyCode: 27 }); await send('Input.dispatchKeyEvent', { type: 'keyUp', code: 'Escape', key: 'Escape', windowsVirtualKeyCode: 27 });
+check(!!(await waitFor(`!document.getElementById('results').hidden && document.getElementById('replay-badge').hidden`, 3000)), 'Esc part way: back to the results');
+// And the badge's ✕ does the same.
+await evaluate(`document.getElementById('results-watch').click()`);
+await sleep(1000);
+await evaluate(`document.getElementById('replay-badge').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))`);
+check(!!(await waitFor(`!document.getElementById('results').hidden && document.getElementById('replay-badge').hidden`, 3000)), '"✕ Back to results" part way: back to the results');
 
 // 2. A two-wave heat.
 await send('Page.navigate', { url: `${base}?play&auto&heat=2w&seed=8&wave=${WAVE}` });

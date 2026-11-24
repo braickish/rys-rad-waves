@@ -216,6 +216,7 @@ addEventListener('keydown', (e) => {
   if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) e.preventDefault();
   keys.add(e.code);
   if (e.code === 'KeyC') camMode = (camMode + 1) % 2;
+  if (e.code === 'Escape' && player) { exitReplay(); return; }
   // On the longboard wave Space walks the board while riding (back -> middle -> front -> middle -> back); otherwise it drops in.
   if (e.code === 'Space' && state === 'play' && WAVE.noseride) { if (!e.repeat) walkPress = 'cycle'; }
   // On waves with `walkKeys` (all of them since 2026-11-18) Up/Down walk the board (Queens) or shuffle the feet (shortboards) instead of steering; Left/Right turn.
@@ -320,6 +321,7 @@ let lastInput = {};
 // checkpoints); the last one can be watched again or saved, and ?replay=<url> (or dropping a saved file on the page) plays
 // one. While a replay plays, `player` feeds the inputs instead of the keys.
 let recording = null, lastRecording = null, player = null;
+let replayFrom = null; // ('results': a heat's best wave, watched from the results card; the replay goes back there)
 // (the URL options that change the physics: a recording keeps them, and a replay reloads with them if they differ)
 const PHYS_PARAMS = ['size', 'map', 'moveaccel', 'nosea', 'ridet'];
 const physicsParams = () => { const o = {}; for (const k of PHYS_PARAMS) if (params.has(k)) o[k] = params.get(k); return o; };
@@ -327,6 +329,7 @@ const physicsParams = () => { const o = {}; for (const k of PHYS_PARAMS) if (par
 // Play a recording: the wave from its address (a built break from its payload), the inputs from the recording.
 function startReplay(rec) {
   const want = rec.params || {};
+  replayFrom = state === 'results' ? 'results' : null;
   if (PHYS_PARAMS.some((k) => (want[k] ?? null) !== (params.get(k) ?? null))) { // (read at load: reload with the recording's)
     try { sessionStorage.setItem('rys-rad-waves-replay', encodeRecording(rec)); } catch {}
     const u = new URL(location.href);
@@ -342,8 +345,9 @@ function startReplay(rec) {
   player = createPlayer(rec); recording = null; sheetTimer = 0;
   score = 0; rideTime = 0; lastMove = ''; lastMoveTime = -9; rideLog = createRideLog();
   state = 'play';
-  for (const id of ['title', 'over', 'judge']) $(id).hidden = true;
+  for (const id of ['title', 'over', 'judge', 'results']) $(id).hidden = true;
   $('replay-badge').hidden = false;
+  $('replay-exit').textContent = replayFrom === 'results' ? '✕ Back to results' : '✕ Stop';
   flash('Replay', `${WAVE.name} · ${(rec.steps * rec.step).toFixed(1)}s`);
 }
 // After a replay: did it ride the same as the recording?
@@ -359,9 +363,26 @@ function showReplayEnd(s) {
   $('over-note').textContent = `recorded ${was.score ?? '?'} points · judged ${judged.toFixed(2)} (recorded ${was.judged?.score?.toFixed(2) ?? '?'})`;
   $('replay-badge').hidden = true;
   player = null;
+  if (replayFrom === 'results') { // (straight back to the results, with how the replay went)
+    replayFrom = null;
+    showResults();
+    $('results-note').textContent = same ? `Replay: the same ride ✓ · ${judged.toFixed(2)}` : `Replay: off by ${e.drift < 1 ? e.drift.toFixed(3) : 'a lot'}`;
+    return;
+  }
   showReplayButtons();
   $('over').hidden = false;
 }
+// Leave a replay part way (the badge's ✕, or Esc): back to the results it came from, or the end card.
+function exitReplay() {
+  if (!player) return;
+  player = null;
+  $('replay-badge').hidden = true;
+  if (replayFrom === 'results') { replayFrom = null; showResults(); return; }
+  state = 'over';
+  showReplayButtons();
+  $('over').hidden = false;
+}
+$('replay-badge').addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); exitReplay(); });
 // The replay buttons on the game-over card and the score sheet (the last ride's recording).
 function showReplayButtons() { for (const b of document.querySelectorAll('.replay-btns')) b.hidden = !lastRecording; }
 function saveReplay() {
@@ -371,7 +392,7 @@ function saveReplay() {
   a.download = `rys-rad-waves-${r.wave}-${r.seed}-${r.n}-${new Date().toISOString().slice(0, 16).replace(/[:T-]/g, '')}.json`;
   a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
-for (const b of document.querySelectorAll('.replay-btns button')) {
+for (const b of document.querySelectorAll('.replay-btns button[data-act]')) { // (the end card's and the sheet's; the results card's has its own)
   b.addEventListener('pointerdown', (e) => e.stopPropagation()); // (a tap elsewhere on the card paddles back out)
   b.addEventListener('click', (e) => { e.stopPropagation(); if (b.dataset.act === 'save') saveReplay(); else if (lastRecording) startReplay(decodeRecording(encodeRecording(lastRecording))); });
 }
@@ -415,6 +436,7 @@ function showResults() {
   $('results-rows').innerHTML = st.map((r) => `<div class="rr${r.surfer.you ? ' you' : ''}"><span class="pl">${r.place}</span><i style="background:${r.surfer.jersey.color}"></i><span class="nm">${r.surfer.name}</span><span class="bt">${r.top.map(f2).join(' + ') || '-'}</span><b>${f2(r.total)}</b></div>`).join('');
   const best = heatYou(H).waves.filter((w) => w.ride).sort((a, b) => b.score - a.score)[0];
   $('results-watch').hidden = !best;
+  $('results-note').textContent = '';
   $('results-watch').onclick = (e) => { e.stopPropagation(); if (best) startReplay(decodeRecording(encodeRecording(best.ride))); };
   for (const id of ['over', 'judge', 'title']) $(id).hidden = true;
   $('results').hidden = false;
