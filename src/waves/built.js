@@ -9,6 +9,7 @@ import raglanPlus, { KF_SECTION, KF_CRUMBLY } from './raglan-plus.js';
 import point from './point.js';
 import reef from './reef.js';
 import { KF_PIPE_HEAD, sstep, withBore, matchTs } from './shapes.js';
+import { funPayload } from '../builder/fun.js';
 // (the wave model's shape state and tubeAt, handed over by wave.js once it has them: importing wave.js here would loop,
 // since it loads the wave list, which loads this)
 export const env = { SHAPE: { a: 0 }, tubeAt: () => 0, setTube: (a) => (a === 3 ? 1 : 0) };
@@ -98,6 +99,8 @@ export function applyBuilt(data) {
   const sc = data.scale > 0 ? data.scale : 1, sq = Math.sqrt(sc);
   if (sc !== 1) data = { ...data, H: data.H * sc, base: data.base * sq, c: data.c != null ? data.c * sq : data.c, scaleApplied: sc,
     profile: data.profile.map((q) => ({ ...q, peel: q.peel * sq, H: q.H != null ? q.H * sc : q.H, c: q.c != null ? q.c * sq : q.c, ...(q.e ? { e: q.e * sq } : {}) })) };
+  // Fun (the surfable-waves plan, src/builder/fun.js): the wave's extremes tamed, its character kept; Real as the reef makes it
+  data = funPayload(data);
   // Size, with no cap (the user, 2026-11-22): k = the breakers' height against Raglan's (its ~3.5 m face at scale 1.25 is a
   // ~3.5 m breaker). The cross-section scales by k and so does everything measured along the wave or across the pocket, as
   // Pipe's ?size does (reef.js sized): how fast the shape changes along the wave (phase), the pocket's reach, the foam drawn

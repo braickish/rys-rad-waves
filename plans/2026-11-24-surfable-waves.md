@@ -81,7 +81,7 @@ The limits for steps 3-8 (all scaled to the wave: speeds by sqrt(breakers / 3.5 
 - step 7: leads capped at 0.8 s; a stretch breaking over 1.5 s ahead becomes the ride's closeout ending.
 - step 8: the first 25 m at v0, easing into the profile over the next 25.
 
-## 3. Fun: limit how fast things change (the biggest win for feel)
+## 3. Fun: limit how fast things change (the biggest win for feel) (done 2026-11-24)
 
 - A new module (src/builder/fun.js, pure, used at DROP IN on the payload): along the profile, cap how fast the curl's
   speed may change (per second of curl, so it's the same feel at any size) and how fast the shape (`u`) may change; a rise
@@ -89,6 +89,14 @@ The limits for steps 3-8 (all scaled to the wave: speeds by sqrt(breakers / 3.5 
 - Light smoothing of everything (~3 s of curl) so the wave reads as changing, not twitching; the ray noise goes.
 - Tests: test/fun.mjs: on the user's 11 ft left (curl 18 -> 41 mph in ~2 s) the rise takes at least the chosen time; a
   steady wave comes through unchanged; Real is untouched.
+- Done (src/builder/fun.js `funPayload`, applied by built.js after the size override): smoothing 1.5 s of curl (3 s cut a
+  short section's peak); the rate limit spreads a too-steep change **both ways** (the high side down, the low side up, half
+  and half, until every step is within 6 mph/s x sqrt(size); the shape within 0.25/s). Spreading it only ahead, never cutting
+  a peak, as first planned, pushed a section's speed-up into the takeoff: on the user's 11 ft left the takeoff barrel ran at
+  21-35 mph and both test bots went over the falls in ~3 s. Now on that wave: the steepest change 17.3 -> 6.0 mph/s, the
+  section stays at 50 m, 45 -> 38 mph, the takeoff stays at 18. test/fun.mjs. Bots there: trimming 7.1 s Real / 6.6 s Fun;
+  the pumping bot (it climbs, and high in a barrel is over the falls) 12.8 / 2.4 s: it gets into the takeoff barrel on Fun
+  and not on Real; step 8 (the takeoff) is where that's handled.
 
 ## 4. Fun: peel speed compressed into a makeable band
 
