@@ -42,7 +42,7 @@ const RIDER_TUNE = {
   // (cruising x`backSpeed`). Forward: helps you accelerate (picks up speed x`fwdFeed`, acceleration cap x`fwdAccel`,
   // cruising x`fwdSpeed`) and turns more rail to rail (radius x`fwdRadius`, turn limit x`fwdTurn`).
   shuffleTime: 0.2,
-  stallTime: 0.5, stallScrub: 5, stallHold: 0.5, handSteep: 45, // (a stall on a face at least this steep (deg), or in the tube, is a hand in the face) // (the stall: back again from all the way back; ~11 mph/s scrubbed, the pocket's pull halved)
+  stallTime: 0.5, stallScrub: 5, stallHold: 0.5, handSteep: 45, handHeading: [0.15, -0.55], // (sin of the board's angle up the face: ~9 deg up to ~33 deg down) // (a stall on a face at least this steep (deg), or in the tube, is a hand in the face) // (the stall: back again from all the way back; ~11 mph/s scrubbed, the pocket's pull halved)
   backRadius: 0.9, backTurn: 1.1, backPivot: 0.05, backScrub: 0.03, backSpeed: 0.95,
   fwdFeed: 1.25, fwdAccel: 1.15, fwdSpeed: 1.04, fwdRadius: 1.15, fwdTurn: 0.9,
   hardAfter: [0.25, 0.6], // hold a turn this long (s) and you lean into it harder ...
@@ -948,7 +948,8 @@ function stepSurf(r, input, dt) {
   let drag = 0;
   if (r.stallK > 0.01 && r.mode === 'surf') {
     const fr = frameAt(r.xs, r.t), ang = Math.acos(Math.min(1, Math.abs(fr.n[1]))) * 180 / Math.PI;
-    if (ang >= T.handSteep || r.tube) { drag = 1; r.wallPt = surface(r.xs - 0.5 * r.rideDir, Math.max(0, r.t - 0.12)); } // (just behind the board, barely up the face from it: shin height beside you)
+    const sp = Math.sin(r.phi); // (the hand only goes in heading flat along the face or a little down (the user, 2026-11-23): climbing, or dropping steeply, it's the tail)
+    if ((ang >= T.handSteep || r.tube) && sp <= T.handHeading[0] && sp >= T.handHeading[1]) { drag = 1; r.wallPt = surface(r.xs - 0.5 * r.rideDir, Math.max(0, r.t - 0.12)); } // (just behind the board, barely up the face from it: shin height beside you)
   }
   r.handDrag = (r.handDrag || 0) + (drag - (r.handDrag || 0)) * (1 - Math.exp(-dt * 12));
   if (WAVE.shuffle && !WAVE.noseride) {

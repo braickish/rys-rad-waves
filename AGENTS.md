@@ -86,7 +86,8 @@ tail), Down (or a down swipe) again pushes hard on the tail: for `stallTime` 0.5
 `stallScrub` 5 m/s^2 (~11 mph/s) and halves the pocket's pull (`stallHold`), and in a built barrel the carry eases the same, so
 you sink deeper or let the curl catch up. You keep steering; moving the feet off the back ends it. Flash "Stall" (no
 points). `node test/stall.mjs`: shortboard 17 -> 11 mph in 0.6 s, longboard 9 -> 4. On a steep face (`handSteep` 45 deg or more under you, or in the tube; the user, 2026-11-23: in the barrel
-and right outside it) the stall is a hand in the face instead (rider.js `r.handDrag`). Pose from frontside-barrel-stall /
+and right outside it), heading flat along it or a little down (`handHeading`: ~9 deg up to ~33 deg down; climbing it's the
+tail), the stall is a hand in the face instead (rider.js `r.handDrag`). Pose from frontside-barrel-stall /
 backside-barrel-stall (braickish/reference-images), surfer.js: a deep crouch; the back hand cuts the water where the back
 shoulder drops onto the face (the deck's plane: on a steep face that's beside you on the wave side, about an arm's length;
 the shoulder reaches up to 0.35 m to meet it), a little behind (more backside, by the tail). Frontside the torso leans out
