@@ -202,12 +202,19 @@ rides with a barrel 2% · a barrel under 2 s 0% · a tube under 1.3 m 0%
   controlPoints, every built wave), which took out a bump along the flats in the broken part. Open: every built barrel draws
   the water down in front of the curl over ~15 m, ~0.6-1.0 m deep (older than this plan).
 
-## 9. In the builder: show what Fun changed
+## 9. In the builder: show what Fun changed (done 2026-11-24)
 
 - A ghost line beside the real curl: the Fun wave's curl, coloured the same way (how it breaks), drawn when Fun is on; the
   panel's numbers for both ("peels 31-64 deg real, 34-58 fun"). Hovering the line shows what changed there (e.g. "section
   spread over 40 m", "lead capped: open-ended barrel").
 - Tests: test/builder.mjs: the ghost line's profile is the payload DROP IN sends.
+- Done (ui.js `funInfo`, `drawGhost`): when Fun is on, the Fun wave of the stretch you'd ride (the same funPayload DROP IN
+  sends, after the Scale) as a thin dashed line beside the real curl, coloured by its shape (crumbly, steep, pitching, barrel,
+  ledge); the ride panel gives Fun's curl speeds and wave heights with the real ones beside them, and says when sections
+  ahead were made threadable or the ride ends early because the inside closes out. Cached per wave and stretch. (Hover
+  details not done.) Seen while checking: Dynamic on deep water peels its right at the closeout limit (23-25 deg over 60-120 m)
+  even with soft edges; with sharp edges (the builder's default since the same day) it tips under and the right closes out
+  at 60 m (soft: 220 m).
 
 ## Later (if wanted)
 

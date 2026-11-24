@@ -9,6 +9,7 @@ import { traceRays, analyse, tooSlow, isRide } from './rays.js';
 import { runPE } from './pewave.js';
 import { LOOP, curlAt, defaultLoop, clampLoop, loopInfo, snapEnd, bestLoop, wavePayload, takeoffStart, ledgeK } from './loop.js';
 import { encodeBuilt, BUILT_KEY, outfitFor } from '../waves/built.js';
+import { funPayload } from './fun.js';
 import { BLOCKS, SNAP, ARM_ANGLES, ARM_LENGTHS, ARM_SLOPES, BAR_CRESTS, DEPTHS, DEPTH_RANGE, TOP_DEPTH, SIZES, BACKS, blockLength, ROTATIONS, reefComponents, newBlock, dynamicPreset, beachPreset, stackedPreset, pipelinePreset, PIPELINE, armRot, nearestArm } from './blocks.js';
 
 const canvas = document.getElementById('map'), ctx = canvas.getContext('2d');
@@ -177,6 +178,7 @@ function draw() {
   // (every wave the design makes; the others fainter than the one you've picked)
   for (const o of all) if (o !== w) { ctx.globalAlpha = 0.4; for (const side of ['right', 'left']) drawCurl(o[side].curl, o[side].refined); ctx.globalAlpha = 1; }
   if (w) for (const side of ['right', 'left']) drawCurl(w[side].curl, w[side].refined);
+  drawGhost(); // (the Fun wave beside the real one, when Fun: the surfable-waves plan step 9)
   // blocks
   for (const b of state.blocks) drawBlock(b);
   drawCoast();
@@ -245,6 +247,39 @@ function drawCurl(curl, refined = true) {
   }
 }
 const ahead = (p) => isFinite(p.tb) && p.t - p.tb > 0.3; // (breaks on its own more than 0.3 s before the curl gets there)
+// The Fun wave, as a ghost (the surfable-waves plan step 9, 2026-11-24): what DROP IN would send (fun.js funPayload on the
+// stretch you'd ride), drawn as a thin dashed line just seaward of the real curl, coloured by its shape (crumbly, steep,
+// pitching, barrel, ledge). funInfo() compares the two for the ride panel. Recomputed only when the wave or the stretch changes.
+const SHAPE_STOPS = [[0, [189, 245, 230]], [1, [255, 212, 38]], [2, [255, 122, 47]], [3, [193, 59, 255]], [4, [255, 45, 111]]];
+const shapeColor = (u) => { let i = 1; while (i < SHAPE_STOPS.length - 1 && u > SHAPE_STOPS[i][0]) i++; const [a, ca] = SHAPE_STOPS[i - 1], [b, cb] = SHAPE_STOPS[i]; return lerpCol(ca, cb, Math.min(1, Math.max(0, (u - a) / (b - a)))); };
+let funCache = { key: null, info: null };
+function funInfo() {
+  const L = state.loop, side = cur() && cur()[L.side], st = side && rideStretch();
+  if (!state.fun || !side || !st || !side.refined) return null;
+  const key = [state.wave, L.side, L.on, st.a, st.b, state.scale, state.edges].map(String).join('|') + (state.wave ? state.wave.waves.indexOf(cur()) : '');
+  if (funCache.key === key && funCache.wave === state.wave) return funCache.info;
+  const real = { ...wavePayload(side, L.side, L.on ? 'loop' : 'full', st.a, st.b, state.swell, state.board), scale: state.scale };
+  const sq = Math.sqrt(state.scale), scaled = { ...real, H: real.H * state.scale, profile: real.profile.map((p) => ({ ...p, peel: p.peel * sq, H: p.H * state.scale, c: p.c * sq, ...(p.e ? { e: p.e * sq } : {}) })) };
+  const fun = funPayload({ ...scaled, fun: true });
+  const rng = (P, k, m = 1) => [Math.min(...P.map((p) => p[k] * m)), Math.max(...P.map((p) => p[k] * m))];
+  const info = { a: st.a, fun, real: scaled, peelR: rng(scaled.profile, 'peel', 2.237), peelF: rng(fun.profile, 'peel', 2.237), HR: rng(scaled.profile, 'H', 3.281), HF: rng(fun.profile, 'H', 3.281),
+    capped: scaled.profile.filter((p) => p.e > 0.8).length > 0, cut: fun.length < scaled.length - 1 ? scaled.length - fun.length : 0 };
+  funCache = { key, wave: state.wave, info };
+  return info;
+}
+function drawGhost() {
+  const I = funInfo(); if (!I) return;
+  const c = cur()[state.loop.side].curl, P = I.fun.profile;
+  ctx.save(); ctx.setLineDash([6, 5]); ctx.lineWidth = 2.5; ctx.lineCap = 'round';
+  for (let i = 1; i < P.length; i++) {
+    const A = curlAt(c, I.a + P[i - 1].s), B = curlAt(c, I.a + P[i].s); if (!A || !B) continue;
+    let X0 = px(A.y), Y0 = py(A.x), X1 = px(B.y), Y1 = py(B.x);
+    const l = Math.hypot(X1 - X0, Y1 - Y0) || 1, nx = -(Y1 - Y0) / l, ny = (X1 - X0) / l, o = 11; // (11 px to one side, seaward on the map: up)
+    const sgn = ny > 0 ? -1 : 1; X0 += nx * o * sgn; Y0 += ny * o * sgn; X1 += nx * o * sgn; Y1 += ny * o * sgn;
+    ctx.strokeStyle = shapeColor((P[i - 1].u + P[i].u) / 2); ctx.beginPath(); ctx.moveTo(X0, Y0); ctx.lineTo(X1, Y1); ctx.stroke();
+  }
+  ctx.restore();
+}
 // The loop: a wide teal band under its stretch of the curl, round handles at each end (you drag them along the curl).
 function loopPath(a, b) { const c = cur()[state.loop.side].curl, pts = [curlAt(c, a)]; for (const p of c) if (p.s > a && p.s < b) pts.push(p); pts.push(curlAt(c, b)); return pts; }
 function drawLoopBand() {
@@ -531,7 +566,12 @@ function showRide() {
   // extremes (steps 3-8 of the plan). And the size: the swell drives the model, this scales the wave you ride.
   const fr = row([btn('Fun', state.fun, () => { state.fun = true; save(); showRide(); }), btn('Real', !state.fun, () => { state.fun = false; save(); showRide(); })]);
   fr.insertBefore(Object.assign(document.createElement('span'), { textContent: 'Wave', style: 'font-size:13px;color:var(--dim);width:70px;align-self:center' }), fr.firstChild);
-  { const n = document.createElement('div'); n.className = 'note'; n.style.marginTop = '4px'; n.textContent = state.fun ? 'Fun: your reef\'s wave, its extremes tamed so it\'s surfable.' : 'Real: exactly the wave your reef makes.'; el.appendChild(n); }
+  { const n = document.createElement('div'); n.className = 'note'; n.style.marginTop = '4px'; n.textContent = state.fun ? 'Fun: your reef\'s wave, its extremes tamed so it\'s surfable (the dashed line beside the curl).' : 'Real: exactly the wave your reef makes.'; el.appendChild(n);
+    const I = funInfo(); // (what Fun changes on this ride, step 9)
+    if (I) { const m = document.createElement('div'); m.className = 'note'; m.style.marginTop = '2px'; const r = (a) => `${a[0].toFixed(0)}–${a[1].toFixed(0)}`;
+      m.innerHTML = `curl ${r(I.peelF)} mph <span style="opacity:.7">(real ${r(I.peelR)})</span> · waves ${r(I.HF)} ft <span style="opacity:.7">(real ${r(I.HR)})</span>`
+        + (I.capped ? ' · sections ahead made threadable' : '') + (I.cut ? ` · ends ${ft(I.cut)} ft early: the inside closes out` : '');
+      el.appendChild(m); } }
   const sz = document.createElement('label'); sz.className = 'sl'; sz.style.marginTop = '8px'; sz.style.gridTemplateColumns = '74px 1fr 96px'; sz.append('Scale'); // (the user, 2026-11-24: Scale, not Size: it scales the wave the swell makes, down as well as up)
   const szR = Object.assign(document.createElement('input'), { type: 'range', min: 0.5, max: 2, step: 0.1, value: state.scale, autocomplete: 'off' }), szV = document.createElement('b');
   const showSz = () => { szV.textContent = side && isFinite(side.H) ? `${state.scale.toFixed(1)}x · ~${ft(side.H * state.scale)} ft` : `${state.scale.toFixed(1)}x`; szV.title = side && isFinite(side.H) ? `the swell makes ~${ft(side.H)} ft waves here` : ''; };
