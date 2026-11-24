@@ -144,24 +144,27 @@ export const KF_ALMOND_HEAD = KF_PIPE_HEAD.map((k) => {
   return k;
 });
 // The ledge barrel (the user, 2026-11-24: the heaviest shape we'd want, on a true ledge; after Teahupoo: the reef a near-vertical
-// wall up from a ~10 m shelf, the lip half the wave's height thick or more, the face much taller than the back). A short back,
-// a thick lip thrown far out, and a round tube about as wide as it's tall. Down at the water it keeps the same reference as
-// every other shape (the user, same day: the flats stay a fixed reference, no dipping below the water where a wave is a ledge
-// and stepping where the shape changes along the wave): the trough ~-0.45, the foot of the back wall and where the lip lands at
-// the waterline. Same units as KF_PIPE_HEAD.
-const LEDGE_FULL = [[-40, 0], [-30, 0], [-6, 0.3], [-2.2, 2.0], [0, 3.3], [1.8, 3.9], [3.9, 3.5], [5.4, 1.9], [5.8, 0.05], [4.9, 0.1], [4.4, 1.3], [2.8, 2.6], [1.1, 1.8], [1.0, 0.6], [2.6, -0.45], [22, 0]];
+// wall up from a ~10 m shelf, breaking "below sea level", the lip half the wave's height thick or more, the face much taller
+// than the back). A short back, a thick lip thrown far out, and a round tube about as wide as it's tall.
+// Drawn first with its trough well under the water; then (the user, same day) the flats are a fixed reference: no dipping where
+// a wave is a ledge, no step where the shape changes along the wave. So at each stage everything from the back of the crest to
+// the trough is lifted until the trough sits at the others' level (~-0.45): the wave keeps all its height and jacks up above the
+// water instead, as it does when it reaches a ledge. The lip still lands on the waterline. Same units as KF_PIPE_HEAD.
+const LEDGE_TROUGH = -0.45;
+const jackUp = (p, land) => { const up = LEDGE_TROUGH - p[14][1]; return p.map(([z, y], i) => (i < 3 || i === 15 ? [z, y] : land && (i === 8 || i === 9) ? [z, i === 8 ? 0.05 : 0.1] : [z, y + up])); };
+const LEDGE_FULL = jackUp([[-40, 0], [-30, 0], [-6, 0.3], [-2.2, 2.0], [0, 3.3], [1.8, 3.9], [3.9, 3.5], [5.4, 1.6], [5.8, -0.9], [4.9, -0.8], [4.4, 0.9], [2.8, 2.1], [1.1, 1.3], [1.0, -0.6], [2.6, -1.6], [22, 0]], true);
 export const KF_LEDGE_HEAD = [
   KF_BARREL[0],
   KF_BARREL[1],
-  // building: the shelf lifts it, steep already
-  { s: -1.2, p: [[-40, 0], [-30, 0], [-7, 0.3], [-2.5, 1.8], [0, 3.0], [0.8, 2.95], [1.4, 2.75], [1.8, 2.4], [2.05, 2.0], [2.25, 1.5], [2.45, 0.95], [2.75, 0.45], [3.3, 0.05], [4.5, -0.2], [7.5, -0.25], [22, 0]] },
+  // building: the shelf lifts it, the water drawing off the reef in front
+  { s: -1.2, p: jackUp([[-40, 0], [-30, 0], [-7, 0.3], [-2.5, 1.8], [0, 3.0], [0.8, 2.95], [1.4, 2.75], [1.8, 2.4], [2.05, 2.0], [2.25, 1.5], [2.45, 0.9], [2.75, 0.3], [3.3, -0.3], [4.5, -0.7], [7.5, -0.95], [22, 0]]) },
   // it stands up on the wall, near vertical
-  { s: -0.25, p: [[-40, 0], [-30, 0], [-6, 0.3], [-2.2, 2.2], [0, 3.6], [0.6, 3.55], [1.0, 3.3], [1.2, 2.9], [1.25, 2.4], [1.28, 1.9], [1.3, 1.3], [1.35, 0.6], [1.55, 0.1], [2.3, -0.3], [4.0, -0.45], [22, 0]] },
+  { s: -0.25, p: jackUp([[-40, 0], [-30, 0], [-6, 0.3], [-2.2, 2.2], [0, 3.6], [0.6, 3.55], [1.0, 3.3], [1.2, 2.9], [1.25, 2.4], [1.28, 1.9], [1.3, 1.2], [1.35, 0.4], [1.5, -0.4], [2.2, -1.0], [4.0, -1.2], [22, 0]]) },
   // the lip pitches, thick
-  { s: 0.25, p: [[-40, 0], [-30, 0], [-6, 0.3], [-2.2, 2.1], [0, 3.5], [1.4, 3.95], [3.0, 3.7], [4.0, 2.95], [4.3, 2.2], [3.8, 2.1], [3.0, 2.7], [2.0, 3.0], [1.2, 2.4], [1.1, 0.6], [2.6, -0.45], [22, 0]] },
+  { s: 0.25, p: jackUp([[-40, 0], [-30, 0], [-6, 0.3], [-2.2, 2.1], [0, 3.5], [1.4, 3.95], [3.0, 3.7], [4.0, 2.9], [4.3, 2.1], [3.8, 2.0], [3.0, 2.6], [2.0, 2.9], [1.2, 2.2], [1.1, 0.2], [2.6, -1.4], [22, 0]]) },
   { s: 0.8, p: LEDGE_FULL },
   // closing: the full tube scaled to 80% about the foot of the back wall
-  { s: 1.3, p: LEDGE_FULL.map(([z, y], i) => (i < 3 || i === 15 ? [z, y] : [1.0 + (z - 1.0) * 0.8, -0.3 + (y + 0.3) * 0.8])) },
+  { s: 1.3, p: LEDGE_FULL.map(([z, y], i) => (i < 3 || i === 15 ? [z, y] : [1.0 + (z - 1.0) * 0.8, 0.55 + (y - 0.55) * 0.8])) },
 ];
 // Pipe's phase t s after a spot broke (reef.js: 13 m per phase at 10.5 m/s up to phase 1.3, then 22 m: behindFar).
 export const pipeSOf = (t) => (t <= 1.61 ? t * 10.5 / 13 : 1.3 + (t - 1.61) * 10.5 / 22);

@@ -23,9 +23,9 @@ const kTube = peak(KF_SECTION, -0.25) / peak(KF_PIPE_HEAD, -0.25);
 export const KF_TUBE = withBore(KF_ALMOND_HEAD.map(({ s, p }) => ({ s, p: p.map(([z, y]) => [z * kTube, y * kTube]) })), // (the almond barrel, shapes.js)
   { from: 1.3, collapse: 1.65, sOf: (t) => t * 7.6 / 8.5, ts: matchTs(KF_SECTION.filter((k) => k.s <= 1.2).pop()) });
 // The ledge (shapes.js KF_LEDGE_HEAD, Teahupoo): the heaviest end of the scale, past the barrel (u 3 -> 4), where the reef is a
-// wall up from deep water (rays.js `step`). Scaled so its face, trough to crest, matches the barrel's.
-const faceOf = (kf, s0) => { const p = kf.find((k) => k.s === s0).p.slice(3, 15).map((q) => q[1]); return Math.max(...p) - Math.min(...p); };
-const kLedge = (faceOf(KF_ALMOND_HEAD, -0.25) * kTube) / faceOf(KF_LEDGE_HEAD, -0.25);
+// wall up from deep water (rays.js `step`). Scaled as the barrel is (same units), so on the same swell it stands taller: it jacks
+// up on the ledge (the user, 2026-11-24).
+const kLedge = kTube;
 export const KF_LEDGE = withBore(KF_LEDGE_HEAD.map(({ s, p }) => ({ s, p: p.map(([z, y]) => [z * kLedge, y * kLedge]) })),
   { from: 1.3, collapse: 1.65, sOf: (t) => t * 7.6 / 8.5, ts: matchTs(KF_SECTION.filter((k) => k.s <= 1.2).pop()) });
 const pipeFaceTop = (s) => 5.3 + (11.9 - 5.3) * sstep(-0.3, 0.2, s); // (Pipe's classic: the rideable face tops out under the roof once the lip throws)
