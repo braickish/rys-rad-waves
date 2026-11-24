@@ -409,6 +409,26 @@ section (25-30 deg), backing off (slower than 70 deg, or a gap), or closing out 
   1:6 / 1:10 / 1:15 lines 1.14 / 0.88 / 0.72 at the same peel; 10 / 18 s swell 0.67 / 1.00.
 - **Next (agreed 2026-11-22):** shape, size and barrels from the reef, in steps: plans/2026-11-22-reef-driven-waves.md (step 8: stacked reefs).
 
+## Replays (`src/replay.js`; accounts plan task 2, 2026-11-23)
+
+Every ride is recorded: its wave's address (wave id, a built break's payload, `SEA.seed`, `SEA.n`), the URL options that
+change the physics (`PHYS_PARAMS`: size, map, moveaccel, nosea, ridet), the input the sim used at each 1/120 s step (stored
+when it changes: a keyboard ride is ~5-10 changes a second, the autopilot's analog aim more), and a checkpoint of the
+rider's whole state every 120 steps and at the end (`snapshot`: every field but `events`; non-finite numbers survive
+`encodeRecording`). The judged score and the context it was scored in (`judge`: seed, maneuvers seen) and the points go in
+`result`. ~2 KB a second, mostly checkpoints. Replaying (`createPlayer`, `playerStep` before each `stepRider`) feeds the inputs
+back; at each checkpoint it measures the drift and puts the rider back on the recording, so another browser's last-bit maths
+(V8 vs JavaScriptCore) can't take a replay elsewhere; `playerEnd` says whether it ended where the ride did.
+In the game: the game-over card and the score sheet have **▶ Watch it** (replays the last ride) and **⬇ Save replay** (a
+.json file); `?replay=<url>` plays a saved file, and dropping one on the page does too. A replay whose physics options differ
+from the page's reloads with them (handing the recording over in sessionStorage, `?replay=session`). The REPLAY badge shows
+while it plays; the end card says "Replay: the same ride ✓" (or how far off it was) with the recorded points and judged score;
+`window.__replay` (the last recording) and `window.__replayResult` are for tests.
+The main loop now stops stepping on the step the ride ends (it used to finish the frame's steps), so a replay ends on the
+same step whatever its frame rate. Found on the way: the "same move again" penalty compared against the last ride's
+`lastMoveTime` (each ride's clock starts at 0), so a new ride's first move could score 40%; reset each ride now.
+`SIM_VERSION` (replay.js): bump it when a physics change would make old recordings ride differently.
+
 ## Competition judging (`?judge`, src/judging.js; the user, 2026-11-22: a start, later heats against other players)
 
 WSL-style: five judges score each wave 0-10, the high and low dropped, the middle three averaged; a heat keeps the best two
@@ -1067,6 +1087,8 @@ bot's real ride. Not yet: a heat timer, priority / interference, other players.
 
 ```sh
 node test/determinism.mjs # a ride is the same whatever came before (wave addresses; contests and replays need it)
+node test/replay.mjs   # record, save, replay: the same ride bit for bit; checkpoints put a knocked-off replay back
+node test/replay-browser.mjs # in headless Chrome: ride, "Watch it" at 4x slower CPU, ?replay=<file>: all the same (WAVE=trestles ...)
 node test/feel.mjs     # the feel numbers: climb time, drop speed, cutback re-entries, pocket riding
 node test/tube.mjs     # barrel riding: balance and speed choices and their outcomes
 node test/moves.mjs    # audit every move: peak acceleration, speed before/after, bogged in foam

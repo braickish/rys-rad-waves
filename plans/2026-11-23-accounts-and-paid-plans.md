@@ -157,11 +157,12 @@ sees it on their profile.
   checks every wave and a built break. Found along the way: test/sections.mjs's "trimming alone makes at most 70% of
   sections" had passed on luck. Over 40 waves trimming makes ~84% and pumping ~81%, before and after this change.
   That's a feel question for the user.
-- [ ] **2. Ride recording and replay.** `src/replay.js`: record the inputs per step (as main.js reads them each frame)
-  with the wave (and a built break's payload), seed, n and sim version; `?replay=<file>` plays one back. Browsers'
-  `Math.sin`/`exp` can differ in the last bit (V8 and Safari's JavaScriptCore), and a long ride can drift from that, so
-  the log also keeps a checkpoint of the rider's state every second: a replay snaps back onto it (no visible jump), and a
-  score check compares with a tolerance. Test: record, replay, the same score and end position.
+- [x] **2. Ride recording and replay** (done 2026-11-23). `src/replay.js` records the wave's address, the physics options,
+  the input each step (on change), and the rider's whole state every second and at the end. A replay feeds the inputs
+  back and snaps onto each checkpoint, measuring drift. In the game: "Watch it" and "Save replay" on the end card and the
+  score sheet, plus `?replay=<url>` and drag-and-drop. `test/replay.mjs` (four waves and a built break, exact, plus the
+  drift snap) and `test/replay-browser.mjs` (headless Chrome: a keyboard ride; "Watch it" at 4x slower CPU; `?replay=` in a
+  fresh page) all match. Fixed along the way: a new ride's first move could count as a repeat of the last ride's.
 - [ ] **3. Solo heat mode.** Contests phase 1 as written, recording each wave's ride.
 - [ ] **4. The Supabase project and auth.** A new project and the CLI in the repo (`supabase/`), as spigots does: magic link only
   (passwords stripped), anonymous sign-ins on, redirect URLs for Pages and local, and custom SMTP noted for launch. Sign

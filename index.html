@@ -44,6 +44,13 @@
   #balance small { display: block; margin-top: 6px; font-size: 12px; text-shadow: 0 1px 0 rgba(0,0,0,.5); }
   #msg small { display: block; font-family: Rubik, sans-serif; font-size: 18px; color: #fff; text-shadow: 0 2px 0 rgba(0,0,0,.4); margin-top: 6px; }
   #msg.pop { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  .replay-btns { display: flex; gap: 8px; justify-content: center; margin: 0 0 14px; }
+  .replay-btns[hidden] { display: none; }
+  .replay-btns button { font: 600 14px Rubik, sans-serif; color: #fff; background: rgba(255,255,255,.14); border: 1px solid rgba(255,255,255,.35); border-radius: 999px; padding: 7px 14px; cursor: pointer; }
+  .replay-btns button:hover { background: rgba(255,255,255,.24); }
+  .replay-note { font-size: 13px; opacity: .8; margin: -10px 0 14px; }
+  .replay-note:empty { display: none; }
+  #replay-badge { position: fixed; top: 14px; left: 50%; transform: translateX(-50%); font: 700 13px Rubik, sans-serif; letter-spacing: .12em; color: #fff; background: rgba(230,40,110,.85); padding: 5px 12px; border-radius: 999px; pointer-events: none; }
   #hint { position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%); font-size: 13px; background: rgba(11,26,36,.45); padding: 7px 14px; border-radius: 20px; pointer-events: none; white-space: nowrap; }
   #hint.warn { background: var(--pink); }
   #hint.warn::after { content: "  ·  CROUCH (Shift) in the barrel!"; font-weight: 700; }
@@ -121,11 +128,14 @@
   </div>
 </div>
 
+<div id="replay-badge" hidden>▶ REPLAY</div>
 <div class="panel" id="over" hidden>
   <div class="card">
     <div id="over-reason" style="font-size:18px;margin-bottom:6px"></div>
     <div class="big" id="over-score">0</div>
     <div style="margin:6px 0 18px">points in <span id="over-time">0</span>s</div>
+    <div id="over-note" class="replay-note"></div>
+    <div class="replay-btns" hidden><button data-act="watch">▶ Watch it</button><button data-act="save">⬇ Save replay</button></div>
     <div class="go"><span class="desk">Space to paddle back out</span><span class="mob">Tap to paddle back out</span></div>
   </div>
 </div>
@@ -139,6 +149,7 @@
     <div class="sheet-judges" id="judge-panel"></div>
     <div class="sheet-heat" id="judge-heat"></div>
     <div class="sheet-reason" id="judge-reason"></div>
+    <div class="replay-btns" hidden><button data-act="watch">▶ Watch it</button><button data-act="save">⬇ Save replay</button></div>
     <div class="go"><span class="desk">Space to paddle back out</span><span class="mob">Tap to paddle back out</span></div>
   </div>
 </div>

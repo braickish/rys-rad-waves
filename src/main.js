@@ -3,7 +3,9 @@ import { createRider, resetRider, stepRider, groundSpeed, frameAt, v3, TUNE, use
 import { PEEL_SPEED, slice, verticalHits, WAVE, phaseAt, toWorld, waveDir, stepRide, RIDE, SIZE } from './wave.js';
 import { createRideLog, logStep, scoreRide, heatTotal } from './judging.js';
 import { WAVES } from './waves/index.js';
-import { SEA, nextWave, stepSea, seedSea } from './sea.js';
+import { SEA, nextWave, stepSea, seedSea, goToWave } from './sea.js';
+import { createRecording, recordStep, finishRecording, encodeRecording, decodeRecording, createPlayer, playerStep, playerEnd } from './replay.js';
+import { applyBuilt } from './waves/built.js';
 import { perspective, lookAt, mul, invert } from './math.js';
 import { createPose, surferObjects } from './surfer.js';
 import { loadSkinnedGLB } from './glb.js';
@@ -308,6 +310,71 @@ let prevHeading = rider.heading.slice();
 let turnSigned = 0, snapSpray = 0, lastMove = '', lastMoveTime = -9;
 const pose = createPose();
 let lastInput = {};
+// Replays (src/replay.js; accounts plan task 2): every ride is recorded (its wave's address, the inputs each step,
+// checkpoints); the last one can be watched again or saved, and ?replay=<url> (or dropping a saved file on the page) plays
+// one. While a replay plays, `player` feeds the inputs instead of the keys.
+let recording = null, lastRecording = null, player = null;
+// (the URL options that change the physics: a recording keeps them, and a replay reloads with them if they differ)
+const PHYS_PARAMS = ['size', 'map', 'moveaccel', 'nosea', 'ridet'];
+const physicsParams = () => { const o = {}; for (const k of PHYS_PARAMS) if (params.has(k)) o[k] = params.get(k); return o; };
+
+// Play a recording: the wave from its address (a built break from its payload), the inputs from the recording.
+function startReplay(rec) {
+  const want = rec.params || {};
+  if (PHYS_PARAMS.some((k) => (want[k] ?? null) !== (params.get(k) ?? null))) { // (read at load: reload with the recording's)
+    try { sessionStorage.setItem('rys-rad-waves-replay', encodeRecording(rec)); } catch {}
+    const u = new URL(location.href);
+    for (const k of PHYS_PARAMS) { if (want[k] != null) u.searchParams.set(k, want[k]); else u.searchParams.delete(k); }
+    u.searchParams.set('replay', 'session'); u.searchParams.delete('play');
+    location.replace(u); return;
+  }
+  if (rec.built) applyBuilt(rec.built);
+  useWave(rec.wave); renderer.rebuildWave();
+  seedSea(rec.seed); goToWave(rec.n);
+  resetRider(rider);
+  if (want.ridet && WAVE.bar) { for (let i = 0; i < Number(want.ridet) * 120; i++) stepRide(1 / 120); resetRider(rider); }
+  player = createPlayer(rec); recording = null;
+  score = 0; rideTime = 0; lastMove = ''; lastMoveTime = -9; rideLog = createRideLog();
+  state = 'play';
+  for (const id of ['title', 'over', 'judge']) $(id).hidden = true;
+  $('replay-badge').hidden = false;
+  flash('Replay', `${WAVE.name} · ${(rec.steps * rec.step).toFixed(1)}s`);
+}
+// After a replay: did it ride the same as the recording?
+function showReplayEnd(s) {
+  const rec = player.rec, e = playerEnd(player, rider), j = rec.result?.judge || { seed: 1, seen: [] };
+  const judged = scoreRide(rideLog, { size: (WAVE.sizeK || 1) * SIZE, seed: j.seed, seen: new Set(j.seen) }).score;
+  const was = rec.result || {};
+  const same = e.sameEnd && s === was.score && judged === was.judged?.score;
+  window.__replayResult = { same, score: s, recorded: was.score, judged, recordedJudged: was.judged?.score, drift: e.drift, snaps: player.snaps, steps: e.steps };
+  $('over-reason').textContent = same ? 'Replay: the same ride ✓' : `Replay: off by ${e.drift < 1 ? e.drift.toFixed(3) : 'a lot'} (re-synced ${player.snaps}x)`;
+  $('over-score').textContent = s;
+  $('over-time').textContent = (e.steps * rec.step).toFixed(1);
+  $('over-note').textContent = `recorded ${was.score ?? '?'} points · judged ${judged.toFixed(2)} (recorded ${was.judged?.score?.toFixed(2) ?? '?'})`;
+  $('replay-badge').hidden = true;
+  player = null;
+  showReplayButtons();
+  $('over').hidden = false;
+}
+// The replay buttons on the game-over card and the score sheet (the last ride's recording).
+function showReplayButtons() { for (const b of document.querySelectorAll('.replay-btns')) b.hidden = !lastRecording; }
+function saveReplay() {
+  const r = lastRecording; if (!r) return;
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([encodeRecording(r)], { type: 'application/json' }));
+  a.download = `rys-rad-waves-${r.wave}-${r.seed}-${r.n}-${new Date().toISOString().slice(0, 16).replace(/[:T-]/g, '')}.json`;
+  a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+for (const b of document.querySelectorAll('.replay-btns button')) {
+  b.addEventListener('pointerdown', (e) => e.stopPropagation()); // (a tap elsewhere on the card paddles back out)
+  b.addEventListener('click', (e) => { e.stopPropagation(); if (b.dataset.act === 'save') saveReplay(); else if (lastRecording) startReplay(decodeRecording(encodeRecording(lastRecording))); });
+}
+addEventListener('dragover', (e) => e.preventDefault());
+addEventListener('drop', async (e) => {
+  e.preventDefault();
+  const f = e.dataTransfer?.files?.[0]; if (!f) return;
+  try { startReplay(decodeRecording(await f.text())); } catch (err) { showError(`Replay: ${err.message}`); }
+});
 
 function startOrRestart() {
   if (state === 'play') return;
@@ -319,8 +386,11 @@ function startOrRestart() {
   if (params.has('air')) { rider.xs = Number(params.get('air')) || 0.5; rider.t = 7.5; rider.phi = 1.35; rider.speed = 13; rider.pos = frameAt(rider.xs, rider.t).P; }
   // (testing a wave with a bar: ?ridet=<s> runs the wave on that long before you drop in, e.g. to see its closeout)
   if (params.has('ridet') && WAVE.bar) { for (let i = 0; i < Number(params.get('ridet')) * 120; i++) stepRide(1 / 120); resetRider(rider); }
-  score = 0; rideTime = 0;
-  rideLog = JUDGE ? createRideLog() : null;
+  score = 0; rideTime = 0; lastMove = ''; lastMoveTime = -9; // (each ride: its clock starts at 0, so the last ride's move would count as a repeat)
+  rideLog = createRideLog(); // (always: the recording keeps the judged score; the sheet shows with ?judge)
+  player = null;
+  recording = createRecording({ wave: WAVE.id, built: WAVE.id === 'built' ? WAVE.built : null, seed: SEA.seed, n: SEA.n, params: physicsParams() });
+  $('replay-badge').hidden = true;
   $('title').hidden = true;
   $('over').hidden = true;
   $('judge').hidden = true;
@@ -652,7 +722,15 @@ async function main() {
     }
   };
   drawPicker();
-  if (params.has('play')) startOrRestart();
+  if (params.has('play') && !params.has('replay')) startOrRestart();
+  if (params.has('replay')) { // (?replay=<url of a saved recording>; 'session': one handed over by a reload, startReplay)
+    const src = params.get('replay');
+    try {
+      const text = src === 'session' ? sessionStorage.getItem('rys-rad-waves-replay') : await (await fetch(src)).text();
+      if (!text) throw new Error('nothing to play');
+      startReplay(decodeRecording(text));
+    } catch (err) { showError(`Replay: ${err.message}`); }
+  }
   if (params.has('cam')) camMode = Number(params.get('cam')) || 0;
   let last = performance.now(), acc = 0, frame = 0, time = 0, flow = 0;
   function tick(now) {
@@ -663,24 +741,36 @@ async function main() {
     frame++;
 
     if (state === 'play') {
-      const input = readInput();
-      lastInput = input;
+      const input = player ? null : readInput();
+      if (input) lastInput = input;
       acc += dt;
+      const ended = () => (rider.mode === 'wipe' && rider.wipeTimer <= 0) || (player && player.done);
       while (acc >= STEP) {
+        const inp = player ? (lastInput = playerStep(player, rider)) : input;
+        if (recording) recordStep(recording, inp, rider);
         stepSea(STEP);
-        stepRider(rider, input, STEP);
-        input.walk = 0; // (a press counts once, not once per physics step this frame)
+        stepRider(rider, inp, STEP);
+        if (!player) input.walk = 0; // (a press counts once, not once per physics step this frame)
         handleEvents();
-        if (rideLog) logStep(rideLog, rider, STEP, PEEL_SPEED);
+        logStep(rideLog, rider, STEP, PEEL_SPEED);
         for (const e of SEA.events) {
           if (e.type === 'section') flash(e.kind === 'closeout' ? 'Section closing out ahead!' : "It's throwing ahead!", e.kind === 'closeout' ? 'race it, or float over it' : 'get in there');
         }
         acc -= STEP;
+        if (ended()) { acc = 0; break; } // (the ride ends on this step, not at the end of the frame: a replay ends on the same one)
       }
       if (rider.mode === 'surf') rideTime += dt; // (only moves score, not just riding)
-      if (rider.mode === 'wipe' && rider.wipeTimer <= 0) {
+      if (ended() && player) { state = 'over'; showReplayEnd(Math.round(score)); }
+      else if (ended()) {
         state = 'over';
         const s = Math.round(score);
+        // (the recording: the points, and the judged score with the context the sheet scores it in, so a replay can check both)
+        const judge = { seed: heat.scores.length + 1, seen: [...heat.seen] };
+        const jr = scoreRide(rideLog, { size: (WAVE.sizeK || 1) * SIZE, seed: judge.seed, seen: new Set(judge.seen) });
+        lastRecording = window.__replay = finishRecording(recording, rider, { score: s, judged: { score: jr.score }, judge, mode: rider.mode, reason: rider.wipeReason, time: +rideTime.toFixed(2) });
+        recording = null;
+        showReplayButtons();
+        $('over-note').textContent = '';
         if (s > best) { best = s; try { localStorage.setItem('rys-rad-waves-best', String(best)); } catch {} }
         $('over-score').textContent = s;
         $('over-reason').textContent = rider.wipeReason;
@@ -738,7 +828,7 @@ async function main() {
     // HUD.
     msgTimer -= dt;
     if (msgTimer <= 0) $('msg').classList.remove('pop');
-    $('hint').hidden = state !== 'play';
+    $('hint').hidden = state !== 'play' || !!player; // (not during a replay)
     const walking = state === 'play' && WAVE.noseride && rider.mode === 'surf';
     $('walk-up').hidden = !walking || rider.footGoal >= 1; // (gone once you're all the way up on the nose ...)
     $('walk-back').hidden = !walking || rider.footGoal <= -1; // (... or all the way back on the tail)
