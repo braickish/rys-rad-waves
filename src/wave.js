@@ -90,7 +90,10 @@ export function sectionGrace(xs) {
   if (RIDE.time - RIDE.sectionT < g) return true;
   return !!WAVE.bar && xs !== undefined && RIDE.c + xs > RIDE.front + 2 && RIDE.time > breaksAt(RIDE.c + xs) - 0.5;
 }
-export function startRide() {
+// n: the wave's number in the sea (sea.js goToWave): a wave with a bar rides map n + 1 of its list (wave 0 the 2nd map, as it
+// always was: switching to the wave took the 1st and the first ride the 2nd; the tests are tuned on that order), so wave n
+// is the same wave however many came before it. Without n (switching waves) it moves on to the next map.
+export function startRide(n) {
   layRidges(); // (a wave with ridges lays out this wave's sections)
   RIDE.time = 0; RIDE.c = 0; RIDE.front = 0; RIDE.closed = null; RIDE.closing = false; RIDE.sectionT = -Infinity; RIDE.done = null;
   if (!WAVE.bar) return;
@@ -98,7 +101,7 @@ export function startRide() {
   // (which simulated waves: `bar.use` (the user kept 545, 2026-11-19: 1139 closed out too quickly), or ?map=<wave>)
   const want = typeof location !== 'undefined' ? Number(new URLSearchParams(location.search).get('map')) : Number(globalThis.process && process.env.MAP);
   const all = WAVE.bar.maps, maps = all.filter((m) => (want ? m.wave === want : !WAVE.bar.use || WAVE.bar.use.includes(m.wave)));
-  RIDE.k = (RIDE.k + 1) % maps.length;
+  RIDE.k = (n === undefined ? RIDE.k + 1 : n + 1) % maps.length;
   const m = maps[RIDE.k];
   RIDE.map = { d0: m.d0, step: m.step, tb: m.tb, up: m.up, wave: m.wave, swell: m.swell, end: m.end };
   RIDE.closeAt = closeoutAt();

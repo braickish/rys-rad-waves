@@ -150,11 +150,18 @@ sees it on their profile.
 
 ## Tasks (one at a time; each ends live with its tests passing, and the user plays it before the next)
 
-- [ ] **1. Fixed-step, deterministic sim.** A fixed 120 Hz step with an accumulator and the render interpolating. Seed any
-  randomness the ride depends on. `test/determinism.mjs`: the same inputs at 30, 60 and 144 fps make the same ride (positions
-  to 1e-6, the same judged score). Feel unchanged (test/feel.mjs, pocket, sections).
-- [ ] **2. Ride recording and replay.** `src/replay.js`: record the inputs per step with the wave, seed and sim version;
-  `?replay=<file>` plays one back. Test: record, replay, same score and the same end position.
+- [x] **1. Deterministic rides** (done 2026-11-23). The physics already ran at a fixed 1/120 s step with an accumulator,
+  and nothing random touches a ride. What wasn't deterministic was the sea: one running random stream (and a running
+  map counter for Trestles and Dynamic), so wave n depended on how long the waves before it and the title demo ran. Each
+  wave now has an address (seed, n) and is built from it alone (sea.js `goToWave`, `waveSeed`). `test/determinism.mjs`
+  checks every wave and a built break. Found along the way: test/sections.mjs's "trimming alone makes at most 70% of
+  sections" had passed on luck. Over 40 waves trimming makes ~84% and pumping ~81%, before and after this change.
+  That's a feel question for the user.
+- [ ] **2. Ride recording and replay.** `src/replay.js`: record the inputs per step (as main.js reads them each frame)
+  with the wave (and a built break's payload), seed, n and sim version; `?replay=<file>` plays one back. Browsers'
+  `Math.sin`/`exp` can differ in the last bit (V8 and Safari's JavaScriptCore), and a long ride can drift from that, so
+  the log also keeps a checkpoint of the rider's state every second: a replay snaps back onto it (no visible jump), and a
+  score check compares with a tolerance. Test: record, replay, the same score and end position.
 - [ ] **3. Solo heat mode.** Contests phase 1 as written, recording each wave's ride.
 - [ ] **4. The Supabase project and auth.** A new project and the CLI in the repo (`supabase/`), as spigots does: magic link only
   (passwords stripped), anonymous sign-ins on, redirect URLs for Pages and local, and custom SMTP noted for launch. Sign

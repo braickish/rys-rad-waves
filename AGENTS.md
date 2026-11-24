@@ -965,6 +965,14 @@ bot's real ride. Not yet: a heat timer, priority / interference, other players.
   the curl; `phaseAt` raises the phase there). **Sections are currently off on both waves**
   (`sea.sections: false`); they didn't play well yet. Seeded (`seedSea`, `?seed=`); `?nosea` turns the
   sea off. Tests run without the sea.
+  **Wave addresses** (2026-11-23, accounts plan task 1): every wave is (the sea's seed `SEA.seed`, its number `SEA.n`).
+  `goToWave(n)` builds wave n from its own seed (`waveSeed(seed, n)`: the seed itself for wave 0, a hash after), so its
+  set place (n % set), sections, ridges and a bar's map (map n + 1, the old order) don't depend on the waves before it or
+  on the title demo. `nextWave()` is `goToWave(SEA.n + 1)`. The physics already ran at a fixed 1/120 s step (main.js `STEP`)
+  and nothing random touches a ride, so a ride is a pure function of (wave, seed, n, the inputs each step): contests
+  and replays rely on that. `node test/determinism.mjs` rides wave 3 of every wave three ways (after other waves, straight
+  there, after other rides) and needs them identical, scores included. (energy.mjs's Trestles and Dynamic trim rows had
+  each run on a different map, as the map counter ran on across its reseeded rides; they're now all on one.)
 - **Water rendering:** the GPU builds the surface every frame from a cross-section table (512 phases,
   built per wave in `buildWaterTable`) and each slice's current phase (`slicePhases`), so the wave can
   change over time. The spray emitter table is refreshed every frame too. (`buildLipTable` works out each cross-section's shape
@@ -1058,6 +1066,7 @@ bot's real ride. Not yet: a heat timer, priority / interference, other players.
 ## Tests
 
 ```sh
+node test/determinism.mjs # a ride is the same whatever came before (wave addresses; contests and replays need it)
 node test/feel.mjs     # the feel numbers: climb time, drop speed, cutback re-entries, pocket riding
 node test/tube.mjs     # barrel riding: balance and speed choices and their outcomes
 node test/moves.mjs    # audit every move: peak acceleration, speed before/after, bogged in foam
