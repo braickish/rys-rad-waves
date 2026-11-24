@@ -1167,7 +1167,7 @@ function stepSurf(r, input, dt) {
   // the face can still take you past it).
   if (r.tube && !T.energy && sinp > -0.2 && r.speed > trimCap) r.speed -= (r.speed - trimCap) * 3 * dt;
   // Stacked moves can't run away with your speed: above softMax it bleeds off.
-  const softMax = T.softMax + T.highDropSoftMax * highDropNow; // a drop from high up can run a bit faster
+  const softMax = Math.max(T.softMax + T.highDropSoftMax * highDropNow, r.carry || 0); // a drop from high up can run a bit faster (and the barrel's carry, below, isn't bled off)
   if (r.speed > softMax) r.speed -= (r.speed - softMax) * T.overBleed * dt;
   // However many things are feeding you speed at once (drop, pocket, turn
   // drive, pump), it never surges: speed builds at most maxAccel.
@@ -1195,7 +1195,21 @@ function stepSurf(r, input, dt) {
   else if (r.slide > 0) r.speed = Math.min(r.speed, speedAtStart) * (1 - (r.tube ? T.slashTube.slashDrag : T.slashDrag) * Math.sin(Math.min(r.slide, Math.PI / 2)) * dt);
   if (sBack > 0) r.speed *= 1 - T.backScrub * sBack * r.turnRate * dt; // (back foot: turning scrubs a little speed)
   if (idleNow) r.speed -= Math.min(T.idleDecayMax ?? Infinity, T.idleDecay + (T.idleRamp || 0) * (r.idle - T.idleDelay)) * dt; // (idle decay, above: grows by `idleRamp` each idle second, up to `idleDecayMax`)
-  r.speed = clamp(r.speed, T.minSpeed, T.maxSpeed);
+  r.speed = clamp(r.speed, T.minSpeed, Math.max(T.maxSpeed, r.carry || 0));
+  // The barrel carries you (built waves, `tubeCarry`; the user, 2026-11-23: a barrel that speeds up into a section left you
+  // behind, the curl racing to 41 mph while you topped out ~28): deep in the tube, heading down the line, you're carried at
+  // the tube's own hold (`tubeHold` x the curl's speed, x `tubeCarry`; the back foot's stall and the front-foot lean as in
+  // the pocket), past the speed caps that keep moves from running away (softMax, the taper on acceleration, maxSpeed): it's
+  // the wave moving you, not speed you made. Those caps held a fast barrel's trim at ~32 mph, short of the hold. Following
+  // the curl as it speeds up at up to `tubeCarryAccel` m/s^2.
+  // (this step's carry: the caps above let it be, next step. Out of the tube it fades at `tubeCarryFade` m/s^2 rather than
+  // stopping at once: spat out of a barrel you keep its speed a moment, not bled from 46 to 30 mph in half a second)
+  r.carry = r.mode === 'surf' ? Math.max(0, (r.carry || 0) - (T.tubeCarryFade ?? 4) * dt) : 0;
+  if (r.tube && T.tubeCarry && Math.cos(r.phi) > 0.3 && r.mode === 'surf') {
+    const carry = T.tubeCarry * (T.tubeHold || 1) * PEEL_SPEED * (1 + ((T.tubeBackSpeed ?? 1) - 1) * sBack) * (1 + ((T.tubeLeanSpeed ?? 1) - 1) * r.frontLean);
+    if (r.speed < carry) r.speed = Math.min(carry, r.speed + (T.tubeCarryAccel ?? 8) * dt);
+    r.carry = Math.max(r.carry, carry);
+  }
 
   // --- move ---
   const cosp = Math.cos(r.phi);

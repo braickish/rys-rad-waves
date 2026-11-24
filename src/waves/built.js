@@ -70,6 +70,9 @@ const wave = {
       'tubeClimbDamp', 'tubeTrimOver', 'tubeTrimOverHigh', 'tubeEnterLow', 'tubeFallHeight', 'tubeTooHigh', 'roofCrash', 'slashTube']
       .map((k) => [k, reef.tune[k]])),
     tubeLow: 0.6,
+    // (the barrel carries you at its own hold, 1.12x the curl's speed, past the speed caps: rider.js; a built barrel is often a
+    // fast section, faster than you can make on your own)
+    tubeCarry: 1, tubeCarryAccel: 8, tubeCarryFade: 4, // (out of the tube the carry fades ~9 mph a second)
   },
 };
 

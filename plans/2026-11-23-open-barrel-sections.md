@@ -60,17 +60,26 @@ factors (fix causes); the other waves stay unchanged.
   pinnacle's section isn't hollow enough for a tube (its shape `u` there is the steep wall), so it breaks as a wall.
 - test/phasetime.mjs: a 3 s lead around 100 m breaks with the curl 33 m short of it, unbroken either side.
 
-## 3. Riding through it
+## 3. Riding through it (in progress)
 
-- The tube logic goes by phase and the tube's real height under you (rider.js `tubeDepth`, `tubeAt`), so a tube ahead
-  should mostly work as is. What changes: you enter it from its open end on the curl's side (riding toward a lip
-  peeling back at you), and its far end is an exit with unbroken wall beyond.
-- Where the section's back-peeling side meets the curl, the two close together (Trestles' `RIDE.closed` and
-  `sectionMax` rule): a short section the curl runs through at once; a long one is the inside closing out.
-- Speed: the section's wall is steep ahead of the curl, so `wallPower` already pays for pumping into it. Test whether
-  making it through needs a new rule, or is just the line and the speed you bring.
-- Tests: a bot that pumps into the section and holds a line through the tube comes out the far end; one that goes too
-  high is caught by the lip; one too slow meets the closing water.
+- **The barrel carries you (done 2026-11-23, the user's option 2).** On the user's 11 ft left a barrel speeding up into a
+  section (curl 18 -> 41 mph over 20-47 m) left you behind: the tube's hold (1.12x the curl) was capped by the speed limits
+  that stop stacked moves running away (softMax 32 mph, the acceleration taper, maxSpeed 39 mph), so you topped out ~28.
+  Built waves now get `tubeCarry`: deep in the tube heading down the line you're carried at the tube's own hold, past those
+  caps (they lift while the carry lasts), following the curl at up to 8 m/s^2; out of the tube the carry fades at 4 m/s^2
+  (spat out, you keep its speed a moment). On that wave a rider in the barrel now holds ~4 m behind the curl at 43-46 mph,
+  comes out at speed and closes back up on the curl after the section. Pipe, Trestles unchanged (their tests identical).
+- **Riding through a section breaking ahead: the model has to change (found 2026-11-23).** On a test barrel with a section
+  at 100 m, no line makes it: with a 0.8-2.5 s lead the rider never gets a tube; with 0.4 s, half a second then pinched.
+  Partly physics: the near side peels back toward you, so riding forward takes you into water that broke earlier, and a
+  tube lasts ~1.45 s (to phase 1.3); a lead over ~1 s is a closeout coming at you. But the main cause is the model: the
+  curl is one point, and crossing a section it runs through at up to 25 m/s, so your place in the tube (measured from it)
+  flips to "behind the curl" in a collapsing tube whatever your line. Options (the user to pick):
+  1. **The section is its own peak** (Trestles' way, `RIDE.closed`): the curl stops where the section's near side meets
+     it, and the section's far side becomes the new curl, peeling away at its own pace. The tube you ride through is the
+     section's: in from its near end, out its far end. Biggest change, most faithful.
+  2. **The curl crosses at your pace while you're in the tube:** the frame waits for a barrelled rider (up to the tube's
+     life), so the tube stays measured around you. Smaller change; less true to how the section breaks.
 
 ## 4. Raglan+ (optional, the user's call)
 
