@@ -417,6 +417,14 @@ function walkWave(strips, ip, R, grid, { step = 20, pe = null, sharp = false } =
       for (let k = 1; k <= 15; k++) { const d = R.depthAt(p.x - 2 * k * cx, p.y - 2 * k * cy); steep = Math.max(steep, (d - prev) / 2); prev = d; }
       p.step = steep;
     }
+    // (on a ledge the wave jacks up: the height model marks the break where a wave first gets too big for the depth, and up a wall
+    // the depth runs out so fast that's near its top, reading the wave small (the user's 2026-11-24 ledge wave: 5.2 m just before
+    // the ledge, 2.6 m on it); the rays' shoaled height is the wave that hits it. On ledge points the larger of the two, by how
+    // much of a ledge it is (loop.js ledgeK's ramp, 0.16-0.24))
+    if (pe) for (const p of curl) {
+      const g = Math.min(1, Math.max(0, ((p.step || 0) - 0.16) / 0.08)), k = g * g * (3 - 2 * g);
+      if (k > 0 && isFinite(p.Hray) && p.Hray > p.H) p.H += (p.Hray - p.H) * k;
+    }
     const inRide = segs.filter((q) => q.e0 < ride && q.e0 >= step).map((q) => q.a).sort((a, b) => a - b);
     const med = inRide.length ? inRide[Math.floor(inRide.length / 2)] : NaN;
     const Hs = (pe ? curl.filter((p) => p.s <= ride).map((p) => p.H) : segs.filter((q) => q.e0 < ride).map((q) => q.H)).sort((a, b) => a - b);
