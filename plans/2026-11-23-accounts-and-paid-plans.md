@@ -73,7 +73,7 @@ claim are deleted after 30 days.
 - **Stripe Checkout** (hosted page, so no card data touches us) from a `checkout` Edge Function: Wave Pass as a one-time
   price, Pro as a monthly subscription. The **Customer Portal** handles cancelling and cards. A `stripe-webhook` Edge
   Function (with signature checks) writes `entitlements` on `checkout.session.completed`, `customer.subscription.updated`
-  and `.deleted`, and `invoice.payment_failed`. Stripe Tax for sales tax and VAT.
+  and `.deleted`, and `invoice.payment_failed`. Stripe Tax for sales tax and VAT. Prices: $5 Wave Pass, $3/month Pro.
 - Test mode end to end before any live key. The secret keys stay in Supabase secrets and never go in the repo or the chat
   (as spigots).
 - **App stores later:** in an iOS app, digital unlocks normally have to go through Apple's in-app purchase. In the US,
@@ -138,18 +138,15 @@ sees it on their profile.
 7. **Phase 6's "contest history" and "replay of the final"** become the profile's history and the recap (here).
 8. **The transport interface** for an app stays, next to the entitlement source for the App Store.
 
-## Open questions (defaults in the meantime)
+## Decisions (the user, 2026-11-23)
 
-- **What a visitor gets for free:** the default is one demo wave (Raglan) with full rides, the builder to try, and any
-  contest they're invited to.
-- **Which waves the Wave Pass unlocks**, and whether new waves join it (default: everything not Pro-only, including future
-  waves).
-- **Prices:** placeholders until then, e.g. a $9.99 Wave Pass and $4.99/month Pro. Is there a yearly Pro option?
-- **Is the builder open to try without Pro?** Default: yes, as it is now (it's the hook), but saving, sharing to a profile,
-  and hosting need Pro.
-- **Can a visitor surf a public break on a profile?** Default: yes (it's the showcase and pulls in new players).
-- **The domain:** magic-link emails and Stripe look better from a real domain (e.g. a subdomain of braickish.com) than from
-  github.io. Supabase's built-in email sender is rate-limited, so use a custom SMTP sender (e.g. Resend) before launch.
+- **Prices:** Wave Pass **$5** one-time, for life. Pro **$3/month** for everything else (it includes the Wave Pass).
+- **Domain:** **rysradwaves.com**. Magic-link emails come from **howdy@rysradwaves.com** through a custom SMTP sender
+  (e.g. Resend), and the domain carries the site (Pages custom domain) and the Supabase auth redirect URLs.
+- **iOS app:** purchases go through Apple's in-app purchase (`source = 'apple'`), with no link-out.
+- The defaults stand: a visitor gets one demo wave (Raglan), the builder to try (no saving), and any contest they're
+  invited to. The Wave Pass unlocks every non-Pro wave, including future ones. The builder stays open to try. Visitors
+  can surf public breaks on profiles.
 
 ## Tasks (one at a time; each ends live with its tests passing, and the user plays it before the next)
 
