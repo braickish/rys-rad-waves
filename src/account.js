@@ -66,13 +66,15 @@ export function describeAuthError(e) {
 // A member's public profile: { id, handle, display_name, jersey, created_at }. Anonymous guests have none.
 export const JERSEY_IDS = ['red', 'white', 'blue', 'yellow', 'green', 'black', 'pink', 'teal'];
 const PROFILE_COLS = 'id, handle, display_name, jersey, created_at';
+let mine = null; // (your profile once read: the game takes your jersey from it)
+export const cachedProfile = () => (mine && mine.id === session?.user?.id ? mine : null);
 
 export async function myProfile() {
   const c = await initAccount(), uid = session?.user?.id;
   if (!uid || session.user.is_anonymous) return null;
   const { data, error } = await c.from('profiles').select(PROFILE_COLS).eq('id', uid).maybeSingle();
   if (error) throw error;
-  return data;
+  return (mine = data);
 }
 
 export async function profileByHandle(handle) {
@@ -91,13 +93,13 @@ export async function saveProfile(fields) {
   const q = existing ? c.from('profiles').update(row).eq('id', uid) : c.from('profiles').insert({ id: uid, ...row });
   const { data, error } = await q.select(PROFILE_COLS).single();
   if (error) throw error;
-  return data;
+  return (mine = data);
 }
 
 // null when the handle is free for you, else a sentence saying why not.
 const HANDLE_WORDS = {
   short: 'At least 3 characters.', long: '20 characters at most.', chars: 'Lowercase letters, numbers and _ only.',
-  start: 'Start with a letter.', reserved: "That one's reserved.", taken: "That's taken (or looks too like one that is).",
+  start: 'Start with a letter.', reserved: "That one's reserved.", blocked: 'Keep it clean: pick another handle.', taken: "That's taken (or looks too like one that is).",
 };
 export async function handleProblem(handle) {
   const c = await initAccount();
@@ -123,6 +125,13 @@ export async function deleteAccount() {
 // Profile errors in words (a handle taken between checking and saving, a bad jersey...).
 export function describeProfileError(e) {
   if (e?.code === '23505') return HANDLE_WORDS.taken;
-  if (e?.code === '23514') return /jersey/.test(e.message) ? 'Pick a jersey from the list.' : /display_name/.test(e.message) ? 'Names are 1 to 30 characters.' : "That handle can't be used.";
+  if (e?.code === '23514') {
+    const m = e.message || '';
+    if (/display_name_blocked/.test(m)) return 'Keep it clean: pick another name.';
+    if (/handle_blocked/.test(m)) return HANDLE_WORDS.blocked;
+    if (/jersey/.test(m)) return 'Pick a jersey from the list.';
+    if (/display_name/.test(m)) return 'Names are 1 to 30 characters.';
+    return "That handle can't be used.";
+  }
   return describeAuthError(e);
 }

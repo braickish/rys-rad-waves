@@ -42,16 +42,18 @@ export function judgeSeed(seed, i) {
 }
 
 // opts: { seed, end: { minutes } | { waves }, you (your name), bots (how many rivals, 0-7), advance (0: one round, the
-// winner; N: the top N go through), skills (bots' mean wave scores, else drawn) }
-export function createHeat({ seed = 1, end = { minutes: 10 }, you = 'You', bots = 3, advance = 0, skills = null } = {}) {
+// winner; N: the top N go through), skills (bots' mean wave scores, else drawn), jersey (your colour's id, from your
+// profile: the bots take the others in order; red if none) }
+export function createHeat({ seed = 1, end = { minutes: 10 }, you = 'You', bots = 3, advance = 0, skills = null, jersey = 'red' } = {}) {
   const rnd = rng(seed ^ 0x5bd1e995);
   const h = { seed, end, advance, time: 0, duration: end.minutes ? end.minutes * 60 : Infinity, horn: false, done: false, surfers: [], events: [] };
-  h.surfers.push({ id: 'you', name: you, you: true, jersey: JERSEYS[0], waves: [], plan: [] });
+  const mine = JERSEYS.find((j) => j.id === jersey) || JERSEYS[0], others = JERSEYS.filter((j) => j !== mine);
+  h.surfers.push({ id: 'you', name: you, you: true, jersey: mine, waves: [], plan: [] });
   const nb = Math.max(0, Math.min(7, bots));
   for (let b = 0; b < nb; b++) {
     // (skills: a spread from steady to sharp, shuffled by the seed: mean wave scores ~3.8-6.4)
     const skill = skills ? skills[b] : 3.8 + (2.6 * (b + rnd())) / Math.max(1, nb);
-    const s = { id: `bot${b + 1}`, name: BOT_NAMES[b], bot: true, skill: r2(skill), jersey: JERSEYS[b + 1], waves: [], plan: [] };
+    const s = { id: `bot${b + 1}`, name: BOT_NAMES[b], bot: true, skill: r2(skill), jersey: others[b], waves: [], plan: [] };
     // (the waves they ride: on a timer, the first 20-60 s in, then every 45-95 s; a wave count, that many, every 35-70 s)
     const gauss = () => Math.sqrt(-2 * Math.log(1 - rnd())) * Math.cos(2 * Math.PI * rnd());
     let at = end.minutes ? 20 + rnd() * 40 : 15 + rnd() * 30;

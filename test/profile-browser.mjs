@@ -33,6 +33,8 @@ check(guess === `ry_rad_${stamp}`, `the guess from the email: ${guess}`);
 await shot('1-pick');
 await setVal('acct-handle', 'adm1n'); await submit('acct-handle-form');
 check(/reserved/.test(await waitFor(`${vis('acct-msg')} && document.getElementById('acct-msg').textContent`, 5000) || ''), `adm1n refused: "${await text('acct-msg')}"`);
+await setVal('acct-handle', 'sh1t_surfer'); await submit('acct-handle-form');
+check(/clean/.test(await waitFor(`/clean/.test(document.getElementById('acct-msg').textContent) && document.getElementById('acct-msg').textContent`, 5000) || ''), `a swear word refused: "${await text('acct-msg')}"`);
 await setVal('acct-handle', other.replace('_', '').replace('a', '4').replace('t', 'T'));
 await sleep(800);
 check((await evaluate(`document.getElementById('acct-handle').value`)) === other.replace('_', '').replace('a', '4').toLowerCase(), 'typing is lowercased');
@@ -56,6 +58,8 @@ check(!!(await waitFor(`location.pathname.endsWith('account.html') && ${vis('sig
 check((await text('email-now')) === email.toLowerCase(), `your email: ${await text('email-now')}`);
 await shot('3-account');
 const mine2 = `ry_rips_${stamp}`;
+await setVal('display', 'Big Sh1t'); await submit('profile-form');
+check(/clean/.test(await waitFor(`/clean/.test(document.getElementById('save-msg').textContent) && document.getElementById('save-msg').textContent`, 8000) || ''), `a vulgar name refused: "${await text('save-msg')}"`);
 await setVal('display', 'Ry Rad'); await setVal('handle', mine2);
 check(/free/.test(await waitFor(`/free|taken/.test(document.getElementById('handle-hint').textContent) && document.getElementById('handle-hint').textContent`, 5000) || ''), `the new handle checks as free`);
 await evaluate(`document.querySelector('.jersey[data-id="teal"]').click()`);

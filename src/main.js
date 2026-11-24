@@ -13,6 +13,7 @@ import { createPose, surferObjects } from './surfer.js';
 import { loadSkinnedGLB } from './glb.js';
 import { createBody } from './body.js';
 import { startAccountUI } from './account-ui.js';
+import { cachedProfile } from './account.js';
 
 const params = new URLSearchParams(location.search);
 // Competition judging (?judge; the user, 2026-11-22): every wave scored by a five-judge panel (judging.js), the score sheet
@@ -65,7 +66,14 @@ const BODY_LOOKS = {
 };
 const WETSUIT = [0.045, 0.047, 0.055, 0.4];
 const TOPPER = [0.06, 0.3, 0.32, 0.3]; // (a dark teal neoprene long-sleeve top: navy matched the blue boardshorts)
-function bodyColors(m, which, outfit) {
+// The competition jersey (heats, the user 2026-11-24): a sleeveless lycra vest in the heat colour, over whatever the
+// water calls for (trunks, top, short-sleeve, full suit or hood), from the shoulders to just over the waistband, with a
+// darker hem and armholes. jersey: '#rrggbb' or null.
+const hexRgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255);
+function bodyColors(m, which, outfit, jersey = null) {
+  // (a black jersey vanished on a black wetsuit: dark ones go charcoal with light trim)
+  const rgb = jersey && hexRgb(jersey), dark = rgb && rgb[0] + rgb[1] + rgb[2] < 0.45;
+  const J = rgb && [...(dark ? [0.2, 0.2, 0.22] : rgb), 0.18], Jtrim = J && [...(dark ? [0.72, 0.72, 0.74] : J.slice(0, 3).map((v) => v * 0.55)), 0.18];
   const L = BODY_LOOKS[which], dom = dominantBones(m), hs = headStats(m, dom);
   const shorts = [0.22, 0.33, 0.5, 0.08], band = [0.08, 0.08, 0.1, 0.08];
   const topBlue = [0.6, 0.72, 0.93, 0.12], topLilac = [0.74, 0.68, 0.92, 0.12], topWhite = [0.94, 0.95, 0.98, 0.12];
@@ -129,6 +137,13 @@ function bodyColors(m, which, outfit) {
       if (bone.startsWith('calf')) bare = y < m.rest['foot_' + bone.slice(-1)].head[1] + 0.015;
       if (suit && !bare) col = top ? TOPPER : WETSUIT;
     }
+    if (J && (/^(spine_0[123]|clavicle_[lr])$/.test(bone) || (hipBone && y > waistY - 0.05 && !bone.startsWith('calf') && !bone.startsWith('thigh')))
+        && y < neckY - 0.03) {
+      const ax = Math.abs(x), front = z > 0;
+      const neckline = front && ax < 0.07 && y > neckY - 0.03 - 0.06 * (1 - ax / 0.07); // (a scoop at the front of the neck)
+      const armhole = ax > 0.15 && y > neckY - 0.2; // (the shoulders out to the arms stay as they were: a vest, no sleeves)
+      if (!neckline && !armhole) col = (y < waistY - 0.035 || ax > 0.135 || (front && ax < 0.08 && y > neckY - 0.11)) ? Jtrim : J;
+    }
     // hair painted on the scalp: the hairline high at the forehead, above the ears at the sides, low at the nape
     if (outfit === 'hood' && (bone === 'head' || bone === 'neck_01')) {
       // (the hood: all of the head and neck but an oval for the face, from the brow to the chin)
@@ -151,7 +166,7 @@ function bodyColors(m, which, outfit) {
 function hairObjects(b, mats) {
   const h = b.body.model.rest.head.index, M = Array.from(mats.subarray(h * 16, h * 16 + 16)), hs = b.head, L = BODY_LOOKS[b.which];
   const ell = (cx, cy, cz, rx, ry, rz) => [rx * 2, 0, 0, 0, 0, ry * 2, 0, 0, 0, 0, rz * 2, 0, cx, cy, cz, 1];
-  const hood = WAVE.outfit === 'hood'; // (under a hood: the cap is the hood's crown, black neoprene, and no long hair)
+  const hood = (params.get('outfit') ?? WAVE.outfit) === 'hood'; // (under a hood: the cap is the hood's crown, black neoprene, and no long hair)
   const out = [{ mesh: 'sphere', model: mul(M, ell(0, hs.capY, hs.capZ, hs.capRx, 0.085, hs.capRz)), color: hood ? WETSUIT.slice(0, 3) : L.hair.slice(0, 3), spec: hood ? 0.4 : 0.25, outline: 0 }];
   if (b.which === 'girl' && !hood) {
     // long, lighter-brown hair falling loose down her back (the user, 2026-11-18; the ponytail is gone): layers lying
@@ -189,7 +204,7 @@ function hairObjects(b, mats) {
 // Fetch a body (once): both are fetched at start-up (~1 MB each), the current wave's first.
 function loadBody(which) {
   const b = bodies[which] ||= { body: null, loading: null };
-  if (!b.body && !b.loading) b.loading = loadSkinnedGLB(BODY_FILES[which]).then((m) => { const bc = bodyColors(m, which); Object.assign(b, { body: createBody(m), model: m, colors: bc.colors, outfits: { '': bc.colors }, head: bc.head, which }); }).catch((e) => console.error('body', e));
+  if (!b.body && !b.loading) b.loading = loadSkinnedGLB(BODY_FILES[which]).then((m) => { const bc = bodyColors(m, which); Object.assign(b, { body: createBody(m), model: m, colors: bc.colors, outfits: { ':': bc.colors }, head: bc.head, which }); }).catch((e) => console.error('body', e));
   return b;
 }
 function wantBody() {
@@ -198,9 +213,10 @@ function wantBody() {
   if (!BODY_FILES[which]) return null; // (not built yet: the parts surfer)
   const b = loadBody(which);
   // (the wave's outfit, e.g. Raglan's wetsuit, painted once per body and outfit)
-  const outfit = WAVE.outfit || '', key = which + ':' + outfit;
+  // (?outfit=topper|shortsleeve|wetsuit|hood: try a look on any wave, for testing)
+  const outfit = params.get('outfit') ?? (WAVE.outfit || ''), jersey = H ? heatYou(H).jersey.color : null, key = which + ':' + outfit + ':' + (jersey || '');
   if (b.body && renderer.bodyShown !== key) {
-    b.colors = b.outfits[outfit] ||= bodyColors(b.model, which, outfit).colors;
+    b.colors = b.outfits[outfit + ':' + (jersey || '')] ||= bodyColors(b.model, which, outfit, jersey).colors;
     renderer.setBody(b.body.model, b.colors); renderer.bodyShown = key;
   }
   return b.body ? b : null;
@@ -498,7 +514,7 @@ const ordinal = (n) => n + (n % 10 === 1 && n % 100 !== 11 ? 'st' : n % 10 === 2
 // A new heat: its seed (?seed=, else random) is the sea's, so its waves come in order from wave 0.
 function startHeat() {
   const seed = params.has('seed') ? Number(params.get('seed')) : 1 + Math.floor(Math.random() * 2 ** 30);
-  H = createHeat({ seed, end: HEAT_END, bots: params.has('bots') ? Number(params.get('bots')) : 3 });
+  H = createHeat({ seed, end: HEAT_END, bots: params.has('bots') ? Number(params.get('bots')) : 3, jersey: params.get('jersey') || cachedProfile()?.jersey });
   window.__heat = H;
   seedSea(H.seed);
   heat.scores = []; heat.seen = new Set();

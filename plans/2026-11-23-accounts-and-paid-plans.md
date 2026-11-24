@@ -196,6 +196,9 @@ sees it on their profile.
   entrant reading the spot, and a non-Pro user unable to create.
 - [ ] **11. Lobby.** Contests phase 3 with sign-in for hosts, starting from a saved break in My Breaks, guests joining
   anonymously. Test: two browser contexts.
+- **Jerseys in contests (the user, 2026-11-24):** each contest heat draws its surfers' jersey colours at random (from
+  the heat's seed, all different, stored with the heat so every client shows the same), whatever your profile says. Your
+  profile's jersey is what you wear in solo heats. The surfer wears the jersey over any outfit, at every water temperature.
 - [ ] **12. Live heats.** Contests phase 4, uploading each ride's log with its score, plus "Keep your scores" (claiming
   an anonymous account) on the results card. Test: a two-player heat end to end, then the guest claims and the results
   move to their profile.
