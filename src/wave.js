@@ -153,7 +153,7 @@ function mulberry32(seed) {
   return () => { seed = (seed + 0x6d2b79f5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 }
 function layRidges() {
-  RIDGE.c = 0; RIDGE.list.length = 0; RIDGE.at = 0;
+  RIDGE.c = 0; RIDGE.list.length = 0; RIDGE.at = 0; PASSED.length = 0;
   const R = WAVE.ridges; if (!R || R.profile) return; // (a built wave's profile needs no layout)
   const pick = ([a, b]) => a + (b - a) * ridgeRnd();
   for (let x = pick(R.first); x < 3000; x += pick(R.gap)) RIDGE.list.push({ x, w: pick(R.width), k: pick(R.strength) });
@@ -209,6 +209,41 @@ export function ridgeAt(xs) {
   for (const r of RIDGE.list) { const d = (X - r.x) / r.w; if (d > -1 && d < 1) k += r.k * (0.5 + 0.5 * Math.cos(Math.PI * d)); }
   return Math.min(1, k);
 }
+// When the curl passed each spot (waves with ridges; the user, 2026-11-23: behind the curl it should look like it broke
+// when it did). The curl's speed changes along these waves, so the water behind it is placed by the time since it broke
+// there, as Trestles' is (barPhase), not by its distance from the curl: through a fast section a long stretch broke at
+// nearly the same moment and goes on as one wall. PASSED: [time, curl position] every physics step, oldest first.
+const PASSED = [], PASSED_KEEP = 40; // (s of history; older water is long past the last keyframe)
+function notePassed() {
+  PASSED.push(RIDE.time, RIDGE.c);
+  let n = 0; while (n + 2 < PASSED.length && PASSED[n] < RIDE.time - PASSED_KEEP) n += 2;
+  if (n > 2000) PASSED.splice(0, n);
+}
+// The time the curl passed X (m along the beach, at or behind the curl). Before the history starts: as if it had always
+// peeled at the wave's own pace.
+function passedAt(X, vRef) {
+  const P = PASSED, n = P.length / 2;
+  if (!n || X >= RIDGE.c) return RIDE.time - Math.max(0, X - RIDGE.c) / vRef;
+  if (X <= P[1]) return P[0] - (P[1] - X) / vRef;
+  if (X >= P[(n - 1) * 2 + 1]) { // (between the last step and now)
+    const t0 = P[(n - 1) * 2], c0 = P[(n - 1) * 2 + 1];
+    return RIDGE.c > c0 ? t0 + (RIDE.time - t0) * (X - c0) / (RIDGE.c - c0) : RIDE.time;
+  }
+  let lo = 0, hi = n - 1; // (positions never go back: the last step at or behind X)
+  while (hi - lo > 1) { const m = (lo + hi) >> 1; if (P[m * 2 + 1] <= X) lo = m; else hi = m; }
+  const ca = P[lo * 2 + 1], cb = P[hi * 2 + 1], ta = P[lo * 2], tb = P[hi * 2];
+  return cb > ca ? ta + (tb - ta) * (X - ca) / (cb - ca) : tb;
+}
+// How far behind the curl the water at xs looks (m): the time since the curl passed it, at the wave's own pace (so a wave
+// peeling steadily at that pace looks just as it did by distance). Eased in over the 8 m behind the curl, so the change
+// of rate at the curl leaves no crease.
+function behindDist(xs) {
+  if (xs >= 0 || !WAVE.ridges) return -xs;
+  const vRef = WAVE.peelSpeed * Math.sqrt(SIZE);
+  const d = (RIDE.time - passedAt(RIDGE.c + xs, vRef)) * vRef, w = smooth(Math.min(1, -xs / 8));
+  return -xs + (d + xs) * w;
+}
+
 // The speed the pocket holds you at when you trim (rider.js energy pocket): the curl's speed, except through a ridge's
 // faster section, where it stays the wave's own (the user, 2026-11-22: as a section speeds up you need to pump to keep
 // up; trimming holds the plain wall's pace, and the extra comes from working the steeper face).
@@ -239,6 +274,7 @@ function stepRidges(dt) {
     RIDGE.at = ridgeAt(0);
     PEEL_SPEED = profileAt('peel', RIDGE.c) * Math.sqrt(SIZE);
     RIDGE.c += PEEL_SPEED * dt;
+    notePassed();
     if (!WAVE.ridges.loop && !RIDE.done && RIDGE.c >= WAVE.ridges.length) RIDE.done = { time: RIDE.time, c: RIDGE.c };
     SHAPE.ver++;
     return;
@@ -246,7 +282,9 @@ function stepRidges(dt) {
   const base = WAVE.peelSpeed * Math.sqrt(SIZE);
   RIDGE.at = ridgeAt(0);
   PEEL_SPEED = base * (1 + (WAVE.ridges.fast - 1) * RIDGE.at);
+  RIDE.time += dt;
   RIDGE.c += PEEL_SPEED * dt;
+  notePassed();
   SHAPE.ver++; // (the shape at the curl changes as the ridges come through: caches keyed on it recompute)
 }
 
@@ -325,7 +363,7 @@ export function phaseAt(xs) {
   let s;
   if (WAVE.bar) {
     s = barPhase(xs); // (a wave with a bar: the time since it broke there, from the simulation's break map)
-  } else s = -xs / (WAVE.phase.behind + (WAVE.phase.ahead - WAVE.phase.behind) * k);
+  } else s = behindDist(xs) / (WAVE.phase.behind + (WAVE.phase.ahead - WAVE.phase.behind) * k);
   // Optionally the broken wave behind lasts longer: past phase `farFrom` it
   // changes `behindFar` m per phase instead of `behind`, eased in smoothly
   // over ±0.3 so there's no crease.

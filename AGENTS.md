@@ -54,6 +54,11 @@ section's extra curl speed by how steep the wall is at the curl (Raglan+: the ri
 Raglan's wall): the steeper face pulls you along harder; sections.mjs: pumping makes 9 of 9 (was 6 of 9), trimming 2 of 6, and carving the steep wall pays (`wallK` 0.65, `wallAngles` [55, 63]). `node
 test/sections.mjs`: a mid-face trimmer makes 1 of 6 sections (caught ~10 s in), the pocket-pumping bot 6 of 9 (~23 s
 rides). crest.mjs runs Raglan+ without ridges. GPU ~+1 ms.
+**Behind the curl, by when it broke** (2026-11-23, the user: behind the curl it should look broken and connected): on
+waves with ridges (Raglan+, built waves) the curl's speed varies, so the water behind it is placed by the time since the
+curl passed it (wave.js `PASSED` history, `behindDist`), at the wave's own pace (`peelSpeed`), as Trestles' bar does. A
+steady wave at that pace looks exactly as before; behind a fast section a long stretch is at nearly the same stage.
+`node test/phasetime.mjs`.
 
 **Feet on every wave** (2026-11-18, the user: carry Queens's Up/Down walking to the other waves): all waves have
 `walkKeys`, so Up/Down (and up/down swipes) move the feet and only Left/Right turn. On Queens they walk the longboard
