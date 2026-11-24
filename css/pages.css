@@ -1,0 +1,34 @@
+/* The account pages (profile.html, account.html): the builder's colours and type. */
+:root {
+  --bg: #0b2233; --panel: #0f2c41; --line: rgba(255,255,255,.14); --text: #eaf6fa; --dim: #9fc1cf;
+  --pink: #ff3d8b; --yellow: #ffd426; --teal: #00c2c7; --red: #ff4b4b; --ink: #0b1a24;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--text); font-family: Rubik, system-ui, sans-serif; }
+html, body, button, input, label { touch-action: manipulation; }
+main { max-width: 640px; margin: 0 auto; padding: 20px 16px 48px; }
+.top { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 22px; }
+.brand { font-family: Bungee, sans-serif; color: var(--yellow); text-decoration: none; font-size: 18px; text-shadow: 2px 2px 0 var(--pink); }
+a { color: var(--teal); }
+h1 { font-family: Bungee, sans-serif; font-weight: 400; color: var(--yellow); font-size: clamp(26px, 7vw, 38px); margin: 0; line-height: 1.05; overflow-wrap: anywhere; }
+h2 { font-family: Bungee, sans-serif; font-weight: 400; font-size: 15px; margin: 0 0 10px; letter-spacing: .02em; }
+.sub { color: var(--dim); margin: 6px 0 0; font-size: 15px; }
+.panel { background: var(--panel); border-radius: 16px; padding: 16px; margin-top: 16px; }
+.empty { color: var(--dim); margin: 0; }
+label { display: block; font-weight: 700; font-size: 13px; margin: 14px 0 6px; }
+label:first-of-type { margin-top: 0; }
+input[type=text], input[type=email] { font: 500 15px Rubik, sans-serif; color: var(--ink); background: #fff; border: 2px solid #fff; border-radius: 12px; padding: 8px 12px; width: 100%; }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.row input { flex: 1 1 200px; width: auto; }
+button { font: 700 14px Rubik, sans-serif; color: var(--ink); background: var(--teal); border: 2px solid #fff; border-radius: 18px; padding: 7px 16px; cursor: pointer; }
+button:disabled { opacity: .55; cursor: default; }
+button.danger { background: var(--red); color: #fff; }
+button.quiet { background: rgba(255,255,255,.07); color: var(--text); border-color: var(--line); }
+.hint { color: var(--dim); font-size: 13px; margin: 6px 0 0; min-height: 1em; }
+.hint.bad { color: #ff9a9a; font-weight: 700; }
+.hint.good { color: #7fe3a0; font-weight: 700; }
+.jerseys { display: flex; flex-wrap: wrap; gap: 8px; }
+.jersey { width: 34px; height: 34px; border-radius: 50%; border: 3px solid transparent; padding: 0; box-shadow: inset 0 0 0 2px rgba(0,0,0,.25); }
+.jersey.on { border-color: #fff; outline: 2px solid var(--yellow); }
+.dot { display: inline-block; width: 14px; height: 14px; border-radius: 50%; vertical-align: -1px; margin-right: 6px; box-shadow: inset 0 0 0 2px rgba(0,0,0,.25); }
+[hidden] { display: none !important; }

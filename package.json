@@ -8,7 +8,8 @@
     "db:stop": "supabase stop",
     "test:db": "supabase test db",
     "test:auth": "node test/auth.mjs",
-    "test:auth-browser": "node test/auth-browser.mjs"
+    "test:auth-browser": "node test/auth-browser.mjs",
+    "test:profile-browser": "node test/profile-browser.mjs"
   },
   "devDependencies": {
     "supabase": "2.120.0"

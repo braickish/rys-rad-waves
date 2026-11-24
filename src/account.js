@@ -61,3 +61,68 @@ export function describeAuthError(e) {
   if (!navigator.onLine || /failed to fetch|networkerror|load failed|import/i.test(m)) return "Can't reach the server. Check your connection.";
   return m || 'Something went wrong. Try again.';
 }
+
+// ---- Profiles (task 5) ----
+// A member's public profile: { id, handle, display_name, jersey, created_at }. Anonymous guests have none.
+export const JERSEY_IDS = ['red', 'white', 'blue', 'yellow', 'green', 'black', 'pink', 'teal'];
+const PROFILE_COLS = 'id, handle, display_name, jersey, created_at';
+
+export async function myProfile() {
+  const c = await initAccount(), uid = session?.user?.id;
+  if (!uid || session.user.is_anonymous) return null;
+  const { data, error } = await c.from('profiles').select(PROFILE_COLS).eq('id', uid).maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+export async function profileByHandle(handle) {
+  const c = await initAccount();
+  const { data, error } = await c.from('profiles').select(PROFILE_COLS).eq('handle', String(handle || '').toLowerCase()).maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+// Makes yours, or changes it (only the fields given).
+export async function saveProfile(fields) {
+  const c = await initAccount(), uid = session?.user?.id;
+  if (!uid) throw new Error('Sign in first.');
+  const row = Object.fromEntries(Object.entries(fields).filter(([k]) => ['handle', 'display_name', 'jersey'].includes(k)));
+  const existing = await myProfile();
+  const q = existing ? c.from('profiles').update(row).eq('id', uid) : c.from('profiles').insert({ id: uid, ...row });
+  const { data, error } = await q.select(PROFILE_COLS).single();
+  if (error) throw error;
+  return data;
+}
+
+// null when the handle is free for you, else a sentence saying why not.
+const HANDLE_WORDS = {
+  short: 'At least 3 characters.', long: '20 characters at most.', chars: 'Lowercase letters, numbers and _ only.',
+  start: 'Start with a letter.', reserved: "That one's reserved.", taken: "That's taken (or looks too like one that is).",
+};
+export async function handleProblem(handle) {
+  const c = await initAccount();
+  const { data, error } = await c.rpc('handle_problem', { h: handle });
+  if (error) throw error;
+  return data ? HANDLE_WORDS[data] || data : null;
+}
+
+// Sends a confirmation link to the new address (and, with secure email change, to the old one too).
+export async function changeEmail(email) {
+  const c = await initAccount();
+  const { error } = await c.auth.updateUser({ email }, { emailRedirectTo: location.origin + location.pathname });
+  if (error) throw error;
+}
+
+export async function deleteAccount() {
+  const c = await initAccount();
+  const { error } = await c.rpc('delete_my_account');
+  if (error) throw error;
+  await c.auth.signOut({ scope: 'local' }); // (the user is gone on the server; drop the session here)
+}
+
+// Profile errors in words (a handle taken between checking and saving, a bad jersey...).
+export function describeProfileError(e) {
+  if (e?.code === '23505') return HANDLE_WORDS.taken;
+  if (e?.code === '23514') return /jersey/.test(e.message) ? 'Pick a jersey from the list.' : /display_name/.test(e.message) ? 'Names are 1 to 30 characters.' : "That handle can't be used.";
+  return describeAuthError(e);
+}

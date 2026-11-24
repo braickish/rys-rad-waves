@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Surfer · Ry's Rad Waves</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bungee&family=Rubik:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/pages.css">
+</head>
+<body>
+<main>
+  <div class="top"><a class="brand" href="./">Ry's Rad Waves</a><a id="edit" href="account.html" hidden>Edit your profile</a></div>
+  <div id="loading" class="sub">Loading…</div>
+  <div id="missing" hidden><h1>No surfer here</h1><p class="sub">There's no one called <b id="missing-handle"></b>. <a href="./">Go surf</a>.</p></div>
+  <div id="profile" hidden>
+    <h1 id="p-name"></h1>
+    <p class="sub"><span id="p-dot" class="dot"></span><span id="p-handle"></span> · surfing since <span id="p-since"></span></p>
+    <section class="panel"><h2>Breaks</h2><p class="empty">No public breaks yet.</p></section>
+    <section class="panel"><h2>Contest results</h2><p class="empty">No contests yet.</p></section>
+  </div>
+</main>
+<script type="module" src="src/profile-page.js"></script>
+</body>
+</html>

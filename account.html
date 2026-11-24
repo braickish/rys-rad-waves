@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Your Account · Ry's Rad Waves</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bungee&family=Rubik:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/pages.css">
+</head>
+<body>
+<main>
+  <div class="top"><a class="brand" href="./">Ry's Rad Waves</a><a id="view" hidden>Your page</a></div>
+  <h1>Your account</h1>
+  <div id="loading" class="sub">Loading…</div>
+  <p id="signed-out" class="sub" hidden>You're signed out. <a href="./">Sign in from the title screen</a>.</p>
+
+  <div id="signed-in" hidden>
+    <form id="profile-form" class="panel">
+      <h2>Profile</h2>
+      <label for="handle">Handle</label>
+      <input id="handle" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" maxlength="20" required>
+      <p id="handle-hint" class="hint">Lowercase letters, numbers and _. It's your name on the board and your page's address.</p>
+      <label for="display">Name <span class="hint">(optional, shown on your page)</span></label>
+      <input id="display" type="text" maxlength="30" autocomplete="nickname">
+      <label>Jersey</label>
+      <div id="jerseys" class="jerseys" role="radiogroup" aria-label="Jersey colour"></div>
+      <div class="row" style="margin-top:16px"><button id="save" type="submit">Save</button><span id="save-msg" class="hint"></span></div>
+    </form>
+
+    <form id="email-form" class="panel">
+      <h2>Email</h2>
+      <p class="sub" style="margin:0 0 10px">You sign in with <b id="email-now"></b>.</p>
+      <div class="row"><input id="email-new" type="email" autocomplete="email" placeholder="new@example.com" required aria-label="New email"><button id="email-send" type="submit">Change email</button></div>
+      <p id="email-msg" class="hint"></p>
+    </form>
+
+    <section class="panel">
+      <h2>Sign out</h2>
+      <button id="signout" class="quiet">Sign out</button>
+    </section>
+
+    <form id="delete-form" class="panel">
+      <h2>Delete your account</h2>
+      <p class="sub" style="margin:0 0 10px">This deletes your profile and everything saved with it, for good. Type <b id="delete-word"></b> to confirm.</p>
+      <div class="row"><input id="delete-confirm" type="text" autocapitalize="none" spellcheck="false" aria-label="Confirm"><button id="delete" class="danger" type="submit" disabled>Delete my account</button></div>
+      <p id="delete-msg" class="hint"></p>
+    </form>
+  </div>
+</main>
+<script type="module" src="src/account-page.js"></script>
+</body>
+</html>

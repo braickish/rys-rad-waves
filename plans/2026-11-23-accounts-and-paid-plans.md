@@ -173,8 +173,12 @@ sees it on their profile.
   with `supabase config push`), custom SMTP noted for launch. `src/account.js` + `src/account-ui.js`: sign in and out under
   DROP IN, session kept (implicit flow, so a link opened on another device's mail app works). Tests: `npm run test:db`,
   `test:auth` (link, session, refresh, sign-out, no passwords, anonymous), `test:auth-browser` (the title screen end to end).
-- [ ] **5. Profiles.** The `profiles` table and RLS, picking a handle on first sign-in, `profile.html?u=` (empty sections for
-  now), account settings (handle, email), and deleting your account. Tests: RLS (edit only your own), handle rules.
+- [x] **5. Profiles** (done 2026-11-24). `profiles` (public read; insert and update your own, not as an anonymous guest;
+  `styling` not client-writable yet). Handles 3-20, `[a-z][a-z0-9_]`, unique on a look-alike key (0/o, 1/l/i, 5/s, `_`
+  ignored), a reserved list compared the same way; `handle_problem(h)` for the form; `delete_my_account()`. The title asks
+  for a handle on first sign-in (a guess from the email), then shows @handle · Account · Sign out. `profile.html?u=`
+  (name, jersey, since, empty Breaks and Contest results) and `account.html` (handle, name, jersey, email change, sign
+  out, delete by typing your handle). Tests: `supabase/tests/profiles_test.sql` (24), `test:profile-browser`.
 - [ ] **6. Entitlements (no payments yet).** The `entitlements` table and `has_entitlement()`, granted by hand for testing.
   The picker locks the Wave Pass waves (the soft gate) and the client reads your plan. Tests: a user can't write their own
   entitlement, Pro implies the Wave Pass, and an expired one stops counting after the grace period.

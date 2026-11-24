@@ -139,6 +139,8 @@
   .acct-form button { font: 700 13px Rubik, sans-serif; color: var(--ink); background: var(--yellow); border: 2px solid #fff; border-radius: 18px; padding: 6px 12px; cursor: pointer; }
   .acct-form button:disabled { opacity: .6; cursor: default; }
   .acct-who { font-weight: 700; opacity: .95; }
+  .acct-ask { flex-basis: 100%; font-weight: 700; margin-bottom: 2px; }
+  a.acct-link { display: inline-block; }
   .acct-msg { margin-top: 8px; font-weight: 700; }
   .walk-btn { position: fixed; right: 16px; width: 96px; height: 96px; border-radius: 48px; border: 3px solid #fff; font-family: Bungee, sans-serif; font-size: 15px; color: #fff; background: rgba(255,170,40,.85); box-shadow: 3px 3px 0 rgba(0,0,0,.3); touch-action: none; cursor: pointer; z-index: 5; padding: 0 10px; line-height: 1.1; }
   #walk-up { bottom: 160px; } #walk-back { bottom: 56px; background: rgba(240,110,160,.85); }
@@ -193,7 +195,12 @@
         <input id="acct-email" type="email" autocomplete="email" placeholder="you@example.com" required aria-label="Email">
         <button id="acct-send" type="submit">Email me a link</button>
       </form>
-      <div id="acct-who" class="acct-who" hidden><span id="acct-name"></span> · <button id="acct-out" class="acct-link">Sign out</button></div>
+      <form id="acct-handle-form" class="acct-form" hidden>
+        <div class="acct-ask">Pick a handle: it's your name on the board and your page.</div>
+        <input id="acct-handle" autocomplete="username" autocapitalize="none" spellcheck="false" maxlength="20" placeholder="your_handle" required aria-label="Handle">
+        <button id="acct-handle-save" type="submit">That's me</button>
+      </form>
+      <div id="acct-who" class="acct-who" hidden><a id="acct-name" class="acct-link"></a> · <a href="account.html" class="acct-link">Account</a> · <button id="acct-out" class="acct-link">Sign out</button></div>
       <div id="acct-msg" class="acct-msg" hidden></div>
     </div>
   </div>
