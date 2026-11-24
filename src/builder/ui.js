@@ -24,7 +24,7 @@ const COL = { yellow: [255, 212, 38], pink: [255, 61, 139], red: '#ff4b4b' };
 // ones; on the research site's shallow shelf a big swell closed out across the bay. The beach break keeps the gentle shelf.)
 const reefCoast = () => Object.assign(defaultCoast(), { deep: true });
 const state = { blocks: dynamicPreset(), coast: reefCoast(), sel: null, swell: { H: 1.6, T: 15, dir: 0 }, grid: null, rays: null, wave: null, dirty: true, ms: 0,
-  loop: { on: false, side: 'right', a: null, b: null, info: null }, hover: null, board: 'shortboard', pick: 0, water: 66 }; // (water: its temperature, °F: what the surfer wears, looks only) // (pick: which wave, when the design makes more than one (plan step 8))
+  loop: { on: false, side: 'right', a: null, b: null, info: null }, hover: null, board: 'shortboard', pick: 0, water: 66, fun: true, scale: 1 }; // (fun / scale: the surfable-waves plan step 1, 2026-11-24: Fun or Real, and a size override on the wave the swell makes) // (water: its temperature, °F: what the surfer wears, looks only) // (pick: which wave, when the design makes more than one (plan step 8))
 // The wave you're looking at and would ride: one of the design's waves (rays.js analyse: A the main one, then other peaks and
 // waves that reform inside).
 const cur = () => (state.wave ? state.wave.waves[state.pick] || state.wave.waves[0] : null);
@@ -62,12 +62,12 @@ function recompute() {
 // The design is remembered (in this browser) so coming back from riding it finds it as you left it.
 const SAVE_KEY = 'rys-rad-waves-builder';
 function save() {
-  try { localStorage.setItem(SAVE_KEY, JSON.stringify({ blocks: state.blocks, coast: state.coast, swell: state.swell, board: state.board, water: state.water, pick: state.pick, pickKey: state.pickKey, loop: { on: state.loop.on, side: state.loop.side, a: state.loop.a, b: state.loop.b }})); } catch {}
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify({ blocks: state.blocks, coast: state.coast, swell: state.swell, board: state.board, water: state.water, fun: state.fun, scale: state.scale, pick: state.pick, pickKey: state.pickKey, loop: { on: state.loop.on, side: state.loop.side, a: state.loop.a, b: state.loop.b }})); } catch {}
 }
 function restore() {
   try {
     const j = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null'); if (!j || !Array.isArray(j.blocks)) return;
-    state.blocks = j.blocks; if (j.coast && Array.isArray(j.coast.pts)) state.coast = j.coast; if (j.board) state.board = j.board; if (Number.isFinite(j.water)) state.water = j.water; if (j.pick) state.pick = j.pick; if (j.pickKey) state.pickKey = j.pickKey; Object.assign(state.swell, j.swell || {}); Object.assign(state.loop, j.loop || {}); 
+    state.blocks = j.blocks; if (j.coast && Array.isArray(j.coast.pts)) state.coast = j.coast; if (j.board) state.board = j.board; if (Number.isFinite(j.water)) state.water = j.water; if (typeof j.fun === 'boolean') state.fun = j.fun; if (Number.isFinite(j.scale)) state.scale = j.scale; if (j.pick) state.pick = j.pick; if (j.pickKey) state.pickKey = j.pickKey; Object.assign(state.swell, j.swell || {}); Object.assign(state.loop, j.loop || {}); 
   } catch {}
 }
 function fitLoop() {
@@ -499,7 +499,7 @@ function dropIn() {
   if (state.dirty) recompute();
   clearTimeout(refineTimer); refine(); // (the wave you ride is always the refined one)
   const L = state.loop, st = rideStretch(); if (!st) return;
-  const data = { ...wavePayload(cur()[L.side], L.side, L.on ? 'loop' : 'full', st.a, st.b, state.swell, state.board), water: state.water }; // (the water's temperature: the outfit)
+  const data = { ...wavePayload(cur()[L.side], L.side, L.on ? 'loop' : 'full', st.a, st.b, state.swell, state.board), water: state.water, fun: state.fun, scale: state.scale }; // (the water's temperature: the outfit; Fun / Real and the size override: the surfable-waves plan)
   try { localStorage.setItem(BUILT_KEY, JSON.stringify(data)); } catch {}
   save();
   location.href = `index.html?wave=built&play#built=${encodeBuilt(data)}`;
@@ -526,11 +526,22 @@ function showRide() {
       row([btn('★ Best loop', false, () => { const bl = bestLoop(side); if (bl) { L.a = bl.a; L.b = bl.b; L.info = loopInfo(side, L.a, L.b); save(); showRide(); draw(); } else { note.innerHTML += '<br><span class="bad">No stretch here has a smooth seam.</span>'; } })]);
     }
   }
+  // Fun or Real (the surfable-waves plan, 2026-11-24): Real is the reef's wave exactly; Fun keeps its character and tames its
+  // extremes (steps 3-8 of the plan). And the size: the swell drives the model, this scales the wave you ride.
+  const fr = row([btn('Fun', state.fun, () => { state.fun = true; save(); showRide(); }), btn('Real', !state.fun, () => { state.fun = false; save(); showRide(); })]);
+  fr.insertBefore(Object.assign(document.createElement('span'), { textContent: 'Wave', style: 'font-size:13px;color:var(--dim);width:70px;align-self:center' }), fr.firstChild);
+  { const n = document.createElement('div'); n.className = 'note'; n.style.marginTop = '4px'; n.textContent = state.fun ? 'Fun: your reef\'s wave, its extremes tamed so it\'s surfable.' : 'Real: exactly the wave your reef makes.'; el.appendChild(n); }
+  const sz = document.createElement('label'); sz.className = 'sl'; sz.style.marginTop = '8px'; sz.append('Size');
+  const szR = Object.assign(document.createElement('input'), { type: 'range', min: 0.5, max: 2, step: 0.1, value: state.scale, autocomplete: 'off' }), szV = document.createElement('b');
+  const showSz = () => { szV.textContent = side && isFinite(side.H) ? (state.scale === 1 ? `~${ft(side.H)} ft` : `~${ft(side.H * state.scale)} ft`) : `${state.scale.toFixed(1)}x`; szV.title = side && isFinite(side.H) ? `the swell makes ~${ft(side.H)} ft waves here; ${state.scale.toFixed(1)}x` : ''; };
+  szR.oninput = () => { state.scale = +szR.value; showSz(); save(); };
+  szR.onchange = () => showRide();
+  sz.append(szR, szV); showSz(); el.appendChild(sz);
   // the board (the user, 2026-11-22): a gun for big waves, suggested from ~10 ft
-  const big = side && side.H * 3.281 >= 10;
+  const big = side && side.H * state.scale * 3.281 >= 10;
   const br = row([btn('Shortboard', state.board === 'shortboard', () => { state.board = 'shortboard'; save(); showRide(); }), btn('Gun', state.board === 'gun', () => { state.board = 'gun'; save(); showRide(); })]);
   br.insertBefore(Object.assign(document.createElement('span'), { textContent: 'Board', style: 'font-size:13px;color:var(--dim);width:70px;align-self:center' }), br.firstChild);
-  if (big && state.board !== 'gun') { const n = document.createElement('div'); n.className = 'note'; n.style.marginTop = '4px'; n.textContent = `These are ~${ft(side.H)} ft waves: a gun holds the speed they need.`; el.appendChild(n); }
+  if (big && state.board !== 'gun') { const n = document.createElement('div'); n.className = 'note'; n.style.marginTop = '4px'; n.textContent = `These are ~${ft(side.H * state.scale)} ft waves: a gun holds the speed they need.`; el.appendChild(n); }
   const go = btn(state.wave && state.wave.waves.length > 1 && cur() ? `DROP IN · ${cur().name}` : 'DROP IN', false, dropIn, 'go'); // (which wave, when there's more than one) go.disabled = !rideStretch();
   const r = row([go]); r.style.marginTop = '12px';
 }

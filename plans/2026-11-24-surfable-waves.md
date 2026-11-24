@@ -15,7 +15,7 @@ today's wave (its tests' output identical); the other waves (Raglan, Raglan+, Pi
 Which way it breaks, roughly how long the ride is, where its features are and in what order (the barrel at the takeoff,
 then the fast stretch, then the inside), and its relative difficulty (a hard reef stays harder than an easy one).
 
-## 1. Fun / Real and size, in the builder (the controls, no Fun pass yet)
+## 1. Fun / Real and size, in the builder (the controls, no Fun pass yet) (done 2026-11-24)
 
 - builder.html / ui.js, by the DROP IN button: **Fun / Real** (two buttons, Fun the default; saved with the reef and in the
   link) and **Size**: a scale override on the wave the swell makes (e.g. 0.5x-2x, 1x the default), shown as the wave
@@ -23,8 +23,11 @@ then the fast stretch, then the inside), and its relative difficulty (a hard ree
   override only scales the wave you ride, the way Pipe's `?size` does (sizes, lengths and speeds by the usual rules).
 - Payload: `fun: true|false`, `scale: k` (v stays 1; missing = Real, 1x, so older links ride as before).
 - Game: built.js `applyBuilt` applies `scale` on top of the breaker height (`sizeK`); `fun` is read but does nothing yet.
-- Tests: test/builder.mjs (the payload carries both; defaults); test/built.mjs (scale 1.5 makes the face 1.5x taller and
-  the curl sqrt(1.5)x faster; scale missing = today's numbers).
+- Done: the ride panel's Wave row (Fun / Real, a line saying what each is) and a Size slider (0.5-2x, shown as the height
+  you'll ride; the gun suggestion follows it). The payload carries `fun` and `scale` (the panel adds them; older links have
+  neither). built.js scales the breakers by `scale` and the speeds (profile peel and `c`, `base`, the leads `e`) by
+  sqrt(scale); the reef's lengths stay. test/built.mjs: 1.5x makes the face 1.5x taller (2.45 -> 3.68 m) and the curl and
+  the wave sqrt(1.5)x faster; 1x or none is the wave as before.
 
 ## 2. Measure first: what built waves actually do
 

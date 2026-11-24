@@ -92,6 +92,12 @@ const GUN = {
 };
 export function applyBuilt(data) {
   delete wave.dir; delete wave.stance;
+  // The size override (the surfable-waves plan step 1, the user, 2026-11-24: the swell drives the model, this scales the wave
+  // you ride): the breakers x `scale`, and the wave's speeds (the curl's, the wave's, the leads in time) x sqrt(scale), as a
+  // bigger wave on the same reef (Froude; Pipe's ?size does the same). Lengths along the reef stay the reef's.
+  const sc = data.scale > 0 ? data.scale : 1, sq = Math.sqrt(sc);
+  if (sc !== 1) data = { ...data, H: data.H * sc, base: data.base * sq, c: data.c != null ? data.c * sq : data.c, scaleApplied: sc,
+    profile: data.profile.map((q) => ({ ...q, peel: q.peel * sq, H: q.H != null ? q.H * sc : q.H, c: q.c != null ? q.c * sq : q.c, ...(q.e ? { e: q.e * sq } : {}) })) };
   // Size, with no cap (the user, 2026-11-22): k = the breakers' height against Raglan's (its ~3.5 m face at scale 1.25 is a
   // ~3.5 m breaker). The cross-section scales by k and so does everything measured along the wave or across the pocket, as
   // Pipe's ?size does (reef.js sized): how fast the shape changes along the wave (phase), the pocket's reach, the foam drawn

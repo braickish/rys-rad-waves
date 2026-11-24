@@ -87,6 +87,19 @@ for (const [mode, data] of Object.entries(payloads)) {
     check(secAt.length && cAt >= Math.max(...secAt) - 5, `section ${mode}: a pumping rider gets through the section (curl ${cAt.toFixed(0)} m)`);
   }
 }
+// The size override (the surfable-waves plan step 1, 2026-11-24): the swell drives the model, `scale` scales the wave you ride:
+// the face x scale, the curl's and the wave's speeds x sqrt(scale); no `scale` (older links) rides exactly as before.
+{
+  const prof = []; for (let s0 = 0; s0 <= 200; s0 += 10) prof.push({ s: s0, peel: 8, k: 0, H: 2.4, c: 5.5, u: 1 });
+  const base = { v: 1, mode: 'loop', side: 'left', length: 200, base: 8, H: 2.4, c: 5.5, profile: prof };
+  const measure = (d) => { applyBuilt(d); R.useWave('built'); S.seedSea(1); S.nextWave(); for (let i = 0; i < 120; i++) S.stepSea(1 / 120);
+    return { face: W.surface(0.5, R.topOfFace(0.5))[1] - W.surface(0.5, R.TUNE.tBottom)[1], peel: W.PEEL_SPEED, c: W.WAVE_SPEED }; };
+  const a = measure(base), b = measure({ ...base, scale: 1.5 }), c = measure({ ...base, scale: 1 });
+  console.log(`-- size override: face ${a.face.toFixed(2)} -> ${b.face.toFixed(2)} m at 1.5x, curl ${mph(a.peel)} -> ${mph(b.peel)} mph, wave ${a.c.toFixed(2)} -> ${b.c.toFixed(2)} m/s`);
+  check(Math.abs(b.face / a.face - 1.5) < 0.02, 'size override: 1.5x makes the face 1.5x taller');
+  check(Math.abs(b.peel / a.peel - Math.sqrt(1.5)) < 0.02 && Math.abs(b.c / a.c - Math.sqrt(1.5)) < 0.02, 'size override: the curl and the wave sqrt(1.5)x faster');
+  check(Math.abs(c.face - a.face) < 1e-9 && Math.abs(c.peel - a.peel) < 1e-9, 'size override: 1x (or none) is the wave as before');
+}
 // Plan step 2 (the user, 2026-11-22): the takeoff speed and the wave's speed come from the builder, and the wave's size follows
 // the breakers along the stretch. Takeoff: Dynamic's full right. Size: a made-up loop whose breakers step from 2.0 to 3.0 m
 // over 60-80 m and back at the seam.
