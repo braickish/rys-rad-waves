@@ -10,7 +10,22 @@ export const FUN = {
   // spreads the real changes out without cutting)
   rate: 6 / MPH, // (m/s of curl speed per s of curl, at 3.5 m breakers: x sqrt(size))
   uRate: 0.25, // (of the shape scale per s of curl)
+  pace: 8.3, // (m/s: the comfortable curl, Raglan's own on its ~3.5 m breakers; x sqrt(size))
+  band: [0.75, 1.6], // (the curl's speed within these x the comfortable pace ...)
+  floor: 4.5, // (... and never under this, m/s: the rider's slowest trim, rider.js vLow, ~10 mph)
 };
+// step 4: the curl's speed squeezed into a makeable band around the comfortable pace for the wave's size: a smooth, monotonic
+// squash (in log speed: near the pace almost unchanged, toward the band's edges more and more, never past them), so slow stays
+// slower and fast faster, but a section is "pump hard", not impossible, and a near-back-off takeoff still moves. (On a small
+// wave the floor can sit above 0.75 x the pace: the pace is then lifted so the floor is its 0.75.)
+export function bandOf(H) {
+  const v0 = FUN.pace * Math.sqrt(Math.max(0.05, H) / 3.5), lo = Math.max(FUN.band[0] * v0, FUN.floor), pace = Math.max(v0, lo / FUN.band[0]);
+  return { pace, lo, hi: FUN.band[1] * pace };
+}
+export function squash(v, { pace, lo, hi }) {
+  const x = Math.log(Math.max(0.05, v) / pace), a = Math.log(hi / pace), b = Math.log(lo / pace); // (b < 0 < a)
+  return pace * Math.exp(x >= 0 ? a * Math.tanh(x / a) : b * Math.tanh(x / b));
+}
 
 // The curl's time across each step of the profile (s), at its own speeds.
 const stepTimes = (P, key = 'peel') => P.slice(1).map((q, i) => (q.s - P[i].s) / Math.max(0.5, (q[key] + P[i][key]) / 2));
@@ -51,6 +66,9 @@ export function funPayload(data) {
   if (!data || !data.fun || !Array.isArray(data.profile) || data.profile.length < 3) return data;
   const size = Math.sqrt(Math.max(0.05, data.H) / 3.5);
   let P = data.profile.map((p) => ({ ...p }));
+  // step 4: the curl's speed (and the pace trimming holds) into the band
+  const band = bandOf(data.H);
+  P.forEach((p) => { p.peel = squash(p.peel, band); });
   // step 3: light smoothing, then no jumps in the curl's speed or its shape
   const T0 = stepTimes(P);
   const peel = smoothAlong(P, 'peel', T0), u = P[0].u != null ? smoothAlong(P, 'u', T0) : null;
@@ -68,5 +86,5 @@ export function funPayload(data) {
     P.forEach((p, i) => { p.u = +uu[i].toFixed(3); });
   }
   P.forEach((p) => { p.peel = +p.peel.toFixed(2); });
-  return { ...data, profile: P, funApplied: true };
+  return { ...data, base: +squash(data.base, band).toFixed(2), profile: P, funApplied: true };
 }

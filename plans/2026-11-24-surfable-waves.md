@@ -98,13 +98,47 @@ The limits for steps 3-8 (all scaled to the wave: speeds by sqrt(breakers / 3.5 
   the pumping bot (it climbs, and high in a barrel is over the falls) 12.8 / 2.4 s: it gets into the takeoff barrel on Fun
   and not on Real; step 8 (the takeoff) is where that's handled.
 
-## 4. Fun: peel speed compressed into a makeable band
+## 4. Fun: peel speed compressed into a makeable band (done 2026-11-24)
 
 - Map the real peel angle (~25-70 deg) into a band (from step 2, e.g. ~30-60 deg) by a smooth, monotonic curve, so slow
   stays slower and fast stays faster, but a section is "pump hard", not impossible, and a near-back-off takeoff still moves.
   `base` (what trimming holds) recomputed from the compressed profile.
 - Tests: the order of speeds along the ride is kept; nothing outside the band; the user's 7 mph takeoff and 45 mph
   section land inside it.
+- Done (fun.js `bandOf`, `squash`): in log speed around the comfortable pace (Raglan's 8.3 m/s x sqrt(breakers / 3.5 m)),
+  a tanh squash to 0.75-1.6x it, never under 10 mph (on a small wave the pace is lifted so the floor is its 0.75): near the
+  pace almost unchanged, the order kept. 5 ft breakers 10-21 mph (pace 13), 11 ft 14-29 (pace 18). `base` mapped the same.
+  Applied before step 3's smoothing and rate limit. The user's 11 ft left 18-29 mph; the slow hollow right's takeoff 7 ->
+  11 mph. Test bots on the 11 ft left now ride Fun about as Real (pumping 11.2 / 12.8 s, trimming 7.3 / 7.1 s).
+  The survey on the Fun version (FUN=1 node test/survey.mjs), 2026-11-24:
+
+```
+506 rides from 200 random reefs + 3 presets (102 s): the Fun version
+                                                  5%    25%    50%    75%    95%
+curl speed: slowest on the ride                 10.1   10.1   11.0   14.5   20.8  mph
+curl speed: median                              10.1   10.1   13.0   17.9   23.7  mph
+curl speed: fastest on the ride                 10.1   10.5   16.5   21.2   26.6  mph
+peel angle: smallest (fastest)                    19     27     31     36     44  deg
+peel angle: largest (slowest)                     29     36     41     47     51  deg
+curl speed change: steepest                      0.0    0.0    0.8    2.6    5.1  mph/s
+shape change: steepest                          0.00   0.00   0.00   0.13   0.25  scale/s
+time between shape kinds                           0      0      0     39     88  %
+barrels: each one's length                       2.1    3.4    6.2    8.7   18.2  s
+barrels: smallest tube on the ride              0.81   1.32   1.57   2.03   3.28  m
+section lead: longest on the ride               0.00   0.00   0.00   0.28  16.77  s
+size along the ride: largest / smallest         1.00   1.06   1.21   1.60   3.29  x
+takeoff (first 30 m): curl speed                10.1   10.1   12.2   16.5   23.0  mph
+breakers                                           2      3      5      8     13  ft
+ride length                                       98    144    230    427    755  ft
+rides with a barrel 7% · a barrel under 2 s 0% · a tube under 1.3 m 2%
+rides with a section lead > 0.8 s 20% · > 1.5 s 16% · curl over 40 mph 0% · under 10 mph 0%
+rides changing speed faster than 10 mph/s 0% · 20 mph/s 0% · size varying > 1.3x 39%
+how rides end: reaches the end of the reef 41% · meets water breaking the other way 32% · closes out 25% · reef 1% · backs off 1%
+```
+
+  Nothing under 10 mph (was 60% of rides) or over 40 (11%), no change faster than 10 mph/s (15%; the steepest 5% 47 -> 5
+  mph/s), peel angles 19-51 deg (9-70). Watch: on small waves many slow stretches now sit at the 10 mph floor, rideable but
+  flat. Shape limbo, leads and size drift are steps 5-7.
 
 ## 5. Fun: clear shape zones
 

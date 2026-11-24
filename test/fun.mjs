@@ -26,14 +26,28 @@ const left = (fun) => ({ v: 1, mode: 'full', side: 'left', length: 250, base: 11
   check(r1 <= FUN.rate * MPH * size * 1.05, 'step 3: the curl speeds up and slows down no faster than the limit');
   check(u1 <= FUN.uRate * 1.05, 'step 3: the shape changes no faster than the limit');
   const at = (P) => P[P.map((p) => p.peel).indexOf(Math.max(...P.map((p) => p.peel)))].s;
-  check(pk1 >= pk0 * 0.7 && Math.abs(at(fun.profile) - at(real.profile)) <= 20, `step 3: the section stays where it is, still the fastest stretch (${at(real.profile)} -> ${at(fun.profile)} m)`);
+  check(Math.abs(at(fun.profile) - at(real.profile)) <= 20, `step 3: the section stays where it is, still the fastest stretch (${at(real.profile)} -> ${at(fun.profile)} m; its speed squeezed into the band, step 4)`);
   check(fun.profile[0].peel < real.profile[0].peel * 1.25, 'step 3: the takeoff doesn\'t take on the section\'s speed');
   check(funPayload(real) === real, 'Real passes through untouched');
 }
 {
   const steady = { v: 1, mode: 'loop', side: 'left', length: 200, base: 8, H: 2.4, c: 5.5, fun: true, profile: Array.from({ length: 21 }, (_, i) => ({ s: i * 10, peel: 8, k: 0, H: 2.4, c: 5.5, u: 1 })) };
   const f = funPayload(steady);
-  check(f.profile.every((p, i) => Math.abs(p.peel - 8) < 0.01 && Math.abs(p.u - 1) < 0.001), 'a steady wave comes through unchanged');
+  check(f.profile.every((p) => Math.abs(p.peel - f.profile[0].peel) < 0.01 && Math.abs(p.u - 1) < 0.001) && Math.abs(f.profile[0].peel / 8 - 1) < 0.05, `a steady wave stays steady, near its speed (8 -> ${f.profile[0].peel} m/s)`);
+}
+// step 4: the curl's speed within the band for the wave's size, its order kept
+{
+  const { bandOf, squash } = await import('../src/builder/fun.js');
+  const b5 = bandOf(1.52), b11 = bandOf(3.35);
+  console.log(`band: 5 ft breakers ${(b5.lo * MPH).toFixed(0)}-${(b5.hi * MPH).toFixed(0)} mph (pace ${(b5.pace * MPH).toFixed(0)}), 11 ft ${(b11.lo * MPH).toFixed(0)}-${(b11.hi * MPH).toFixed(0)} (pace ${(b11.pace * MPH).toFixed(0)})`);
+  const vs = [1, 2, 3, 5, 7, 8, 10, 14, 20, 30], m = vs.map((v) => squash(v, b11));
+  check(m.every((x, i) => x > b11.lo - 1e-9 && x < b11.hi + 1e-9 && (!i || x > m[i - 1])), 'step 4: every speed lands inside the band, in the same order');
+  check(Math.abs(squash(b11.pace, b11) - b11.pace) < 1e-9 && Math.abs(squash(b11.pace * 1.1, b11) / (b11.pace * 1.1) - 1) < 0.05, 'step 4: near the comfortable pace speeds barely change');
+  // the user's slow hollow right (2026-11-23: a 7-8 mph takeoff, 64 deg) and 11 ft left (a 45 mph section)
+  const fun = funPayload(left(true)), bL = bandOf(3.47);
+  check(fun.profile.every((p) => p.peel >= bL.lo - 0.01 && p.peel <= bL.hi + 0.01), `step 4: the 11 ft left inside its band (${(Math.min(...fun.profile.map((p) => p.peel)) * MPH).toFixed(0)}-${(Math.max(...fun.profile.map((p) => p.peel)) * MPH).toFixed(0)} mph)`);
+  const slow = funPayload({ v: 1, mode: 'full', side: 'right', length: 100, base: 8.16, H: 2.19, c: 6.08, fun: true, profile: [3.31, 3.6, 3.76, 5.32, 7.29, 8.56, 8.48, 8.63, 9.81, 11.7, 13.99].map((peel, i) => ({ s: i * 10, peel, k: 0, H: 2.2, c: 6, u: 2.7 })) });
+  check(slow.profile[0].peel * MPH >= 10 - 0.05, `step 4: the slow hollow right's takeoff moves (7 -> ${(slow.profile[0].peel * MPH).toFixed(0)} mph)`);
 }
 // the game applies it: a Fun link rides the Fun profile, a Real one (or an older link, no `fun`) the builder's
 {

@@ -1,12 +1,14 @@
 // What built waves actually do (the surfable-waves plan step 2, 2026-11-24): the builder over its presets and random reefs
 // (random blocks and swells), per ride you could DROP IN on (each side of each listed wave with a full ride), the numbers the
 // Fun pass's limits are chosen from. Slow (the height model is ~0.3 s a reef): run by hand.
-//   node test/survey.mjs            (N=200 random reefs; N=50 node test/survey.mjs for a quick look)
+//   node test/survey.mjs            (N=200 random reefs; N=50 node test/survey.mjs for a quick look; FUN=1: the Fun version
+//                                    of each ride, src/builder/fun.js)
 import { buildDepth, makeGrid, BAY, BAY_DEEP_OFF, defaultCoast } from '../src/builder/reef.js';
 import { traceRays, analyse, isRide } from '../src/builder/rays.js';
 import { wavePayload, takeoffStart } from '../src/builder/loop.js';
 import { reefComponents, dynamicPreset, beachPreset, stackedPreset, newBlock, ARM_ANGLES, ARM_SLOPES, ROTATIONS } from '../src/builder/blocks.js';
 import { runPE } from '../src/builder/pewave.js';
+import { funPayload } from '../src/builder/fun.js';
 
 const N = Number(process.env.N || 200);
 let seed = 12345; const rnd = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
@@ -40,7 +42,7 @@ function survey(name, blocks, swell, deep = false) {
   for (const w of A.waves) for (const sd of ['right', 'left']) {
     const S = w[sd]; if (!S || !isRide(S)) continue;
     const ts = takeoffStart(S); if (!ts) continue;
-    const d = wavePayload(S, sd, 'full', ts.a, ts.b, swell), P = d.profile;
+    const raw = wavePayload(S, sd, 'full', ts.a, ts.b, swell), d = process.env.FUN ? funPayload({ ...raw, fun: true }) : raw, P = d.profile;
     const ang = P.map((p) => Math.atan2(p.c || C, Math.max(0.05, p.peel)) * 180 / Math.PI);
     // rate of change per second of curl (10 m steps: dt = 10 / mean peel)
     let rate = 0, uRate = 0;
@@ -70,7 +72,7 @@ const sec = ((performance.now() - t0) / 1000).toFixed(0);
 
 const q = (arr, p) => { const a = arr.filter((x) => x != null && isFinite(x)).sort((x, y) => x - y); return a.length ? a[Math.min(a.length - 1, Math.floor(p * a.length))] : NaN; };
 const row = (label, arr, unit = '', d = 1) => console.log(`${label.padEnd(44)} ${[0.05, 0.25, 0.5, 0.75, 0.95].map((p) => q(arr, p).toFixed(d).padStart(7)).join('')}  ${unit}`);
-console.log(`${rides.length} rides from ${N} random reefs + 3 presets (${sec} s)`);
+console.log(`${rides.length} rides from ${N} random reefs + 3 presets (${sec} s)${process.env.FUN ? ': the Fun version' : ''}`);
 console.log(`${''.padEnd(44)} ${['5%', '25%', '50%', '75%', '95%'].map((s) => s.padStart(7)).join('')}`);
 row('curl speed: slowest on the ride', rides.map((r) => r.peelMin), 'mph');
 row('curl speed: median', rides.map((r) => r.peelMed), 'mph');
