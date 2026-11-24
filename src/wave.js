@@ -518,7 +518,9 @@ export function controlPoints(s, out = new Float64Array(NP * 2), scale = SCALE, 
     kfPoints(SHAPES[i], s, out, scale);
     if (w > 1e-4) { kfPoints(SHAPES[i + 1], s, _cpB, scale); for (let q = 0; q < NP * 2; q++) out[q] += (_cpB[q] - out[q]) * w; }
     const f = sizeAt(xs); // (a built wave's size along its stretch)
-    if (f !== 1) for (let i = 0; i < NP * 2; i++) out[i] *= f;
+    // (everything but the trough's depth: the water in front of the wave is the fixed reference (the user, 2026-11-24): scaled
+    // with the rest, a size that halves within 10 m left a step along the base of the wave across the flats)
+    if (f !== 1) { const ty = out[I.TROUGH * 2 + 1]; for (let i = 0; i < NP * 2; i++) out[i] *= f; out[I.TROUGH * 2 + 1] = ty; }
     return out;
   }
   if (SHAPES.length === 1) return kfPoints(KF, s, out, scale);

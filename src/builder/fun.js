@@ -11,6 +11,7 @@ export const FUN = {
   rate: 6 / MPH, // (m/s of curl speed per s of curl, at 3.5 m breakers: x sqrt(size))
   uRate: 0.6, // (of the shape scale per s of curl: a change of kind blends over ~1.5 s; step 3 had 0.25)
   barrelMin: 3, // (step 5: a barrel lasts at least this many s of curl ...)
+  size: 1.2, sizeRate: 0.12, // (step 6: the size along the ride within +-20% of its middle (a smooth squash), changing at most 12% of it a s of curl)
   tubeMin: 1.3, tubeK: 0.89, // (... and its tube is at least this tall, m: else the steep section; rider.js tubeMinHeight. tubeK: a built tube
   // is ~0.89x the breakers, the almond barrel: test/built.mjs, 2.66 m on 3 m)
   pace: 8.3, // (m/s: the comfortable curl, Raglan's own on its ~3.5 m breakers; x sqrt(size))
@@ -50,9 +51,9 @@ function smoothAlong(P, key, T) {
 // was and the section stays where it is. (Spreading it only ahead, never cutting a peak, pushed a section's speed-up back
 // into the takeoff: on the user's 11 ft left the takeoff barrel then ran at 21-35 mph and both test riders went over the
 // falls in ~3 s.)
-function limitRate(v, P, rate) {
+function limitRate(v, P, rate, speeds) { // (speeds: the curl's, for its time across each step; none: v is the curl's speed)
   for (let it = 0; it < 400; it++) {
-    const T = stepTimes(P.map((p, i) => ({ s: p.s, v: v[i] })), 'v');
+    const T = stepTimes(P.map((p, i) => ({ s: p.s, v: speeds ? speeds[i] : v[i] })), 'v');
     let worst = 0;
     for (let i = 0; i < v.length - 1; i++) {
       const d = v[i + 1] - v[i], lim = rate * T[i], ex = Math.abs(d) - lim;
@@ -93,6 +94,15 @@ export function funPayload(data) {
   const T0 = stepTimes(P);
   const peel = smoothAlong(P, 'peel', T0), u = P[0].u != null ? smoothAlong(P, 'u', T0) : null;
   P.forEach((p, i) => { p.peel = peel[i]; if (u) p.u = u[i]; });
+  // step 6: the size along the ride steadier (the user, 2026-11-24: one wave went 5.3 -> 2.6 -> 3.7 -> 2.7 -> 5.8 m, the face
+  // jutting out where the size jumped): squeezed toward its middle (log size, a tanh squash to +-20%), then no faster than 12%
+  // of it a second of curl, spread both ways as the curl's speed is
+  if (P[0].H != null) {
+    const Hs = P.map((p) => p.H).sort((a, b) => a - b), mid = Hs[Math.floor(Hs.length / 2)], a = Math.log(FUN.size);
+    P.forEach((p) => { p.H = mid * Math.exp(a * Math.tanh(Math.log(Math.max(0.05, p.H) / mid) / a)); });
+    const hv = limitRate(P.map((p) => p.H), P, FUN.sizeRate * mid, P.map((p) => p.peel));
+    P.forEach((p, i) => { p.H = +hv[i].toFixed(2); });
+  }
   // step 5: clear shape zones
   if (u) { P.forEach((p) => { p.u = snapKind(p.u); }); barrelRules(P); }
   const rate = data.sharp ? FUN.sharp.rate : FUN.rate, uRate = data.sharp ? FUN.sharp.uRate : FUN.uRate;

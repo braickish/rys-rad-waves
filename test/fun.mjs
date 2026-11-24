@@ -72,6 +72,17 @@ const left = (fun) => ({ v: 1, mode: 'full', side: 'left', length: 250, base: 11
   console.log(`sharp edges: steepest curl change ${r0.toFixed(1)} -> ${r1.toFixed(1)} mph/s, shape ${u0.toFixed(2)} -> ${u1.toFixed(2)}/s (barrel to ledge)`);
   check(r1 > r0 * 1.2 && u1 > u0 * 1.4, 'sharp edges: Fun lets the wave change faster (the profile, a point every 10 m, bounds how fast it can show)');
 }
+// step 6: the size along the ride steadier (the user's 2026-11-24 right: 5.3 -> 2.6 -> 3.7 -> 2.7 -> 5.8 m)
+{
+  const Hs = [5.31, 5.26, 4.85, 4.36, 3.48, 2.75, 2.64, 2.61, 2.64, 3.19, 3.56, 3.74, 3.74, 3.56, 3.24, 2.95, 2.75, 2.7, 2.69, 2.73, 5.18, 5.84, 5.85, 5.83, 5.8, 5.75, 5.73, 5.7, 5.68];
+  const f = funPayload({ v: 1, mode: 'full', side: 'right', length: 280, base: 9.8, H: 3.74, c: 7.3, fun: true, profile: Hs.map((H, i) => ({ s: i * 10, peel: 9.8, k: 0, H, c: 7.3, u: 1 })) });
+  const H = f.profile.map((p) => p.H), ratio = Math.max(...H) / Math.min(...H);
+  let rate = 0; for (let i = 1; i < H.length; i++) rate = Math.max(rate, Math.abs(H[i] - H[i - 1]) / (10 / f.profile[i].peel));
+  const mid = [...Hs].sort((a, b) => a - b)[Math.floor(Hs.length / 2)];
+  console.log(`size: ${Math.min(...Hs).toFixed(1)}-${Math.max(...Hs).toFixed(1)} m -> ${Math.min(...H).toFixed(1)}-${Math.max(...H).toFixed(1)} (largest / smallest ${ratio.toFixed(2)}), fastest change ${(rate / mid * 100).toFixed(0)}% of the middle a second`);
+  check(ratio <= 1.5, 'step 6: the size along the ride within +-20% (largest / smallest at most 1.5)');
+  check(rate / mid <= 0.13, 'step 6: the size changes at most ~12% of its middle a second of curl');
+}
 // the game applies it: a Fun link rides the Fun profile, a Real one (or an older link, no `fun`) the builder's
 {
   // (applyBuilt sets up the one built wave and returns it: read each before the next)

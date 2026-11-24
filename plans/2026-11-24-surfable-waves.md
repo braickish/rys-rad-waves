@@ -169,11 +169,17 @@ rides with a barrel 2% · a barrel under 2 s 0% · a tube under 1.3 m 0%
   opening is an almond, rounder up under the roof, pointed where the lip lands, leaning forward. Its opening is shorter: a
   built tube is ~0.89x the breakers (2.66 m on 3 m; was 1.13x, 3.41 m), so it fits from ~1.5 m breakers (was ~1.15).
 
-## 6. Fun: size along the ride
+## 6. Fun: size along the ride (done 2026-11-24)
 
 - The size's variation along the ride squeezed to about +-20% of its middle (the user's 3.4 -> 2.2 m becomes ~3.0 -> 2.6);
   the Size override (step 1) then scales the whole thing. The board follows the size as the gun does now.
 - Tests: the spread; the ride's middle size unchanged; Real untouched.
+- Done (fun.js, step 6): the size squeezed toward the ride's middle (log size, a tanh squash to +-20%), then changing at most
+  12% of the middle a second of curl, spread both ways. The user's right (5.3 -> 2.6 -> 3.7 -> 2.7 -> 5.8 m, the face jutting out
+  where it jumped) is 3.1-4.5 m now, changing gradually. And for every built wave, Real too (wave.js controlPoints): the size
+  scales the face and crest but not the trough's depth, so where the size changes the water in front of the wave stays the
+  fixed reference (it had left a step along the base of the wave across the flats). Open: the builder reads a wave at a
+  ledge as about half the height it had just before (5.2 -> 2.6 m on the user's ledge wave) where it should jack up.
 
 ## 7. Fun: sections ahead are makeable or an honest closeout
 
