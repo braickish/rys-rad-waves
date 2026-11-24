@@ -113,3 +113,37 @@ export function stackedPreset() {
   for (const b of outer) Object.assign(b, { size: 1.5, depth: 1.8, back: 'lagoon' });
   return [...outer, newBlock('peak', 1000, 520), newBlock('arm', 1000, 520), Object.assign(newBlock('arm', 1000, 520), { side: 1 })];
 }
+// Pipeline (the user, 2026-11-23: the Pipe wave on Pipeline's real reef, first, second and third reef). Laid out from the 2013
+// USACE lidar (research/pipeline-reef: the reef frame, x' = 1250 - metres offshore, y' along the beach, + toward the NE,
+// where the Pipe left runs) and the usual figures (First Reef ~60 m out in 1-3 m, Second ~130 m out in 4.5-6 m, Third
+// ~300 m out in 9-12 m). First Reef: a steep (1:6) peak 80 m out, its top ~2.4 m down, a left arm (Pipe) and a right
+// (Backdoor). Second and Third: broad rounded peaks (Size 1.5x / 2.5x, 5.4 m and 6.75 m down at their apex, against the
+// lidar's ~4.5 and ~9 m tops: Third Reef a little shallow so 15 ft breaks out there first) falling back behind (Behind: lagoon), as the lidar's stepped shelf. A channel off the SW side, where the
+// swell comes from, is the lidar's deep slot (13-15 m) beside the outer reef: it lenses the swell onto the peak and down the
+// left (research/pipeline-reef lens.mjs: without the outer reefs and the channel, First Reef doesn't make a wave at all, the
+// shelf closes out). The deep floor (~2.75 m + 1:40 offshore) is close to the lidar's own (2.5 m at 60 m, 8.3 at 200, 10.5
+// at 300), on a steep (1:12) beach. Layout from a search over these knobs (research/pipeline-reef sweep.mjs). In the
+// builder's model, at 15-16 s from the WNW (dir -10): 5-8 ft breaks on First Reef (barrelling left 120-140 m, peel 24-34
+// deg, ridden in Pipe's barrel shapes at ~20-23 mph, and a Backdoor right), 10-11 ft on Second Reef (a barrelling left
+// 160-190 m), 15 ft breaks first out on Third Reef (steep, mostly closing out); in between it's a mess, as it is there, and a
+// more northerly swell (dir -5) turns First Reef into Backdoor. Smaller than the game's Pipe (~8 m faces): on the real reef
+// a wave that big breaks out on the outer reefs (test/pipeline.mjs).
+export const PIPELINE = {
+  coast: { face: 12, deep: true },
+  swell: { H: 1.8, T: 15, dir: -10 }, // (a classic First Reef day)
+  reefs: [
+    // { x' of the peak's apex, y', size, depth, slope (the peak's), left arm { angle, length, slope }, right arm, back }
+    { x: 1170, y: 520, size: 1, depth: 0.8, slope: '1:6', left: { angle: 30, length: 150, slope: '1:6' }, right: { angle: 45, length: 212, slope: '1:6' } },
+    { x: 1100, y: 470, size: 1.5, depth: 1.2, back: 'lagoon' }, // (apex 5.4 m: the lidar's and the usual 4.5-6 m; at 0.9, 4 m, First Reef only held to ~6 ft)
+    { x: 930, y: 500, size: 2.5, depth: 0.9, back: 'lagoon' },
+  ],
+  extra: [{ type: 'channel', x: 820, y: 440, rot: 30, length: 400, size: 2.5, depth: 0.4 }],
+};
+export function pipelinePreset(P = PIPELINE) {
+  const extra = (P.extra || []).map((e) => Object.assign(newBlock(e.type, e.x, e.y), e));
+  return extra.concat(P.reefs.flatMap((r) => {
+    const common = { size: r.size, depth: r.depth, ...(r.back ? { back: r.back } : {}) };
+    const arms = [[1, r.left], [-1, r.right]].filter(([, a]) => a).map(([side, a]) => Object.assign(newBlock('arm', r.x, r.y), { side, ...a }, common));
+    return [Object.assign(newBlock('peak', r.x, r.y), common, r.slope ? { slope: r.slope } : {}), ...arms];
+  }));
+}

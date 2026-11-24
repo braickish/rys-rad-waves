@@ -9,7 +9,7 @@ import { traceRays, analyse, tooSlow, isRide } from './rays.js';
 import { runPE } from './pewave.js';
 import { LOOP, curlAt, defaultLoop, clampLoop, loopInfo, snapEnd, bestLoop, wavePayload, takeoffStart } from './loop.js';
 import { encodeBuilt, BUILT_KEY, outfitFor } from '../waves/built.js';
-import { BLOCKS, SNAP, ARM_ANGLES, ARM_LENGTHS, ARM_SLOPES, BAR_CRESTS, DEPTHS, DEPTH_RANGE, TOP_DEPTH, SIZES, BACKS, blockLength, ROTATIONS, reefComponents, newBlock, dynamicPreset, beachPreset, stackedPreset, armRot, nearestArm } from './blocks.js';
+import { BLOCKS, SNAP, ARM_ANGLES, ARM_LENGTHS, ARM_SLOPES, BAR_CRESTS, DEPTHS, DEPTH_RANGE, TOP_DEPTH, SIZES, BACKS, blockLength, ROTATIONS, reefComponents, newBlock, dynamicPreset, beachPreset, stackedPreset, pipelinePreset, PIPELINE, armRot, nearestArm } from './blocks.js';
 
 const canvas = document.getElementById('map'), ctx = canvas.getContext('2d');
 // Heights and lengths are shown in feet (the user, 2026-11-22); the model works in metres underneath.
@@ -614,6 +614,12 @@ $('beach').onclick = () => {
   state.coast = defaultCoast(); state.coast.face = 20; showCoast(); state.blocks = beachPreset(); state.sel = null;
   state.swell.T = 12; syncSwell(); state.loop.a = state.loop.b = null; state.dirty = true; showSel(); schedule();
 };
+// Pipeline (blocks.js PIPELINE: First, Second and Third Reef laid out from the lidar, on a steep beach with deep water off it)
+const startPipeline = () => {
+  state.coast = Object.assign(defaultCoast(), PIPELINE.coast); state.blocks = pipelinePreset(); state.sel = null;
+  Object.assign(state.swell, PIPELINE.swell); state.loop.a = state.loop.b = null; state.dirty = true;
+};
+$('pipeline').onclick = () => { startPipeline(); syncSwell(); showCoast(); showSel(); schedule(); };
 $('reset').onclick = () => { state.coast = reefCoast(); showCoast(); state.blocks = dynamicPreset(); state.sel = null; state.dirty = true; showSel(); schedule(); };
 $('clear').onclick = () => { state.blocks = []; state.sel = null; state.dirty = true; showSel(); schedule(); };
 window.addEventListener('resize', () => { layout(); draw(); });
@@ -622,6 +628,7 @@ restore();
 { const dq = new URLSearchParams(location.search).get('dir'); if (dq != null) { state.swell.dir = Number(dq); syncSwell(); } } // (?dir=: testing)
 { const pk = Number(new URLSearchParams(location.search).get('pick')); if (pk > 0) { state.pick = pk; state.pickKey = null; } } // (?pick=1: open on the second wave, for testing)
 if (new URLSearchParams(location.search).get('preset') === 'stacked') { state.coast = reefCoast(); state.blocks = stackedPreset(); Object.assign(state.swell, { H: 3, T: 15, dir: 0 }); syncSwell(); state.dirty = true; } // (?preset=stacked: testing)
+if (new URLSearchParams(location.search).get('preset') === 'pipeline') startPipeline(); // (?preset=pipeline: testing)
 if (new URLSearchParams(location.search).get('preset') === 'beach') { state.coast = defaultCoast(); state.coast.face = 20; state.blocks = beachPreset(); state.swell.T = 12; syncSwell(); } // (?preset=beach: testing)
 { const q = new URLSearchParams(location.search).get('loop'); if (q) { state.loop.on = true; state.loop.side = q === 'left' ? 'left' : 'right'; } } // (?loop=right|left: start looped, for testing)
 syncSwell();
