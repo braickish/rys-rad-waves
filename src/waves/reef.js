@@ -1,6 +1,6 @@
 // Reef Barrel: a hollow right that throws a lip over into a tube. Crouch (or
 // balance) in the barrel; the whitewater behind it is a closing tube.
-import { KF_PIPE, sstep } from './shapes.js';
+import { KF_PIPE, sstep, withBore, pipeSOf } from './shapes.js';
 import { KF_SIM } from './sim-pipe.js';
 // The reef's shapes come from the 2D breaking-wave simulation (sim-pipe.js), at 1.2x size (the
 // user's pick, 2026-11-17). `?classic` (or CLASSIC=1 in node) brings back the earlier hand-built
@@ -23,18 +23,18 @@ const reef = {
   name: 'Pipe',
   walkKeys: true, shuffle: true, // (Up/Down and up/down swipes shuffle the feet back / middle / forward, rider.js; only Left/Right turn)
   kind: 'barrel',
-  keyframes: USE_SIM ? KF_SIM : KF_PIPE,
+  keyframes: USE_SIM ? withBore(KF_SIM, { from: 1.3, collapse: 1.65, sOf: pipeSOf }) : KF_PIPE, // (the tube collapsing into lasting whitewater: shapes.js withBore)
   board: 'shortboard', // a 6'6" thruster with plenty of rocker for the steep, hollow face (mesh.js BOARDS)
   scale: 1.75, rippleK: 1.5, // (ripples 1.5x finer, like Queens and Raglan but less: at 2x the distant flats seen from the barrel went grainy) much bigger than the point: a heavy, tall wave
   peelSpeed: 10.5, // peels fast: you have to race it (pointing up costs you more here)
   waveSpeed: 5.0,
   phase: { ahead: 14, behind: 13, behindFar: 22, farFrom: 1.3 }, // (the broken wave behind the closing tube lasts longer: behindFar) // a long tall wall ahead of the curl (like the reference photo); the tube runs further behind it
 
-  foam: (s, t) => (s > 1.5 && t > 9.5 ? 1 : 0),
+  foam: (s, t) => ((s > 1.5 && t > 9.5) || (s > 1.6 && t > 4.5) ? 1 : 0), // (from 1.65 the tube has collapsed into a foam wall: its whole front, t 4.5+)
   foamVisual: (s, t, xs) => {
     const front = sstep(3.5, 5.5, t); // the front half of the wave, not the back
     return Math.max(
-      sstep(1.4, 2.0, s) * front * (1 - sstep(10, 40, -xs) * 0.5), // whitewater behind the barrel
+      sstep(1.25, 1.55, s) * front * (1 - sstep(10, 40, -xs) * 0.5), // whitewater behind the barrel (from as the tube collapses)
       Math.exp(-(((t - 8.1) / 0.7) ** 2)) * sstep(0.45, 0.75, s) * (1 - sstep(1.7, 2.5, s)) * 0.95, // the lip crashing onto the water
       sstep(13.6, 14.3, t) * sstep(0.9, 1.3, s) * (1 - sstep(3, 6, s)) * 0.55, // where it lands
       sstep(4.0, 5.2, t) * (1 - sstep(8.6, 9.3, t)) * sstep(0.05, 0.3, s) * (1 - sstep(1.4, 1.8, s)) * 0.9, // the thrown lip: white and frothy across its outside and the curtain

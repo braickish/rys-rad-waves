@@ -37,7 +37,7 @@ export const sstep = (a, b, x) => { const u = Math.min(1, Math.max(0, (x - a) / 
 // A heavy, hollow reef barrel: the wall stands up suddenly, a thick lip
 // throws far out, and the tube is round to oval (about as tall as it is
 // wide), with water drawn off the reef in front (trough below sea level).
-export const KF_PIPE = [
+export const KF_PIPE_HEAD = [
   KF_BARREL[0],
   KF_BARREL[1],
   // Building: already a tall, steep wall ahead of the curl.
@@ -56,7 +56,73 @@ export const KF_PIPE = [
   // the tube is a tapered cylinder: the same round section, narrowing toward
   // the back (the user's model), lip and all.
   { s: 1.3, p: [[-40, 0], [-30, 0], [-8, 0.4], [-2.5, 2.3], [0.22, 3.11], [1.39, 3.38], [2.72, 3.23], [4.24, 2.33], [4.35, -0.44], [4.16, -0.41], [4.14, 1.68], [3.04, 3.01], [1.54, 2.53], [1.03, 0.87], [1.98, -0.75], [22, 0]] },
-  KF_BARREL[7],
-  KF_BARREL[8],
-  KF_BARREL[9],
 ];
+// (then the tube collapses into whitewater where its lip landed, and the whitewater lasts: withBore below; KF_PIPE is set
+// after it)
+
+// ---- Whitewater behind the curl (the user, 2026-11-23: once the lip hits the water everything behind it is broken,
+// connected whitewater) ----
+// How tall the broken wave stays: fraction of its height just after breaking, by seconds since it broke. From the FUNWAVE
+// runs behind Trestles (sim-trestles.js: 100% at 3 s, 96% at 6, 84% at 10, 67% at 15, 53% at 21, 37% at 30).
+export const BORE_DECAY = [[3, 1.0], [6, 0.96], [10, 0.84], [15, 0.67], [21, 0.53], [30, 0.37]];
+// A bore (a rolling wall of whitewater) as one keyframe: crest at z `zc`, `H` tall, its front `w` x H wide from the crest
+// to its base, a foam apron spreading 1.8 H ahead of that, then the toe; the back (points 2-3) taken from `back` and
+// scaled to the height. Points 5-13 sit along front and apron at `ts` (0-1 down the front, 1-2 across the apron): every
+// bore of a wave keeps one layout, so it can shrink and spread without points sliding along it.
+// BORE_TS: the layout after a closing tube: the tip (8) at the base of the wall, where the lip landed, 9-13 the apron.
+export const BORE_TS = [0.3, 0.55, 0.78, 1, 1.14, 1.3, 1.5, 1.72, 2];
+function boreCurve(t, zc, H, w) {
+  const zb = zc + w * H;
+  if (t > 1) { const a = Math.min(1, t - 1); return [zb + 1.8 * H * a, H * (0.15 * (1 - a) ** 1.6 + 0.02 * a)]; }
+  const a = [zc, H], b = [zc + 0.45 * w * H, 1.03 * H], c = [zb - Math.min(0.15, 0.09 / w) * w * H, (0.32 + 0.12 / w) * H], d = [zb, 0.15 * H], u = 1 - t;
+  return [0, 1].map((i) => u * u * u * a[i] + 3 * u * u * t * b[i] + 3 * u * t * t * c[i] + t * t * t * d[i]);
+}
+export function boreKF(s, { zc, H, w, back, ts = BORE_TS }) {
+  const hb = Math.max(...back.p.map((q) => q[1]), 1e-3), k = H / hb, zb = zc + w * H;
+  const toe = Math.min(21, zb + 2.6 * H);
+  return { s, p: [[-40, 0], [-30, 0], [back.p[2][0] * Math.min(1, k), back.p[2][1] * k], [back.p[3][0] * Math.min(1, k), back.p[3][1] * k],
+    [zc, H], ...ts.map((t) => boreCurve(t, zc, H, w)), [toe, -0.01 * H], [22, 0]] };
+}
+// The layout (ts) that matches a keyframe's own points 5-13: the same share of the way along points 4-14, measured on a
+// bore with the same crest and height.
+function matchTs(kf, w) {
+  const P = kf.p.slice(4, 15), H = Math.max(...kf.p.map((q) => q[1])), zc = kf.p[4][0];
+  const cum = [0]; for (let i = 1; i < P.length; i++) cum.push(cum[i - 1] + Math.hypot(P[i][0] - P[i - 1][0], P[i][1] - P[i - 1][1]));
+  const B = boreKF(0, { zc, H, w, back: kf, ts: Array.from({ length: 201 }, (_, i) => i / 100) }).p.slice(4, 4 + 202).concat([[Math.min(21, zc + w * H + 2.6 * H), 0]]);
+  const bc = [0]; for (let i = 1; i < B.length; i++) bc.push(bc[i - 1] + Math.hypot(B[i][0] - B[i - 1][0], B[i][1] - B[i - 1][1]));
+  return [1, 2, 3, 4, 5, 6, 7, 8, 9].map((i) => {
+    const want = (cum[i] / cum[cum.length - 1]) * bc[bc.length - 1];
+    let j = 1; while (j < bc.length - 1 && bc[j] < want) j++;
+    return Math.min(2, ((j - 1) + (want - bc[j - 1]) / Math.max(1e-6, bc[j] - bc[j - 1])) / 100);
+  });
+}
+// A wave's keyframes up to its last broken shape (`from`), then the bore tail. With `collapse` (a closing tube): the
+// cavity flattens along the bottom under the lip, then the tube collapses into a steep foam wall where its lip landed (at
+// s `collapse`). Then the whitewater relaxes into a broad bore and shrinks as BORE_DECAY. `sOf(t)`: the phase t seconds
+// after a spot broke (each wave's own rate). The last authored keyframe's height is the 100%.
+export function withBore(kf, { from, sOf, collapse }) {
+  const head = kf.filter((k) => k.s <= from), last = head[head.length - 1];
+  const H = Math.max(...last.p.map((q) => q[1])), zc = last.p[4][0], out = [...head];
+  let ts = matchTs(last, 2.6);
+  if (collapse != null) {
+    ts = BORE_TS;
+    const zt = last.p[8][0] + 0.3, Hc = 0.97 * H;
+    const wall = boreKF(collapse, { zc, H: Hc, w: Math.max(0.6, (zt - zc) / Hc), back: last });
+    // (half way: the front half way to the wall, the tip down on the water where it landed, the tube's inside (9-13)
+    // flattened along the bottom from the tip back to where the trough was)
+    const tip = [last.p[8][0], Math.max(last.p[8][1], 0.04 * H)], tr = last.p[14];
+    const mid = { s: (from + collapse) / 2, p: last.p.map((q, i) => {
+      if (i < 2 || i === 15) return q;
+      if (i <= 7) return [(q[0] + wall.p[i][0]) / 2, (q[1] + wall.p[i][1]) / 2];
+      if (i === 8) return tip;
+      const f = (i - 8) / 6; return [tip[0] + (tr[0] - tip[0]) * f, tip[1] + (Math.min(0, tr[1]) - tip[1]) * f];
+    }) };
+    out.push(mid, wall);
+  }
+  for (const [t, f] of BORE_DECAY) { const s = sOf(t); if (s > out[out.length - 1].s + 0.05) out.push(boreKF(s, { zc: zc * f, H: H * f, w: 2.6, back: last, ts })); }
+  return out;
+}
+
+// Pipe's phase t s after a spot broke (reef.js: 13 m per phase at 10.5 m/s up to phase 1.3, then 22 m: behindFar).
+export const pipeSOf = (t) => (t <= 1.61 ? t * 10.5 / 13 : 1.3 + (t - 1.61) * 10.5 / 22);
+export const KF_PIPE = withBore(KF_PIPE_HEAD, { from: 1.3, collapse: 1.65, sOf: pipeSOf });

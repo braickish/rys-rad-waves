@@ -8,7 +8,7 @@
 import raglanPlus, { KF_SECTION, KF_CRUMBLY } from './raglan-plus.js';
 import point from './point.js';
 import reef from './reef.js';
-import { KF_PIPE, sstep } from './shapes.js';
+import { KF_PIPE_HEAD, sstep, withBore } from './shapes.js';
 // (the wave model's shape state and tubeAt, handed over by wave.js once it has them: importing wave.js here would loop,
 // since it loads the wave list, which loads this)
 export const env = { SHAPE: { a: 0 }, tubeAt: () => 0 };
@@ -16,8 +16,10 @@ export const env = { SHAPE: { a: 0 }, tubeAt: () => 0 };
 // The barrel end of the scale (plan step 7): Pipe's classic hand-built barrel (KF_PIPE: the wall stands up, the lip throws
 // into a round tube), scaled to the height of Raglan+'s section shape so blending toward it changes the shape, not the size.
 const peak = (kf, s0) => Math.max(...kf.find((k) => k.s === s0).p.map((q) => q[1]));
-const kTube = peak(KF_SECTION, -0.25) / peak(KF_PIPE, -0.25);
-export const KF_TUBE = KF_PIPE.map(({ s, p }) => ({ s, p: p.map(([z, y]) => [z * kTube, y * kTube]) }));
+const kTube = peak(KF_SECTION, -0.25) / peak(KF_PIPE_HEAD, -0.25);
+// (then collapsing into whitewater where the lip lands, at Raglan+'s rate: 8.5 m of phase at 7.6 m/s, 1.12 s per unit)
+export const KF_TUBE = withBore(KF_PIPE_HEAD.map(({ s, p }) => ({ s, p: p.map(([z, y]) => [z * kTube, y * kTube]) })),
+  { from: 1.3, collapse: 1.65, sOf: (t) => t * 7.6 / 8.5 });
 const pipeFaceTop = (s) => 5.3 + (11.9 - 5.3) * sstep(-0.3, 0.2, s); // (Pipe's classic: the rideable face tops out under the roof once the lip throws)
 
 const FALLBACK = { v: 1, mode: 'loop', side: 'left', length: 200, base: 7.6, H: 2.1, profile: [{ s: 0, peel: 7.6, k: 0, H: 2.1 }, { s: 200, peel: 7.6, k: 0, H: 2.1 }] };

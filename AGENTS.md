@@ -59,6 +59,13 @@ waves with ridges (Raglan+, built waves) the curl's speed varies, so the water b
 curl passed it (wave.js `PASSED` history, `behindDist`), at the wave's own pace (`peelSpeed`), as Trestles' bar does. A
 steady wave at that pace looks exactly as before; behind a fast section a long stretch is at nearly the same stage.
 `node test/phasetime.mjs`.
+**Whitewater that lasts, tubes that collapse** (2026-11-23, same ask): shapes.js `withBore` replaces each wave's shapes after
+its last broken keyframe with a bore (`boreKF`: a rolling foam wall, its base and a foam apron ahead) that keeps FUNWAVE's
+heights (`BORE_DECAY`: 100% at 3 s, 96% 6 s, 84% 10 s, 67% 15 s, 53% 21 s, 37% 30 s), by each wave's own phase rate (`sOf`).
+Barrels (Pipe's sim and classic shapes, the built tube) first collapse: the cavity flattens under the lip (half way to
+`collapse`), then a steep foam wall stands where the lip landed (`collapse` 1.65; the tip, point 8, stays at its base,
+so the lip never pulls back up). Raglan, Raglan+ and built waves get the lasting whitewater; Queens and Trestles are
+unchanged. Far behind, the bore holds ~2/3 height (the GPU table ends at phase 15). Riding tests unchanged.
 
 **Feet on every wave** (2026-11-18, the user: carry Queens's Up/Down walking to the other waves): all waves have
 `walkKeys`, so Up/Down (and up/down swipes) move the feet and only Left/Right turn. On Queens they walk the longboard

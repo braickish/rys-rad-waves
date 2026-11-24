@@ -1,7 +1,7 @@
 // Raglan (was Mellow Point): a long, crumbling point wave. The crest spills foam down the face
 // instead of throwing a lip, so there's no barrel; speed lives in the pocket,
 // and the moves are snaps, floaters and rebounds off the whitewater.
-import { KF_BARREL, KF_CRUMBLE, sstep } from './shapes.js';
+import { KF_BARREL, KF_CRUMBLE, sstep, withBore } from './shapes.js';
 
 // Raglan's shape (raglan-1/2.png in braickish/reference-images, 2026-11-18, the user): a long, even point wall.
 // Ahead of the curl the face stays steep and nearly full height a long way down the line (the shoulder holds its
@@ -9,14 +9,16 @@ import { KF_BARREL, KF_CRUMBLE, sstep } from './shapes.js';
 // Blends of the shared sections, so the curve never overhangs and the points stay in order.
 const mixKF = (a, b, w, s) => ({ s, p: a.p.map((pa, i) => [pa[0] + (b.p[i][0] - pa[0]) * w, pa[1] + (b.p[i][1] - pa[1]) * w]) });
 const SWELL = KF_BARREL[1], BUILD = KF_BARREL[2], STEEP = KF_CRUMBLE[3]; // (a small swell; 2.2 tall and gentle; 2.95 tall and steep, s -0.25)
-const KF_RAGLAN = [
+// Behind the curl (2026-11-23): the whitewater stays tall and shrinks slowly, as FUNWAVE's does (shapes.js withBore; 8.5 m
+// of phase at 8.3 m/s: 1.02 s per unit).
+const KF_RAGLAN = withBore([
   KF_BARREL[0], // flat, far ahead (s -14)
   mixKF(SWELL, BUILD, 0.5, -9), // swell building ~90 m down the line
   mixKF(BUILD, STEEP, 0.3, -6), // a wall standing up (~2.4 tall)
   mixKF(BUILD, STEEP, 0.7, -3.5), // ~35 m out: steep and ~2.7 tall
   mixKF(BUILD, STEEP, 0.9, -1.2), // ~12 m out: nearly the full steep wall
   ...KF_CRUMBLE.slice(3),
-];
+], { from: 1.2, sOf: (t) => t * 8.3 / 8.5 });
 
 // The spill of foam from the crest down the face (physics and looks share it).
 function spill(s, t) {
