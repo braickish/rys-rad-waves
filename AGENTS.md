@@ -57,8 +57,9 @@ rides). crest.mjs runs Raglan+ without ridges. GPU ~+1 ms.
 **Built barrels: the almond and the ledge** (2026-11-24, the user). The built waves' barrel (shapes.js `KF_ALMOND_HEAD`, Real
 and Fun) is an almond: the lip throws out and curves down to land in front, the back wall rises concave, the opening leans
 forward, ~0.89x the breakers tall (2.66 m on 3 m), so it fits from ~1.5 m breakers. Past it, **the ledge** (`KF_LEDGE_HEAD`,
-after Teahupoo: a near-vertical wall up from deep water; a short back, the trough drawn under the water, a lip half the wave
-thick thrown far out and landing below sea level, a round tube as wide as it's tall): the shape scale runs 0-4 (crumbly,
+after Teahupoo: a near-vertical wall up from deep water; a short back, a lip half the wave thick thrown far out, a round tube
+as wide as it's tall; down at the water the same reference as every other shape, the trough ~-0.45 and the flats untouched,
+the user: no dipping where a wave is a ledge): the shape scale runs 0-4 (crumbly,
 wall, steep section, barrel, ledge). The builder reads it from rays.js `step` (the steepest seabed within 30 m seaward of the
 break: an arm ~0.10-0.15, the Ledge block ~0.20-0.25) on a hollow wave (loop.js `shapeIndex`, `ledgeK`); the Ledge block is
 now a true ledge (8 m wall on a 1:1 face, was 4 m on 1:3) and the curl is drawn in its own colour there. A ledge in front of a
