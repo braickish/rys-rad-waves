@@ -270,7 +270,10 @@ fn coarseTex(q: vec2f, t: f32) -> f32 {
   // as it ages (holes and streaks opening up), in place of a flat fade by distance.
   let broken = i.lumpK * smoothstep(0.2, 0.6, foamAmt);
   let age = smoothstep(3.0, 12.0, phase);
-  let fA = foamAmt * (1.0 - 0.75 * smoothstep(1.3, 2.0, phase) * smoothstep(12.5, 15.0, tcol)); // (the apron: from the bore on)
+  // (the apron, from the curl on: thinning past the bore's foam apron (t 12.5) to nothing by the toe (t 14.2), not painted
+  // on across the open flats in front of the wave: there it ended in a long straight edge right at the curl, jutting out
+  // toward the camera when you fell behind; the user, 2026-11-23. Ragged by the foam's own noise.)
+  let fA = foamAmt * (1.0 - smoothstep(0.8, 1.4, phase) * smoothstep(12.3 + 0.6 * fn1, 14.2, tcol));
   var foam = clamp(fA * 1.6 - (1.0 - fn1) * (0.9 + 0.8 * age), 0.0, 1.0);
   // ... and rough: its own lumpy light (bigger bumps rolling toward the shore), a little uneven brightness.
   let lb = vec2f((ax + F.flow.x) * 0.9, i.wpos.z * 0.9 + i.wpos.y * 0.5 - t * 1.6) * F.misc.y;

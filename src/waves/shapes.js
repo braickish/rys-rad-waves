@@ -85,7 +85,7 @@ export function boreKF(s, { zc, H, w, back, ts = BORE_TS }) {
 }
 // The layout (ts) that matches a keyframe's own points 5-13: the same share of the way along points 4-14, measured on a
 // bore with the same crest and height.
-function matchTs(kf, w) {
+export function matchTs(kf, w = 2.6) {
   const P = kf.p.slice(4, 15), H = Math.max(...kf.p.map((q) => q[1])), zc = kf.p[4][0];
   const cum = [0]; for (let i = 1; i < P.length; i++) cum.push(cum[i - 1] + Math.hypot(P[i][0] - P[i - 1][0], P[i][1] - P[i - 1][1]));
   const B = boreKF(0, { zc, H, w, back: kf, ts: Array.from({ length: 201 }, (_, i) => i / 100) }).p.slice(4, 4 + 202).concat([[Math.min(21, zc + w * H + 2.6 * H), 0]]);
@@ -100,22 +100,27 @@ function matchTs(kf, w) {
 // cavity flattens along the bottom under the lip, then the tube collapses into a steep foam wall where its lip landed (at
 // s `collapse`). Then the whitewater relaxes into a broad bore and shrinks as BORE_DECAY. `sOf(t)`: the phase t seconds
 // after a spot broke (each wave's own rate). The last authored keyframe's height is the 100%.
-export function withBore(kf, { from, sOf, collapse }) {
+// `ts` (optional): the bore's point layout, for a set blended point by point with another (a built wave's tube set takes its
+// section set's, or the blend of the two bores bulged into a step behind the curl; the user, 2026-11-23).
+export function withBore(kf, { from, sOf, collapse, ts: tsOver }) {
   const head = kf.filter((k) => k.s <= from), last = head[head.length - 1];
   const H = Math.max(...last.p.map((q) => q[1])), zc = last.p[4][0], out = [...head];
-  let ts = matchTs(last, 2.6);
+  let ts = tsOver || matchTs(last, 2.6);
   if (collapse != null) {
-    ts = BORE_TS;
+    ts = tsOver || BORE_TS;
     const zt = last.p[8][0] + 0.3, Hc = 0.97 * H;
-    const wall = boreKF(collapse, { zc, H: Hc, w: Math.max(0.6, (zt - zc) / Hc), back: last });
-    // (half way: the front half way to the wall, the tip down on the water where it landed, the tube's inside (9-13)
-    // flattened along the bottom from the tip back to where the trough was)
-    const tip = [last.p[8][0], Math.max(last.p[8][1], 0.04 * H)], tr = last.p[14];
+    const wall = boreKF(collapse, { zc, H: Hc, w: Math.max(0.6, (zt - zc) / Hc), back: last, ts });
+    // (half way: the front half way to the wall, the tip down on the water where it landed, the tube's inside (9-14)
+    // closed in onto the tip, just starting to spread forward toward the wall's apron. It used to lie flattened along the
+    // bottom back to the trough: hidden behind the curtain in a full barrel, but on a half-barrel (a built wave between the
+    // section and tube shapes, blended point by point) the curtain is half thrown and that fold showed as an edge jutting
+    // out behind the curl; the user, 2026-11-23)
+    const tip = [last.p[8][0], Math.max(last.p[8][1], 0.04 * H)];
     const mid = { s: (from + collapse) / 2, p: last.p.map((q, i) => {
       if (i < 2 || i === 15) return q;
       if (i <= 7) return [(q[0] + wall.p[i][0]) / 2, (q[1] + wall.p[i][1]) / 2];
       if (i === 8) return tip;
-      const f = (i - 8) / 6; return [tip[0] + (tr[0] - tip[0]) * f, tip[1] + (Math.min(0, tr[1]) - tip[1]) * f];
+      const f = 0.12 * (i - 8) / 6; return [tip[0] + (wall.p[i][0] - tip[0]) * f, tip[1] + (wall.p[i][1] - tip[1]) * f];
     }) };
     out.push(mid, wall);
   }

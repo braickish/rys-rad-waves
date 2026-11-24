@@ -391,7 +391,8 @@ canvas.addEventListener('pointermove', (e) => {
   // ridges snap onto an arm, lined up along it
   if (b.type === 'ridge') {
     const on = nearestArm(state.blocks, nx, ny);
-    if (on) { b.rot = armRot(on.arm); nx = Math.round(on.x); ny = Math.round(on.y); if (state.sel === b) showSel(); }
+    // (lined up with the arm, unless you've set its Turn yourself: then it keeps your angle (the user, 2026-11-23: dragging reset it))
+    if (on) { if (!b.rotSet) b.rot = armRot(on.arm); nx = Math.round(on.x); ny = Math.round(on.y); if (state.sel === b) showSel(); }
   }
   if (nx !== b.x || ny !== b.y) {
     for (const k of drag.kids) { k.x += nx - b.x; k.y += ny - b.y; }
@@ -476,7 +477,7 @@ function showSel() {
   if (b.type === 'arm') el.appendChild(opt('Length', ARM_LENGTHS, b.length, (v) => `${ft(v * (b.size || 1))} ft`, (v) => { b.length = v; }));
   if (b.type === 'arm' || b.type === 'peak') el.appendChild(opt('Slope', ARM_SLOPES.map(([g]) => g), b.slope || '1:10', (v) => ARM_SLOPES.find(([g]) => g === v)[1], (v) => { b.slope = v; }));
   if (b.type === 'ridge' || b.type === 'channel' || b.type === 'sandbar') {
-    el.appendChild(opt('Turn', ROTATIONS, b.rot, (v) => `${v}°`, (v) => { b.rot = v; }));
+    el.appendChild(opt('Turn', ROTATIONS, b.rot, (v) => `${v}°`, (v) => { b.rot = v; b.rotSet = true; })); // (yours now: a ridge snapping onto an arm keeps it)
     el.appendChild(opt('Length', b.type === 'ridge' ? [50, 80, 120] : b.type === 'sandbar' ? [100, 160, 240] : [140, 220, 320], b.length, (v) => `${ft(v * (b.size || 1))} ft`, (v) => { b.length = v; }));
   }
   el.appendChild(opt('Size', SIZES.map(([z]) => z), b.size || 1, (v) => SIZES.find(([z]) => z === v)[1], (v) => { b.size = v; if (b.type === 'peak') for (const q of state.blocks) if ((q.type === 'arm' || q.type === 'ledge') && q.x === b.x && q.y === b.y) q.size = v; })); // (a peak's size goes to its arms too)
