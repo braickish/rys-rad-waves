@@ -491,6 +491,19 @@ same step whatever its frame rate. Found on the way: the "same move again" penal
 `lastMoveTime` (each ride's clock starts at 0), so a new ride's first move could score 40%; reset each ride now.
 `SIM_VERSION` (replay.js): bump it when a physics change would make old recordings ride differently.
 
+## Share video (`src/video.js`; plans/2026-11-24-share-ride-video.md step 1, 2026-11-24)
+
+**↗ Share video** on the game-over card and the score sheet (hidden where the browser has no WebCodecs) makes the last ride
+into an MP4 on the device: the replay re-runs as it plays (same camera and look) with the main loop at a fixed 1/30 s a
+frame (`vid` in main.js: `dt` fixed, the next frame only once the encoder is ready); right after each frame is drawn
+(`videoFrame`, same task: a WebGPU canvas is only readable until it's shown) it's copied to a 2D canvas at the video's size
+(the canvas's, long side at most 1920, even) and Mediabunny's `CanvasSource` encodes it (H.264, 8 Mbit/s, keyframe every
+2 s) into an in-memory MP4. Mediabunny 1.65.0 is imported from jsDelivr only when a video is made. A progress panel
+(`#video`, Cancel / Esc) covers the game; at the end, **↗ Share** opens the share sheet (`navigator.share({ files })`, needs
+the tap) where the browser can share files, else downloads; **⬇ Save video** downloads. Videos stop at 90 s. No sound yet.
+Runs about real time on a laptop. `window.__video` is for tests; `node test/video.mjs` (MOBILE=1 for a phone) rides, makes
+the video, checks frames/size and that a `<video>` plays it, and saves test/out/ride.mp4.
+
 ## Competition judging (`?judge`, src/judging.js; the user, 2026-11-22: a start, later heats against other players)
 
 WSL-style: five judges score each wave 0-10, the high and low dropped, the middle three averaged; a heat keeps the best two

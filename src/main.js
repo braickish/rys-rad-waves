@@ -4,6 +4,7 @@ import { PEEL_SPEED, slice, verticalHits, WAVE, phaseAt, toWorld, waveDir, stepR
 import { createRideLog, logStep, scoreRide, heatTotal } from './judging.js';
 import { WAVES } from './waves/index.js';
 import { SEA, nextWave, stepSea, seedSea, goToWave } from './sea.js';
+import { canMakeVideo, createVideo, shareVideo, saveVideo, VIDEO } from './video.js';
 import { createRecording, recordStep, finishRecording, encodeRecording, decodeRecording, createPlayer, playerStep, playerEnd } from './replay.js';
 import { applyBuilt } from './waves/built.js';
 import { parseHeatParam, createHeat, stepHeat, canCatch, addWave, checkOver, standings, judgeSeed, clockText, you as heatYou } from './heat.js';
@@ -215,6 +216,7 @@ const touch = { turn: 0, tilt: 0, crouch: false };
 addEventListener('keydown', (e) => {
   if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) e.preventDefault();
   keys.add(e.code);
+  if (vid || !$('video').hidden) { if (e.code === 'Escape') closeVideo(); return; } // (making or showing a video: Space doesn't paddle out under it)
   if (e.code === 'KeyC') camMode = (camMode + 1) % 2;
   if (e.code === 'Escape' && player) { exitReplay(); return; }
   // On the longboard wave Space walks the board while riding (back -> middle -> front -> middle -> back); otherwise it drops in.
@@ -352,6 +354,7 @@ function startReplay(rec) {
 }
 // After a replay: did it ride the same as the recording?
 function showReplayEnd(s) {
+  if (vid) { player = null; $('replay-badge').hidden = true; vid.ending = true; return; } // (making a video: this frame is its last, tick finishes it)
   const rec = player.rec, e = playerEnd(player, rider), j = rec.result?.judge || { seed: 1, seen: [] };
   const judged = scoreRide(rideLog, { size: (WAVE.sizeK || 1) * SIZE, seed: j.seed, seen: new Set(j.seen) }).score;
   const was = rec.result || {};
@@ -374,6 +377,7 @@ function showReplayEnd(s) {
 }
 // Leave a replay part way (the badge's ✕, or Esc): back to the results it came from, or the end card.
 function exitReplay() {
+  if (vid) { closeVideo(); return; }
   if (!player) return;
   player = null;
   $('replay-badge').hidden = true;
@@ -384,7 +388,81 @@ function exitReplay() {
 }
 $('replay-badge').addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); exitReplay(); });
 // The replay buttons on the game-over card and the score sheet (the last ride's recording).
-function showReplayButtons() { for (const b of document.querySelectorAll('.replay-btns')) b.hidden = !lastRecording; }
+function showReplayButtons() {
+  for (const b of document.querySelectorAll('.replay-btns')) b.hidden = !lastRecording;
+  for (const b of document.querySelectorAll('.replay-btns [data-act="share"]')) b.hidden = !canMakeVideo(); // (no WebCodecs: Save replay only)
+}
+
+// Share video (plans/2026-11-24-share-ride-video.md step 1): the last ride's replay, as it plays, made into an MP4 on the
+// device (src/video.js) and handed to the share sheet. While it's made, tick runs one game frame per video frame (a fixed
+// 1/30 s, however long the frame takes to draw and encode) and copies each into the video as soon as it's drawn.
+let vid = null; // ({ enc, rec, back, ending, p }: the video being made)
+let madeVideo = null; // ({ blob, name }: the last one made, for the panel's Share / Save)
+const videoPanel = (title, { bar = 0, note = '', ready = false, cancel = '✕ Cancel' } = {}) => {
+  $('video').hidden = false;
+  $('video-title').textContent = title;
+  $('video-bar').style.width = `${Math.round(bar * 100)}%`;
+  $('video-bar').parentElement.hidden = ready;
+  $('video-note').textContent = note;
+  $('video-share').hidden = !ready; $('video-save').hidden = !ready;
+  $('video-close').textContent = cancel;
+};
+async function startVideo() {
+  if (vid || !lastRecording || player) return;
+  const back = ['over', 'judge'].find((id) => !$(id).hidden) || 'over';
+  const rec = decodeRecording(encodeRecording(lastRecording));
+  videoPanel('Making your video…', { note: 'getting the encoder ready' });
+  let enc;
+  try { enc = await createVideo(canvas); } catch (err) { videoPanel("Couldn't make a video", { note: err.message, cancel: 'Close' }); vid = null; madeVideo = null; $('video').dataset.back = back; return; }
+  if ($('video').hidden) { enc.cancel(); return; } // (closed while it got ready)
+  vid = { enc, rec, back, ending: false, p: null, total: Math.min(VIDEO.maxSeconds, rec.steps * rec.step) };
+  startReplay(rec);
+  $('replay-badge').hidden = true;
+  for (const id of ['over', 'judge']) $(id).hidden = true;
+  videoPanel('Making your video…', { note: `${enc.w}×${enc.h}` });
+}
+// Called each frame while making one, right after the frame is drawn (the canvas is only readable in this task).
+function videoFrame() {
+  const v = vid;
+  if (v.enc.seconds >= VIDEO.maxSeconds) v.ending = true; // (a long ride: the video stops here)
+  v.p = v.enc.capture();
+  $('video-bar').style.width = `${Math.min(100, Math.round(100 * v.enc.seconds / v.total))}%`;
+  if (v.ending) v.p = v.p.then(() => finishVideo(v));
+  return v.p.catch((err) => videoFailed(v, err));
+}
+async function finishVideo(v) {
+  if (vid !== v) return;
+  videoPanel('Finishing…', { bar: 1 });
+  const blob = await v.enc.finish();
+  vid = null; player = null; state = 'over';
+  const name = `rys-rad-waves-${v.rec.wave}-${new Date().toISOString().slice(0, 16).replace(/[:T-]/g, '')}.mp4`;
+  madeVideo = { blob, name, title: `My ride at ${WAVE.name} · Ry's Rad Waves` };
+  window.__video = { size: blob.size, frames: v.enc.frames, w: v.enc.w, h: v.enc.h, seconds: v.enc.seconds, blob }; // (test/video.mjs)
+  $('video').dataset.back = v.back;
+  videoPanel('Your video is ready', { ready: true, note: `${v.enc.seconds.toFixed(1)} s · ${(blob.size / 1e6).toFixed(1)} MB`, cancel: '✕ Close' });
+}
+function videoFailed(v, err) {
+  if (vid !== v) return;
+  v.enc.cancel(); vid = null; player = null; state = 'over';
+  $('video').dataset.back = v.back;
+  videoPanel("Couldn't make a video", { note: err?.message || String(err), cancel: 'Close' });
+}
+// Cancel (while it's made) or close: back to the card it was made from.
+function closeVideo() {
+  if (vid) { vid.enc.cancel(); $('video').dataset.back = vid.back; vid = null; player = null; state = 'over'; }
+  $('replay-badge').hidden = true;
+  $('video').hidden = true;
+  const back = $('video').dataset.back || 'over';
+  if (state !== 'play') $(back).hidden = false;
+}
+$('video').addEventListener('pointerdown', (e) => e.stopPropagation());
+$('video-close').addEventListener('click', (e) => { e.stopPropagation(); closeVideo(); });
+$('video-share').addEventListener('click', async (e) => {
+  e.stopPropagation(); if (!madeVideo) return;
+  const r = await shareVideo(madeVideo.blob, madeVideo.name, madeVideo.title);
+  if (r === 'saved') $('video-note').textContent = 'Saved to your downloads: post it from there';
+});
+$('video-save').addEventListener('click', (e) => { e.stopPropagation(); if (madeVideo) saveVideo(madeVideo.blob, madeVideo.name); });
 function saveReplay() {
   const r = lastRecording; if (!r) return;
   const a = document.createElement('a');
@@ -394,7 +472,7 @@ function saveReplay() {
 }
 for (const b of document.querySelectorAll('.replay-btns button[data-act]')) { // (the end card's and the sheet's; the results card's has its own)
   b.addEventListener('pointerdown', (e) => e.stopPropagation()); // (a tap elsewhere on the card paddles back out)
-  b.addEventListener('click', (e) => { e.stopPropagation(); if (b.dataset.act === 'save') saveReplay(); else if (lastRecording) startReplay(decodeRecording(encodeRecording(lastRecording))); });
+  b.addEventListener('click', (e) => { e.stopPropagation(); if (b.dataset.act === 'save') saveReplay(); else if (b.dataset.act === 'share') startVideo(); else if (lastRecording) startReplay(decodeRecording(encodeRecording(lastRecording))); });
 }
 $('results').addEventListener('pointerdown', (e) => { e.preventDefault(); startOrRestart(); });
 $('results-watch').addEventListener('pointerdown', (e) => e.stopPropagation());
@@ -884,7 +962,7 @@ async function main() {
   if (params.has('cam')) camMode = Number(params.get('cam')) || 0;
   let last = performance.now(), acc = 0, frame = 0, time = 0, flow = 0;
   function tick(now) {
-    const dt = Math.min(0.05, (now - last) / 1000);
+    const dt = vid ? 1 / VIDEO.fps : Math.min(0.05, (now - last) / 1000); // (making a video: one video frame of ride per frame drawn)
     last = now;
     time += dt;
     flow += PEEL_SPEED * dt; // (the water texture flows with the peel; added up so a change of speed doesn't jump it)
@@ -1018,7 +1096,8 @@ async function main() {
       $('balance-needle').style.top = `${94 - h * 88}%`; // up = higher on the face
       bm.classList.toggle('danger', d > 0.85 || h > 0.85);
     }
-    requestAnimationFrame(tick);
+    if (vid && !vid.p) videoFrame().then(() => { if (vid) vid.p = null; requestAnimationFrame(tick); }); // (the next frame once the encoder's ready for it)
+    else requestAnimationFrame(tick);
   }
   requestAnimationFrame(tick);
 }

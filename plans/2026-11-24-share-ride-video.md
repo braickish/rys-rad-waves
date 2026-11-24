@@ -31,7 +31,11 @@ game's riding and replays are unchanged by this work.
   only WebM, which Instagram may reject).
 - Not ffmpeg.wasm (a 25+ MB download, slow, software encoding) or Remotion (server-side rendering).
 
-## 1. Prototype: the replay as it is, to a video, to your Instagram
+## 1. Prototype: the replay as it is, to a video, to your Instagram (built 2026-11-24)
+
+Done: src/video.js, AGENTS.md "Share video", test/video.mjs (a 6.4 s ride: 192 frames, 1280x720, 6.4 MB, made in ~7 s;
+as a phone 780x1688, 4.1 MB). Left for the user: post one from a phone. The plan as written:
+
 
 - The end-of-wave card's **⬇ Save replay** becomes **Share video** (Save replay stays, smaller, for the .json).
 - Share video: re-runs the last ride's recording (the replay as it plays today, the same camera and look) offscreen at a fixed

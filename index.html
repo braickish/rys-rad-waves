@@ -48,6 +48,15 @@
   .replay-btns[hidden] { display: none; }
   .replay-btns button { font: 600 14px Rubik, sans-serif; color: #fff; background: rgba(255,255,255,.14); border: 1px solid rgba(255,255,255,.35); border-radius: 999px; padding: 7px 14px; cursor: pointer; }
   .replay-btns button:hover { background: rgba(255,255,255,.24); }
+  .replay-btns button.share-btn { background: var(--pink); border-color: #fff; }
+  .replay-btns button.share-btn:hover { background: #ff5aa0; }
+  .replay-btns button[hidden] { display: none; }
+  #video { background: rgba(11,26,36,.35); z-index: 20; }
+  #video .card { background: rgba(11,26,36,.85); padding: 20px 22px; border-radius: 14px; width: min(360px, 100%); }
+  #video-title { font-family: Bungee, sans-serif; font-size: 18px; margin-bottom: 12px; }
+  .vbar { height: 10px; border-radius: 5px; background: rgba(255,255,255,.18); overflow: hidden; margin-bottom: 12px; }
+  #video-bar { height: 100%; width: 0; background: var(--teal); }
+  #video-note { margin: 0 0 14px; }
   .replay-note { font-size: 13px; opacity: .8; margin: -10px 0 14px; }
   .replay-note:empty { display: none; }
   #replay-badge { position: fixed; top: 14px; left: 50%; transform: translateX(-50%); font: 700 13px Rubik, sans-serif; letter-spacing: .12em; color: #fff; background: rgba(230,40,110,.85); padding: 5px 6px 5px 12px; border-radius: 999px; border: 0; cursor: pointer; display: flex; align-items: center; gap: 10px; }
@@ -188,7 +197,7 @@
     <div class="big" id="over-score">0</div>
     <div style="margin:6px 0 18px">points in <span id="over-time">0</span>s</div>
     <div id="over-note" class="replay-note"></div>
-    <div class="replay-btns" hidden><button data-act="watch">▶ Watch it</button><button data-act="save">⬇ Save replay</button></div>
+    <div class="replay-btns" hidden><button data-act="share" class="share-btn">↗ Share video</button><button data-act="watch">▶ Watch it</button><button data-act="save">⬇ Save replay</button></div>
     <div class="go"><span class="desk">Space to paddle back out</span><span class="mob">Tap to paddle back out</span></div>
   </div>
 </div>
@@ -202,8 +211,17 @@
     <div class="sheet-judges" id="judge-panel"></div>
     <div class="sheet-heat" id="judge-heat"></div>
     <div class="sheet-reason" id="judge-reason"></div>
-    <div class="replay-btns" hidden><button data-act="watch">▶ Watch it</button><button data-act="save">⬇ Save replay</button></div>
+    <div class="replay-btns" hidden><button data-act="share" class="share-btn">↗ Share video</button><button data-act="watch">▶ Watch it</button><button data-act="save">⬇ Save replay</button></div>
     <div class="go" id="judge-go"><span class="desk">Space to paddle back out</span><span class="mob">Tap to paddle back out</span></div>
+  </div>
+</div>
+
+<div class="panel" id="video" hidden>
+  <div class="card">
+    <div id="video-title">Making your video…</div>
+    <div class="vbar"><div id="video-bar"></div></div>
+    <div id="video-note" class="replay-note"></div>
+    <div class="replay-btns"><button id="video-share" class="share-btn" hidden>↗ Share</button><button id="video-save" hidden>⬇ Save video</button><button id="video-close">✕ Cancel</button></div>
   </div>
 </div>
 
