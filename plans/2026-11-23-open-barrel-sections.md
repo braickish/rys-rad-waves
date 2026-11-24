@@ -20,13 +20,22 @@ factors (fix causes); the other waves stay unchanged.
   with spots on both sides that haven't broken yet, already makes a short tube with an opening at each end. The ends are
   just the unbroken wall standing up on either side.
 
-## 1. Break times in the payload (builder)
+## 1. Break times in the payload (builder) (done 2026-11-23)
 
-- loop.js `wavePayload`: per profile point, the time it breaks on its own (`tb`, s after the stretch's start), next to
-  `peel`. Loops: times wrap with the lap (the seam crossfade as for the other keys).
-- builder.html: draw a section that breaks ahead (own time earlier than the curl's) in its own color, with both ends
-  marked, so you can see it before you drop in.
-- Test: test/builder.mjs: a reef bump ahead of the line (a focusing lump) gives a stretch with `tb` earlier than the curl.
+- **The builder used to end the ride at such a section.** A stretch breaking > 1.5 s earlier ("meets water breaking the
+  other way") or the break line jumping out to a bommie ("reaches the end of the reef") ended the side. Now (rays.js
+  `sectionThrough`, `RAYS.sectionMax` 40 m) the walk looks past it: if within 40 m along the line it comes back onto the
+  line it was following, still unbroken when the curl gets there, the stretch is a section the curl runs through (its
+  strips put on that line, with their own break times), and the closeout rule skips it. A jump to water breaking later
+  (the reef's end) and water that broke long before (the inside) still end the ride. Plain Dynamic is unchanged.
+- Curl points keep their own break time (`tb`; `t` stays the curl's running max). The payload carries, per profile point,
+  how many seconds before the curl gets there it breaks on its own (`e`, only where > 0.05): a lead, not an absolute time,
+  because the game's curl keeps its own clock (it runs along the crest at `peel`, slower than the builder's `v` along
+  the break line). Step 2 places the section by the game's own curl arrival minus `e`.
+- Builder map: white dots over the curl through such a section and a white bar across the line at each end; legend entry.
+- test/builder.mjs: a pinnacle at (920, 440) by Dynamic's right arm makes a 14 m stretch breaking up to 3.2 s ahead,
+  the ride carries on to 236 m (it ended at ~80 before); plain Dynamic has none. A 10 ft 9 s +35 swell on Dynamic now also
+  lists an inside wave B (left, 49 deg) whose line runs through a short section.
 
 ## 2. The game places the water by break time (built waves)
 

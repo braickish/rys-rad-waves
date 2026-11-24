@@ -20,7 +20,12 @@ export const RAYS = { gamma: 0.78, closeout: 25, backoff: 70, jump: 40, kw: 10, 
   // bar) it falls below the height it can hold breaking and stops: it has reformed (H / h under `reform`, between the
   // stable 0.4 and the ~0.5 at which broken waves are seen to stop breaking), shoals again on the next reef and breaks
   // again at H >= gamma h. Up to `breaks` breaks per ray.
-  ddK: 0.15, ddGamma: 0.4, reform: 0.45, breaks: 3 };
+  ddK: 0.15, ddGamma: 0.4, reform: 0.45, breaks: 3,
+  // A stretch ahead that breaks on its own before the curl gets there (a bommie or a lump focusing the swell; the user,
+  // 2026-11-23: a barrel section you ride through, open at both ends): up to `sectionMax` m along the line, with the line
+  // carrying on beyond it, it's a section the curl runs through at once (the game's own rule for Trestles, bar.sectionMax);
+  // longer, or with nothing beyond, the wave ends there (it meets water breaking the other way: the inside closing out).
+  sectionMax: 40 };
 
 // How it breaks, by the surf-similarity number xi0 = tan(beta) / sqrt(H0 / L0) (Iribarren; Battjes 1974: spilling < 0.5,
 // plunging 0.5-3.3, surging above). Mead & Black (2001) tie reef breaking intensity to the same seabed slope along the
@@ -273,17 +278,49 @@ export function analyse(R, grid, opts = {}) {
   return { ...waves[0], waves };
 }
 
+// A section breaking ahead (RAYS.sectionMax): from strip j (the first that broke well before the curl, or where the break
+// line jumped out to a bommie), going way d, the first strip back on the line within sectionMax m: on the line the curl was
+// following (extrapolated from its last 20 m), and still unbroken when the curl gets there (breaking no earlier than the
+// curl's time going in: beyond a section the wave stands; water that broke long before is the inside).
+// The strips between become curl points on that line (where the curl runs through), each with its own early break time
+// (tb); null if the line doesn't come back in time (the wave ends there, as before).
+function sectionThrough(strips, pts, j, d, tCurl) {
+  const last = pts[pts.length - 1], back = pts.filter((p) => Math.abs(p[0] - last[0]) <= 20);
+  const p0 = back[0], slope = back.length > 1 && last[0] !== p0[0] ? (last[2] - p0[2]) / (last[0] - p0[0]) : 0;
+  const lineX = (y) => last[2] + slope * (y - last[0]);
+  const inside = [], along = Math.sqrt(1 + slope * slope); // (tCurl: the curl's time going in, the running max; lengths along the line)
+  for (let k = j; k >= 0 && k < strips.length; k += d) {
+    const q = strips[k];
+    if (Math.abs(q[0] - last[0]) * along > RAYS.sectionMax) return null;
+    if (!isFinite(q[1])) continue;
+    const onLine = Math.abs(q[2] - lineX(q[0])) <= RAYS.jump, n = strips[k + d];
+    // (back on the line, and the next strip carries on from it: not breaking the other way, not jumping off again)
+    if (inside.length && onLine && q[1] >= tCurl - 0.5 && n && isFinite(n[1]) && n[1] >= q[1] - 1.5 && Math.abs(n[2] - q[2]) <= RAYS.jump) return { resume: k, inside };
+    inside.push({ j: k, q: [q[0], q[1], lineX(q[0]), ...q.slice(3)] });
+  }
+  return null;
+}
+
 // One wave from the strip `ip` (its peak), both ways (as analyse did for the one wave before step 8).
 function walkWave(strips, ip, R, grid, { step = 20, pe = null } = {}) {
   const out = { peak: { x: strips[ip][2], y: strips[ip][0], t: strips[ip][1] }, used: [] };
   for (const [side, d] of [['right', -1], ['left', 1]]) {
-    const pts = [strips[ip]], gaps = []; let j = ip, gap = 0, end = 'reef';
+    const pts = [strips[ip]], gaps = [], sections = []; let j = ip, gap = 0, end = 'reef';
     while (j + d >= 0 && j + d < strips.length) {
       j += d; const q = strips[j];
       if (!isFinite(q[1])) { gap++; if (gap > RAYS.maxGap) { end = 'backs off'; break; } continue; }
       const pr = pts[pts.length - 1];
-      if (Math.abs(q[2] - pr[2]) > RAYS.jump * (1 + gap)) { end = 'reaches the end of the reef'; break; }
-      if (q[1] < pr[1] - 1.5 || q[1] < out.peak.t - 1.5) { end = 'meets water breaking the other way'; break; } // (or that broke before its peak did, a little at a time: the user, 2026-11-22, an inside wave ran on along a line breaking toward it; never for the main wave, whose peak breaks first)
+      const jumps = Math.abs(q[2] - pr[2]) > RAYS.jump * (1 + gap), early = q[1] < pr[1] - 1.5 || q[1] < out.peak.t - 1.5;
+      if (jumps || early) { // (a section breaking ahead the curl runs through, or the end)
+        // (a jump only to water that broke before the curl got there: a jump to water breaking later is the reef's end)
+        const tCurl = Math.max(out.peak.t, ...pts.map((p) => p[1]));
+        const m = (early || q[1] < tCurl) && sectionThrough(strips, pts, j, d, tCurl);
+        if (!m) { end = jumps ? 'reaches the end of the reef' : 'meets water breaking the other way'; break; }
+        if (gap) gaps.push(pts.length);
+        sections.push([pts.length - 1, pts.length + m.inside.length]); // (from the last point before it to the first after)
+        for (const k of m.inside) { pts.push(k.q); out.used.push(k.j); }
+        j = m.resume - d; gap = 0; continue;
+      } // (or that broke before its peak did, a little at a time: the user, 2026-11-22, an inside wave ran on along a line breaking toward it; never for the main wave, whose peak breaks first)
       if (gap) gaps.push(pts.length); // (a short gap the curl jumps: a back-off)
       pts.push(q); out.used.push(j); gap = 0;
     }
@@ -305,14 +342,17 @@ function walkWave(strips, ip, R, grid, { step = 20, pe = null } = {}) {
     // where rays cross, and a coast peeling at ~27 deg tripped the rule by chance)
     segs.forEach((sg, i) => { const v = segs.slice(Math.max(0, i - 1), i + 2).map((q) => q.a).sort((a, b) => a - b); sg.am = v[Math.floor(v.length / 2)]; });
     let ride = 0, bad = 0, closed = false;
+    const secS = sections.map(([a, b]) => [s[a], s[Math.min(b, s.length - 1)]]); // (sections the curl runs through: not a closeout)
     for (const sg of segs) {
-      bad = sg.am < RAYS.closeout && sg.e0 >= step ? bad + 1 : 0;
+      const inSec = secS.some(([a, b]) => sg.e0 < b && sg.e0 + step > a);
+      bad = sg.am < RAYS.closeout && sg.e0 >= step && !inSec ? bad + 1 : 0;
       if (bad >= 3) { ride = sg.e0 - 2 * step; closed = true; break; } // (more than 40 m in a row faster than anyone can surf: a closeout, as the game's own rule for Trestles, bar.sectionMax 40 m; shorter is a section the curl runs through)
       ride = sg.e0 + step;
     }
     ride = Math.min(ride, s[s.length - 1]);
     if (closed) end = 'closes out';
-    // the curl along the line: time = running max of break times; kind per point
+    // the curl along the line: time = running max of break times (tb: the spot's own, earlier where it broke before the curl
+    // got there: a section breaking ahead); kind per point
     let tc = -Infinity;
     const curl = pts.map((p, k) => {
       tc = Math.max(tc, p[1]);
@@ -321,7 +361,7 @@ function walkWave(strips, ip, R, grid, { step = 20, pe = null } = {}) {
       if (s[k] > ride && closed) kind = 'closeout';
       else if (gaps.includes(k) || (sg && sg.am > RAYS.backoff && s[k] > step)) kind = 'backoff';
       else if (sg && sg.am < 30 && s[k] > step) kind = 'section';
-      return { x: p[2], y: p[0], t: tc, s: s[k], H: p[4], Hray: p[4], c: p[3], slope: p[5], th: p[6], from: p[7], kind }; // (c: the wave's speed at breaking there; th: the wave's direction there)
+      return { x: p[2], y: p[0], t: tc, tb: p[1], s: s[k], H: p[4], Hray: p[4], c: p[3], slope: p[5], th: p[6], from: p[7], kind }; // (c: the wave's speed at breaking there; th: the wave's direction there)
     });
     if (pe) { // (heights, break spots and slopes from the height model; then a 5-point running median along the curl)
       const { Hs, M } = pe, d = grid.depth, raw = curl.map((p) => {

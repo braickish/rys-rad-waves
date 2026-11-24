@@ -175,6 +175,25 @@ check(A.left.xi > 0.5 && A.left.xi < 3.3 && A.right.xi > 0.5 && A.right.xi < 3.3
   console.log(`crawl check: ${A.waves.map((w) => `${w.name} ${w.tier} ${['right', 'left'].map((sd) => `${sd[0]} ${isFinite(w[sd].peelAll) ? w[sd].peelAll.toFixed(0) : '-'} deg`).join(' ')}`).join(' | ')}`);
   check(A.waves.slice(1).every((w) => isRide(w.right) || isRide(w.left)), 'no crawling waves: every extra wave has a ride peeling 25-70 deg');
 }
+// A section that breaks ahead (the user, 2026-11-23: a barrel section you ride through, open at both ends): a pinnacle just
+// seaward of Dynamic's right arm stands the wave up early there. The stretch breaks on its own before the curl gets there,
+// the curl runs through it, and the ride carries on down the arm beyond (it used to end there, "reaches the end of the
+// reef"); the payload carries each spot's lead (`e`). Plain Dynamic has no such stretch.
+{
+  const { reefComponents: rc, dynamicPreset: dp, newBlock } = await import('../src/builder/blocks.js');
+  const { wavePayload, takeoffStart } = await import('../src/builder/loop.js');
+  const go = (bl) => { const g = buildDepth(rc(bl), makeGrid()); return analyse(traceRays(g, swell), g, { pe: runPE(g, swell) }); };
+  const plain = go(dp()), pin = go([...dp(), newBlock('pinnacle', 920, 440)]);
+  const lead = (S) => S.curl.filter((p) => p.s <= S.ride).reduce((m, p) => Math.max(m, p.t - p.tb), 0);
+  const ahead = pin.right.curl.filter((p) => p.t - p.tb > 0.3 && p.s <= pin.right.ride);
+  const span = ahead.length ? ahead[ahead.length - 1].s - ahead[0].s : 0;
+  const ts = takeoffStart(pin.right), pay = wavePayload(pin.right, 'right', 'full', ts.a, ts.b, swell);
+  console.log(`section ahead: plain right ride ${plain.right.ride.toFixed(0)} m (lead ${lead(plain.right).toFixed(1)} s); with a pinnacle ${pin.right.ride.toFixed(0)} m, a stretch at ${ahead.length ? ahead[0].s.toFixed(0) : '-'} m breaking up to ${lead(pin.right).toFixed(1)} s ahead (${span.toFixed(0)} m); payload points with e: ${pay.profile.filter((p) => p.e).map((p) => `${p.s}:${p.e}`).join(' ')}`);
+  check(lead(plain.right) < 0.3 && lead(plain.left) < 0.3, 'section ahead: plain Dynamic has none');
+  check(ahead.length && span <= 40 && lead(pin.right) > 1, 'section ahead: a pinnacle by the arm makes one (breaking > 1 s before the curl, up to 40 m long)');
+  check(pin.right.ride > ahead[ahead.length - 1].s + 60, 'section ahead: the ride carries on beyond it');
+  check(pay.profile.some((p) => p.e > 1), 'section ahead: the payload carries its lead (e)');
+}
 check(tBuild + tRays + tAn < 400, `rebuild + trace under 400 ms in node (${(tBuild + tRays + tAn).toFixed(0)})`);
 console.log(fails ? 'SOME FAILED' : 'all ok');
 process.exitCode = fails ? 1 : 0;

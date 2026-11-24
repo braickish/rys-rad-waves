@@ -226,9 +226,21 @@ function drawCurl(curl) {
     if (b.kind === 'closeout') ctx.setLineDash([7, 6]);
     else if (b.kind === 'section') { ctx.shadowColor = 'rgba(255,255,255,.9)'; ctx.shadowBlur = 10; }
     ctx.beginPath(); ctx.moveTo(X0, Y0); ctx.lineTo(X1, Y1); ctx.stroke();
+    // (a section that breaks ahead, on its own before the curl gets there (the user, 2026-11-23): white dots over the
+    // line, the curl runs through it at once)
+    if (ahead(b)) { ctx.setLineDash([2, 6]); ctx.shadowBlur = 0; ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(X0, Y0); ctx.lineTo(X1, Y1); ctx.stroke(); }
   }
   ctx.setLineDash([]); ctx.shadowBlur = 0; ctx.lineDashOffset = 0;
+  // (and its two ends, where it's open: a short white bar across the line at each)
+  for (let k = 1; k < curl.length; k++) {
+    if (ahead(curl[k]) === ahead(curl[k - 1])) continue;
+    const a = curl[k - 1], b = curl[k], X0 = px(a.y), Y0 = py(a.x), X1 = px(b.y), Y1 = py(b.x), l = Math.hypot(X1 - X0, Y1 - Y0) || 1;
+    const nx = -(Y1 - Y0) / l * 9, ny = (X1 - X0) / l * 9, cx = (X0 + X1) / 2, cy = (Y0 + Y1) / 2;
+    ctx.strokeStyle = 'rgba(11,26,36,.85)'; ctx.lineWidth = 6; ctx.beginPath(); ctx.moveTo(cx - nx, cy - ny); ctx.lineTo(cx + nx, cy + ny); ctx.stroke();
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.stroke();
+  }
 }
+const ahead = (p) => isFinite(p.tb) && p.t - p.tb > 0.3; // (breaks on its own more than 0.3 s before the curl gets there)
 // The loop: a wide teal band under its stretch of the curl, round handles at each end (you drag them along the curl).
 function loopPath(a, b) { const c = cur()[state.loop.side].curl, pts = [curlAt(c, a)]; for (const p of c) if (p.s > a && p.s < b) pts.push(p); pts.push(curlAt(c, b)); return pts; }
 function drawLoopBand() {
