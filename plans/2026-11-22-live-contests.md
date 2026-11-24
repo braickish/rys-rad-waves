@@ -1,5 +1,8 @@
 # Live contests: heats against other players (Supabase Realtime)
 
+> **2026-11-23:** phases 2-6 are revised and reordered by plans/2026-11-23-accounts-and-paid-plans.md (accounts, the Wave Pass
+> and Pro, profiles, ride replays). Phase 1 stands as written; build from that plan's task list.
+
 Agreed with the user 2026-11-22, after competition judging (`?judge`, src/judging.js) went in. Players join a contest by code or
 link and surf the same break with the same swell seed (the same waves, in the same order), each on their own screen; a
 WSL-style heads-up scoreboard shows everyone's scores live; heats end on a timer or a wave count; a small contest is one
