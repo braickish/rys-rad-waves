@@ -145,7 +145,7 @@ fn surfacePoint(i: u32, j: u32) -> vec3f {
   // (any whitewater behind the curl, not the feathering ahead of it; on a barrel only once its tube has collapsed (phase 1.3):
   // before that the white is the thrown lip, a smooth curtain, and lumps bent its outline. W.tube 2: a built wave, per slice
   // by how much tube its shape has)
-  let tk = select(W.tube, smoothstep(2.3, 2.8, sl.z), W.tube > 1.5);
+  let tk = select(W.tube, smoothstep(2.3, 2.8, select(sl.z, 2.0 + (sl.z - 2.0) / 4.0, sl.z > 2.0)), W.tube > 1.5); // (built: sl.z is the shape set; past 2 the half-barrel sets, 4 per step of the scale: wave.js shapeSet)
   let lumpFrom = mix(0.2, 1.3, clamp(tk, 0.0, 1.0));
   let lumpK = smoothstep(lumpFrom, lumpFrom + 0.7, sl.y);
   let broken = lumpK * smoothstep(0.3, 0.8, foam);

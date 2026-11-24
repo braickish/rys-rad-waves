@@ -651,8 +651,28 @@ function updateCamera(dt) {
   camPos[0] -= (PEEL_SPEED - camPeel) * dt; camTarget[0] -= (PEEL_SPEED - camPeel) * dt;
   const k = 1 - Math.exp(-dt * (rider.falls ? 4 : rider.mode === 'wipe' ? 1.5 : shot === 'tube' ? 9 : 5)); // close behind in the barrel view
   for (let i = 0; i < 3; i++) { camPos[i] += (want[i] - camPos[i]) * k; camTarget[i] += (look[i] - camTarget[i]) * k; }
-  // Smoothing must never carry the camera into the water.
-  if (shot === 'tube' && insideWaterAt(camPos)) camPos = want.slice();
+  // The barrel view stays in the air inside the barrel (the user, 2026-11-23: it could end up looking from inside the water,
+  // or out the back of a closed barrel): wherever smoothing, easing in, or holding its last spot left it, the camera must be
+  // in air, at least TUBE_CAM_ROOM from the water (closer, the near clip shows through the surface), with a clear view of you
+  // (behind a closed barrel the water is in the way). If not, it comes in toward you along the tube to the first spot that
+  // is, and failing that sits just behind your head. (Out of an open-ended section the open air with a clear view counts.)
+  if (shot === 'tube') {
+    const eye = [p[0], p[1] + 0.9, p[2]];
+    if (!tubeCamOK(camPos, eye)) {
+      let safe = null;
+      for (let back = Math.min(TUBE_CAM_BACK, Math.max(0.5, p[0] - camPos[0])); back >= 0.5 && !safe; back -= 0.5) {
+        const c = tubeCenter(p[0] - back, p[1] + TUBE_CAM_UP), q = c && [p[0] - back, c.y, c.z];
+        if (q && tubeCamOK(q, eye)) safe = q;
+      }
+      camPos = safe || [p[0] - 0.6, p[1] + 1.0, p[2]];
+    }
+  }
+}
+const TUBE_CAM_ROOM = 0.35;
+function tubeCamOK(q, eye) {
+  if (insideWaterAt(q)) return false;
+  if (distToSlice(slice(q[0], 6), q[2], q[1]) < TUBE_CAM_ROOM) return false;
+  return clearView(q, eye);
 }
 
 // The surfer as placed in the world: position, heading and velocity (the rest of the rider is along the wave).

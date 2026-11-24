@@ -1,7 +1,7 @@
 // Geometry: the water's cross-section table, a lip lookup table for the GPU
 // particle emitters, and simple primitives for the surfer and board.
 
-import { NP, FAR, phaseAt, surface, WAVE, controlPoints, crPoint, SHAPES, withShape, ridgeAt, sizeAt, shapeU } from './wave.js';
+import { NP, FAR, phaseAt, surface, WAVE, controlPoints, crPoint, SHAPES, withShape, ridgeAt, sizeAt, shapeU, shapeSet } from './wave.js';
 
 const sstep = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 
@@ -72,7 +72,7 @@ export function buildWaterIndices() {
 // wave crumbly -> wall -> section by how it breaks; size: a
 // built wave's size along its stretch, 1 elsewhere)
 export function slicePhases(out = new Float32Array(WATER_XS.length * 4)) {
-  for (let i = 0; i < WATER_XS.length; i++) { const x = WATER_XS[i]; out[i * 4] = x; out[i * 4 + 1] = phaseAt(x); out[i * 4 + 2] = shapeU(x); out[i * 4 + 3] = sizeAt(x); }
+  for (let i = 0; i < WATER_XS.length; i++) { const x = WATER_XS[i]; out[i * 4] = x; out[i * 4 + 1] = phaseAt(x); out[i * 4 + 2] = shapeSet(shapeU(x)); out[i * 4 + 3] = sizeAt(x); }
   return out;
 }
 

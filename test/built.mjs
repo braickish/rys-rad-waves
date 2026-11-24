@@ -206,7 +206,7 @@ for (const [mode, data] of Object.entries(payloads)) {
     // trim mid-face, slowing (back foot) once the barrel section comes, so the curl catches up
     const near = (W.RIDGE.c % 200) > 60 && (W.RIDGE.c % 200) < 140;
     R.stepRider(r, { aim: [1, Math.max(-0.6, Math.min(0.6, 3 * (0.45 - r.height)))], walk: 0 }, dt);
-    if (near && !r.tube && r.xs > 1) r.speed *= 0.995;
+    if (near && !r.tube && r.xs > -1.2) r.speed *= 0.995; // (until it is in under the lip: stopping 1 m ahead it sat right at the curl, a hair short of the tube, and got in only by chance)
     for (const e of r.events) { if (e.type === 'barrelEnter') entered++; if (e.type === 'barrelExit') exited++; }
     if (r.tube && W.tubeAt(r.xs) < 0.3) inTubeOutside++;
     if (r.mode === 'wipe') break;
