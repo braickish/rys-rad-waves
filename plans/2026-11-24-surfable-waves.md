@@ -29,14 +29,57 @@ then the fast stretch, then the inside), and its relative difficulty (a hard ree
   sqrt(scale); the reef's lengths stay. test/built.mjs: 1.5x makes the face 1.5x taller (2.45 -> 3.68 m) and the curl and
   the wave sqrt(1.5)x faster; 1x or none is the wave as before.
 
-## 2. Measure first: what built waves actually do
+## 2. Measure first: what built waves actually do (done 2026-11-24)
 
-Before choosing any limit, a survey: the builder over its presets (Dynamic, beach, stacked) and a few hundred random reefs
-(random blocks, swells), logging per ride: peel speed (spread, extremes), how fast it changes (mph per second of curl),
-shape (time at each kind, how long barrels last, how often it sits between kinds), tube heights, section leads (`e`), size
-along the ride, takeoff and ending. Written up in the plan (a table) and kept as test/survey.mjs (slow; run by hand).
-The targets come from the game's own comfort zone: Raglan's ~17-19 mph pace, sections up to ~1.45x that (Raglan+'s
-`fast`), tubes at least `tubeMinHeight` 1.3 m and ~2 s long, the tube's life ~1.45 s (to phase 1.3).
+test/survey.mjs (slow, run by hand): the builder over its presets and 200 random reefs (a peak with one or two arms,
+random angles, slopes, lengths, depths and sizes, 0-3 extra blocks, random swells 0.8-4.5 m, 8-18 s, +-30 deg; 30% on deep
+water), every ride you could DROP IN on (each side of each listed wave, its full ride). 2026-11-24:
+
+```
+506 rides from 200 random reefs + 3 presets (103 s)
+                                                  5%    25%    50%    75%    95%
+curl speed: slowest on the ride                  2.3    3.7    8.3   13.8   22.6  mph
+curl speed: median                               3.0    6.4   12.4   18.2   28.5  mph
+curl speed: fastest on the ride                  3.7    8.8   16.5   25.4   54.9  mph
+peel angle: smallest (fastest)                     9     25     33     44     64  deg
+peel angle: largest (slowest)                     30     40     54     70     70  deg
+curl speed change: steepest                      0.0    0.2    1.5    5.0   46.9  mph/s
+shape change: steepest                          0.00   0.00   0.00   0.12   0.49  scale/s
+time between shape kinds                           0      0      0     34     91  %
+barrels: each one's length                       1.7    3.2    5.9    9.7   22.5  s
+barrels: smallest tube on the ride              0.81   1.32   1.57   2.05   3.28  m
+section lead: longest on the ride               0.00   0.00   0.00   0.28  16.77  s
+size along the ride: largest / smallest         1.00   1.06   1.21   1.60   3.29  x
+takeoff (first 30 m): curl speed                 3.0    5.5   10.6   16.5   28.2  mph
+breakers                                           2      3      5      8     13  ft
+ride length                                       98    144    230    427    755  ft
+rides with a barrel 7% · a barrel under 2 s 1% · a tube under 1.3 m 2%
+rides with a section lead > 0.8 s 20% · > 1.5 s 16% · curl over 40 mph 11% · under 10 mph 60%
+rides changing speed faster than 10 mph/s 15% · 20 mph/s 10% · size varying > 1.3x 39%
+how rides end: reaches the end of the reef 41% · meets water breaking the other way 32% · closes out 25% · reef 1% · backs off 1%
+```
+
+What it says:
+- **Slow is the biggest problem, not fast.** 60% of rides have a stretch under 10 mph; a quarter have a median curl under
+  6.4 mph, and a quarter reach the back-off floor (70 deg) somewhere. Takeoffs too: a quarter under 5.5 mph.
+- **Jumps:** 15% of rides change curl speed faster than 10 mph a second, 10% faster than 20 (the steepest 5%: 47 mph/s).
+- **Too fast:** 11% go over 40 mph somewhere.
+- **Shape limbo:** most rides are clean, but a quarter spend over a third of the ride between shape kinds.
+- **Leads:** 20% have a section breaking over 0.8 s ahead, 16% over 1.5 s (closeouts in disguise; some are inside waves
+  whose outside broke long before).
+- **Size drift:** 39% vary over 1.3x along the ride (the steepest 5%: 3.3x).
+- **Barrels** are only 7% of rides; when there is one it's mostly long enough (1% under 2 s) and big enough (2% under 1.3 m).
+
+The limits for steps 3-8 (all scaled to the wave: speeds by sqrt(breakers / 3.5 m), from Raglan's own pace, 8.3 m/s on its
+~3.5 m breakers; `v0` = that pace for the wave's size):
+- step 3: the curl's speed changes at most **6 mph a second of curl** (x sqrt of the size); the shape at most 0.25 of the
+  scale a second; ~3 s smoothing.
+- step 4: the curl's speed within **0.75 v0 to 1.6 v0**, and never under 10 mph (the rider's slowest trim, `vLow` 4.5 m/s):
+  on 5 ft breakers ~10-19 mph, on 11 ft ~13-30.
+- step 5: snapped to its kinds with ~1.5 s blends; a barrel at least 3 s of curl and 1.3 m of tube, else the steep section.
+- step 6: size along the ride within +-20% (largest / smallest at most 1.5).
+- step 7: leads capped at 0.8 s; a stretch breaking over 1.5 s ahead becomes the ride's closeout ending.
+- step 8: the first 25 m at v0, easing into the profile over the next 25.
 
 ## 3. Fun: limit how fast things change (the biggest win for feel)
 
