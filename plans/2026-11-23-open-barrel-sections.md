@@ -33,6 +33,15 @@ factors (fix causes); the other waves stay unchanged.
   because the game's curl keeps its own clock (it runs along the crest at `peel`, slower than the builder's `v` along
   the break line). Step 2 places the section by the game's own curl arrival minus `e`.
 - Builder map: white dots over the curl through such a section and a white bar across the line at each end; legend entry.
+- Follow-up (2026-11-23, the user: "the build breaks if there is a section"): a section entered gradually (no 1.5 s drop),
+  then a stretch in the bommie's lee that doesn't break, still closed the ride out: the closeout rule now skips any stretch
+  up to 40 m the curl runs through because it already broke, and smooths each 20 m angle only with stretches that touch
+  it (it used to reach across gaps). Every pinnacle, ridge and ledge placement by Dynamic's right arm now rides on past
+  it. The curl's speed in the payload slides its 40 m window in at the stretch's ends instead of shrinking it (through a
+  section at the end it was 400 m/s; plain Dynamic's right loop had a 97 mph spike) and is capped at 25 m/s (`CURL_MAX`,
+  Trestles' frameMax). In the game, built waves get Trestles' forgiving section whitewater (built.js `section`: above
+  12 m/s, 3 s, 2.5x; and up to 2.5x further behind the curl before the whitewater takes you). test/built.mjs drops in on
+  the pinnacle wave (full and loop).
 - test/builder.mjs: a pinnacle at (920, 440) by Dynamic's right arm makes a 14 m stretch breaking up to 3.2 s ahead,
   the ride carries on to 236 m (it ended at ~80 before); plain Dynamic has none. A 10 ft 9 s +35 swell on Dynamic now also
   lists an inside wave B (left, 49 deg) whose line runs through a short section.

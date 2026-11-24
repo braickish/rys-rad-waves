@@ -51,6 +51,10 @@ const wave = {
   // Barrel sections (plan step 7): tube riding is on, but only where the shape under you has a tube (wave.js tubeAt; rider.js
   // checkHazards), and only if it's tall enough to fit in (Trestles' rule: otherwise the lip clips you; go around it).
   tube: true, tubeScale: true, tubeMinHeight: 1.3,
+  // Sections (2026-11-23, the user: sections must be allowed): where the curl runs through a stretch faster than anyone can
+  // surf (a section breaking ahead, a fast section), its whitewater is forgiving as Trestles' is (wave.js sectionGrace,
+  // rider.js): for `sectionGrace` s it takes `sectionFoam` x as long to catch you, any turn rebounds off it.
+  section: { sectionSpeed: 12, sectionGrace: 3, sectionFoam: 2.5 },
   // the face's top, the foam you ride in and the foam and glow you see follow the local shape: Pipe's where it barrels
   faceTop: (s, xs) => { const k = xs === undefined ? 0 : env.tubeAt(xs); return raglanPlus.faceTop(s) * (1 - k) + pipeFaceTop(s) * k; },
   foam: (s, t, xs) => { const k = xs === undefined ? 0 : env.tubeAt(xs); return raglanPlus.foam(s, t) * (1 - k) + reef.foam(s, t) * k; },

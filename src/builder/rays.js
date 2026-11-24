@@ -340,12 +340,28 @@ function walkWave(strips, ip, R, grid, { step = 20, pe = null } = {}) {
     // runs through); the takeoff stretch doesn't count
     // (each stretch's angle as the median of it and its neighbours: along a long coast the 20 m readings jitter by ~8 deg
     // where rays cross, and a coast peeling at ~27 deg tripped the rule by chance)
-    segs.forEach((sg, i) => { const v = segs.slice(Math.max(0, i - 1), i + 2).map((q) => q.a).sort((a, b) => a - b); sg.am = v[Math.floor(v.length / 2)]; });
+    // (sections the curl runs through: the jumps sectionThrough crossed, and any stretch up to RAYS.sectionMax where the
+    // water broke on its own before the curl got there (the curl's running max ahead of the spot's own time); not a
+    // closeout, and not a neighbour pulling the stretches beside it down)
+    let tc0 = -Infinity; const early = pts.map((p) => { tc0 = Math.max(tc0, p[1]); return tc0 - p[1] > 0.3; });
+    const secS = sections.map(([a, b]) => [s[a], s[Math.min(b, s.length - 1)]]);
+    for (let k = 0; k < pts.length; k++) {
+      if (!early[k] || (k && early[k - 1])) continue;
+      let e = k; while (e + 1 < pts.length && early[e + 1]) e++;
+      const a0 = s[Math.max(0, k - 1)], b0 = s[Math.min(pts.length - 1, e + 1)];
+      if (b0 - a0 <= RAYS.sectionMax) secS.push([a0, b0]);
+    }
+    // (merge spans that touch: a gradual early stretch running into a jump is one section; longer than sectionMax + the
+    // jump it crossed is no longer one)
+    secS.sort((a, b) => a[0] - b[0]);
+    for (let i = secS.length - 1; i > 0; i--) if (secS[i][0] <= secS[i - 1][1] + 1) { secS[i - 1][1] = Math.max(secS[i - 1][1], secS[i][1]); secS.splice(i, 1); }
+    const inSec = (sg) => secS.some(([a, b]) => sg.e0 < b && sg.e0 + step > a);
+    segs.forEach((sg) => { sg.sec = inSec(sg); });
+    // (each stretch's angle as the median of it and the stretches touching it, sections left out)
+    segs.forEach((sg) => { const v = segs.filter((q) => Math.abs(q.e0 - sg.e0) <= step && (q === sg || !q.sec)).map((q) => q.a).sort((a, b) => a - b); sg.am = v[Math.floor(v.length / 2)]; });
     let ride = 0, bad = 0, closed = false;
-    const secS = sections.map(([a, b]) => [s[a], s[Math.min(b, s.length - 1)]]); // (sections the curl runs through: not a closeout)
     for (const sg of segs) {
-      const inSec = secS.some(([a, b]) => sg.e0 < b && sg.e0 + step > a);
-      bad = sg.am < RAYS.closeout && sg.e0 >= step && !inSec ? bad + 1 : 0;
+      bad = sg.am < RAYS.closeout && sg.e0 >= step && !sg.sec ? bad + 1 : 0;
       if (bad >= 3) { ride = sg.e0 - 2 * step; closed = true; break; } // (more than 40 m in a row faster than anyone can surf: a closeout, as the game's own rule for Trestles, bar.sectionMax 40 m; shorter is a section the curl runs through)
       ride = sg.e0 + step;
     }

@@ -7,6 +7,9 @@
 // jumps there: curl speed and height within 15% / 20%.
 
 export const BACKOFF = 70; // (rays.js RAYS.backoff: slower than this a stretch backs off)
+// The fastest the curl runs along the line (m/s): Trestles' frameMax, the most the game's frame chases a stretch that goes at
+// once (a section breaking ahead goes faster than that; the game shows it by when each spot breaks, the payload's `e`).
+export const CURL_MAX = 25;
 export const LOOP = { snap: 10, min: 60, edge: 20, seamSpeed: 0.15, seamHeight: 0.2 };
 
 // The point on a curl at distance s along it (interpolated).
@@ -54,8 +57,11 @@ export function clampLoop(side, a, b) {
 export function loopInfo(side, a, b, step = 10) {
   const prof = [];
   for (let s = a; s <= b + 1e-6; s += step) {
-    const p = curlAt(side.curl, s), q = curlAt(side.curl, Math.min(b, s + 20)), o = curlAt(side.curl, Math.max(a, s - 20));
-    const v = (q.s - o.s) / Math.max(0.05, q.t - o.t); // (the curl's speed along the line, over ~40 m: rays wobble)
+    // (the curl's speed along the line, over 40 m: rays wobble. The window slides in at the stretch's ends rather than
+    // shrinking: through a section the curl's time stands still, and over a few metres it came out at hundreds of m/s)
+    const w0 = Math.max(a, Math.min(s - 20, b - 40)), w1 = Math.min(b, w0 + 40);
+    const p = curlAt(side.curl, s), q = curlAt(side.curl, w1), o = curlAt(side.curl, w0);
+    const v = Math.min(CURL_MAX, (q.s - o.s) / Math.max(0.05, q.t - o.t));
     // (the game's peel speed is the curl's speed along the crest, in the wave's own frame: the break point runs along the
     // reef at v = c / sin(alpha) while the wave carries it in at c, so along the crest it's sqrt(v^2 - c^2) = c / tan(alpha))
     const peel = Math.sqrt(Math.max(0, v * v - p.c * p.c));

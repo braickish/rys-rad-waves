@@ -82,10 +82,13 @@ export const RIDE = { time: 0, c: 0, front: 0, closed: null, closing: false, clo
 // through, snap over). 0 = no.
 // With `xs` (m ahead of the curl): also when the water there is breaking ahead of the curl, on its own (a section
 // going before the curl gets there).
+// (the settings: Trestles' `bar`, or a wave's own `section` (built waves, 2026-11-23: a section breaking ahead that the curl
+// runs through left you in the whitewater behind it); { sectionSpeed, sectionGrace, sectionFoam })
+export const sectionRules = () => WAVE.bar || WAVE.section || null;
 export function sectionGrace(xs) {
-  const g = WAVE.bar && WAVE.bar.sectionGrace; if (!g) return false;
+  const g = sectionRules()?.sectionGrace; if (!g) return false;
   if (RIDE.time - RIDE.sectionT < g) return true;
-  return xs !== undefined && RIDE.c + xs > RIDE.front + 2 && RIDE.time > breaksAt(RIDE.c + xs) - 0.5;
+  return !!WAVE.bar && xs !== undefined && RIDE.c + xs > RIDE.front + 2 && RIDE.time > breaksAt(RIDE.c + xs) - 0.5;
 }
 export function startRide() {
   layRidges(); // (a wave with ridges lays out this wave's sections)
@@ -275,6 +278,7 @@ function stepRidges(dt) {
     PEEL_SPEED = profileAt('peel', RIDGE.c) * Math.sqrt(SIZE);
     RIDGE.c += PEEL_SPEED * dt;
     notePassed();
+    if (WAVE.section && PEEL_SPEED > WAVE.section.sectionSpeed) RIDE.sectionT = RIDE.time; // (a section going: forgiving whitewater)
     if (!WAVE.ridges.loop && !RIDE.done && RIDGE.c >= WAVE.ridges.length) RIDE.done = { time: RIDE.time, c: RIDGE.c };
     SHAPE.ver++;
     return;

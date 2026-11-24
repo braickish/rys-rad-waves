@@ -21,7 +21,7 @@
 //  - Turning back into the whitewater, high, turning as you hit: rebound.
 //    Sit in the foam too long and it takes you.
 
-import { surface, slice, phaseAt, verticalHits, segmentHit, PEEL_SPEED, WAVE_SPEED, NP, WAVE, setWave, SCALE, controlPoints, crPoint, SHAPE, withShape, RIDE, sectionGrace, breaksAt, holdPeel, tubeAt } from './wave.js';
+import { surface, slice, phaseAt, verticalHits, segmentHit, PEEL_SPEED, WAVE_SPEED, NP, WAVE, setWave, SCALE, controlPoints, crPoint, SHAPE, withShape, RIDE, sectionGrace, sectionRules, breaksAt, holdPeel, tubeAt } from './wave.js';
 
 export const G = 9.8;
 // The rider's and board's settings. Wave-specific settings (pocket speeds,
@@ -1561,7 +1561,7 @@ function checkHazards(r, dt) {
   if (r.foam > 0.6 && !r.floater && !(r.boost > 0) && !climbingFoam(r)) r.foamTime += dt; // floating on it, carrying out of a move, or climbing it doesn't count
   else r.foamTime = Math.max(0, r.foamTime - dt * 2);
   const midFoam = TUNE.foamPush ? 1 - Math.min(1, Math.abs(r.foot)) : 0; // (riding the whitewater from the middle of a longboard: it takes twice as long to catch you)
-  const secFoam = sectionGrace(r.xs) ? WAVE.bar.sectionFoam || 1 : 1; // (a section's whitewater takes longer to catch you)
+  const secFoam = sectionGrace(r.xs) ? sectionRules().sectionFoam || 1 : 1; // (a section's whitewater takes longer to catch you)
   if (r.foamTime > TUNE.foamLimit * (1 + midFoam) * secFoam) return wipe(r, 'Caught by the whitewater!');
   // The whitewater rolling out across the flats knocks you off at once if you
   // ride into it down there (climbing up into it, nose well up, is a floater
@@ -1569,7 +1569,7 @@ function checkHazards(r, dt) {
   if (r.t > TUNE.tBottom - 0.3 && r.foam > 0.5 && !r.floater && !(r.boost > 0) && Math.sin(r.phi) < 0.4 && !sectionGrace(r.xs)) {
     return wipe(r, 'Caught by the whitewater! (it rolls out across the flats)');
   }
-  if (r.xs < -25) return wipe(r, 'Caught by the whitewater!');
+  if (r.xs < -25 * (WAVE.section ? secFoam : 1)) return wipe(r, 'Caught by the whitewater!'); // (a section the curl ran through leaves you further back for a moment: built waves, 2026-11-23; Trestles as it was)
   if (!WAVE.tube) { r.inBarrel = false; return; }
   // (a built wave's barrel sections, plan step 7: the tube rules only where the shape under you has a tube; ride out of a
   // barrel section and the tube just ends, as coming out of the barrel)

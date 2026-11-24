@@ -56,6 +56,37 @@ for (const [mode, data] of Object.entries(payloads)) {
   if (mode === 'loop') check(i * dt > 15, 'loop: a pumping rider surfs it for a good while (> 15 s)');
   else check(!!r.stepOff || r.mode === 'wipe' || i * dt >= 59, 'full: the ride ends (stepping off at the end of the wave, or caught)');
 }
+// A section that breaks ahead (the user, 2026-11-23: sections must be allowed, not break the wave): Dynamic with a pinnacle by
+// its right arm, as DROP IN sends it. The curl never teleports (<= 25 m/s, loop.js CURL_MAX), and a pumping rider gets
+// through the section (its whitewater forgiving, as Trestles' sections are: built.js `section`).
+{
+  const { newBlock } = await import('../src/builder/blocks.js');
+  const g2 = buildDepth(reefComponents([...dynamicPreset(), newBlock('pinnacle', 920, 440)]), makeGrid()), A2 = analyse(traceRays(g2, swell), g2, { pe: runPE(g2, swell) });
+  const sd = A2.right, ts = takeoffStart(sd), lp2 = bestLoop(sd) || defaultLoop(sd);
+  for (const [mode, d] of [['full', wavePayload(sd, 'right', 'full', ts.a, ts.b, swell)], ['loop', lp2 && wavePayload(sd, 'right', 'loop', lp2.a, lp2.b, swell)]]) {
+    check(!!d, `section ${mode}: DROP IN has a ${mode} on the side with the section`);
+    if (!d) continue;
+    applyBuilt(d); R.useWave('built'); S.seedSea(1); S.nextWave();
+    const dt = 1 / 120; let vmax = 0;
+    for (let i = 0; i < 40 / dt && !W.RIDE.done; i++) { S.stepSea(dt); vmax = Math.max(vmax, W.PEEL_SPEED); }
+    S.seedSea(1); S.nextWave();
+    const r = R.createRider(); R.resetRider(r); r.events = []; R.stepRider(r, {}, 0);
+    let up = false, i = 0, c0 = W.RIDGE.c, cAt = 0;
+    for (; i < 60 / dt; i++) {
+      S.stepSea(dt);
+      if (up && r.height > 0.8) up = false; if (!up && r.height < 0.15) up = true;
+      const inp = Math.cos(r.phi) < 0 ? { aim: [1, -0.3] } : r.xs < -1 ? { aim: [1, 0.6] } : r.xs > 6 ? { aim: [-0.2, up ? 1 : -1] } : { tilt: up ? 1 : -1 };
+      R.stepRider(r, inp, dt); cAt = W.RIDGE.c - c0;
+      if (r.mode === 'wipe' || r.stepOff) break;
+    }
+    const secAt = d.profile.filter((p) => p.e > 1).map((p) => p.s);
+    console.log(`-- section ${mode} ${d.length} m (section at ${secAt.join(', ')} m): curl top ${mph(vmax)} mph; pump bot ${(i * dt).toFixed(1)} s, curl ran ${cAt.toFixed(0)} m, ${r.stepOff ? 'stepped off: ' + r.wipeReason : r.mode === 'wipe' ? 'wiped: ' + r.wipeReason : 'still riding'}`);
+    check(vmax <= 25 * Math.sqrt(W.SIZE) + 0.01, `section ${mode}: the curl never teleports (top ${mph(vmax)} mph)`);
+    // (making a section well, seeing it stand up ahead and riding into it, is the plan's steps 2-3; this bot is often behind the
+    // curl anyway (on plain Dynamic's full ride it's caught at ~16 s): here, the section doesn't end the ride outright)
+    check(secAt.length && cAt >= Math.max(...secAt) - 5, `section ${mode}: a pumping rider gets through the section (curl ${cAt.toFixed(0)} m)`);
+  }
+}
 // Plan step 2 (the user, 2026-11-22): the takeoff speed and the wave's speed come from the builder, and the wave's size follows
 // the breakers along the stretch. Takeoff: Dynamic's full right. Size: a made-up loop whose breakers step from 2.0 to 3.0 m
 // over 60-80 m and back at the seam.
