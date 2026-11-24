@@ -10,6 +10,8 @@ import { runPE } from './pewave.js';
 import { LOOP, curlAt, defaultLoop, clampLoop, loopInfo, snapEnd, bestLoop, wavePayload, takeoffStart, ledgeK } from './loop.js';
 import { encodeBuilt, BUILT_KEY, outfitFor } from '../waves/built.js';
 import { funPayload } from './fun.js';
+import { startMyBreaks } from './my-breaks.js';
+let breaks = null;
 import { BLOCKS, SNAP, ARM_ANGLES, ARM_LENGTHS, ARM_SLOPES, BAR_CRESTS, DEPTHS, DEPTH_RANGE, TOP_DEPTH, SIZES, BACKS, blockLength, ROTATIONS, reefComponents, newBlock, dynamicPreset, beachPreset, stackedPreset, pipelinePreset, PIPELINE, armRot, nearestArm } from './blocks.js';
 
 const canvas = document.getElementById('map'), ctx = canvas.getContext('2d');
@@ -63,14 +65,19 @@ function recompute() {
 // Keep the loop on the ride as the wave changes (a new stretch if it has none, or it no longer fits).
 // The design is remembered (in this browser) so coming back from riding it finds it as you left it.
 const SAVE_KEY = 'rys-rad-waves-builder';
+const designOf = () => ({ blocks: state.blocks, coast: state.coast, swell: state.swell, board: state.board, water: state.water, fun: state.fun, scale: state.scale, edges: state.edges, pick: state.pick, pickKey: state.pickKey, loop: { on: state.loop.on, side: state.loop.side, a: state.loop.a, b: state.loop.b }});
 function save() {
-  try { localStorage.setItem(SAVE_KEY, JSON.stringify({ blocks: state.blocks, coast: state.coast, swell: state.swell, board: state.board, water: state.water, fun: state.fun, scale: state.scale, edges: state.edges, pick: state.pick, pickKey: state.pickKey, loop: { on: state.loop.on, side: state.loop.side, a: state.loop.a, b: state.loop.b }})); } catch {}
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify(designOf())); } catch {}
+  breaks?.onChange?.();
+}
+// (a design as save() keeps it, from this browser or a cloud break: accounts plan task 7)
+function applyDesign(j) {
+  if (!j || !Array.isArray(j.blocks)) return false;
+  state.blocks = j.blocks; if (j.coast && Array.isArray(j.coast.pts)) state.coast = j.coast; if (j.board) state.board = j.board; if (Number.isFinite(j.water)) state.water = j.water; if (typeof j.fun === 'boolean') state.fun = j.fun; if (Number.isFinite(j.scale)) state.scale = j.scale; if (j.edges === 'soft' || j.edges === 'sharp') state.edges = j.edges; if (j.pick) state.pick = j.pick; if (j.pickKey) state.pickKey = j.pickKey; Object.assign(state.swell, j.swell || {}); Object.assign(state.loop, j.loop || {});
+  return true;
 }
 function restore() {
-  try {
-    const j = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null'); if (!j || !Array.isArray(j.blocks)) return;
-    state.blocks = j.blocks; if (j.coast && Array.isArray(j.coast.pts)) state.coast = j.coast; if (j.board) state.board = j.board; if (Number.isFinite(j.water)) state.water = j.water; if (typeof j.fun === 'boolean') state.fun = j.fun; if (Number.isFinite(j.scale)) state.scale = j.scale; if (j.edges === 'soft' || j.edges === 'sharp') state.edges = j.edges; if (j.pick) state.pick = j.pick; if (j.pickKey) state.pickKey = j.pickKey; Object.assign(state.swell, j.swell || {}); Object.assign(state.loop, j.loop || {}); 
-  } catch {}
+  try { applyDesign(JSON.parse(localStorage.getItem(SAVE_KEY) || 'null')); } catch {}
 }
 function fitLoop() {
   const L = state.loop, side = cur() && cur()[L.side];
@@ -531,11 +538,14 @@ function rideStretch() { // (what DROP IN rides: the loop, or the whole ride fro
   if (L.on) return L.info ? { a: L.a, b: L.b } : null;
   return takeoffStart(side); // (from where the curl can be followed: past an at-once peak, loop.js)
 }
-function dropIn() {
+function ridePayload() { // (what DROP IN hands the game, or null: also saved with a cloud break, for index.html?break=)
   if (state.dirty) recompute();
   clearTimeout(refineTimer); refine(); // (the wave you ride is always the refined one)
-  const L = state.loop, st = rideStretch(); if (!st) return;
-  const data = { ...wavePayload(cur()[L.side], L.side, L.on ? 'loop' : 'full', st.a, st.b, state.swell, state.board), water: state.water, fun: state.fun, scale: state.scale }; // (the water's temperature: the outfit; Fun / Real and the size override: the surfable-waves plan)
+  const L = state.loop, st = rideStretch(); if (!st) return null;
+  return { ...wavePayload(cur()[L.side], L.side, L.on ? 'loop' : 'full', st.a, st.b, state.swell, state.board), water: state.water, fun: state.fun, scale: state.scale }; // (the water's temperature: the outfit; Fun / Real and the size override: the surfable-waves plan)
+}
+function dropIn() {
+  const data = ridePayload(); if (!data) return;
   try { localStorage.setItem(BUILT_KEY, JSON.stringify(data)); } catch {}
   save();
   location.href = `index.html?wave=built&play#built=${encodeBuilt(data)}`;
@@ -704,4 +714,13 @@ recompute(); layout(); showSel(); showZoom(); showCoast();
 { const zq = Number(new URLSearchParams(location.search).get('zoom')); if (zq > 1 && cur()) zoomAt(px(cur().peak.y), py(cur().peak.x), zq); } // (?zoom=2.5: open zoomed on the peak, for testing)
 draw();
 document.fonts?.ready.then(() => draw());
+// My Breaks (accounts plan task 7): the map as a thumbnail, and opening a saved design.
+const thumb = () => new Promise((ok, no) => {
+  const d = canvas.width / canvas.getBoundingClientRect().width, sx = view.left * d, sy = view.top * d, sw = view.mw * d, sh = view.mh * d; // (the bay only, as it's shown)
+  const w = 360, h = Math.round(w * sh / sw), t = document.createElement('canvas'); t.width = w; t.height = h;
+  t.getContext('2d').drawImage(canvas, sx, sy, sw, sh, 0, 0, w, h);
+  t.toBlob((b) => (b ? ok(b) : no(new Error('thumb'))), 'image/webp', 0.8);
+});
+breaks = startMyBreaks({ design: () => JSON.parse(JSON.stringify(designOf())), ride: ridePayload, thumb,
+  apply: (j) => { if (!applyDesign(JSON.parse(JSON.stringify(j)))) throw new Error('bad design'); state.sel = null; syncSwell(); showCoast(); showSel(); recompute(); showRide(); draw(); } });
 window.__builder = state; // (tests)

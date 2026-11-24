@@ -21,6 +21,8 @@ const emit = () => { for (const f of listeners) f(session); };
 
 // Starts the client (once). The session is kept in localStorage and refreshed by supabase-js; a magic link lands back
 // here with the tokens in the URL hash, which supabase-js reads and then clears.
+export const supabaseTarget = () => target();
+
 export async function initAccount() {
   if (client) return client;
   const { createClient } = await import(SUPABASE_JS);

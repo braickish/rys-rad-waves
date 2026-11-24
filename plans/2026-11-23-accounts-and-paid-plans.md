@@ -187,9 +187,15 @@ sees it on their profile.
   the account page shows your plan. **The lock is off until payments are live** (`PAYWALL` in src/account.js; `?paywall`
   to try it), so nobody loses a wave before they can buy one: turn it on in task 9. Tests:
   `supabase/tests/entitlements_test.sql` (17), `test:plan-browser`.
-- [ ] **7. Cloud breaks.** The `breaks` table, Storage thumbnails, and **My Breaks** in the builder (save, open, rename,
-  duplicate, delete, visibility), saving gated on Pro. Import from localStorage on first sign-in, plus `?break=<id>`.
-  Tests: RLS (private stays private, unlisted readable by id, public listed), and a non-Pro user can't save.
+- [x] **7. Cloud breaks** (done 2026-11-24). `breaks` (name, the builder's `design`, its `ride` for the game, visibility
+  private / unlisted / public, a version that counts saves; 200 each; names checked like handles) and `get_break(id)`
+  (yours, or an unlisted or public one by id, with the owner's handle). Saving and changing need Pro; a lapsed Pro keeps,
+  surfs and deletes everything. Thumbnails in the public `breaks` bucket (your folder, Pro). `src/breaks.js` and
+  **My Breaks** at the top of the builder (`src/builder/my-breaks.js`): name, Save / Save as new, Private / Unlisted /
+  Public, Copy link, and the list (Open, Surf, Rename, Duplicate, Delete). On first sign-in with Pro the design this
+  browser remembers is offered as your first break. `index.html?break=<id>` drops straight in (`src/boot.js`);
+  `builder.html?break=<id>` opens it (someone else's as a copy to keep). Tests: `supabase/tests/breaks_test.sql` (22),
+  `test:breaks-browser` (20). Also: service_role can now run the name check (it couldn't change a profile or a break).
 - [ ] **8. Stripe.** Products and prices (test mode), the `checkout` and `stripe-webhook` Edge Functions, the Customer
   Portal link, and Stripe Tax. Tests: Stripe CLI test events → the right `entitlements` rows (buy, renew, cancel, failed
   payment, refund).

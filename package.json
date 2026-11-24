@@ -10,7 +10,8 @@
     "test:auth": "node test/auth.mjs",
     "test:auth-browser": "node test/auth-browser.mjs",
     "test:profile-browser": "node test/profile-browser.mjs",
-    "test:plan-browser": "node test/plan-browser.mjs"
+    "test:plan-browser": "node test/plan-browser.mjs",
+    "test:breaks-browser": "node test/breaks-browser.mjs"
   },
   "devDependencies": {
     "supabase": "2.120.0"
