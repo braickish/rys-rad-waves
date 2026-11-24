@@ -150,7 +150,7 @@ export const KF_ALMOND_HEAD = KF_PIPE_HEAD.map((k) => {
 // a wave is a ledge, no step where the shape changes along the wave. So at each stage everything from the back of the crest to
 // the trough is lifted until the trough sits at the others' level (~-0.45): the wave keeps all its height and jacks up above the
 // water instead, as it does when it reaches a ledge. The lip still lands on the waterline. Same units as KF_PIPE_HEAD.
-const LEDGE_TROUGH = -0.45;
+const LEDGE_TROUGH = -0.3; // (the almond's trough: at -0.45 the curve out to the flats overshot to ~-0.7 m in front of the curl)
 const jackUp = (p, land) => { const up = LEDGE_TROUGH - p[14][1]; return p.map(([z, y], i) => (i < 3 || i === 15 ? [z, y] : land && (i === 8 || i === 9) ? [z, i === 8 ? 0.05 : 0.1] : [z, y + up])); };
 const LEDGE_FULL = jackUp([[-40, 0], [-30, 0], [-6, 0.3], [-2.2, 2.0], [0, 3.3], [1.8, 3.9], [3.9, 3.5], [5.4, 1.6], [5.8, -0.9], [4.9, -0.8], [4.4, 0.9], [2.8, 2.1], [1.1, 1.3], [1.0, -0.6], [2.6, -1.6], [22, 0]], true);
 export const KF_LEDGE_HEAD = [

@@ -517,7 +517,10 @@ export function controlPoints(s, out = new Float64Array(NP * 2), scale = SCALE, 
     const u = shapeSet(shapeU(xs)), i = Math.min(SHAPES.length - 2, Math.floor(u)), w = u - i;
     kfPoints(SHAPES[i], s, out, scale);
     if (w > 1e-4) { kfPoints(SHAPES[i + 1], s, _cpB, scale); for (let q = 0; q < NP * 2; q++) out[q] += (_cpB[q] - out[q]) * w; }
-    const f = sizeAt(xs); // (a built wave's size along its stretch)
+    // (a built wave's size along its stretch. Behind the curl, as the whitewater ages (phase 1.3 -> 3), it eases to the ride's own
+    // size (1): at the curl the wave stands up at its local size, but further back the local size kept reshaping the bore's foam
+    // apron over the flats, a bump along the broken part where the wave that broke there was bigger; the user, 2026-11-24)
+    const sm = Math.min(1, Math.max(0, (s - 1.3) / 1.7)), f = 1 + (sizeAt(xs) - 1) * (1 - sm * sm * (3 - 2 * sm));
     // (everything but the trough's depth: the water in front of the wave is the fixed reference (the user, 2026-11-24): scaled
     // with the rest, a size that halves within 10 m left a step along the base of the wave across the flats)
     if (f !== 1) { const ty = out[I.TROUGH * 2 + 1]; for (let i = 0; i < NP * 2; i++) out[i] *= f; out[I.TROUGH * 2 + 1] = ty; }
