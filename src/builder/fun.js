@@ -63,7 +63,7 @@ function limitRate(v, P, rate) {
 
 // The Fun version of a payload (a copy; Real passes through untouched).
 export function funPayload(data) {
-  if (!data || !data.fun || !Array.isArray(data.profile) || data.profile.length < 3) return data;
+  if (!data || !data.fun || data.funApplied || !Array.isArray(data.profile) || data.profile.length < 3) return data; // (funApplied: already the Fun version, set up again from WAVE.built)
   const size = Math.sqrt(Math.max(0.05, data.H) / 3.5);
   let P = data.profile.map((p) => ({ ...p }));
   // step 4: the curl's speed (and the pace trimming holds) into the band

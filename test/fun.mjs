@@ -56,4 +56,14 @@ const left = (fun) => ({ v: 1, mode: 'full', side: 'left', length: 250, base: 11
   check(a.some((v, i) => Math.abs(v - LEFT[i][1]) > 0.5), 'the game rides the Fun profile when Fun');
   check(b.every((v, i) => v === LEFT[i][1]) && c.every((v, i) => v === LEFT[i][1]), 'Real (and older links) ride the builder\'s profile exactly');
 }
+// set up again from WAVE.built (a replay, heat mode's full ride): the same wave, not scaled or made Fun a second time (the user,
+// 2026-11-24: the replay showed a different size from the wave surfed)
+{
+  const W = await import('../src/wave.js');
+  const d = { ...left(true), scale: 1.5 };
+  const once = applyBuilt(d), H1 = once.built.H, p1 = once.ridges.profile.map((p) => p.peel), k1 = once.sizeK;
+  const again = applyBuilt(once.built), H2 = again.built.H, p2 = again.ridges.profile.map((p) => p.peel), k2 = again.sizeK;
+  console.log(`set up again: breakers ${H1.toFixed(2)} -> ${H2.toFixed(2)} m, sizeK ${k1.toFixed(3)} -> ${k2.toFixed(3)}`);
+  check(Math.abs(H1 - H2) < 1e-9 && Math.abs(k1 - k2) < 1e-9 && p1.every((v, i) => Math.abs(v - p2[i]) < 1e-9), 'set up again from WAVE.built (a replay): the same wave, not scaled or made Fun twice');
+}
 process.exit(fails ? 1 : 0);

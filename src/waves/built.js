@@ -97,7 +97,9 @@ export function applyBuilt(data) {
   // you ride): the breakers x `scale`, and the wave's speeds (the curl's, the wave's, the leads in time) x sqrt(scale), as a
   // bigger wave on the same reef (Froude; Pipe's ?size does the same). Lengths along the reef stay the reef's.
   const sc = data.scale > 0 ? data.scale : 1, sq = Math.sqrt(sc);
-  if (sc !== 1) data = { ...data, H: data.H * sc, base: data.base * sq, c: data.c != null ? data.c * sq : data.c, scaleApplied: sc,
+  // (the scaled copy says so, scale 1: the wave is kept as WAVE.built and set up again from it (a replay, heat mode's full ride),
+  // and must not be scaled twice; the user, 2026-11-24: the replay showed a bigger wave than the one surfed)
+  if (sc !== 1) data = { ...data, H: data.H * sc, base: data.base * sq, c: data.c != null ? data.c * sq : data.c, scale: 1, scaleApplied: (data.scaleApplied || 1) * sc,
     profile: data.profile.map((q) => ({ ...q, peel: q.peel * sq, H: q.H != null ? q.H * sc : q.H, c: q.c != null ? q.c * sq : q.c, ...(q.e ? { e: q.e * sq } : {}) })) };
   // Fun (the surfable-waves plan, src/builder/fun.js): the wave's extremes tamed, its character kept; Real as the reef makes it
   data = funPayload(data);
