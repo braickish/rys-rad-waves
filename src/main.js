@@ -6,6 +6,7 @@ import { WAVES } from './waves/index.js';
 import { SEA, nextWave, stepSea, seedSea, goToWave } from './sea.js';
 import { createRecording, recordStep, finishRecording, encodeRecording, decodeRecording, createPlayer, playerStep, playerEnd } from './replay.js';
 import { applyBuilt } from './waves/built.js';
+import { parseHeatParam, createHeat, stepHeat, canCatch, addWave, checkOver, standings, judgeSeed, clockText, you as heatYou } from './heat.js';
 import { perspective, lookAt, mul, invert } from './math.js';
 import { createPose, surferObjects } from './surfer.js';
 import { loadSkinnedGLB } from './glb.js';
@@ -14,8 +15,12 @@ import { createBody } from './body.js';
 const params = new URLSearchParams(location.search);
 // Competition judging (?judge; the user, 2026-11-22): every wave scored by a five-judge panel (judging.js), the score sheet
 // after each one, the session a heat (best two waves).
-const JUDGE = params.has('judge');
-const heat = { scores: [], seen: new Set() };
+// Heats (src/heat.js; accounts plan task 3): ?heat=10m (a timer) or ?heat=5w (a wave count), &bots=N rivals (3; 0-7):
+// the waves come from the heat's seed in order, each judged; a WSL-style board at the top left; results at the end.
+const HEAT_END = parseHeatParam(params.get('heat'));
+const JUDGE = params.has('judge') || !!HEAT_END;
+const heat = { scores: [], seen: new Set() }; // (the judges' memory: the session, or the heat in heat mode)
+let H = null, heatCaughtAt = 0, sheetTimer = 0, boardKey = '', popTimer = 0;
 let rideLog = null;
 // Crumbling wave by default; ?wave=barrel for the barreling one. Must be set
 // before the renderer builds the wave mesh.
@@ -334,7 +339,7 @@ function startReplay(rec) {
   seedSea(rec.seed); goToWave(rec.n);
   resetRider(rider);
   if (want.ridet && WAVE.bar) { for (let i = 0; i < Number(want.ridet) * 120; i++) stepRide(1 / 120); resetRider(rider); }
-  player = createPlayer(rec); recording = null;
+  player = createPlayer(rec); recording = null; sheetTimer = 0;
   score = 0; rideTime = 0; lastMove = ''; lastMoveTime = -9; rideLog = createRideLog();
   state = 'play';
   for (const id of ['title', 'over', 'judge']) $(id).hidden = true;
@@ -370,6 +375,16 @@ for (const b of document.querySelectorAll('.replay-btns button')) {
   b.addEventListener('pointerdown', (e) => e.stopPropagation()); // (a tap elsewhere on the card paddles back out)
   b.addEventListener('click', (e) => { e.stopPropagation(); if (b.dataset.act === 'save') saveReplay(); else if (lastRecording) startReplay(decodeRecording(encodeRecording(lastRecording))); });
 }
+$('results').addEventListener('pointerdown', (e) => { e.preventDefault(); startOrRestart(); });
+$('results-watch').addEventListener('pointerdown', (e) => e.stopPropagation());
+$('board').addEventListener('pointerdown', (e) => { e.stopPropagation(); $('board').classList.toggle('open'); }); // (a phone: tap for every row)
+if (HEAT_END) {
+  $('heat-note').hidden = false;
+  $('heat-note').textContent = `Heat · ${HEAT_END.minutes ? `${HEAT_END.minutes} min` : `${HEAT_END.waves} waves`} · best two waves${params.get('bots') === '0' ? '' : ` · ${params.has('bots') ? Number(params.get('bots')) : 3} rivals`}`;
+  $('score').parentElement.hidden = true; $('best').parentElement.hidden = true; // (the board stands in for the points)
+  const left = $('score').parentElement.parentElement; // (the board takes the top left; the tube meter sits under it)
+  left.classList.add('hud-left'); left.prepend($('board')); left.append($('board-pop'));
+}
 addEventListener('dragover', (e) => e.preventDefault());
 addEventListener('drop', async (e) => {
   e.preventDefault();
@@ -377,9 +392,66 @@ addEventListener('drop', async (e) => {
   try { startReplay(decodeRecording(await f.text())); } catch (err) { showError(`Replay: ${err.message}`); }
 });
 
+const ordinal = (n) => n + (n % 10 === 1 && n % 100 !== 11 ? 'st' : n % 10 === 2 && n % 100 !== 12 ? 'nd' : n % 10 === 3 && n % 100 !== 13 ? 'rd' : 'th');
+// A new heat: its seed (?seed=, else random) is the sea's, so its waves come in order from wave 0.
+function startHeat() {
+  const seed = params.has('seed') ? Number(params.get('seed')) : 1 + Math.floor(Math.random() * 2 ** 30);
+  H = createHeat({ seed, end: HEAT_END, bots: params.has('bots') ? Number(params.get('bots')) : 3 });
+  window.__heat = H;
+  seedSea(H.seed);
+  heat.scores = []; heat.seen = new Set();
+  boardKey = '';
+  // (a built break's loop never ends: a heat rides its full ride, the contests plan)
+  if (WAVE.id === 'built' && WAVE.ridges?.loop) { applyBuilt({ ...WAVE.built, mode: 'full' }); useWave('built'); renderer.rebuildWave(); }
+  $('results').hidden = true;
+}
+// The end of a heat: places, totals, best two; watch your best wave; a new heat.
+function showResults() {
+  state = 'results';
+  sheetTimer = 0;
+  const st = standings(H), me = st.find((r) => r.surfer.you), f2 = (x) => x.toFixed(2);
+  $('results-title').textContent = me.place === 1 ? 'You win!' : `${ordinal(me.place)} place`;
+  $('results-sub').textContent = `${H.end.minutes ? `${H.end.minutes} min heat` : `${H.end.waves} wave heat`} · ${WAVE.name}`;
+  $('results-rows').innerHTML = st.map((r) => `<div class="rr${r.surfer.you ? ' you' : ''}"><span class="pl">${r.place}</span><i style="background:${r.surfer.jersey.color}"></i><span class="nm">${r.surfer.name}</span><span class="bt">${r.top.map(f2).join(' + ') || '-'}</span><b>${f2(r.total)}</b></div>`).join('');
+  const best = heatYou(H).waves.filter((w) => w.ride).sort((a, b) => b.score - a.score)[0];
+  $('results-watch').hidden = !best;
+  $('results-watch').onclick = (e) => { e.stopPropagation(); if (best) startReplay(decodeRecording(encodeRecording(best.ride))); };
+  for (const id of ['over', 'judge', 'title']) $(id).hidden = true;
+  $('results').hidden = false;
+  window.__heatResults = st.map((r) => ({ name: r.surfer.name, place: r.place, total: r.total }));
+}
+// The board (top left, while a heat is on): the clock, one row a surfer by place, your row lit, what each needs.
+function drawBoard() {
+  const el = $('board');
+  el.hidden = !H || state === 'title' || state === 'results';
+  if (el.hidden) return;
+  const st = standings(H), f2 = (x) => x.toFixed(2), clock = H.done ? 'FINAL' : H.horn ? 'HORN' : clockText(H);
+  const key = clock + JSON.stringify(st.map((r) => [r.surfer.id, r.total])) + el.classList.contains('open');
+  if (key === boardKey) return;
+  boardKey = key;
+  const mi = st.findIndex((r) => r.surfer.you);
+  $('board-clock').textContent = clock;
+  $('board-rows').innerHTML = st.map((r, i) => {
+    const need = r.need && !H.done ? (r.need.combo ? 'combo' : `${f2(r.need.score)} ${r.need.for === 'adv' ? 'to adv' : 'to win'}`) : '';
+    return `<div class="br${r.surfer.you ? ' you' : ''}${Math.abs(i - mi) > 1 ? ' far' : ''}"><i style="background:${r.surfer.jersey.color}"></i><span class="nm">${r.surfer.name}</span><b>${f2(r.total)}</b><span class="bt">${r.top.map(f2).join(' ')}</span><span class="nd">${need}</span></div>`;
+  }).join('');
+}
+function heatPop(name, sc, color) {
+  const el = $('board-pop');
+  el.innerHTML = `<i style="background:${color}"></i>${name} <b>${sc.toFixed(2)}</b>`;
+  el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop');
+  popTimer = 2.5;
+}
+
 function startOrRestart() {
   if (state === 'play') return;
+  if (HEAT_END) {
+    if (H && !H.done && !canCatch(H)) checkOver(H, false); // (the horn has gone, or you've ridden your waves)
+    if (H && H.done && state !== 'results') { showResults(); return; }
+    if (!H || H.done) startHeat();
+  }
   state = 'play';
+  sheetTimer = 0;
   nextWave(); // the next wave of the set (its own size)
   resetRider(rider);
   if (params.has('xs')) { rider.xs = Number(params.get('xs')); rider.t = 13.0; rider.pos = frameAt(rider.xs, rider.t).P; }
@@ -398,27 +470,37 @@ function startOrRestart() {
   // (no wave-of-set count or face size: the user, 2026-11-18; sets still vary the waves. A simulated wave (a bar)
   // names which one it is and its swell: the user, 2026-11-19, to compare them)
   const m = WAVE.bar && RIDE.map;
+  if (H) { heatCaughtAt = H.time; flash('Drop in!', `wave ${heatYou(H).waves.length + 1}${H.end.waves ? ` of ${H.end.waves}` : ` · ${clockText(H)} left`}`); return; }
   flash('Drop in!', m ? `Wave ${m.wave}${m.swell ? ` · ${m.swell}` : ''}` : '');
 }
 
 // The score sheet after a judged wave: the maneuvers in the judges' shorthand, the five scores (the high and low struck out),
 // the result and its grade, and the heat so far (best two waves).
-function showScoreSheet() {
-  const res = scoreRide(rideLog, { size: (WAVE.sizeK || 1) * SIZE, seed: heat.scores.length + 1, seen: heat.seen });
+function showScoreSheet(judge, counted = true) {
+  const res = scoreRide(rideLog, { size: (WAVE.sizeK || 1) * SIZE, seed: judge.seed, seen: heat.seen });
   for (const it of res.items) heat.seen.add(it.key);
   heat.scores.push(res.score);
   const n = heat.scores.length, h = heatTotal(heat.scores), f2 = (x) => x.toFixed(2);
-  $('judge-wave').textContent = `Wave ${n}`;
+  $('judge-wave').textContent = H ? `Wave ${heatYou(H).waves.length}${counted ? '' : ' · after the horn'}` : `Wave ${n}`;
   $('judge-score').textContent = f2(res.score);
   $('judge-grade').textContent = res.grade;
   $('judge-moves').textContent = res.sheet;
   $('judge-reason').textContent = rider.wipeReason || '';
   $('judge-panel').innerHTML = res.judges.map((j) => `<div class="jd${j.dropped ? ' drop' : ''}"><b>${j.score.toFixed(1)}</b><small>${j.name} · ${j.likes}</small></div>`).join('');
   $('judge-heat').innerHTML = `Heat <b>${f2(h.total)}</b> <small>best two: ${h.top.map(f2).join(' + ')}${n > 2 ? ` · all: ${heat.scores.map(f2).join(', ')}` : ''}</small>`;
+  if (H) { // (heat mode: your place and what you need, from the board)
+    const st = standings(H), me = st.find((r) => r.surfer.you), b = heatYou(H).waves;
+    const need = me.need ? (me.need.combo ? ' · needs a combination' : ` · needs ${f2(me.need.score)} ${me.need.for === 'adv' ? 'to advance' : 'to win'}`) : me.place === 1 ? ' · in the lead' : '';
+    $('judge-heat').innerHTML = counted ? `Heat <b>${f2(me.total)}</b> <small>${ordinal(me.place)} of ${st.length}${need}${b.length > 2 ? ` · all: ${b.map((w) => f2(w.score)).join(', ')}` : ''}</small>`
+      : `<small>Caught after the horn: it doesn't count</small>`;
+    $('judge-go').innerHTML = canCatch(H) ? '<span class="desk">Space to paddle back out</span><span class="mob">Tap to paddle back out</span>' : 'The results';
+    sheetTimer = 6; // (the next wave comes by itself after a few seconds; the clock is running)
+  }
   $('judge').hidden = false;
 }
 
 function flash(text, sub = '') {
+  if (H) sub = sub.replace(/\s*\+\d+$/, ''); // (a heat is judged: the arcade points don't count, the move's name stays)
   $('msg').innerHTML = text + (sub ? `<small>${sub}</small>` : '');
   $('msg').classList.remove('pop');
   void $('msg').offsetWidth;
@@ -787,7 +869,7 @@ async function main() {
         state = 'over';
         const s = Math.round(score);
         // (the recording: the points, and the judged score with the context the sheet scores it in, so a replay can check both)
-        const judge = { seed: heat.scores.length + 1, seen: [...heat.seen] };
+        const judge = { seed: H ? judgeSeed(H.seed, heatYou(H).waves.length) : heat.scores.length + 1, seen: [...heat.seen] };
         const jr = scoreRide(rideLog, { size: (WAVE.sizeK || 1) * SIZE, seed: judge.seed, seen: new Set(judge.seen) });
         lastRecording = window.__replay = finishRecording(recording, rider, { score: s, judged: { score: jr.score }, judge, mode: rider.mode, reason: rider.wipeReason, time: +rideTime.toFixed(2) });
         recording = null;
@@ -798,9 +880,20 @@ async function main() {
         $('over-reason').textContent = rider.wipeReason;
         $('over-time').textContent = rideTime.toFixed(1);
         $('best').textContent = best;
-        if (JUDGE && rideLog) showScoreSheet(); else $('over').hidden = false;
+        const counted = H ? addWave(H, { score: jr.score, at: heatCaughtAt, ride: lastRecording }) : true;
+        if (H && counted) heatPop(heatYou(H).name, jr.score, heatYou(H).jersey.color);
+        if (JUDGE) showScoreSheet(judge, counted); else $('over').hidden = false;
       }
-    } else if (state === 'title') {
+    }
+    if (H && !H.done && !player && state !== 'title' && state !== 'results') {
+      for (const e of stepHeat(H, dt)) {
+        if (e.type === 'score') heatPop(e.surfer.name, e.score, e.surfer.jersey.color);
+        if (e.type === 'horn') flash('HORN!', state === 'play' ? 'this wave still counts' : 'the heat is over');
+      }
+    }
+    if (sheetTimer > 0 && state === 'over' && !player) { sheetTimer -= dt; if (sheetTimer <= 0) startOrRestart(); }
+    if (H) { drawBoard(); popTimer -= dt; if (popTimer <= 0) $('board-pop').classList.remove('pop'); }
+    if (state === 'title') {
       // Attract mode: the autopilot surfs behind the title card.
       acc += dt;
       while (acc >= STEP) { stepSea(STEP); lastInput = autopilot(); stepRider(rider, lastInput, STEP); acc -= STEP; }

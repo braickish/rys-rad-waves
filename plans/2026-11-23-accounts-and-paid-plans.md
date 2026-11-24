@@ -163,7 +163,10 @@ sees it on their profile.
   score sheet, plus `?replay=<url>` and drag-and-drop. `test/replay.mjs` (four waves and a built break, exact, plus the
   drift snap) and `test/replay-browser.mjs` (headless Chrome: a keyboard ride; "Watch it" at 4x slower CPU; `?replay=` in a
   fresh page) all match. Fixed along the way: a new ride's first move could count as a repeat of the last ride's.
-- [ ] **3. Solo heat mode.** Contests phase 1 as written, recording each wave's ride.
+- [x] **3. Solo heat mode** (done 2026-11-23). Contests phase 1: `src/heat.js` (pure), `?heat=10m` / `?heat=5w` (`&bots=`, `&seed=`),
+  the WSL-style board with needs and score pops, the horn rule, the sheet paddling back out by itself, and a results card
+  with "Watch your best wave" (each wave's ride is recorded). `test/heat.mjs` and `test/heat-browser.mjs` pass on Raglan+ and
+  Trestles. Not yet: a way into a heat from the title screen (URL only for now), and bracket `advance` on a URL.
 - [ ] **4. The Supabase project and auth.** A new project and the CLI in the repo (`supabase/`), as spigots does: magic link only
   (passwords stripped), anonymous sign-ins on, redirect URLs for Pages and local, and custom SMTP noted for launch. Sign
   in and out on the title screen, with the session kept. Tests: auth (link, session, sign-out) on the local stack.

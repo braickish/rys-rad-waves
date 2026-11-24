@@ -68,7 +68,7 @@ w replaces b2, so you need w > T - b1 (to 0.01), shown if it's <= 10, else "comb
 
 ## Phases and tasks
 
-### 1. Solo heat mode (no network)
+### 1. Solo heat mode (no network): done 2026-11-23 (accounts plan task 3)
 
 The heat engine and the scoreboard on their own, so they can be played and tested before any of the network exists.
 

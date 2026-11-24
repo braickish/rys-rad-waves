@@ -414,6 +414,25 @@ section (25-30 deg), backing off (slower than 70 deg, or a gap), or closing out 
   1:6 / 1:10 / 1:15 lines 1.14 / 0.88 / 0.72 at the same peel; 10 / 18 s swell 0.67 / 1.00.
 - **Next (agreed 2026-11-22):** shape, size and barrels from the reef, in steps: plans/2026-11-22-reef-driven-waves.md (step 8: stacked reefs).
 
+## Heats (`?heat=10m` / `?heat=5w`, `src/heat.js`; accounts plan task 3 = the contests plan's phase 1, 2026-11-23)
+
+Solo heat mode, no network yet. `?heat=10m` (a timer; any minutes) or `?heat=5w` (a wave count), `&bots=N` rivals (3 by
+default, 0-7), `&seed=` to fix the heat (else random). Judging is on. DROP IN starts the heat: its seed is the sea's, so your waves
+are that seed's waves 0, 1, 2 ... (wave addresses), the same for anyone with the seed. Each wave is judged with the judges' seed
+from the heat seed and wave number (`judgeSeed`), and the judges' memory of maneuvers (variety) is the heat's. Best two waves
+make your total. Ties go to the best wave, then the next (WSL). On a timer, a wave counts if caught before the horn, even when the
+horn sounds mid-ride ("HORN!": this wave still counts). The clock runs in game time while you ride and while the sheet shows
+(it stops on the title and in replays). The sheet paddles you back out by itself after 6 s (Space sooner).
+Bots: a skill each (mean wave scores spread ~3.8-6.4), waves on a schedule from the seed (timer: first at 20-60 s, then every
+45-95 s; a wave count: every 35-70 s, the rest coming in at once when you've ridden yours). Their scores pop in beside the board.
+The board (top left, after WSL's broadcast graphic): the clock (or "Wave 3 of 5", then HORN / FINAL), a row per surfer by place
+(jersey colour, name, total, best two, what they need: "6.18 to win", "combo"), your row lit. On a phone only the rows around
+you show; tap the board for all. The arcade points and Best are hidden in a heat, and move callouts lose their "+points".
+The end: a results card (places, best two, totals; "Watch your best wave" replays it from its recording; Space for a new heat).
+A built break's loop rides its full ride in a heat. `heat.js` is pure (`createHeat`, `stepHeat`, `canCatch`, `addWave`,
+`checkOver`, `standings` with `needFor`, `clockText`). `window.__heat` and `window.__heatResults` are for tests. `advance` (top N
+go through, needs "to adv") is in heat.js for brackets later, not on a URL yet.
+
 ## Replays (`src/replay.js`; accounts plan task 2, 2026-11-23)
 
 Every ride is recorded: its wave's address (wave id, a built break's payload, `SEA.seed`, `SEA.n`), the URL options that
@@ -1093,6 +1112,8 @@ bot's real ride. Not yet: a heat timer, priority / interference, other players.
 ```sh
 node test/determinism.mjs # a ride is the same whatever came before (wave addresses; contests and replays need it)
 node test/replay.mjs   # record, save, replay: the same ride bit for bit; checkpoints put a knocked-off replay back
+node test/heat.mjs     # heats: the seed's waves in order, best two, places and tie-breaks, needs, the horn, wave counts, bots
+node test/heat-browser.mjs [shots] # in headless Chrome: a 1 min heat (board, sheet, horn, results, watch your best wave) and a 2 wave heat
 node test/replay-browser.mjs # in headless Chrome: ride, "Watch it" at 4x slower CPU, ?replay=<file>: all the same (WAVE=trestles ...)
 node test/feel.mjs     # the feel numbers: climb time, drop speed, cutback re-entries, pocket riding
 node test/tube.mjs     # barrel riding: balance and speed choices and their outcomes
