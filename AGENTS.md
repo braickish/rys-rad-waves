@@ -500,7 +500,8 @@ frame (`vid` in main.js: `dt` fixed, the next frame only once the encoder is rea
 (the canvas's, long side at most 1920, even) and Mediabunny's `CanvasSource` encodes it (H.264, 8 Mbit/s, keyframe every
 2 s) into an in-memory MP4. Mediabunny 1.65.0 is imported from jsDelivr only when a video is made. A progress panel
 (`#video`, Cancel / Esc) covers the game; at the end, **↗ Share** opens the share sheet (`navigator.share({ files })`, needs
-the tap) where the browser can share files, else downloads; **⬇ Save video** downloads. Videos stop at 90 s. No sound yet.
+the tap) where the browser can share files, else downloads; **⬇ Save video** downloads. Videos stop at 90 s. No sound yet. The start screen's logo is drawn in the top left (`makeLogo`: Bungee Shade,
+its shadows and tilt, font 6% of the short side).
 Runs about real time on a laptop. `window.__video` is for tests; `node test/video.mjs` (MOBILE=1 for a phone) rides, makes
 the video, checks frames/size and that a `<video>` plays it, and saves test/out/ride.mp4.
 
