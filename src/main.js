@@ -13,7 +13,7 @@ import { createPose, surferObjects } from './surfer.js';
 import { loadSkinnedGLB } from './glb.js';
 import { createBody } from './body.js';
 import { startAccountUI } from './account-ui.js';
-import { cachedProfile } from './account.js';
+import { cachedProfile, onPlan, waveLocked } from './account.js';
 
 const params = new URLSearchParams(location.search);
 // Competition judging (?judge; the user, 2026-11-22): every wave scored by a five-judge panel (judging.js), the score sheet
@@ -946,23 +946,29 @@ async function main() {
   nextWave();
   // Wave picker on the title screen.
   const picker = $('waves');
+  const pickWave = (id) => {
+    useWave(id);
+    nextWave();
+    renderer.rebuildWave();
+    resetRider(rider);
+    try { localStorage.setItem('rys-rad-waves-wave', id); } catch {}
+    const u = new URL(location.href); u.searchParams.set('wave', id); history.replaceState(null, '', u);
+    drawPicker();
+  };
   const drawPicker = () => {
     picker.innerHTML = '';
     // (a hidden wave you're on, the wave builder's `built`, shows too, with a way back to the builder)
     for (const w of WAVE.hidden ? [...WAVES, WAVE] : WAVES) {
       const b = document.createElement('button');
-      b.textContent = w.name;
-      b.className = w.id === WAVE.id ? 'on' : '';
+      const locked = waveLocked(w.id); // (the Wave Pass's soft gate, accounts plan task 6: off until payments are live)
+      b.textContent = (locked ? '🔒 ' : '') + w.name;
+      b.className = (w.id === WAVE.id ? 'on' : '') + (locked ? ' locked' : '');
       b.addEventListener('pointerdown', (e) => { e.stopPropagation(); });
       b.addEventListener('click', (e) => {
         e.stopPropagation();
-        useWave(w.id);
-        nextWave();
-        renderer.rebuildWave();
-        resetRider(rider);
-        try { localStorage.setItem('rys-rad-waves-wave', w.id); } catch {}
-        const u = new URL(location.href); u.searchParams.set('wave', w.id); history.replaceState(null, '', u);
-        drawPicker();
+        if (waveLocked(w.id)) { lockNote(w.name); return; }
+        $('lock-note').hidden = true;
+        pickWave(w.id);
       });
       picker.appendChild(b);
     }
@@ -974,6 +980,13 @@ async function main() {
     }
   };
   drawPicker();
+  // The plan arrives after the page (signing in reads it again): lock the picker, and a locked wave you're on goes back
+  // to Raglan, the free one (on the title screen only; a replay shows whatever it recorded).
+  const lockNote = (name) => { $('lock-note').hidden = false; $('lock-note').textContent = `${name} comes with a Wave Pass: every wave, for life. Coming soon.`; };
+  onPlan(() => {
+    if (state === 'title' && waveLocked(WAVE.id) && !params.has('replay')) { const was = WAVE.name; pickWave('point'); lockNote(was); }
+    else drawPicker();
+  });
   // Mode, under the waves: free surf or a solo heat against bots (accounts plan task 3). A heat is set up as the page
   // loads, so picking one reloads with ?heat= (the wave kept); a live contest will take a code here later (task 11).
   const modes = $('modes'), cur = JSON.stringify(HEAT_END); // (a heat of another length, ?heat=3m, lights none)

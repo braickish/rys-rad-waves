@@ -135,3 +135,37 @@ export function describeProfileError(e) {
   }
   return describeAuthError(e);
 }
+
+// ---- Your plan (task 6) ----
+// { wave_pass, pro, pro_until, grace }, from the database (my_plan). Signed out or a guest: all false.
+//
+// The wave lock is a soft gate (the plan): the picker locks every wave but the free ones until you have a Wave Pass.
+// PAYWALL stays off until payments are live (task 9), so nobody loses a wave before they can buy one; ?paywall turns
+// it on to try it.
+export const PAYWALL = new URLSearchParams(location.search).has('paywall');
+export const FREE_WAVES = ['point', 'built']; // (Raglan, the demo wave; and your own break from the builder)
+const NO_PLAN = { wave_pass: false, pro: false, pro_until: null, grace: false };
+let plan = NO_PLAN, planKnown = false, planFor;
+const planListeners = new Set();
+
+export async function myPlan() {
+  const c = await initAccount();
+  const who = session?.user?.id || null;
+  if (!who) plan = NO_PLAN;
+  else {
+    const { data, error } = await c.rpc('my_plan');
+    if (error) throw error;
+    plan = { ...NO_PLAN, ...data };
+  }
+  planKnown = true; planFor = who;
+  for (const f of planListeners) f(plan);
+  return plan;
+}
+// Calls f with your plan now (if known) and whenever it changes (signing in or out reads it again).
+export const onPlan = (f) => { planListeners.add(f); if (planKnown) f(plan); return () => planListeners.delete(f); };
+export const currentPlan = () => plan;
+export const waveLocked = (id) => PAYWALL && !FREE_WAVES.includes(id) && !plan.wave_pass;
+
+// (read the plan again when the user changes; a timeout because supabase-js mustn't be awaited inside its own
+// auth callback)
+onAccount((s) => { const who = s?.user?.id || null; if (client && who !== planFor) setTimeout(() => myPlan().catch((e) => console.warn('plan', e)), 0); });

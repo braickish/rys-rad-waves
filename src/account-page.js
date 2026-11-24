@@ -1,6 +1,6 @@
 // account.html: your handle, name and jersey; your email; sign out; delete your account (accounts plan task 5).
 // Billing and your breaks and contests join it later (tasks 9 and 14).
-import { initAccount, onAccount, myProfile, saveProfile, handleProblem, changeEmail, deleteAccount, signOut, describeAuthError, describeProfileError } from './account.js';
+import { initAccount, onAccount, onPlan, myProfile, saveProfile, handleProblem, changeEmail, deleteAccount, signOut, describeAuthError, describeProfileError } from './account.js';
 import { JERSEYS } from './heat.js';
 import { handleFromEmail } from './account-ui.js';
 
@@ -75,6 +75,16 @@ $('delete-form').addEventListener('submit', async (e) => {
   $('delete').disabled = true;
   try { await deleteAccount(); location.href = './?deleted'; }
   catch (err) { hint('delete-msg', describeAuthError(err), 'bad'); $('delete').disabled = false; }
+});
+
+// Your plan (task 6; buying and the Customer Portal come in tasks 8-9).
+const day = (t) => new Date(t).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' });
+onPlan((p) => {
+  $('plan-now').innerHTML = p.pro
+    ? (p.grace ? `<b>Pro</b>: your last payment didn't go through. It stays on for a few days while it's sorted out.`
+      : `<b>Pro</b> until ${day(p.pro_until)}: every wave, saving your breaks, and hosting contests.`)
+    : p.wave_pass ? '<b>Wave Pass</b>: every wave, for life.'
+    : '<b>Free</b>: Raglan, the wave builder to try, and any contest you\'re invited to.';
 });
 
 try {

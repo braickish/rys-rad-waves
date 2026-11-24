@@ -179,9 +179,14 @@ sees it on their profile.
   for a handle on first sign-in (a guess from the email), then shows @handle · Account · Sign out. `profile.html?u=`
   (name, jersey, since, empty Breaks and Contest results) and `account.html` (handle, name, jersey, email change, sign
   out, delete by typing your handle). Tests: `supabase/tests/profiles_test.sql` (24), `test:profile-browser`.
-- [ ] **6. Entitlements (no payments yet).** The `entitlements` table and `has_entitlement()`, granted by hand for testing.
-  The picker locks the Wave Pass waves (the soft gate) and the client reads your plan. Tests: a user can't write their own
-  entitlement, Pro implies the Wave Pass, and an expired one stops counting after the grace period.
+- [x] **6. Entitlements (no payments yet)** (done 2026-11-24). `entitlements` (readable by you, written only by the
+  database), `has_entitlement(kind)` for you and `private.user_has_entitlement(uid, kind)` for RLS and functions (Pro counts
+  as a Wave Pass; a failed renewal keeps Pro 3 days; cancelled runs to the period's end; refunded never counts),
+  `my_plan()`, and `private.grant_entitlement(email, kind, interval, why)` for granting by hand. The picker locks every
+  wave but Raglan (and your built break) without a Wave Pass, and a link to a locked wave lands on Raglan with a note;
+  the account page shows your plan. **The lock is off until payments are live** (`PAYWALL` in src/account.js; `?paywall`
+  to try it), so nobody loses a wave before they can buy one: turn it on in task 9. Tests:
+  `supabase/tests/entitlements_test.sql` (17), `test:plan-browser`.
 - [ ] **7. Cloud breaks.** The `breaks` table, Storage thumbnails, and **My Breaks** in the builder (save, open, rename,
   duplicate, delete, visibility), saving gated on Pro. Import from localStorage on first sign-in, plus `?break=<id>`.
   Tests: RLS (private stays private, unlisted readable by id, public listed), and a non-Pro user can't save.
