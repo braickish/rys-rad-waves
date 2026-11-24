@@ -2,7 +2,7 @@
 //   1. signed out, the builder asks you to sign in
 //   2. signed in, free: no saving ("comes with Pro")
 //   3. Pro: the design this browser remembers is offered as your first break; saved with a thumbnail and its ride
-//   4. rename, duplicate, unlisted, open the copy, delete it
+//   4. rename, duplicate, unlisted, edit the copy, delete it
 //   5. index.html?break=<id> drops straight into it; signed out, an unlisted link still works, a private one doesn't
 //   6. builder.html?break=<id> opens it
 // npm run db:start first, then: npm run test:breaks-browser [shotPrefix]
@@ -53,7 +53,7 @@ await waitFor(`${items} === 1`, 15000); await sleep(500);
 check(!(await evaluate(`!!document.querySelector('#breaks .offer')`)), 'offered once only');
 check(/All saved/.test(await evaluate(panel)), 'All saved');
 
-// 4. Rename, duplicate, unlisted, open the copy, delete it.
+// 4. Rename, duplicate, unlisted, edit the copy, delete it.
 await click('Rename');
 await evaluate(`(() => { const i = document.querySelector('#breaks .bitem input'); i.value = 'Bombie Point'; })()`);
 await click('OK');
@@ -67,7 +67,7 @@ const [orig, copy] = R;
 check(orig.visibility === 'unlisted' && copy.name === 'Bombie Point (copy)' && copy.visibility === 'private', `unlisted, and the copy private: ${R.map((r) => `${r.name}/${r.visibility}`)}`);
 check(await evaluate(`[...document.querySelectorAll('#breaks button')].some((e) => e.textContent === 'Copy link')`), 'a link to copy');
 await shot('2-list');
-await click('Open');
+await click('Edit');
 await waitFor(`document.getElementById('break-name').value === 'Bombie Point (copy)'`, 10000);
 await evaluate(`window.confirm = () => true`);
 await evaluate(`[...document.querySelectorAll('#breaks .bitem')].find((e) => /\\(copy\\)/.test(e.innerText)).querySelector('button.danger').click()`);

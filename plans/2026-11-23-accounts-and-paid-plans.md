@@ -192,7 +192,7 @@ sees it on their profile.
   (yours, or an unlisted or public one by id, with the owner's handle). Saving and changing need Pro; a lapsed Pro keeps,
   surfs and deletes everything. Thumbnails in the public `breaks` bucket (your folder, Pro). `src/breaks.js` and
   **My Breaks** at the top of the builder (`src/builder/my-breaks.js`): name, Save / Save as new, Private / Unlisted /
-  Public, Copy link, and the list (Open, Surf, Rename, Duplicate, Delete). On first sign-in with Pro the design this
+  Public, Copy link, and the list (Edit, Surf, Rename, Duplicate, Delete). On first sign-in with Pro the design this
   browser remembers is offered as your first break. `index.html?break=<id>` drops straight in (`src/boot.js`);
   `builder.html?break=<id>` opens it (someone else's as a copy to keep). Tests: `supabase/tests/breaks_test.sql` (22),
   `test:breaks-browser` (20). Also: service_role can now run the name check (it couldn't change a profile or a break).

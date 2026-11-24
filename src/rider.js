@@ -413,6 +413,7 @@ export function createRider() {
   return {
     mode: 'surf', // 'surf' | 'air' | 'wipe'
     xs: 4, t: 9.5, speed: 9, phi: -0.85, // drop in angled well down the face
+    held: null, // (your real height, kept as the wave slides past: holdHeight)
     pos: [0, 0, 0], vel: [0, 0, 0], heading: [1, 0, 0],
     crouch: false, pumping: false, turnRate: 0,
     inBarrel: false, clearance: 99, barrelTime: 0,
@@ -643,6 +644,7 @@ export function stepRider(r, input, dt) {
   }
   if (r.mode === 'surf') stepSurf(r, input, dt);
   else stepAir(r, input, dt);
+  r.held = r.mode === 'surf' && WAVE.ridges ? { xs: r.xs, t: r.t, y: surface(r.xs, r.t)[1] } : null; // (holdHeight, next step)
   for (const e of r.events) {
     if ((e.type === 'move' && e.move !== 'bottomTurn') || e.type === 'land') {
       // (no calm after a slash: it's a sharper turn, not a pivot off the lip,
@@ -697,6 +699,18 @@ function startLipSnap(r, top, target) {
 // again; the user preferred just the delay.)
 function lockInput(r) { r.lock = { dir: r.inDir }; }
 
+// The wave sliding past keeps your real height (the user's wave, 2026-11-24: "at the end you get whacked by a wall of water
+// that you run into"). On waves with ridges (a built wave's profile, Raglan+'s sections) the shape belongs to the reef, at
+// RIDGE.c + xs, so as the curl moves on, the shape at your spot changes even while you hold still against the curl: that's
+// moving along the reef, and moving along the wave keeps your real height (stepSurf's move). Staying at the same place in
+// the shape instead lifted you ~0.7 m wherever the wave turned hollower (a 4.9 m wave going crumbly -> ledge across a loop's
+// seam, or into a barrel section), straight up into the lip. Trestles' wave changes in time for real and has no ridges.
+function holdHeight(r) {
+  const h = r.held; r.held = null;
+  if (!h || h.xs !== r.xs || h.t !== r.t) return; // (something else moved you since)
+  const f = frameAt(r.xs, r.t);
+  if (Math.abs(f.Pt[1]) > 0.25 * Math.hypot(f.Pt[1], f.Pt[2])) r.t += clamp(-(f.P[1] - h.y) / f.Pt[1], -0.5, 0.5);
+}
 function stepSurf(r, input, dt) {
   const T = TUNE;
   r.moveCooldown = Math.max(0, r.moveCooldown - dt);
@@ -709,6 +723,7 @@ function stepSurf(r, input, dt) {
       if (r.fakie.spin >= Math.PI) { r.fakie = null; r.events.push({ type: 'move', move: 'revert', speed: r.speed, xs: r.xs }); }
     }
   }
+  holdHeight(r);
   let f = frameAt(r.xs, r.t);
   // For airs (the user, 2026-11-22): how fast you're actually rising (m/s, smoothed over ~0.1 s; not where the nose
   // points: on a floater the nose can point up while the foam holds you level), and when you were last in a move.

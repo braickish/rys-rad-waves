@@ -116,7 +116,7 @@ export function startMyBreaks(B) {
       } else {
         meta.append(h('b', { textContent: b.name }), h('span', { className: 'note', textContent: `${VISIBILITY.find(([v]) => v === b.visibility)[1]}${b.id === cur.id ? ' · open now' : ''}` }));
         meta.append(h('div', { className: 'row' },
-          b.id === cur.id ? null : button('Open', () => open(b.id)),
+          b.id === cur.id ? null : button('Edit', () => open(b.id)),
           h('a', { className: 'btn', href: surfLink(b.id), textContent: 'Surf' }),
           button('Rename', () => { renaming = b.id; render(); }, '', !canSave),
           button('Duplicate', () => act(() => duplicateBreak(b.id, `${b.name.slice(0, 33)} (copy)`), 'Duplicated.'), '', !canSave),
