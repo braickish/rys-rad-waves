@@ -181,19 +181,26 @@ rides with a barrel 2% · a barrel under 2 s 0% · a tube under 1.3 m 0%
   fixed reference (it had left a step along the base of the wave across the flats). Open: the builder reads a wave at a
   ledge as about half the height it had just before (5.2 -> 2.6 m on the user's ledge wave) where it should jack up.
 
-## 7. Fun: sections ahead are makeable or an honest closeout
+## 7. Fun: sections ahead are makeable or an honest closeout (done 2026-11-24)
 
 - A section's lead (`e`) capped at about the tube's life (~0.8 s), so it's an open-ended barrel you can thread
   (open-barrel plan step 3); a stretch that breaks much longer ahead becomes a deliberate closeout, the ride's ending, not a
   trap in the middle.
 - Tests: test/sectionride.mjs's bot gets through every capped section; a long-lead stretch ends the ride there.
 
-## 8. Fun: a clean takeoff and a real ending
+## 8. Fun: a clean takeoff and a real ending (done 2026-11-24)
 
 - The first 20-30 m a steady wall at a comfortable pace (the band's middle), easing into the wave's own profile.
 - The ride ends with a back-off (the wall easing, the curl slowing, the ride ending as now) or a closeout finale (the inside
   standing up and going at once), whichever the real wave does, instead of the curl just stopping.
 - Tests: the takeoff stretch steady; the ending one of the two.
+- Done (fun.js, steps 7-8): leads over 0.8 s capped there; on a full ride the first stretch past the takeoff breaking over
+  1.5 s ahead ends the ride, its leads kept, so it closes out at the end (`length` cut there); on a loop it's capped (a loop
+  has no ending). The first 25 m of a full ride at the comfortable pace for the size, easing into the wave's own by 50 m
+  (not on loops: every lap would slow at the seam). The ending is otherwise the game's own back-off (the curl easing to a
+  stop past the stretch). Also that day: behind the curl the size eases to the ride's own as the whitewater ages (wave.js
+  controlPoints, every built wave), which took out a bump along the flats in the broken part. Open: every built barrel draws
+  the water down in front of the curl over ~15 m, ~0.6-1.0 m deep (older than this plan).
 
 ## 9. In the builder: show what Fun changed
 

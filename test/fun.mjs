@@ -83,6 +83,19 @@ const left = (fun) => ({ v: 1, mode: 'full', side: 'left', length: 250, base: 11
   check(ratio <= 1.5, 'step 6: the size along the ride within +-20% (largest / smallest at most 1.5)');
   check(rate / mid <= 0.13, 'step 6: the size changes at most ~12% of its middle a second of curl');
 }
+// step 7: sections ahead makeable or an honest closeout; step 8: a clean takeoff
+{
+  const { bandOf } = await import('../src/builder/fun.js');
+  const mk = (mode, leads) => funPayload({ v: 1, mode, side: 'left', length: 200, base: 8, H: 3, c: 6, fun: true, profile: Array.from({ length: 21 }, (_, i) => ({ s: i * 10, peel: i < 3 ? 3 : 8, k: 0, H: 3, c: 6, u: 2, ...(leads[i] ? { e: leads[i] } : {}) })) });
+  const a = mk('full', { 6: 1.0, 7: 1.2, 14: 2.5, 15: 3.0, 16: 2.0 }), b = mk('loop', { 6: 1.0, 14: 2.5 });
+  const lead = (P, s0) => (P.find((p) => p.s === s0) || {}).e || 0;
+  console.log(`leads: a 1.0-1.2 s section -> ${lead(a.profile, 60)}/${lead(a.profile, 70)} s; a 2-3 s stretch at 140-160 m ends the full ride at ${a.length} m (leads kept ${lead(a.profile, 140)}/${lead(a.profile, 160)}); on a loop capped (${lead(b.profile, 140)})`);
+  check(lead(a.profile, 60) <= 0.8 && lead(a.profile, 70) <= 0.8, 'step 7: a section breaking a bit ahead is capped to an open-ended barrel (0.8 s)');
+  check(a.length === 160 && lead(a.profile, 150) > 1.5, 'step 7: a stretch breaking far ahead ends a full ride there, closing out');
+  check(b.length === 200 && lead(b.profile, 140) <= 0.8, 'step 7: on a loop it is capped instead (a loop has no ending)');
+  const pace = bandOf(3).pace;
+  check(a.profile.filter((p) => p.s <= 25).every((p) => Math.abs(p.peel - pace) < 0.3), `step 8: the takeoff runs at the comfortable pace (${(pace * MPH).toFixed(0)} mph; the builder had 7)`);
+}
 // the game applies it: a Fun link rides the Fun profile, a Real one (or an older link, no `fun`) the builder's
 {
   // (applyBuilt sets up the one built wave and returns it: read each before the next)

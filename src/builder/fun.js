@@ -11,6 +11,9 @@ export const FUN = {
   rate: 6 / MPH, // (m/s of curl speed per s of curl, at 3.5 m breakers: x sqrt(size))
   uRate: 0.6, // (of the shape scale per s of curl: a change of kind blends over ~1.5 s; step 3 had 0.25)
   barrelMin: 3, // (step 5: a barrel lasts at least this many s of curl ...)
+  lead: 0.8, closeLead: 1.5, // (step 7: a section's lead capped at 0.8 s (a tube lasts ~1.45 s: an open-ended barrel you can thread); a
+  // stretch breaking over 1.5 s ahead is a closeout, and on a full ride it's the ending)
+  takeoff: [25, 50], // (step 8: the first 25 m at the comfortable pace, easing into the wave's own by 50 m)
   size: 1.2, sizeRate: 0.12, // (step 6: the size along the ride within +-20% of its middle (a smooth squash), changing at most 12% of it a s of curl)
   tubeMin: 1.3, tubeK: 0.89, // (... and its tube is at least this tall, m: else the steep section; rider.js tubeMinHeight. tubeK: a built tube
   // is ~0.89x the breakers, the almond barrel: test/built.mjs, 2.66 m on 3 m)
@@ -87,9 +90,20 @@ export function funPayload(data) {
   if (!data || !data.fun || data.funApplied || !Array.isArray(data.profile) || data.profile.length < 3) return data; // (funApplied: already the Fun version, set up again from WAVE.built)
   const size = Math.sqrt(Math.max(0.05, data.H) / 3.5);
   let P = data.profile.map((p) => ({ ...p }));
+  // step 7: sections ahead makeable, or an honest closeout: on a full ride the first stretch (past the takeoff) breaking over
+  // closeLead ahead ends the ride there, closing out (its own lead kept); every other lead capped at `lead`
+  let length = data.length, closeFrom = Infinity;
+  if (data.mode === 'full') {
+    const i = P.findIndex((p) => p.s > FUN.takeoff[0] && (p.e || 0) > FUN.closeLead);
+    if (i > 0) { let j = i; while (j + 1 < P.length && (P[j + 1].e || 0) > FUN.closeLead) j++; closeFrom = P[i].s; P = P.slice(0, j + 1); length = P[j].s; }
+  }
+  P.forEach((p) => { if (p.e > FUN.lead && p.s < closeFrom) p.e = FUN.lead; });
   // step 4: the curl's speed (and the pace trimming holds) into the band
   const band = bandOf(data.H);
   P.forEach((p) => { p.peel = squash(p.peel, band); });
+  // step 8: a clean takeoff: the first 25 m at the comfortable pace, easing into the wave's own by 50 m
+  // (full rides only: a loop has no takeoff, it runs on lap after lap, and easing its start would slow every lap at the seam)
+  if (data.mode === 'full') P.forEach((p) => { const w = Math.min(1, Math.max(0, (p.s - FUN.takeoff[0]) / (FUN.takeoff[1] - FUN.takeoff[0]))); const k = w * w * (3 - 2 * w); p.peel = band.pace + (p.peel - band.pace) * k; });
   // step 3: light smoothing, then no jumps in the curl's speed or its shape
   const T0 = stepTimes(P);
   const peel = smoothAlong(P, 'peel', T0), u = P[0].u != null ? smoothAlong(P, 'u', T0) : null;
@@ -119,5 +133,5 @@ export function funPayload(data) {
     P.forEach((p, i) => { p.u = +uu[i].toFixed(3); });
   }
   P.forEach((p) => { p.peel = +p.peel.toFixed(2); });
-  return { ...data, base: +squash(data.base, band).toFixed(2), profile: P, funApplied: true };
+  return { ...data, length, base: +squash(data.base, band).toFixed(2), profile: P, funApplied: true };
 }
