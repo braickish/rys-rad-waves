@@ -7,7 +7,7 @@
 import { buildDepth, makeGrid, defaultCoast, BAY, BAY_DEEP_OFF } from './reef.js';
 import { traceRays, analyse, tooSlow, isRide } from './rays.js';
 import { runPE } from './pewave.js';
-import { LOOP, curlAt, defaultLoop, clampLoop, loopInfo, snapEnd, bestLoop, wavePayload, takeoffStart } from './loop.js';
+import { LOOP, curlAt, defaultLoop, clampLoop, loopInfo, snapEnd, bestLoop, wavePayload, takeoffStart, ledgeK } from './loop.js';
 import { encodeBuilt, BUILT_KEY, outfitFor } from '../waves/built.js';
 import { BLOCKS, SNAP, ARM_ANGLES, ARM_LENGTHS, ARM_SLOPES, BAR_CRESTS, DEPTHS, DEPTH_RANGE, TOP_DEPTH, SIZES, BACKS, blockLength, ROTATIONS, reefComponents, newBlock, dynamicPreset, beachPreset, stackedPreset, pipelinePreset, PIPELINE, armRot, nearestArm } from './blocks.js';
 
@@ -212,7 +212,7 @@ function dot(x, y, r, fill, stroke, lw = 2) { ctx.beginPath(); ctx.arc(x, y, r, 
 
 // (grey until the height model has refined it (the user, 2026-11-23): how it breaks comes from there, and the fast rays'
 // colours switched a moment later)
-const PENDING = '#9aa7ad';
+const PENDING = '#9aa7ad', LEDGE_COLOR = '#ff2d6f'; // (a ledge: the heaviest, Teahupoo; loop.js shapeIndex)
 function drawCurl(curl, refined = true) {
   if (curl.length < 2) return;
   ctx.lineCap = 'round';
@@ -225,7 +225,7 @@ function drawCurl(curl, refined = true) {
     ctx.setLineDash([]); ctx.shadowBlur = 0; ctx.lineDashOffset = -run; run += Math.hypot(X1 - X0, Y1 - Y0);
     // (the curl coloured by how it breaks everywhere, the user, 2026-11-22; a closeout dashed in that colour, a fast section
     // thicker and glowing; backing off has no mark of its own)
-    ctx.strokeStyle = refined ? xiColor((a.xi + b.xi) / 2) : PENDING; ctx.lineWidth = b.kind === 'section' ? 7.5 : 5;
+    ctx.strokeStyle = refined ? (ledgeK(b.step) * Math.min(1, Math.max(0, (b.xi - 1.0) / 0.9)) > 0.5 ? LEDGE_COLOR : xiColor((a.xi + b.xi) / 2)) : PENDING; ctx.lineWidth = b.kind === 'section' ? 7.5 : 5;
     if (b.kind === 'closeout') ctx.setLineDash([7, 6]);
     else if (b.kind === 'section') { ctx.shadowColor = 'rgba(255,255,255,.9)'; ctx.shadowBlur = 10; }
     ctx.beginPath(); ctx.moveTo(X0, Y0); ctx.lineTo(X1, Y1); ctx.stroke();

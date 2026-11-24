@@ -143,6 +143,24 @@ export const KF_ALMOND_HEAD = KF_PIPE_HEAD.map((k) => {
   }
   return k;
 });
+// The ledge barrel (the user, 2026-11-24: the heaviest shape we'd want, on a true ledge; after Teahupoo: the reef a near-vertical
+// wall up from a ~10 m shelf, the wave breaking "below sea level", the lip half the wave's height thick or more, the face two to
+// three times taller than the back). A short back, the trough drawn well under the water, a thick lip thrown far out, landing
+// below sea level, and a round tube about as wide as it's tall. Same units as KF_PIPE_HEAD (its face ~4.8 from trough to crest).
+const LEDGE_FULL = [[-40, 0], [-30, 0], [-6, 0.3], [-2.2, 2.0], [0, 3.3], [1.8, 3.9], [3.9, 3.5], [5.4, 1.6], [5.8, -0.9], [4.9, -0.8], [4.4, 0.9], [2.8, 2.1], [1.1, 1.3], [1.0, -0.6], [2.6, -1.6], [22, 0]];
+export const KF_LEDGE_HEAD = [
+  KF_BARREL[0],
+  KF_BARREL[1],
+  // building: the shelf lifts it, the water already drawing off the reef in front
+  { s: -1.2, p: [[-40, 0], [-30, 0], [-7, 0.3], [-2.5, 1.8], [0, 3.0], [0.8, 2.95], [1.4, 2.75], [1.8, 2.4], [2.05, 2.0], [2.25, 1.5], [2.45, 0.9], [2.75, 0.3], [3.3, -0.3], [4.5, -0.7], [7.5, -0.4], [22, 0]] },
+  // it stands up on the wall: near vertical, the trough under the water
+  { s: -0.25, p: [[-40, 0], [-30, 0], [-6, 0.3], [-2.2, 2.2], [0, 3.6], [0.6, 3.55], [1.0, 3.3], [1.2, 2.9], [1.25, 2.4], [1.28, 1.9], [1.3, 1.2], [1.35, 0.4], [1.5, -0.4], [2.2, -1.0], [4.0, -1.2], [22, 0]] },
+  // the lip pitches, thick
+  { s: 0.25, p: [[-40, 0], [-30, 0], [-6, 0.3], [-2.2, 2.1], [0, 3.5], [1.4, 3.95], [3.0, 3.7], [4.0, 2.9], [4.3, 2.1], [3.8, 2.0], [3.0, 2.6], [2.0, 2.9], [1.2, 2.2], [1.1, 0.2], [2.6, -1.4], [22, 0]] },
+  { s: 0.8, p: LEDGE_FULL },
+  // closing: the full tube scaled to 80% about the foot of the back wall
+  { s: 1.3, p: LEDGE_FULL.map(([z, y], i) => (i < 3 || i === 15 ? [z, y] : [1.0 + (z - 1.0) * 0.8, -1.0 + (y + 1.0) * 0.8])) },
+];
 // Pipe's phase t s after a spot broke (reef.js: 13 m per phase at 10.5 m/s up to phase 1.3, then 22 m: behindFar).
 export const pipeSOf = (t) => (t <= 1.61 ? t * 10.5 / 13 : 1.3 + (t - 1.61) * 10.5 / 22);
 export const KF_PIPE = withBore(KF_PIPE_HEAD, { from: 1.3, collapse: 1.65, sOf: pipeSOf });

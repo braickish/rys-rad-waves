@@ -194,6 +194,20 @@ check(A.left.xi > 0.5 && A.left.xi < 3.3 && A.right.xi > 0.5 && A.right.xi < 3.3
   check(pin.right.ride > ahead[ahead.length - 1].s + 60, 'section ahead: the ride carries on beyond it');
   check(pay.profile.some((p) => p.e > 1), 'section ahead: the payload carries its lead (e)');
 }
+// A true ledge (the user, 2026-11-24, after Teahupoo): Ledge blocks on their own (deep water, then a near-vertical wall) give the
+// ledge shape (u toward 4, loop.js shapeIndex, from rays.js `step`: the steepest seabed within 30 m seaward); Dynamic's arms don't.
+{
+  const { reefComponents: rc, dynamicPreset: dp, newBlock } = await import('../src/builder/blocks.js');
+  const { wavePayload, takeoffStart } = await import('../src/builder/loop.js');
+  const go = (bl, sw) => { const g = buildDepth(rc(bl), makeGrid()); return analyse(traceRays(g, sw), g, { pe: runPE(g, sw) }); };
+  const lifted = (A) => Math.max(...['right', 'left'].filter((sd) => A[sd] && takeoffStart(A[sd])).map((sd) => { const t = takeoffStart(A[sd]); return Math.max(...wavePayload(A[sd], sd, 'full', t.a, t.b, swell).profile.map((p) => p.u)); }));
+  const led = go([Object.assign(newBlock('ledge', 860, 520), { side: -1 }), Object.assign(newBlock('ledge', 860, 520), { side: 1 })], { H: 2, T: 15, dir: 0 });
+  const dyn = go(dp(), swell);
+  const uL = lifted(led), uD = lifted(dyn);
+  console.log(`ledge: Ledge blocks reach shape ${uL.toFixed(2)} (4 = the ledge), Dynamic ${uD.toFixed(2)}`);
+  check(uL > 3.5, 'ledge: Ledge blocks on their own give the ledge shape');
+  check(uD <= 3, 'ledge: Dynamic\'s arms don\'t');
+}
 check(tBuild + tRays + tAn < 400, `rebuild + trace under 400 ms in node (${(tBuild + tRays + tAn).toFixed(0)})`);
 console.log(fails ? 'SOME FAILED' : 'all ok');
 process.exitCode = fails ? 1 : 0;

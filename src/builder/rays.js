@@ -159,7 +159,8 @@ export function traceRays(grid, swell) {
   // says the set waves break)
   // (in the direction the wave is travelling there: `th`, the ray's own at its break, else the swell's mean direction)
   const slopeAt = (x, y, th = th0) => -(samp(Hx, x, y) * Math.cos(th) + samp(Hy, x, y) * Math.sin(th));
-  return { tb, xb, yb, hb, Hb, cb, sb, thb, ev, crests, n, H0: swell.H, L0, slopeAt };
+  const depthAt = (x, y) => samp(h4, x, y); // (the smoothed depth, for the step up a wave breaks on: analyse `step`)
+  return { tb, xb, yb, hb, Hb, cb, sb, thb, ev, crests, n, H0: swell.H, L0, slopeAt, depthAt };
 }
 
 // When each 4 m strip along the reef first breaks (5-strip running median), then from the earliest spot (the peak) both
@@ -401,6 +402,17 @@ function walkWave(strips, ip, R, grid, { step = 20, pe = null } = {}) {
     // Komar & Gaughan (1972): Hb = 0.39 g^0.2 (T H0^2)^0.4)
     const T = Math.sqrt(2 * Math.PI * R.L0 / g), h0Of = (Hb) => (Hb / (0.39 * g ** 0.2 * T ** 0.4)) ** 1.25;
     for (const p of curl) { p.xi = Math.max(0, p.slope) / Math.sqrt((isFinite(p.from) ? Math.min(R.H0, h0Of(p.H)) : R.H0) / R.L0); p.how = breakType(p.xi); }
+    // (the step up it breaks on: the depth 30 m seaward, back along the wave's way, against the depth where it breaks. A ledge
+    // (Teahupoo: a ~10 m shelf, then the reef rising almost vertically to under a metre) is a big step; the user, 2026-11-24.
+    // The slope (xi) is read over the last quarter wavelength, which on a ledge sees the deep shelf, not the wall)
+    // (measured as the steepest the seabed gets within 30 m seaward, every 2 m along the wave's way: an arm ~1:10 (0.1), a steep
+    // arm 1:6 (0.17), the Ledge block's face 1:3 (0.33), Teahupoo's wall ~1:1)
+    if (R.depthAt) for (const p of curl) {
+      const th = isFinite(p.th) ? p.th : 0, cx = Math.cos(th), cy = Math.sin(th);
+      let prev = R.depthAt(p.x, p.y), steep = 0;
+      for (let k = 1; k <= 15; k++) { const d = R.depthAt(p.x - 2 * k * cx, p.y - 2 * k * cy); steep = Math.max(steep, (d - prev) / 2); prev = d; }
+      p.step = steep;
+    }
     const inRide = segs.filter((q) => q.e0 < ride && q.e0 >= step).map((q) => q.a).sort((a, b) => a - b);
     const med = inRide.length ? inRide[Math.floor(inRide.length / 2)] : NaN;
     const Hs = (pe ? curl.filter((p) => p.s <= ride).map((p) => p.H) : segs.filter((q) => q.e0 < ride).map((q) => q.H)).sort((a, b) => a - b);

@@ -18,7 +18,7 @@ export function curlAt(curl, s) {
   if (s <= curl[0].s) return curl[0];
   for (let k = 1; k < curl.length; k++) {
     const p = curl[k - 1], q = curl[k];
-    if (s <= q.s) { const f = (s - p.s) / Math.max(1e-6, q.s - p.s); return { x: p.x + (q.x - p.x) * f, y: p.y + (q.y - p.y) * f, t: p.t + (q.t - p.t) * f, tb: p.tb + (q.tb - p.tb) * f, H: p.H + (q.H - p.H) * f, c: p.c + (q.c - p.c) * f, xi: p.xi + (q.xi - p.xi) * f, s, kind: q.kind }; }
+    if (s <= q.s) { const f = (s - p.s) / Math.max(1e-6, q.s - p.s); return { x: p.x + (q.x - p.x) * f, y: p.y + (q.y - p.y) * f, t: p.t + (q.t - p.t) * f, tb: p.tb + (q.tb - p.tb) * f, H: p.H + (q.H - p.H) * f, c: p.c + (q.c - p.c) * f, xi: p.xi + (q.xi - p.xi) * f, step: (p.step ?? 0) + ((q.step ?? 0) - (p.step ?? 0)) * f, s, kind: q.kind }; }
   }
   return curl[curl.length - 1];
 }
@@ -65,9 +65,9 @@ export function loopInfo(side, a, b, step = 10) {
     // (the game's peel speed is the curl's speed along the crest, in the wave's own frame: the break point runs along the
     // reef at v = c / sin(alpha) while the wave carries it in at c, so along the crest it's sqrt(v^2 - c^2) = c / tan(alpha))
     const peel = Math.sqrt(Math.max(0, v * v - p.c * p.c));
-    let xs = 0, xn = 0; for (let d = -20; d <= 20; d += 5) { const q2 = curlAt(side.curl, Math.min(b, Math.max(a, s + d))); if (q2 && isFinite(q2.xi)) { xs += q2.xi; xn++; } }
+    let xs = 0, xn = 0, ss = 0, sn = 0; for (let d = -20; d <= 20; d += 5) { const q2 = curlAt(side.curl, Math.min(b, Math.max(a, s + d))); if (q2 && isFinite(q2.xi)) { xs += q2.xi; xn++; } if (q2 && isFinite(q2.step)) { ss += q2.step; sn++; } }
     // (early: how long before the curl gets here this spot breaks on its own: a section breaking ahead; 0 almost everywhere)
-    prof.push({ s: s - a, v, peel, c: p.c, H: p.H, xi: xn ? xs / xn : NaN, kind: p.kind, early: isFinite(p.tb) ? Math.max(0, p.t - p.tb) : 0 }); // (xi: how it breaks, averaged over +-20 m)
+    prof.push({ s: s - a, v, peel, c: p.c, H: p.H, xi: xn ? xs / xn : NaN, step: sn ? ss / sn : 0, kind: p.kind, early: isFinite(p.tb) ? Math.max(0, p.t - p.tb) : 0 }); // (xi: how it breaks, averaged over +-20 m)
   }
   const vs = prof.map((p) => p.v), mean = vs.reduce((x, y) => x + y, 0) / vs.length;
   let sections = 0, inSec = false;
@@ -130,13 +130,19 @@ export function bestLoop(side) {
 // 0.4 and below (spilling < 0.5), 1 Raglan's wall at 0.8 (a mild plunge), 2 the steep section shape at 1.3-1.5 (pitching), 3
 // Pipe's barrel from 1.9 (barrelling).
 // Plan step 7: barrelling (xi0 from 1.5) moves on toward the tube shape, 3 by 1.9.
-export function shapeIndex(xi) {
+export function shapeIndex(xi, step = 0) {
   if (!isFinite(xi)) return 1;
-  if (xi <= 0.4) return 0;
-  if (xi <= 0.8) return (xi - 0.4) / 0.4;
-  if (xi <= 1.5) return Math.min(2, 1 + (xi - 0.8) / 0.5);
-  return Math.min(3, 2 + (xi - 1.5) / 0.4);
+  let u;
+  if (xi <= 0.4) u = 0;
+  else if (xi <= 0.8) u = (xi - 0.4) / 0.4;
+  else if (xi <= 1.5) u = Math.min(2, 1 + (xi - 0.8) / 0.5);
+  else u = Math.min(3, 2 + (xi - 1.5) / 0.4);
+  // (a ledge, the user, 2026-11-24, after Teahupoo: where the seabed just seaward of the break is a wall (rays.js `step`, its
+  // steepest within 30 m: an arm ~0.10-0.15, a Ledge block ~0.20-0.25) and the wave is hollow, toward the ledge, 4)
+  const k = ledgeK(step) * Math.min(1, Math.max(0, (xi - 1.0) / 0.9));
+  return u + (4 - u) * k;
 }
+export const ledgeK = (step) => { const g = Math.min(1, Math.max(0, ((step || 0) - 0.16) / 0.08)); return g * g * (3 - 2 * g); };
 export function wavePayload(side, which, mode, a, b, swell, board = 'shortboard') {
   const I = loopInfo(side, a, b);
   const plain = I.profile.filter((p) => p.kind !== 'section').map((p) => p.peel).sort((x, y) => x - y);
@@ -149,6 +155,6 @@ export function wavePayload(side, which, mode, a, b, swell, board = 'shortboard'
     v: 1, mode, side: which, length: I.length, base, H: med('H'), c: med('c'), swell, board,
     // (the curl's speed along the crest no slower than a back-off's, c / tan 70 deg: where the break barely moves along the reef
     // (v <= c) it came out 0, and the game's curl, which advances by it, stopped there for good)
-    profile: I.profile.map((p) => ({ s: p.s, peel: +Math.max(p.peel, p.c / Math.tan(BACKOFF * Math.PI / 180)).toFixed(2), k: p.kind === 'section' ? 1 : 0, H: +p.H.toFixed(2), c: +p.c.toFixed(2), u: +shapeIndex(p.xi).toFixed(3), ...(p.early > 0.05 ? { e: +p.early.toFixed(2) } : {}) })),
+    profile: I.profile.map((p) => ({ s: p.s, peel: +Math.max(p.peel, p.c / Math.tan(BACKOFF * Math.PI / 180)).toFixed(2), k: p.kind === 'section' ? 1 : 0, H: +p.H.toFixed(2), c: +p.c.toFixed(2), u: +shapeIndex(p.xi, p.step).toFixed(3), ...(p.early > 0.05 ? { e: +p.early.toFixed(2) } : {}) })),
   };
 }

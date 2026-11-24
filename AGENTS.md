@@ -54,6 +54,17 @@ section's extra curl speed by how steep the wall is at the curl (Raglan+: the ri
 Raglan's wall): the steeper face pulls you along harder; sections.mjs: pumping makes 9 of 9 (was 6 of 9), trimming 2 of 6, and carving the steep wall pays (`wallK` 0.65, `wallAngles` [55, 63]). `node
 test/sections.mjs`: a mid-face trimmer makes 1 of 6 sections (caught ~10 s in), the pocket-pumping bot 6 of 9 (~23 s
 rides). crest.mjs runs Raglan+ without ridges. GPU ~+1 ms.
+**Built barrels: the almond and the ledge** (2026-11-24, the user). The built waves' barrel (shapes.js `KF_ALMOND_HEAD`, Real
+and Fun) is an almond: the lip throws out and curves down to land in front, the back wall rises concave, the opening leans
+forward, ~0.89x the breakers tall (2.66 m on 3 m), so it fits from ~1.5 m breakers. Past it, **the ledge** (`KF_LEDGE_HEAD`,
+after Teahupoo: a near-vertical wall up from deep water; a short back, the trough drawn under the water, a lip half the wave
+thick thrown far out and landing below sea level, a round tube as wide as it's tall): the shape scale runs 0-4 (crumbly,
+wall, steep section, barrel, ledge). The builder reads it from rays.js `step` (the steepest seabed within 30 m seaward of the
+break: an arm ~0.10-0.15, the Ledge block ~0.20-0.25) on a hollow wave (loop.js `shapeIndex`, `ledgeK`); the Ledge block is
+now a true ledge (8 m wall on a 1:1 face, was 4 m on 1:3) and the curl is drawn in its own colour there. A ledge in front of a
+peak isn't reached: the peak's ramp breaks the wave first. Pipe keeps its simulated tube. Turning in the barrel is damped 70%
+deep in (was 60%), and holding crouch there damps what's left 35% more (`tubeCrouchDamp`; test/tubeturn.mjs).
+
 **Behind the curl, by when it broke** (2026-11-23, the user: behind the curl it should look broken and connected): on
 waves with ridges (Raglan+, built waves) the curl's speed varies, so the water behind it is placed by the time since the
 curl passed it (wave.js `PASSED` history, `behindDist`), at the wave's own pace (`peelSpeed`), as Trestles' bar does. A

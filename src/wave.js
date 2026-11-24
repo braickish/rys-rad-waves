@@ -67,7 +67,9 @@ export let SET_TUBE = [0];
 const halfCache = new WeakMap();
 function withHalfTubes(base) {
   if (halfCache.has(base)) { SET_TUBE = halfCache.get(base).tube; return halfCache.get(base).sets; }
-  const n = base.length, A = base[n - 2], T = base[n - 1], a = new Float64Array(NP * 2), t = new Float64Array(NP * 2);
+  // (between the section shape, set 2, and the barrel, set 3; anything after the barrel (the ledge, 4) follows, blended with the
+  // barrel point by point: both are tubes)
+  const n = base.length, A = base[2], T = base[3], a = new Float64Array(NP * 2), t = new Float64Array(NP * 2);
   const stops = [...new Set([...A.map((k) => k.s), ...T.map((k) => k.s)])].sort((x, y) => x - y);
   const sst = (e0, e1, x) => { const u = Math.min(1, Math.max(0, (x - e0) / (e1 - e0))); return u * u * (3 - 2 * u); };
   const halves = [];
@@ -86,15 +88,16 @@ function withHalfTubes(base) {
       return { s, p };
     }));
   }
-  const sets = [...base.slice(0, n - 1), ...halves, T], tube = sets.map((_, i) => (i < n - 1 ? 0 : (i - (n - 2)) / HALF_STEPS));
+  const sets = [...base.slice(0, 3), ...halves, T, ...base.slice(4)], tube = sets.map((_, i) => (i <= 2 ? 0 : Math.min(1, (i - 2) / HALF_STEPS)));
   halfCache.set(base, { sets, tube }); SET_TUBE = tube;
   return sets;
 }
 // The set (fractional) for a place u on the wave's shape scale.
 export function shapeSet(u) {
   if (!(WAVE.tubeScale && WAVE.shapes) || SHAPES.length === WAVE.shapes.length) return u;
-  const last = WAVE.shapes.length - 2;
-  return u <= last ? u : last + (u - last) * HALF_STEPS;
+  if (u <= 2) return u;
+  if (u <= 3) return 2 + (u - 2) * HALF_STEPS; // (the half-barrels)
+  return 2 + HALF_STEPS + (u - 3); // (past the barrel: the ledge)
 }
 export const SHAPE = { a: 0, b: 0, w: 0, ver: 0 };
 // Run fn with the wave's shape forced to set i (to build per-set tables: the GPU water table, the rider's lines).

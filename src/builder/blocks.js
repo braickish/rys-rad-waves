@@ -18,7 +18,7 @@ export const BLOCKS = {
   arm: { label: 'Arm', blurb: 'A sloping reef line off a peak: its angle sets the peel (30 deg fast, 60 deg mellow), its slope how hollow it breaks (gentle crumbles, steep pitches).' },
   ridge: { label: 'Ridge', blurb: 'A bar laid along an arm: the arm stands up steeper there, a fast section you pump through. Turned across the wave it closes out.' },
   pinnacle: { label: 'Pinnacle', blurb: 'A round bommie: the wave wraps and stands up over it.' },
-  ledge: { label: 'Ledge', blurb: 'A sudden step up from deep water: a heavy section (the fast model over-reads its size).' },
+  ledge: { label: 'Ledge', blurb: 'A sudden wall up from deep water, like Teahupoo: the heaviest wave there is, a thick lip and a round tube breaking below sea level (the fast model over-reads its size).' },
   sandbar: { label: 'Sandbar', blurb: 'A long, gentle mound of sand (1:40): a beach-break peak. Pointing out to sea it makes an A-frame both ways; angled, a right or a left; lined up with the swell, it closes out. Shallower crests peel faster.' },
   channel: { label: 'Channel', blurb: 'Deep water: the wave stops breaking. Ends a ride, or splits a reef in two.' },
 };
@@ -56,7 +56,7 @@ export function blockComponents(b) {
       return [{ type: 'ridge', points: [[b.x - ux * h, b.y - uy * h], [b.x + ux * h, b.y + uy * h]], depth_m: 2.6 * f, width_m: 35 * z }]; // (2.6 m crest, a little shallower than the arm's 3 m toe: a section the curl still makes; 1.8 m closed out)
     }
     case 'pinnacle': return [{ type: 'pinnacle', center: [b.x, b.y], radius_m: 38 * z, depth_m: 2.2 * f }];
-    case 'ledge': return [{ type: 'ledge', start: [b.x, b.y], side: b.side, length_m: 100 * z, angle_to_swell_deg: b.angle, depth_m: 1.6 * f, step_m: 4.0 * f, face: '1:3', gradient: '1:15', width_m: 40 * z, back_m: 40 * z, fade_m: 40 * z }];
+    case 'ledge': return [{ type: 'ledge', start: [b.x, b.y], side: b.side, length_m: 100 * z, angle_to_swell_deg: b.angle, depth_m: 1.6 * f, step_m: 8.0 * f, face: '1:1', gradient: '1:15', /* (a true ledge, the user, 2026-11-24, after Teahupoo: deep water, then a near-vertical wall; was a 4 m step on a 1:3 face) */ width_m: 40 * z, back_m: 40 * z, fade_m: 40 * z }];
     case 'sandbar': {
       const ux = Math.cos(rad(b.rot)), uy = Math.sin(rad(b.rot)), h = b.length * z / 2;
       return [{ type: 'bar', points: [[b.x - ux * h, b.y - uy * h], [b.x + ux * h, b.y + uy * h]], depth_m: b.crest * z, slope: '1:40' }];
