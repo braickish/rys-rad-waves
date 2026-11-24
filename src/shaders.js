@@ -17,6 +17,7 @@ struct Frame {
   flow: vec4f,      // x: how far the water texture has flowed along the wave (m): the peel speed added up frame by frame;
                     // y: the peel speed beyond its smoothed value (m/s; main.js camPeel), for the spray
                     // (not time x peel speed: on Trestles the speed changes, and that made the whole texture lurch)
+  hand: vec4f,      // xyz: where a dragging hand touches the face (peel frame), w: how much (0 = not dragging; rider.js handDrag)
 };
 @group(0) @binding(0) var<uniform> F: Frame;
 fn dirX(p: vec3f) -> vec3f { return vec3f(p.x * F.misc.z, p.y, p.z); } // peel frame <-> world (its own inverse)
@@ -288,6 +289,16 @@ fn coarseTex(q: vec2f, t: f32) -> f32 {
   let streak = smoothstep(0.78, 0.95, noise(vec2f((ax + F.flow.x) * 0.6, (i.wpos.y + i.wpos.z) * 4.0)));
   let onFace = smoothstep(-1.5, -0.3, phase) * (1.0 - smoothstep(1.0, 1.4, phase)) * smoothstep(0.3, 1.5, i.wpos.y);
   foam = max(foam, streak * onFace * 0.18);
+  // A hand dragging in the face (a stall by a steep face): white where it cuts the water, a short streak trailing behind it
+  // (the water runs back past the hand as you go), broken up by the foam's noise (the user, 2026-11-23).
+  if (F.hand.w > 0.01) {
+    let hp = dirX(i.wpos) - F.hand.xyz;
+    let behind = -hp.x * sign(F.riderVel.x + 1e-4);
+    let lat = length(hp.yz);
+    let trail = smoothstep(-0.12, 0.0, behind) * (1.0 - smoothstep(0.25, 1.4 + 0.4 * F.hand.w, behind));
+    let hw = F.hand.w * trail * exp(-pow(lat / (0.12 + 0.06 * max(behind, 0.0)), 2.0)) * (0.55 + 0.45 * fn1);
+    foam = max(foam, clamp(hw * 1.4, 0.0, 1.0));
+  }
   let foamCol = vec3f(0.93, 0.97, 1.0) * mix(0.72 + 0.28 * diff + 0.1, skyF + 0.28 * diffF, broken) * (1.0 - 0.1 * broken * (1.0 - fn1));
   col = mix(col, foamCol, foam);
   col *= shade; // (the surfer's shadow, real look)

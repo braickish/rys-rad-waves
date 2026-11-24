@@ -71,9 +71,14 @@ for (const [wave, name] of [['point', 'shortboard (Raglan)'], ['queens', 'longbo
     console.log(`in the tube at ${line} of the face: ${inT >= 0 ? 'in' : 'never in'}; stalling there, hand drag up to ${drag.toFixed(2)}, wall point ${isFinite(dist) ? dist.toFixed(2) + ' m from the feet' : '-'}`);
   }
   check(res.some((o) => o.inTube && o.drag > 0.5), 'in the tube by the wall: the stall is a hand in the wave (it eases in over ~0.25 s; this barrel visit is short)');
-  // ... and out on an open face (no tube) it's always the tail
-  { useWave('point'); seedSea(1); nextWave(); const r = createRider(); resetRider(r); r.events = []; stepRider(r, {}, 0); let hd = 0;
-    for (let i = 0; i < 5 * 120; i++) { stepSea(1 / 120); const inp = { aim: [1, Math.max(-0.4, Math.min(0.4, 2 * (0.5 - r.height)))] }; if (i === 300 || i === 360) inp.walk = -1; if (i > 360) inp.stallHold = true; stepRider(r, inp, 1 / 120); hd = Math.max(hd, r.handDrag || 0); }
-    check(hd < 0.01, 'on the open face the stall stays on the tail'); }
+  // ... and out of the barrel it goes by the face under you (the user, 2026-11-23: right outside the barrel too): on Raglan,
+  // low on the steep wall (~54 deg) a hand in the face, high up where the face eases off (< 45 deg) the tail
+  const openFace = (line) => { useWave('point'); seedSea(1); nextWave(); const r = createRider(); resetRider(r); r.events = []; stepRider(r, {}, 0); let hd = 0, sk = 0;
+    for (let i = 0; i < 4 * 120; i++) { stepSea(1 / 120); const inp = { aim: [1, Math.max(-0.4, Math.min(0.4, 2 * (line - r.height)))] }; if (i === 200 || i === 260) inp.walk = -1; if (i > 260) inp.stallHold = true; stepRider(r, inp, 1 / 120); hd = Math.max(hd, r.handDrag || 0); sk = Math.max(sk, r.stallK || 0); }
+    return { hd, sk }; };
+  const low = openFace(0.4), high = openFace(0.8);
+  console.log(`open face: stalling low on the wall, hand drag ${low.hd.toFixed(2)}; high where it eases off, hand drag ${high.hd.toFixed(2)} (stall ${high.sk.toFixed(2)})`);
+  check(low.hd > 0.8, 'right outside the barrel, on a steep face: the stall is a hand in the face');
+  check(high.hd < 0.01 && high.sk > 0.8, 'on a gentler face the stall stays on the tail');
 }
 process.exit(fails ? 1 : 0);

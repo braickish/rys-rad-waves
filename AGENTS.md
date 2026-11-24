@@ -85,10 +85,15 @@ back turns ~17-24% sharper and runs ~1 mph slower, forward turns ~12-17% wider; 
 tail), Down (or a down swipe) again pushes hard on the tail: for `stallTime` 0.5 s (held, as long as you hold Down) it scrubs
 `stallScrub` 5 m/s^2 (~11 mph/s) and halves the pocket's pull (`stallHold`), and in a built barrel the carry eases the same, so
 you sink deeper or let the curl catch up. You keep steering; moving the feet off the back ends it. Flash "Stall" (no
-points). `node test/stall.mjs`: shortboard 17 -> 11 mph in 0.6 s, longboard 9 -> 4. In the tube with the barrel's wall within an arm's length
-(`handReach` 1.05 m from the crouched shoulder, 0.85 m off the board, to the nearest steep part of the curve above you: the
-wall or roof, not the flats in front of the face) the stall is a hand in the wave instead (rider.js `r.handDrag`, `r.wallPt`;
-surfer.js: the back hand into the wall, the other arm out; no sitting back). Same scrub.
+points). `node test/stall.mjs`: shortboard 17 -> 11 mph in 0.6 s, longboard 9 -> 4. On a steep face (`handSteep` 45 deg or more under you, or in the tube; the user, 2026-11-23: in the barrel
+and right outside it) the stall is a hand in the face instead (rider.js `r.handDrag`). Pose from frontside-barrel-stall /
+backside-barrel-stall (braickish/reference-images), surfer.js: a deep crouch; the back hand cuts the water where the back
+shoulder drops onto the face (the deck's plane: on a steep face that's beside you on the wave side, about an arm's length;
+the shoulder reaches up to 0.35 m to meet it), a little behind (more backside, by the tail). Frontside the torso leans out
+over the toe rail and the front hand is low by the front knee; backside a deeper squat, upright and open, the front arm out
+forward at shoulder height down the line. White where the hand cuts the water: a short streak trailing behind it (shaders.js,
+`F.hand` from surfer.js `pose.handTouch`). `node test/stallpose.mjs` draws both poses (test/out/stallpose.png) and checks the
+hand meets the water. Same scrub. `?cam=4` (testing): a front-on close-up.
 The Up = Left / Down = Right steering below still exists in the rider (`tilt`, tested) but no wave's keys use it now.
 Controls (before 2026-11-18; Queens was the exception: see `walkKeys` below): one control, from the surfer's point of view. Left (or Up) turns the board to the surfer's
 left, Right (or Down) to their right; Up is exactly Left and Down exactly Right in every situation

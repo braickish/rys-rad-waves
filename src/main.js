@@ -732,6 +732,12 @@ function updateCamera(dt) {
     want = [p[0] + 4.0 * near * g, 3.8 * g + p[1] * 0.35, p[2] + 14 * near * g];
     const ahead = portrait ? 2 : 0;
     look = [p[0] + (-0.3 * near + ahead) * g, 1.0 * g + p[1] * 0.55, p[2] - 0.5];
+  } else if (camMode === 4) {
+    // Front-on close-up (testing, ?cam=4): ahead of the surfer down the line, a little toward the beach, looking back at them,
+    // like a photo from inside the barrel (the stall references).
+    const h = v3.norm([rider.heading[0], 0, rider.heading[2]]);
+    want = [p[0] + h[0] * 3.2, p[1] + 1.0, p[2] + h[2] * 3.2 + 1.2];
+    look = [p[0], p[1] + 0.6, p[2]];
   } else if (camMode === 2) {
     // Close-up (testing): beside the rider, toward the beach.
     want = [p[0] + 2.4, p[1] + 1.5, p[2] + 4.2];
@@ -957,11 +963,12 @@ async function main() {
     renderer.render({
       viewProj: vp, invViewProj: invert(vp), camPos: camW, time, sunDir: SUN, peel: PEEL_SPEED, flow, flowDev: PEEL_SPEED - camPeel,
       rider: rider.pos, spray: sprayAmt, riderVel: rider.vel, dt, sprayDir, frame,
+      hand: rider.handDrag > 0.01 && pose.handTouch && rider.mode === 'surf' ? [...toWorld(pose.handTouch), rider.handDrag] : null, // (a hand dragging in the face: white where it cuts the water; the pose is in the world, the shader wants the peel frame)
       burst: burst > 0 ? 1 : 0, camRight, camUp,
     }, objs, { particles: !params.has('noparticles'), outlines: !params.has('nooutline'), look: true, body: bodyMats, shadow: !!bodyMats });
 
     frameMs = frameMs * 0.95 + (dt * 1000) * 0.05; // smoothed frame time
-    window.__dbg = { view: tubeView, cam: camPos.map((x) => +x.toFixed(2)), pos: rider.pos.map((x) => +x.toFixed(2)), rt: +rider.t.toFixed(2), tube: !!rider.tube, wave: WAVE.id, wind: +(pose.windup || 0).toFixed(2), unl: +(pose.unload || 0).toFixed(2), ms: +frameMs.toFixed(1), phi: +(rider.phi * 57.3).toFixed(0), turn: touch.turn, tilt: touch.tilt, depth: rider.tube ? +tubeDepth(rider).toFixed(2) : null, state, mode: rider.mode, xs: +rider.xs.toFixed(1), y: +rider.pos[1].toFixed(1), score: Math.round(score), reason: rider.wipeReason, slash: !!rider.slash, slide: +(rider.slide * 57.3).toFixed(0), shuf: +(rider.shuf || 0).toFixed(2), pivot: +(rider.pivot || 0).toFixed(2), pivotUp: !!rider.pivotUp, foot: rider.foot, h: +(rider.height || 0).toFixed(2), ten: +(rider.ten || 0).toFixed(2), pk: +(rider.pocket || 0).toFixed(2) };
+    window.__dbg = { hd: +(rider.handDrag || 0).toFixed(2), stall: +(rider.stallK || 0).toFixed(2), view: tubeView, cam: camPos.map((x) => +x.toFixed(2)), pos: rider.pos.map((x) => +x.toFixed(2)), rt: +rider.t.toFixed(2), tube: !!rider.tube, wave: WAVE.id, wind: +(pose.windup || 0).toFixed(2), unl: +(pose.unload || 0).toFixed(2), ms: +frameMs.toFixed(1), phi: +(rider.phi * 57.3).toFixed(0), turn: touch.turn, tilt: touch.tilt, depth: rider.tube ? +tubeDepth(rider).toFixed(2) : null, state, mode: rider.mode, xs: +rider.xs.toFixed(1), y: +rider.pos[1].toFixed(1), score: Math.round(score), reason: rider.wipeReason, slash: !!rider.slash, slide: +(rider.slide * 57.3).toFixed(0), shuf: +(rider.shuf || 0).toFixed(2), pivot: +(rider.pivot || 0).toFixed(2), pivotUp: !!rider.pivotUp, foot: rider.foot, h: +(rider.height || 0).toFixed(2), ten: +(rider.ten || 0).toFixed(2), pk: +(rider.pocket || 0).toFixed(2) };
     // HUD.
     msgTimer -= dt;
     if (msgTimer <= 0) $('msg').classList.remove('pop');
