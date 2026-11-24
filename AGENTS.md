@@ -66,6 +66,10 @@ Barrels (Pipe's sim and classic shapes, the built tube) first collapse: the cavi
 `collapse`), then a steep foam wall stands where the lip landed (`collapse` 1.65; the tip, point 8, stays at its base,
 so the lip never pulls back up). Raglan, Raglan+ and built waves get the lasting whitewater; Queens and Trestles are
 unchanged. Far behind, the bore holds ~2/3 height (the GPU table ends at phase 15). Riding tests unchanged.
+The look (shaders.js water, every wave): whitewater behind the curl (phase 0.2+, with foam) is lumpy (vertex bumps along
+the normal, rolling toward shore, 0.3 x scale), lit mostly by the sky with lumpy normals (the sun is usually behind the
+wave, so sunlight alone left it one flat white), thins across the bore's apron (t 12.5-15) instead of ending in a line,
+and goes patchy with age (phase 3-12) in place of the old 50% fade 10-40 m behind. The mist haze runs along the bore.
 
 **Feet on every wave** (2026-11-18, the user: carry Queens's Up/Down walking to the other waves): all waves have
 `walkKeys`, so Up/Down (and up/down swipes) move the feet and only Left/Right turn. On Queens they walk the longboard

@@ -84,7 +84,7 @@ struct VO {
   @builtin(position) pos: vec4f,
   @location(0) wpos: vec3f,
   @location(1) n: vec3f,
-  @location(2) attr: vec3f,
+  @location(2) attr: vec4f,
 };
 // The water surface, built from the cross-section table (see mesh.js).
 struct WaterInfo { cols: u32, nx: u32, rows: u32, setA: u32, sMin: f32, sMax: f32, scale: f32, turquoise: f32, green: f32, blend: f32, setB: u32, ridges: f32 };
@@ -138,13 +138,19 @@ fn surfacePoint(i: u32, j: u32) -> vec3f {
   }
   let sl = slices[i];
   let e = tableAt(sl.y, j, sl.z);
-  // Whitewater fades a little far behind the curl.
-  let foam = e.z * (1.0 - smoothstep(10.0, 40.0, -sl.x) * 0.5 * smoothstep(0.8, 1.4, sl.y));
-  let pw = dirX(p); // (built along the wave, placed in the world)
+  let foam = e.z; // (older whitewater goes patchy in the fragment shader, by phase, instead of fading by distance)
+  // Broken whitewater is lumpy (2026-11-23): the surface bumps in and out along its normal, the lumps tumbling toward
+  // the shore down the bore's front.
+  let broken = smoothstep(0.2, 0.9, sl.y) * smoothstep(0.3, 0.8, foam); // (any whitewater behind the curl, not the feathering ahead of it)
+  let sz = select(1.0, sl.w, sl.w > 0.0);
+  let lq = vec2f((sl.x + F.flow.x) * 0.35, p.z * 0.45 - F.camPos.w * 0.9);
+  let lump = noise(lq) + 0.5 * noise(lq * 2.3 + vec2f(3.1, 0.0)) - 0.75;
+  let pd = p + n * broken * lump * 0.3 * W.scale * sz;
+  let pw = dirX(pd); // (built along the wave, placed in the world)
   o.pos = F.viewProj * vec4f(pw, 1.0);
   o.wpos = pw;
   o.n = dirX(n);
-  o.attr = vec3f(sl.y, foam, e.w);
+  o.attr = vec4f(sl.y, foam, e.w, f32(max(j, 1u) - 1u) * 15.0 / f32(W.cols - 3u)); // (w: the place along the cross-section, t)
   return o;
 }
 
@@ -221,6 +227,7 @@ fn coarseTex(q: vec2f, t: f32) -> f32 {
   let phase = i.attr.x;
   let foamAmt = i.attr.y;
   let thin = i.attr.z;
+  let tcol = i.attr.w;
 
   let fres = 0.02 + 0.98 * pow(1.0 - max(dot(n, v), 0.0), 5.0);
   // On the flat water the sun's mirror image is damped (no ripples there to
@@ -251,11 +258,26 @@ fn coarseTex(q: vec2f, t: f32) -> f32 {
   // Foam: broken up with noise, plus faint streaks on the face.
   let fq = vec2f(ax + F.flow.x * 0.9, i.wpos.y * 1.3 + i.wpos.z * 0.6 - t * 0.8) * F.misc.y;
   let fn1 = noise(fq * 1.4) * 0.6 + noise(fq * 3.9 + vec2f(t, 0.0)) * 0.4;
-  var foam = clamp(foamAmt * 1.6 - (1.0 - fn1) * 0.9, 0.0, 1.0);
+  // Whitewater (2026-11-23): thins out across the apron ahead of the bore instead of ending in a line, and goes patchy
+  // as it ages (holes and streaks opening up), in place of a flat fade by distance.
+  let broken = smoothstep(0.2, 0.9, phase) * smoothstep(0.2, 0.6, foamAmt);
+  let age = smoothstep(3.0, 12.0, phase);
+  let fA = foamAmt * (1.0 - 0.75 * smoothstep(1.3, 2.0, phase) * smoothstep(12.5, 15.0, tcol)); // (the apron: from the bore on)
+  var foam = clamp(fA * 1.6 - (1.0 - fn1) * (0.9 + 0.8 * age), 0.0, 1.0);
+  // ... and rough: its own lumpy light (bigger bumps rolling toward the shore), a little uneven brightness.
+  let lb = vec2f((ax + F.flow.x) * 0.9, i.wpos.z * 0.9 + i.wpos.y * 0.5 - t * 1.6) * F.misc.y;
+  let lb0 = noise(lb) + 0.5 * noise(lb * 2.7);
+  let lgx = (noise(lb + vec2f(0.05, 0.0)) + 0.5 * noise((lb + vec2f(0.05, 0.0)) * 2.7) - lb0) / 0.05;
+  let lgy = (noise(lb + vec2f(0.0, 0.05)) + 0.5 * noise((lb + vec2f(0.0, 0.05)) * 2.7) - lb0) / 0.05;
+  let nf = normalize(n - (t1 * lgx + t2 * lgy) * 0.5 * broken);
+  let diffF = max(dot(nf, sun), 0.0);
+  // (lit mostly by the sky: the sun is usually behind the wave, so sunlight alone left it one flat white; brighter where
+  // a lump faces up, darker in the hollows between lumps)
+  let skyF = 0.78 + 0.22 * nf.y - 0.22 * (1.0 - clamp(lb0 / 1.1, 0.0, 1.0));
   let streak = smoothstep(0.78, 0.95, noise(vec2f((ax + F.flow.x) * 0.6, (i.wpos.y + i.wpos.z) * 4.0)));
   let onFace = smoothstep(-1.5, -0.3, phase) * (1.0 - smoothstep(1.0, 1.4, phase)) * smoothstep(0.3, 1.5, i.wpos.y);
   foam = max(foam, streak * onFace * 0.18);
-  let foamCol = vec3f(0.93, 0.97, 1.0) * (0.72 + 0.28 * diff + 0.1);
+  let foamCol = vec3f(0.93, 0.97, 1.0) * mix(0.72 + 0.28 * diff + 0.1, skyF + 0.28 * diffF, broken) * (1.0 - 0.1 * broken * (1.0 - fn1));
   col = mix(col, foamCol, foam);
   col *= shade; // (the surfer's shadow, real look)
 
@@ -445,7 +467,7 @@ fn respawn(id: u32) -> P {
     // lighter haze behind it.
     let xs = mix(-40.0, 1.0, rnd());
     let L = lipAt(xs);
-    let w = max(L[1].w, 0.15 * smoothstep(0.8, 1.6, L[1].z));
+    let w = max(L[1].w, 0.25 * smoothstep(0.8, 1.6, L[1].z) * (1.0 - smoothstep(6.0, 14.0, L[1].z))); // (a haze all along the bore's front, thinning as it ages)
     if (rnd() > w * 0.6) { p.pos = vec4f(0.0, -10.0, 0.0, 0.05 + rnd() * 0.2); return p; }
     let pos = vec3f(xs, L[0].x + 0.1 + rnd() * 0.5, L[0].y + rs() * 0.9);
     let v = vec3f(rs() * 1.5 - peel * 0.3, 1.2 + rnd() * 3.5 * w, 0.6 + rnd() * 2.0);
