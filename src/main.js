@@ -981,7 +981,7 @@ async function main() {
   };
   drawPicker();
   // The plan arrives after the page (signing in reads it again): lock the picker, and a locked wave you're on goes back
-  // to Raglan, the free one (on the title screen only; a replay shows whatever it recorded).
+  // to Raglan, the free demo wave (on the title screen only; a replay shows whatever it recorded).
   const lockNote = (name) => { $('lock-note').hidden = false; $('lock-note').textContent = `${name} comes with a Wave Pass: every wave, for life. Coming soon.`; };
   onPlan(() => {
     if (state === 'title' && waveLocked(WAVE.id) && !params.has('replay')) { const was = WAVE.name; pickWave('point'); lockNote(was); }

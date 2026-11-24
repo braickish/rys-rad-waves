@@ -84,7 +84,7 @@ onPlan((p) => {
     ? (p.grace ? `<b>Pro</b>: your last payment didn't go through. It stays on for a few days while it's sorted out.`
       : `<b>Pro</b> until ${day(p.pro_until)}: every wave, saving your breaks, and hosting contests.`)
     : p.wave_pass ? '<b>Wave Pass</b>: every wave, for life.'
-    : '<b>Free</b>: Raglan, the wave builder to try, and any contest you\'re invited to.';
+    : '<b>Free</b>: Raglan and Queens, the wave builder to try, and any contest you\'re invited to.';
 });
 
 try {

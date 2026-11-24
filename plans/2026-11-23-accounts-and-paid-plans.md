@@ -183,7 +183,7 @@ sees it on their profile.
   database), `has_entitlement(kind)` for you and `private.user_has_entitlement(uid, kind)` for RLS and functions (Pro counts
   as a Wave Pass; a failed renewal keeps Pro 3 days; cancelled runs to the period's end; refunded never counts),
   `my_plan()`, and `private.grant_entitlement(email, kind, interval, why)` for granting by hand. The picker locks every
-  wave but Raglan (and your built break) without a Wave Pass, and a link to a locked wave lands on Raglan with a note;
+  wave but Raglan and Queens (free too: the user, 2026-11-24) and your built break without a Wave Pass, and a link to a locked wave lands on Raglan with a note;
   the account page shows your plan. **The lock is off until payments are live** (`PAYWALL` in src/account.js; `?paywall`
   to try it), so nobody loses a wave before they can buy one: turn it on in task 9. Tests:
   `supabase/tests/entitlements_test.sql` (17), `test:plan-browser`.

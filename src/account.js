@@ -143,7 +143,7 @@ export function describeProfileError(e) {
 // PAYWALL stays off until payments are live (task 9), so nobody loses a wave before they can buy one; ?paywall turns
 // it on to try it.
 export const PAYWALL = new URLSearchParams(location.search).has('paywall');
-export const FREE_WAVES = ['point', 'built']; // (Raglan, the demo wave; and your own break from the builder)
+export const FREE_WAVES = ['point', 'queens', 'built']; // (Raglan, the demo wave; Queens (the user, 2026-11-24); and your own break from the builder)
 const NO_PLAN = { wave_pass: false, pro: false, pro_until: null, grace: false };
 let plan = NO_PLAN, planKnown = false, planFor;
 const planListeners = new Set();
