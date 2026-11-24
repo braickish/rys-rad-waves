@@ -12,6 +12,7 @@ import { perspective, lookAt, mul, invert } from './math.js';
 import { createPose, surferObjects } from './surfer.js';
 import { loadSkinnedGLB } from './glb.js';
 import { createBody } from './body.js';
+import { startAccountUI } from './account-ui.js';
 
 const params = new URLSearchParams(location.search);
 // Competition judging (?judge; the user, 2026-11-22): every wave scored by a five-judge panel (judging.js), the score sheet
@@ -214,6 +215,7 @@ const STEP = 1 / 120;
 const keys = new Set();
 const touch = { turn: 0, tilt: 0, crouch: false };
 addEventListener('keydown', (e) => {
+  if (e.target instanceof HTMLInputElement) return; // (typing an email on the title screen)
   if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) e.preventDefault();
   keys.add(e.code);
   if (vid || !$('video').hidden) { if (e.code === 'Escape') closeVideo(); return; } // (making or showing a video: Space doesn't paddle out under it)
@@ -277,6 +279,7 @@ const SWIPE_PX = 45; // full turn at this far from where the swipe started
 $('over').addEventListener('pointerdown', (e) => { e.preventDefault(); startOrRestart(); });
 $('judge').addEventListener('pointerdown', (e) => { e.preventDefault(); startOrRestart(); });
 $('start').addEventListener('click', (e) => { e.preventDefault(); startOrRestart(); });
+startAccountUI();
 // The walk buttons (longboard wave): walk up toward the nose / back toward the tail, one spot per press.
 $('walk-up').addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); walkPress = 1; });
 $('walk-back').addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); walkPress = -1; });

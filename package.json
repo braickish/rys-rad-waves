@@ -1,0 +1,16 @@
+{
+  "name": "rys-rad-waves",
+  "private": true,
+  "type": "module",
+  "description": "Dev tools only: the game itself has no build step and no dependencies.",
+  "scripts": {
+    "db:start": "supabase start",
+    "db:stop": "supabase stop",
+    "test:db": "supabase test db",
+    "test:auth": "node test/auth.mjs",
+    "test:auth-browser": "node test/auth-browser.mjs"
+  },
+  "devDependencies": {
+    "supabase": "2.120.0"
+  }
+}

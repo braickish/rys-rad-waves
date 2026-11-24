@@ -2,3 +2,7 @@
 *.png
 *.svg
 test/out/
+node_modules/
+supabase/.temp/
+supabase/.branches/
+.claude/

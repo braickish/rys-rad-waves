@@ -129,6 +129,16 @@
   .waves button { font-family: Rubik, sans-serif; font-weight: 700; font-size: 13px; color: #fff; background: rgba(11,26,36,.55); border: 2px solid rgba(255,255,255,.5); border-radius: 18px; padding: 6px 12px; cursor: pointer; }
   .waves button.on { background: var(--teal); border-color: #fff; color: var(--ink); }
   .start { font-family: Bungee, sans-serif; font-size: 22px; color: var(--ink); background: var(--teal); border: 3px solid #fff; border-radius: 28px; padding: 10px 34px; cursor: pointer; box-shadow: 3px 3px 0 rgba(0,0,0,.3); }
+  /* Sign in (accounts plan task 4): small, under DROP IN, so it never gets in the way of surfing */
+  .account { margin-top: 14px; font-size: 13px; text-shadow: 0 1px 0 rgba(0,0,0,.4); }
+  .account [hidden] { display: none !important; }
+  .acct-link { font: 700 13px Rubik, sans-serif; color: #fff; background: none; border: 0; padding: 4px 6px; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; text-shadow: inherit; }
+  .acct-form { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; }
+  .acct-form input { font: 500 14px Rubik, sans-serif; color: var(--ink); background: #fff; border: 2px solid #fff; border-radius: 18px; padding: 6px 12px; width: min(220px, 60vw); }
+  .acct-form button { font: 700 13px Rubik, sans-serif; color: var(--ink); background: var(--yellow); border: 2px solid #fff; border-radius: 18px; padding: 6px 12px; cursor: pointer; }
+  .acct-form button:disabled { opacity: .6; cursor: default; }
+  .acct-who { font-weight: 700; opacity: .95; }
+  .acct-msg { margin-top: 8px; font-weight: 700; }
   .walk-btn { position: fixed; right: 16px; width: 96px; height: 96px; border-radius: 48px; border: 3px solid #fff; font-family: Bungee, sans-serif; font-size: 15px; color: #fff; background: rgba(255,170,40,.85); box-shadow: 3px 3px 0 rgba(0,0,0,.3); touch-action: none; cursor: pointer; z-index: 5; padding: 0 10px; line-height: 1.1; }
   #walk-up { bottom: 160px; } #walk-back { bottom: 56px; background: rgba(240,110,160,.85); }
   .tip { font-size: 12px; }
@@ -175,6 +185,15 @@
     <div id="waves" class="waves"></div>
     <button id="start" class="start">Drop in</button>
     <div id="heat-note" class="heat-note" hidden></div>
+    <div id="account" class="account">
+      <button id="acct-open" class="acct-link" hidden>Sign in</button>
+      <form id="acct-form" class="acct-form" hidden>
+        <input id="acct-email" type="email" autocomplete="email" placeholder="you@example.com" required aria-label="Email">
+        <button id="acct-send" type="submit">Email me a link</button>
+      </form>
+      <div id="acct-who" class="acct-who" hidden><span id="acct-name"></span> · <button id="acct-out" class="acct-link">Sign out</button></div>
+      <div id="acct-msg" class="acct-msg" hidden></div>
+    </div>
   </div>
 </div>
 

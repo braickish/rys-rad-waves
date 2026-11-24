@@ -167,9 +167,12 @@ sees it on their profile.
   the WSL-style board with needs and score pops, the horn rule, the sheet paddling back out by itself, and a results card
   with "Watch your best wave" (each wave's ride is recorded). `test/heat.mjs` and `test/heat-browser.mjs` pass on Raglan+ and
   Trestles. Not yet: a way into a heat from the title screen (URL only for now), and bracket `advance` on a URL.
-- [ ] **4. The Supabase project and auth.** A new project and the CLI in the repo (`supabase/`), as spigots does: magic link only
-  (passwords stripped), anonymous sign-ins on, redirect URLs for Pages and local, and custom SMTP noted for launch. Sign
-  in and out on the title screen, with the session kept. Tests: auth (link, session, sign-out) on the local stack.
+- [x] **4. The Supabase project and auth** (done 2026-11-24). Project `rys-rad-waves` (ref `lyttzshnxspdugvonjea`), the CLI
+  in the repo (`supabase/`, `npm run db:start`): magic link only (`private.strip_password` trigger erases any password),
+  anonymous sign-ins on, redirect URLs for Pages, rysradwaves.com and local (`[remotes.production]` in config.toml, sent
+  with `supabase config push`), custom SMTP noted for launch. `src/account.js` + `src/account-ui.js`: sign in and out under
+  DROP IN, session kept (implicit flow, so a link opened on another device's mail app works). Tests: `npm run test:db`,
+  `test:auth` (link, session, refresh, sign-out, no passwords, anonymous), `test:auth-browser` (the title screen end to end).
 - [ ] **5. Profiles.** The `profiles` table and RLS, picking a handle on first sign-in, `profile.html?u=` (empty sections for
   now), account settings (handle, email), and deleting your account. Tests: RLS (edit only your own), handle rules.
 - [ ] **6. Entitlements (no payments yet).** The `entitlements` table and `has_entitlement()`, granted by hand for testing.
