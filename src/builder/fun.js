@@ -16,6 +16,8 @@ export const FUN = {
   pace: 8.3, // (m/s: the comfortable curl, Raglan's own on its ~3.5 m breakers; x sqrt(size))
   band: [0.75, 1.6], // (the curl's speed within these x the comfortable pace ...)
   floor: 4.5, // (... and never under this, m/s: the rider's slowest trim, rider.js vLow, ~10 mph)
+  sharp: { rate: 8 / MPH, uRate: 1.5 }, // (a reef with sharp edges (the payload's `sharp`; the user, 2026-11-24): the wave may change faster,
+  // so a ledge still jacks up quickly (~0.7 s from barrel to ledge) and a sudden section still feels sudden; speed still makeable)
 };
 // step 4: the curl's speed squeezed into a makeable band around the comfortable pace for the wave's size: a smooth, monotonic
 // squash (in log speed: near the pace almost unchanged, toward the band's edges more and more, never past them), so slow stays
@@ -93,14 +95,15 @@ export function funPayload(data) {
   P.forEach((p, i) => { p.peel = peel[i]; if (u) p.u = u[i]; });
   // step 5: clear shape zones
   if (u) { P.forEach((p) => { p.u = snapKind(p.u); }); barrelRules(P); }
-  const v = limitRate(P.map((p) => p.peel), P, FUN.rate * size);
+  const rate = data.sharp ? FUN.sharp.rate : FUN.rate, uRate = data.sharp ? FUN.sharp.uRate : FUN.uRate;
+  const v = limitRate(P.map((p) => p.peel), P, rate * size);
   P.forEach((p, i) => { p.peel = v[i]; });
   if (u) {
     // (the shape the same way, by the curl's time at its new speeds)
     const T = stepTimes(P), uu = P.map((p) => p.u);
     for (let it = 0; it < 400; it++) {
       let worst = 0;
-      for (let i = 0; i < uu.length - 1; i++) { const d = uu[i + 1] - uu[i], ex = Math.abs(d) - FUN.uRate * T[i]; if (ex <= 1e-4) continue; worst = Math.max(worst, ex); const k = Math.sign(d) * ex * 0.5; uu[i] += k; uu[i + 1] -= k; }
+      for (let i = 0; i < uu.length - 1; i++) { const d = uu[i + 1] - uu[i], ex = Math.abs(d) - uRate * T[i]; if (ex <= 1e-4) continue; worst = Math.max(worst, ex); const k = Math.sign(d) * ex * 0.5; uu[i] += k; uu[i + 1] -= k; }
       if (worst < 1e-3) break;
     }
     P.forEach((p, i) => { p.u = +uu[i].toFixed(3); });

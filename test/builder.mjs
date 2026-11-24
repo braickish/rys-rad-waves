@@ -208,6 +208,22 @@ check(A.left.xi > 0.5 && A.left.xi < 3.3 && A.right.xi > 0.5 && A.right.xi < 3.3
   check(uL > 3.5, 'ledge: Ledge blocks on their own give the ledge shape');
   check(uD <= 3, 'ledge: Dynamic\'s arms don\'t');
 }
+// Reef edges (the user, 2026-11-24: a global setting, sharp by default in the builder): sharp pieces fade in over a quarter of
+// their distance (10 m), and the readings follow the reef closer (a 3-strip median, the curl's speed over 20 m), so a sudden
+// section shows: a pinnacle by Dynamic's arm.
+{
+  const { reefComponents: rc, dynamicPreset: dp, newBlock } = await import('../src/builder/blocks.js');
+  const { wavePayload, takeoffStart } = await import('../src/builder/loop.js');
+  const steepest = (edges) => {
+    const g = buildDepth(rc([...dp(), newBlock('pinnacle', 920, 440)], false, edges), makeGrid()), A = analyse(traceRays(g, swell), g, { pe: runPE(g, swell), sharp: edges === 'sharp' });
+    const S = A.right, t = takeoffStart(S), d = wavePayload(S, 'right', 'full', t.a, t.b, swell), P = d.profile;
+    let m = 0; for (let i = 1; i < P.length; i++) m = Math.max(m, Math.abs(P[i].peel - P[i - 1].peel) * 2.237 / (10 / Math.max(0.5, (P[i].peel + P[i - 1].peel) / 2)));
+    return { m, sharp: !!d.sharp };
+  };
+  const soft = steepest('soft'), sharp = steepest('sharp');
+  console.log(`reef edges: a pinnacle section's steepest curl change soft ${soft.m.toFixed(0)}, sharp ${sharp.m.toFixed(0)} mph/s`);
+  check(sharp.m > soft.m * 1.15 && sharp.sharp && !soft.sharp, 'reef edges: sharp edges make a sudden section sharper (and the payload says so, for Fun)');
+}
 check(tBuild + tRays + tAn < 400, `rebuild + trace under 400 ms in node (${(tBuild + tRays + tAn).toFixed(0)})`);
 console.log(fails ? 'SOME FAILED' : 'all ok');
 process.exitCode = fails ? 1 : 0;

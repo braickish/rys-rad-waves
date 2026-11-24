@@ -59,13 +59,15 @@ export function loopInfo(side, a, b, step = 10) {
   for (let s = a; s <= b + 1e-6; s += step) {
     // (the curl's speed along the line, over 40 m: rays wobble. The window slides in at the stretch's ends rather than
     // shrinking: through a section the curl's time stands still, and over a few metres it came out at hundreds of m/s)
-    const w0 = Math.max(a, Math.min(s - 20, b - 40)), w1 = Math.min(b, w0 + 40);
+    const win = side.sharp ? 20 : 40; // (sharp reef edges: the readings follow it closer, rays.js analyse)
+    const w0 = Math.max(a, Math.min(s - win / 2, b - win)), w1 = Math.min(b, w0 + win);
     const p = curlAt(side.curl, s), q = curlAt(side.curl, w1), o = curlAt(side.curl, w0);
     const v = Math.min(CURL_MAX, (q.s - o.s) / Math.max(0.05, q.t - o.t));
     // (the game's peel speed is the curl's speed along the crest, in the wave's own frame: the break point runs along the
     // reef at v = c / sin(alpha) while the wave carries it in at c, so along the crest it's sqrt(v^2 - c^2) = c / tan(alpha))
     const peel = Math.sqrt(Math.max(0, v * v - p.c * p.c));
-    let xs = 0, xn = 0, ss = 0, sn = 0; for (let d = -20; d <= 20; d += 5) { const q2 = curlAt(side.curl, Math.min(b, Math.max(a, s + d))); if (q2 && isFinite(q2.xi)) { xs += q2.xi; xn++; } if (q2 && isFinite(q2.step)) { ss += q2.step; sn++; } }
+    const xw = side.sharp ? 10 : 20;
+    let xs = 0, xn = 0, ss = 0, sn = 0; for (let d = -xw; d <= xw; d += 5) { const q2 = curlAt(side.curl, Math.min(b, Math.max(a, s + d))); if (q2 && isFinite(q2.xi)) { xs += q2.xi; xn++; } if (q2 && isFinite(q2.step)) { ss += q2.step; sn++; } }
     // (early: how long before the curl gets here this spot breaks on its own: a section breaking ahead; 0 almost everywhere)
     prof.push({ s: s - a, v, peel, c: p.c, H: p.H, xi: xn ? xs / xn : NaN, step: sn ? ss / sn : 0, kind: p.kind, early: isFinite(p.tb) ? Math.max(0, p.t - p.tb) : 0 }); // (xi: how it breaks, averaged over +-20 m)
   }
@@ -152,7 +154,7 @@ export function wavePayload(side, which, mode, a, b, swell, board = 'shortboard'
   return {
     // (H: the reference height the wave is sized to, and per point the size along it (plan step 2); c: the wave's speed
     // toward the shore at breaking, for the game's wave speed; the takeoff speed is the curl's at the stretch's start)
-    v: 1, mode, side: which, length: I.length, base, H: med('H'), c: med('c'), swell, board,
+    v: 1, mode, side: which, length: I.length, base, H: med('H'), c: med('c'), swell, board, ...(side.sharp ? { sharp: true } : {}), // (sharp reef edges: Fun lets the wave change faster, fun.js)
     // (the curl's speed along the crest no slower than a back-off's, c / tan 70 deg: where the break barely moves along the reef
     // (v <= c) it came out 0, and the game's curl, which advances by it, stopped there for good)
     profile: I.profile.map((p) => ({ s: p.s, peel: +Math.max(p.peel, p.c / Math.tan(BACKOFF * Math.PI / 180)).toFixed(2), k: p.kind === 'section' ? 1 : 0, H: +p.H.toFixed(2), c: +p.c.toFixed(2), u: +shapeIndex(p.xi, p.step).toFixed(3), ...(p.early > 0.05 ? { e: +p.early.toFixed(2) } : {}) })),

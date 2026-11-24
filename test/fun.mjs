@@ -64,6 +64,14 @@ const left = (fun) => ({ v: 1, mode: 'full', side: 'left', length: 250, base: 11
   const long = right(2.5, [1, 1, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 1, 1]);
   check(long.profile.filter((p) => p.u >= 2.9).length >= 6, 'step 5: a long, big enough barrel stays a barrel');
 }
+// sharp reef edges (the payload's `sharp`): Fun lets the wave change faster (a ledge still jacks up quickly)
+{
+  const d = { v: 1, mode: 'full', side: 'left', length: 200, base: 8, H: 3, c: 6, fun: true, profile: Array.from({ length: 21 }, (_, i) => ({ s: i * 10, peel: i === 10 ? 16 : 8, k: 0, H: 3, c: 6, u: i >= 10 ? 4 : 3 })) };
+  const soft = funPayload(d), sharp = funPayload({ ...d, sharp: true });
+  const r0 = steepest(soft.profile, 'peel', MPH), r1 = steepest(sharp.profile, 'peel', MPH), u0 = steepest(soft.profile, 'u'), u1 = steepest(sharp.profile, 'u');
+  console.log(`sharp edges: steepest curl change ${r0.toFixed(1)} -> ${r1.toFixed(1)} mph/s, shape ${u0.toFixed(2)} -> ${u1.toFixed(2)}/s (barrel to ledge)`);
+  check(r1 > r0 * 1.2 && u1 > u0 * 1.4, 'sharp edges: Fun lets the wave change faster (the profile, a point every 10 m, bounds how fast it can show)');
+}
 // the game applies it: a Fun link rides the Fun profile, a Real one (or an older link, no `fun`) the builder's
 {
   // (applyBuilt sets up the one built wave and returns it: read each before the next)

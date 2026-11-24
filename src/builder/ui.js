@@ -24,7 +24,7 @@ const COL = { yellow: [255, 212, 38], pink: [255, 61, 139], red: '#ff4b4b' };
 // ones; on the research site's shallow shelf a big swell closed out across the bay. The beach break keeps the gentle shelf.)
 const reefCoast = () => Object.assign(defaultCoast(), { deep: true });
 const state = { blocks: dynamicPreset(), coast: reefCoast(), sel: null, swell: { H: 1.6, T: 15, dir: 0 }, grid: null, rays: null, wave: null, dirty: true, ms: 0,
-  loop: { on: false, side: 'right', a: null, b: null, info: null }, hover: null, board: 'shortboard', pick: 0, water: 66, fun: true, scale: 1 }; // (fun / scale: the surfable-waves plan step 1, 2026-11-24: Fun or Real, and a size override on the wave the swell makes) // (water: its temperature, °F: what the surfer wears, looks only) // (pick: which wave, when the design makes more than one (plan step 8))
+  loop: { on: false, side: 'right', a: null, b: null, info: null }, hover: null, board: 'shortboard', pick: 0, water: 66, fun: true, scale: 1, edges: 'sharp' }; // (edges: the reef pieces' edges, sharp or soft, the user, 2026-11-24: a global setting, sharp by default; kept across presets) // (fun / scale: the surfable-waves plan step 1, 2026-11-24: Fun or Real, and a size override on the wave the swell makes) // (water: its temperature, °F: what the surfer wears, looks only) // (pick: which wave, when the design makes more than one (plan step 8))
 // The wave you're looking at and would ride: one of the design's waves (rays.js analyse: A the main one, then other peaks and
 // waves that reform inside).
 const cur = () => (state.wave ? state.wave.waves[state.pick] || state.wave.waves[0] : null);
@@ -47,9 +47,10 @@ const depthImg = document.createElement('canvas');
 // ---- the model ----
 function recompute() {
   const t0 = performance.now();
-  state.grid = buildDepth(reefComponents(state.blocks, !!state.coast.deep), makeGrid(state.coast.deep ? { ...BAY, offDepth: BAY_DEEP_OFF } : BAY), state.coast); // (deep offshore water: a deeper bay and shelf)
+  state.grid = buildDepth(reefComponents(state.blocks, !!state.coast.deep, state.edges), // (reef edges: sharp unless set soft)
+    makeGrid(state.coast.deep ? { ...BAY, offDepth: BAY_DEEP_OFF } : BAY), state.coast); // (deep offshore water: a deeper bay and shelf)
   state.rays = traceRays(state.grid, state.swell);
-  state.wave = analyse(state.rays, state.grid); repick();
+  state.wave = analyse(state.rays, state.grid, { sharp: state.edges === 'sharp' }); repick();
   state.ms = performance.now() - t0;
   state.peMs = null; scheduleRefine();
   fitLoop();
@@ -62,12 +63,12 @@ function recompute() {
 // The design is remembered (in this browser) so coming back from riding it finds it as you left it.
 const SAVE_KEY = 'rys-rad-waves-builder';
 function save() {
-  try { localStorage.setItem(SAVE_KEY, JSON.stringify({ blocks: state.blocks, coast: state.coast, swell: state.swell, board: state.board, water: state.water, fun: state.fun, scale: state.scale, pick: state.pick, pickKey: state.pickKey, loop: { on: state.loop.on, side: state.loop.side, a: state.loop.a, b: state.loop.b }})); } catch {}
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify({ blocks: state.blocks, coast: state.coast, swell: state.swell, board: state.board, water: state.water, fun: state.fun, scale: state.scale, edges: state.edges, pick: state.pick, pickKey: state.pickKey, loop: { on: state.loop.on, side: state.loop.side, a: state.loop.a, b: state.loop.b }})); } catch {}
 }
 function restore() {
   try {
     const j = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null'); if (!j || !Array.isArray(j.blocks)) return;
-    state.blocks = j.blocks; if (j.coast && Array.isArray(j.coast.pts)) state.coast = j.coast; if (j.board) state.board = j.board; if (Number.isFinite(j.water)) state.water = j.water; if (typeof j.fun === 'boolean') state.fun = j.fun; if (Number.isFinite(j.scale)) state.scale = j.scale; if (j.pick) state.pick = j.pick; if (j.pickKey) state.pickKey = j.pickKey; Object.assign(state.swell, j.swell || {}); Object.assign(state.loop, j.loop || {}); 
+    state.blocks = j.blocks; if (j.coast && Array.isArray(j.coast.pts)) state.coast = j.coast; if (j.board) state.board = j.board; if (Number.isFinite(j.water)) state.water = j.water; if (typeof j.fun === 'boolean') state.fun = j.fun; if (Number.isFinite(j.scale)) state.scale = j.scale; if (j.edges === 'soft' || j.edges === 'sharp') state.edges = j.edges; if (j.pick) state.pick = j.pick; if (j.pickKey) state.pickKey = j.pickKey; Object.assign(state.swell, j.swell || {}); Object.assign(state.loop, j.loop || {}); 
   } catch {}
 }
 function fitLoop() {
@@ -412,7 +413,7 @@ function refine() {
   if (!state.rays || (state.wave && state.wave.right && state.wave.right.refined)) return;
   const t0 = performance.now();
   const pe = runPE(state.grid, state.swell);
-  state.wave = analyse(state.rays, state.grid, { pe }); repick();
+  state.wave = analyse(state.rays, state.grid, { pe, sharp: state.edges === 'sharp' }); repick();
   state.peMs = performance.now() - t0;
   fitLoop(); showResults(); draw();
 }
@@ -621,6 +622,12 @@ function showCoast() {
   for (const [deep, label] of [[false, 'Shelf'], [true, 'Deep']]) { const b = document.createElement('button'); b.textContent = label; if (!!state.coast.deep === deep) b.className = 'on'; b.onclick = () => { state.coast.deep = deep; state.dirty = true; showCoast(); schedule(); }; off.appendChild(b); }
   el.appendChild(off);
   const note2 = document.createElement('div'); note2.className = 'note'; note2.textContent = 'Deep offshore water and Deep reef blocks let a big swell break on your reef instead of out on the shelf.'; note2.style.marginTop = '4px'; el.appendChild(note2);
+  // reef edges (the user, 2026-11-24): sharp (the default) or soft, for every piece
+  const ed = document.createElement('div'); ed.className = 'row'; ed.style.marginTop = '6px';
+  const edl = document.createElement('span'); edl.textContent = 'Reef edges'; edl.style.cssText = 'font-size:13px;color:var(--dim);width:70px;align-self:center'; ed.appendChild(edl);
+  for (const [v, label] of [['sharp', 'Sharp'], ['soft', 'Soft']]) { const b = document.createElement('button'); b.textContent = label; if ((state.edges) === v) b.className = 'on'; b.onclick = () => { state.edges = v; state.dirty = true; save(); showCoast(); schedule(); }; ed.appendChild(b); }
+  el.appendChild(ed);
+  const note3 = document.createElement('div'); note3.className = 'note'; note3.style.marginTop = '4px'; note3.textContent = (state.edges) === 'sharp' ? 'Sharp: reef pieces start suddenly, so the wave changes suddenly over them, as on a lot of real reefs.' : 'Soft: reef pieces blend into the floor over ~40 m, for smoother waves.'; el.appendChild(note3);
   const st = document.createElement('button'); st.textContent = 'Straighten'; st.style.marginTop = '6px';
   st.onclick = () => { const face = state.coast.face, deep = state.coast.deep; state.coast = defaultCoast(); state.coast.face = face; state.coast.deep = deep; state.dirty = true; schedule(); };
   el.appendChild(st);

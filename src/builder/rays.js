@@ -182,7 +182,11 @@ export function traceRays(grid, swell) {
 // Returns the first outside wave's { peak, right, left } (as before: the main wave) and `waves`, all of them, each
 // { name (A, B, ..), tier ('outside' | 'inside'), peak, right, left }.
 export function analyse(R, grid, opts = {}) {
-  const { binM = 4 } = opts;
+  const { binM = 4, sharp = false } = opts;
+  // (sharp reef edges, the user, 2026-11-24: the readings follow the reef more closely, so its sudden changes show: a running
+  // median over 3 strips (12 m) instead of 5 (20 m); downstream (loop.js) the curl's speed over 20 m instead of 40 and how it
+  // breaks over +-10 m instead of +-20, read off `sharp` on each side)
+  const mr = sharp ? 1 : 2;
   const V = grid.view || { y0: grid.y0, y1: grid.y0 + grid.N * grid.dx }, yLo = V.y0 + 70, yHi = V.y1 - 70; // (the curl within the map, clear of its edges)
   const ev = R.ev || [];
   // the strips: [y, t, x, c, H, slope, th, from] from the chosen break per ray
@@ -196,7 +200,7 @@ export function analyse(R, grid, opts = {}) {
       const v = strips.map((s) => s[col]);
       for (let i = 0; i < v.length; i++) {
         if (!isFinite(v[i])) continue;
-        const wv = v.slice(Math.max(0, i - 2), i + 3).filter(isFinite).sort((a, b) => a - b);
+        const wv = v.slice(Math.max(0, i - mr), i + mr + 1).filter(isFinite).sort((a, b) => a - b);
         strips[i][col] = wv[Math.floor(wv.length / 2)];
       }
     }
@@ -223,7 +227,7 @@ export function analyse(R, grid, opts = {}) {
   const med5 = (strips) => { // (running median over 5 strips, as stripsOf)
     for (let col = 1; col <= 5; col++) {
       const v = strips.map((s) => s[col]);
-      for (let i = 0; i < v.length; i++) { if (!isFinite(v[i])) continue; const wv = v.slice(Math.max(0, i - 2), i + 3).filter(isFinite).sort((a, b) => a - b); strips[i][col] = wv[Math.floor(wv.length / 2)]; }
+      for (let i = 0; i < v.length; i++) { if (!isFinite(v[i])) continue; const wv = v.slice(Math.max(0, i - mr), i + mr + 1).filter(isFinite).sort((a, b) => a - b); strips[i][col] = wv[Math.floor(wv.length / 2)]; }
     }
     return strips;
   };
@@ -303,7 +307,7 @@ function sectionThrough(strips, pts, j, d, tCurl) {
 }
 
 // One wave from the strip `ip` (its peak), both ways (as analyse did for the one wave before step 8).
-function walkWave(strips, ip, R, grid, { step = 20, pe = null } = {}) {
+function walkWave(strips, ip, R, grid, { step = 20, pe = null, sharp = false } = {}) {
   const out = { peak: { x: strips[ip][2], y: strips[ip][0], t: strips[ip][1] }, used: [] };
   for (const [side, d] of [['right', -1], ['left', 1]]) {
     const pts = [strips[ip]], gaps = [], sections = []; let j = ip, gap = 0, end = 'reef';
@@ -429,7 +433,7 @@ function walkWave(strips, ip, R, grid, { step = 20, pe = null } = {}) {
     const peelFast = fastSegs.length ? Math.min(...fastSegs) : NaN;
     // (and the curl's speed along the wave, what you race in the game: c / tan(alpha), from the overall pace)
     const curlSpeed = isFinite(peelAll) && peelAll > 0.5 ? cMean / Math.tan(peelAll * Math.PI / 180) : NaN;
-    out[side] = { refined: !!pe, peelAll, peelFast, curlSpeed, bandAll: isFinite(peelAll) ? skillBand(peelAll) : '-', xi: xiMed, how: isFinite(xiMed) ? breakType(xiMed) : '-', curl, segs, ride, line: s[s.length - 1], peel: med, band: isFinite(med) ? skillBand(med) : '-', H: Hs.length ? Hs[Math.floor(Hs.length / 2)] : NaN, end, seconds: tRide }; // (the ride's own time, as its length: it included the curl's tail past the ride's end)
+    out[side] = { refined: !!pe, sharp, peelAll, peelFast, curlSpeed, bandAll: isFinite(peelAll) ? skillBand(peelAll) : '-', xi: xiMed, how: isFinite(xiMed) ? breakType(xiMed) : '-', curl, segs, ride, line: s[s.length - 1], peel: med, band: isFinite(med) ? skillBand(med) : '-', H: Hs.length ? Hs[Math.floor(Hs.length / 2)] : NaN, end, seconds: tRide }; // (the ride's own time, as its length: it included the curl's tail past the ride's end)
   }
   return out;
 }

@@ -84,7 +84,16 @@ export function nearestArm(blocks, x, y, near = 35) {
   return best;
 }
 
-export const reefComponents = (blocks, deep = false) => [...(deep ? FLOOR_DEEP : FLOOR), ...blocks.flatMap(blockComponents)];
+// Reef edges (the user, 2026-11-24: allow more sudden changes, like a lot of reefs): 'soft' fades every piece in over its own
+// `fade_m` (40 m for most, channels 20 m); 'sharp' over a quarter of that (10 m; channels 8), so a ridge, a pinnacle or a ledge
+// starts suddenly and the wave changes suddenly there. The builder defaults to sharp (ui.js); called without it (the tests, the
+// survey, Dynamic's checks against FUNWAVE) it's soft, as before.
+export const EDGE_FADE = { soft: { piece: 1, channel: 1 }, sharp: { piece: 0.25, channel: 0.4 } };
+export const reefComponents = (blocks, deep = false, edges = 'soft') => {
+  const k = EDGE_FADE[edges] || EDGE_FADE.soft, comps = blocks.flatMap(blockComponents);
+  if (k !== EDGE_FADE.soft) for (const c of comps) c.fade_m = c.type === 'channel' ? (c.fade_m ?? 20) * k.channel : (c.fade_m ?? 40) * k.piece;
+  return [...(deep ? FLOOR_DEEP : FLOOR), ...comps];
+};
 
 let nextId = 1;
 export function newBlock(type, x, y) {

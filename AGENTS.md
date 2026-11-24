@@ -54,6 +54,13 @@ section's extra curl speed by how steep the wall is at the curl (Raglan+: the ri
 Raglan's wall): the steeper face pulls you along harder; sections.mjs: pumping makes 9 of 9 (was 6 of 9), trimming 2 of 6, and carving the steep wall pays (`wallK` 0.65, `wallAngles` [55, 63]). `node
 test/sections.mjs`: a mid-face trimmer makes 1 of 6 sections (caught ~10 s in), the pocket-pumping bot 6 of 9 (~23 s
 rides). crest.mjs runs Raglan+ without ridges. GPU ~+1 ms.
+**Reef edges** (2026-11-24, the user: allow more sudden changes, like a lot of reefs): a global builder setting, Sharp (the
+default) or Soft, under the coast. Sharp fades every reef piece in over a quarter of its distance (10 m; channels 8; blocks.js
+`reefComponents(.., edges)`, `EDGE_FADE`), and the analysis follows the reef closer (rays.js `analyse(.., { sharp })`: a 3-strip
+median instead of 5; loop.js: the curl's speed over 20 m instead of 40, how it breaks over +-10 m instead of +-20); the payload
+says `sharp`, and Fun then lets the wave change faster (8 mph/s, the shape 1.5/s: a ledge still jacks up). Called without it
+(tests, survey, Dynamic's FUNWAVE checks) it's Soft, as before.
+
 **Built barrels: the almond and the ledge** (2026-11-24, the user). The built waves' barrel (shapes.js `KF_ALMOND_HEAD`, Real
 and Fun) is an almond: the lip throws out and curves down to land in front, the back wall rises concave, the opening leans
 forward, ~0.89x the breakers tall (2.66 m on 3 m), so it fits from ~1.5 m breakers. Past it, **the ledge** (`KF_LEDGE_HEAD`,
