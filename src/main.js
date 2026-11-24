@@ -776,10 +776,28 @@ function updateCamera(dt) {
         const c = tubeCenter(p[0] - back, p[1] + TUBE_CAM_UP), q = c && [p[0] - back, c.y, c.z];
         if (q && tubeCamOK(q, eye)) safe = q;
       }
-      camPos = safe || [p[0] - 0.6, p[1] + 1.0, p[2]];
+      camPos = safe || nearestAirSpot(p, eye);
     }
+  } else if (!tubeCamAir(camPos)) {
+    // (the other views: the shot's own spot was moved out of the water above, but easing toward it could still carry the
+    // camera through the lip: riding high behind the curl, the chase view trailed into it on Pipe, 2026-11-24)
+    camPos = nearestAirSpot(p, [p[0], p[1] + 0.9, p[2]], camPos);
   }
 }
+// The last resort (the user, 2026-11-24: on Pipe the barrel view could still end up inside the wave): with nowhere in the
+// tube to sit, it used to go just behind your head, unchecked; high in the mouth of Pipe's barrel, under its thick lip,
+// that was 0.7-0.95 m inside the lip. Now the first spot near the head, then out toward the open face, that's in air
+// with room and a view of you; failing all of them, straight out from where it is until it's out of the water.
+function nearestAirSpot(p, eye, from = [p[0] - 0.6, p[1] + 1.0, p[2]]) {
+  for (const out of [0, 0.6, 1.2, 2, 3, 4.5]) for (const back of [0.6, 1.2, 2]) for (const up of [1.0, 0.6, 0.3]) {
+    const q = [p[0] - back, p[1] + up, p[2] + out];
+    if (tubeCamOK(q, eye)) return q;
+  }
+  const q = from.slice();
+  for (let i = 0; i < 40 && !tubeCamAir(q); i++) q[2] += 0.35;
+  return q;
+}
+function tubeCamAir(q) { return !insideWaterAt(q) && distToSlice(slice(q[0], 6), q[2], q[1]) >= TUBE_CAM_ROOM; }
 const TUBE_CAM_ROOM = 0.35;
 function tubeCamOK(q, eye) {
   if (insideWaterAt(q)) return false;

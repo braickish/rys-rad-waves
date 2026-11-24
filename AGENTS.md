@@ -901,6 +901,14 @@ bot's real ride. Not yet: a heat timer, priority / interference, other players.
     the back of the barrel it's pinched shut) or the view to you is blocked, it searches closer along
     the inside of the tube, and with nowhere at all it holds its last spot (`lastTubeSpot`): it used
     to pop out the back of the wave there.
+    **Never inside the wave** (2026-11-23 a final guard, `tubeCamOK`: in air, `TUBE_CAM_ROOM` 0.35 m from the water, a clear
+    view of you; 2026-11-24, the user: on Pipe it could still end up inside the wave): when no spot in the tube passed, the
+    last resort sat just behind your head, unchecked, and high in the mouth of Pipe's barrel under its thick lip that was
+    0.7-0.95 m inside the lip (default view on a small Pipe, `?size=0.8`: 81 frames in the water in a minute; the chase view
+    too). `nearestAirSpot` now takes the first spot near your head, then out toward the open face, that passes; and every
+    other view gets the same in-the-air check after smoothing (the chase view trailed into the lip riding high behind the
+    curl: 230+ frames a minute). `node test/camera-water.mjs` rides Pipe in headless Chrome and checks the camera every
+    frame (fails on the old code).
     **Washing machine:** wipe out in the barrel (pinched, too high, too low, caught in the lip) and
     `r.washing` is set: a longer hold-down (3.2s) and the screen goes to a churning white foam ball
     (`src/washer.js`, a 2D canvas `#foam` over the game), fading out as the score card comes up.
@@ -1130,6 +1138,7 @@ bot's real ride. Not yet: a heat timer, priority / interference, other players.
 ```sh
 node test/determinism.mjs # a ride is the same whatever came before (wave addresses; contests and replays need it)
 node test/replay.mjs   # record, save, replay: the same ride bit for bit; checkpoints put a knocked-off replay back
+node test/camera-water.mjs # headless Chrome: on Pipe the camera is never in the water (barrel view, chase view)
 node test/tubedepth.mjs # tube speed by depth: never slower deeper (Pipe, Dynamic, a built barrel)
 node test/heat.mjs     # heats: the seed's waves in order, best two, places and tie-breaks, needs, the horn, wave counts, bots
 node test/heat-browser.mjs [shots] # in headless Chrome: a 1 min heat (board, sheet, horn, results, watch your best wave) and a 2 wave heat
