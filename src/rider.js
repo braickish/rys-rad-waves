@@ -42,7 +42,7 @@ const RIDER_TUNE = {
   // (cruising x`backSpeed`). Forward: helps you accelerate (picks up speed x`fwdFeed`, acceleration cap x`fwdAccel`,
   // cruising x`fwdSpeed`) and turns more rail to rail (radius x`fwdRadius`, turn limit x`fwdTurn`).
   shuffleTime: 0.2,
-  stallTime: 0.5, stallScrub: 5, stallHold: 0.5, // (the stall: back again from all the way back; ~11 mph/s scrubbed, the pocket's pull halved)
+  stallTime: 0.5, stallScrub: 5, stallHold: 0.5, handReach: 1.05, // (handReach: an arm's length from the crouched shoulder, leaning into it, m: in the tube the stall is a hand in the wall) // (the stall: back again from all the way back; ~11 mph/s scrubbed, the pocket's pull halved)
   backRadius: 0.9, backTurn: 1.1, backPivot: 0.05, backScrub: 0.03, backSpeed: 0.95,
   fwdFeed: 1.25, fwdAccel: 1.15, fwdSpeed: 1.04, fwdRadius: 1.15, fwdTurn: 0.9,
   hardAfter: [0.25, 0.6], // hold a turn this long (s) and you lean into it harder ...
@@ -941,6 +941,25 @@ function stepSurf(r, input, dt) {
   } else if (r.stall > 0 && atBack && input.stallHold) r.stall = Math.max(r.stall, 0.15);
   r.stall = r.mode === 'surf' && atBack ? Math.max(0, (r.stall || 0) - dt) : 0;
   r.stallK = (r.stallK || 0) + ((r.stall > 0 ? 1 : 0) - (r.stallK || 0)) * (1 - Math.exp(-dt * 10));
+  // (stalling in the tube with the barrel's wall within an arm's length: the hand goes into the wave instead of sitting back
+  // on the tail (the user, 2026-11-23). r.wallPt: the nearest point of the wall above you (up the face, round into the roof)
+  // to your shoulder, in the peel frame; r.handDrag eases 0-1 while it's in reach.)
+  let drag = 0;
+  if (r.stallK > 0.01 && r.tube) {
+    // (from the crouched shoulder, 0.85 m off the board; only the steep part of the curve, the barrel's wall and roof, not
+    // the flats in front of the face: down there the wall is out of reach and you sit back on the tail)
+    const fr = frameAt(r.xs, r.t), sh = v3.add(r.pos, v3.mul(fr.n, 0.85)), sl = slice(r.xs, 8);
+    let best = null;
+    for (let i = 0; i < sl.count - 1; i++) {
+      if (sl.t[i] > r.t - 0.6) continue; // (the wall beside and above you, not the water under your feet)
+      const dz = sl.z[i + 1] - sl.z[i], dy = sl.y[i + 1] - sl.y[i];
+      if (Math.abs(dy) < 0.6 * Math.abs(dz)) continue; // (steeper than ~30 deg)
+      const d = Math.hypot(sl.y[i] - sh[1], sl.z[i] - sh[2]);
+      if (!best || d < best.d) best = { d, p: [r.xs, sl.y[i], sl.z[i]] };
+    }
+    if (best && best.d <= T.handReach) { drag = 1; r.wallPt = best.p; }
+  }
+  r.handDrag = (r.handDrag || 0) + (drag - (r.handDrag || 0)) * (1 - Math.exp(-dt * 12));
   if (WAVE.shuffle && !WAVE.noseride) {
     // shortboard: shuffle the feet back / middle / forward (see `shuffleTime` in RIDER_TUNE)
     if (input.walk && input.walk !== 'cycle') r.shufGoal = clamp(r.shufGoal + Math.sign(input.walk), -1, 1);

@@ -762,7 +762,7 @@ function tubeCamOK(q, eye) {
 // The surfer as placed in the world: position, heading and velocity (the rest of the rider is along the wave).
 function worldRider() {
   if (waveDir() > 0) return rider;
-  return { ...rider, pos: toWorld(rider.pos), heading: toWorld(rider.heading), vel: toWorld(rider.vel) };
+  return { ...rider, pos: toWorld(rider.pos), heading: toWorld(rider.heading), vel: toWorld(rider.vel), wallPt: rider.wallPt && toWorld(rider.wallPt) };
 }
 
 // ---------- main ----------
