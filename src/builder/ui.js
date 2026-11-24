@@ -534,6 +534,16 @@ function showRide() {
   const go = btn(state.wave && state.wave.waves.length > 1 && cur() ? `DROP IN · ${cur().name}` : 'DROP IN', false, dropIn, 'go'); // (which wave, when there's more than one) go.disabled = !rideStretch();
   const r = row([go]); r.style.marginTop = '12px';
 }
+// A stretch that barrels but barely peels (the user, 2026-11-23: it can happen, a steep reef at a mellow angle: hollow, but the
+// break creeps along it): a short tube you have to stall into, or slash into if you're good. Where: barrelling stretches of the
+// ride peeling slower than 55 deg.
+function slowHollow(s) {
+  if (!s.segs) return '';
+  const spots = s.segs.filter((g) => g.e0 < s.ride && g.am > 55 && s.curl.some((p) => p.s >= g.e0 && p.s <= g.e0 + 20 && p.how === 'barrelling'));
+  if (!spots.length) return '';
+  const a = spots[0].e0, b = spots[spots.length - 1].e0 + 20;
+  return `<br><span class="end">hollow but barely peeling at ${ft(a)}-${ft(b)} ft: a short, slow tube you stall into (or slash into, if you're good)</span>`;
+}
 function showResults() {
   const w = state.wave, el = $('res');
   if (!w) { el.innerHTML = '<span class="bad">Nothing breaks: the swell rolls in to the beach.</span>'; return; }
@@ -542,7 +552,7 @@ function showResults() {
     if (!s || s.ride < 20 || !isFinite(s.peelAll)) return `<div><span class="side">${name}</span> <span class="bad">no ride: it ${s ? s.end : 'never breaks'}</span></div>`; // (a side that closes out straight away has no peel to show)
     const bad = s.bandAll === 'closeout' ? ' bad' : '';
     return `<div><span class="side">${name}</span> ${ft(s.ride)} ft · ${s.seconds.toFixed(0)} s · peels ${s.peelAll.toFixed(0)}° overall <span class="${bad}">(${s.bandAll})</span>${isFinite(s.peelFast) ? ` · fastest ${s.peelFast.toFixed(0)}°` : ''}${isFinite(s.curlSpeed) ? ` · curl ~${(s.curlSpeed * 2.237).toFixed(0)} mph` : ''}`
-      + ` · ~${ft(s.H)} ft waves<br><span class="end">breaks ${s.how} (ξ ${s.xi.toFixed(2)}) · then it ${s.end}</span></div>`;
+      + ` · ~${ft(s.H)} ft waves<br><span class="end">breaks ${s.how} (ξ ${s.xi.toFixed(2)}) · then it ${s.end}</span>${slowHollow(s)}</div>`;
   };
   const pw = cur();
   // (the side to ride: if the one chosen has no ride on this wave and the other does, switch; the user, 2026-11-22: a B

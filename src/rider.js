@@ -42,6 +42,7 @@ const RIDER_TUNE = {
   // (cruising x`backSpeed`). Forward: helps you accelerate (picks up speed x`fwdFeed`, acceleration cap x`fwdAccel`,
   // cruising x`fwdSpeed`) and turns more rail to rail (radius x`fwdRadius`, turn limit x`fwdTurn`).
   shuffleTime: 0.2,
+  stallTime: 0.5, stallScrub: 5, stallHold: 0.5, handSteep: 45, // (a stall on a face at least this steep (deg), or in the tube, is a hand in the face) // (the stall: back again from all the way back; ~11 mph/s scrubbed, the pocket's pull halved)
   backRadius: 0.9, backTurn: 1.1, backPivot: 0.05, backScrub: 0.03, backSpeed: 0.95,
   fwdFeed: 1.25, fwdAccel: 1.15, fwdSpeed: 1.04, fwdRadius: 1.15, fwdTurn: 0.9,
   hardAfter: [0.25, 0.6], // hold a turn this long (s) and you lean into it harder ...
@@ -929,6 +930,27 @@ function stepSurf(r, input, dt) {
   // nose trims you to the curl's speed, so you slow down and stay there; out
   // on the shoulder (pocket power below nosePocket) it drags and starts going
   // under, and stay out there too long and you pearl.
+  // The stall (the user, 2026-11-23): already all the way back (the shortboard's back spot, the longboard's tail), back again
+  // pushes hard on the tail: for `stallTime` s (held, as long as you hold it) it scrubs `stallScrub` m/s^2 off your speed and
+  // the pocket stops topping you up (`stallHold` of its pull), and in the barrel its carry eases off: you sink deeper or let
+  // the curl catch up. You keep steering. Moving the feet off the back ends it.
+  const atBack = WAVE.noseride ? r.footGoal <= -1 && r.foot <= -0.95 : WAVE.shuffle ? r.shufGoal <= -1 && r.shuf <= -0.95 : false;
+  if (r.mode === 'surf' && atBack && input.walk && input.walk !== 'cycle' && input.walk < 0) {
+    if (!(r.stall > 0)) r.events.push({ type: 'stall' });
+    r.stall = T.stallTime;
+  } else if (r.stall > 0 && atBack && input.stallHold) r.stall = Math.max(r.stall, 0.15);
+  r.stall = r.mode === 'surf' && atBack ? Math.max(0, (r.stall || 0) - dt) : 0;
+  r.stallK = (r.stallK || 0) + ((r.stall > 0 ? 1 : 0) - (r.stallK || 0)) * (1 - Math.exp(-dt * 10));
+  // (stalling on a steep face, in the barrel or right outside it: the hand goes into the face beside you instead of sitting
+  // back on the tail (the user, 2026-11-23: frontside-barrel-stall / backside-barrel-stall in braickish/reference-images:
+  // the hand cuts the face about shin height, just beside and behind the feet). Steep: the face under you at least
+  // `handSteep` deg. r.wallPt: where the hand touches (peel frame); r.handDrag eases 0-1.)
+  let drag = 0;
+  if (r.stallK > 0.01 && r.mode === 'surf') {
+    const fr = frameAt(r.xs, r.t), ang = Math.acos(Math.min(1, Math.abs(fr.n[1]))) * 180 / Math.PI;
+    if (ang >= T.handSteep || r.tube) { drag = 1; r.wallPt = surface(r.xs - 0.5 * r.rideDir, Math.max(0, r.t - 0.12)); } // (just behind the board, barely up the face from it: shin height beside you)
+  }
+  r.handDrag = (r.handDrag || 0) + (drag - (r.handDrag || 0)) * (1 - Math.exp(-dt * 12));
   if (WAVE.shuffle && !WAVE.noseride) {
     // shortboard: shuffle the feet back / middle / forward (see `shuffleTime` in RIDER_TUNE)
     if (input.walk && input.walk !== 'cycle') r.shufGoal = clamp(r.shufGoal + Math.sign(input.walk), -1, 1);
@@ -1091,6 +1113,7 @@ function stepSurf(r, input, dt) {
   if (T.energy) target = T.vLow + ((r.tube && T.tubeHold ? T.tubeHold * PEEL_SPEED : T.pocketHold * holdPeel()) - T.vLow) * pkSpeed * steepAny * crestFade(r, height); // (energy pocket: 1.0x the peel at any height up to the crest, where it fades; Raglan+'s sections: the wave's own peel, wave.js holdPeel)
   else if (T.physPocket) target = physCruise(T.physPocket, height, pkSpeed, steepAny);
   r.cruise = target; // (the wave's cruising speed for you here, before feet and foam: tests)
+  if (r.stallK > 0.01) target *= 1 - (1 - T.stallHold) * r.stallK; // (stalling: the pocket barely tops you up)
   if (r.foot < 0) target *= 1 - (1 - (T.tailSpeed ?? 1)) * -r.foot; // (standing on the tail the board drags: slower than from the middle)
   if (r.foot > 0 && T.noseSpeed) target *= 1 - (1 - T.noseSpeed) * r.foot; // (energy pocket, longboard: on the nose a touch under the middle)
   target *= 1 + ((r.tube && T.tubeBackSpeed ? T.tubeBackSpeed : T.backSpeed) - 1) * sBack + (T.fwdSpeed - 1) * sFwd; // (shortboard feet: back a little slower, forward a little faster; energy pocket: in the tube the back foot is the stall, `tubeBackSpeed`)
@@ -1194,6 +1217,7 @@ function stepSurf(r, input, dt) {
   // Sliding sideways in a slash scrubs speed, and nothing builds it meanwhile.
   else if (r.slide > 0) r.speed = Math.min(r.speed, speedAtStart) * (1 - (r.tube ? T.slashTube.slashDrag : T.slashDrag) * Math.sin(Math.min(r.slide, Math.PI / 2)) * dt);
   if (sBack > 0) r.speed *= 1 - T.backScrub * sBack * r.turnRate * dt; // (back foot: turning scrubs a little speed)
+  if (r.stallK > 0.01) r.speed -= T.stallScrub * r.stallK * dt; // (the stall: pushing hard on the tail)
   if (idleNow) r.speed -= Math.min(T.idleDecayMax ?? Infinity, T.idleDecay + (T.idleRamp || 0) * (r.idle - T.idleDelay)) * dt; // (idle decay, above: grows by `idleRamp` each idle second, up to `idleDecayMax`)
   r.speed = clamp(r.speed, T.minSpeed, Math.max(T.maxSpeed, r.carry || 0));
   // The barrel carries you (built waves, `tubeCarry`; the user, 2026-11-23: a barrel that speeds up into a section left you
@@ -1206,7 +1230,7 @@ function stepSurf(r, input, dt) {
   // stopping at once: spat out of a barrel you keep its speed a moment, not bled from 46 to 30 mph in half a second)
   r.carry = r.mode === 'surf' ? Math.max(0, (r.carry || 0) - (T.tubeCarryFade ?? 4) * dt) : 0;
   if (r.tube && T.tubeCarry && Math.cos(r.phi) > 0.3 && r.mode === 'surf') {
-    const carry = T.tubeCarry * (T.tubeHold || 1) * PEEL_SPEED * (1 + ((T.tubeBackSpeed ?? 1) - 1) * sBack) * (1 + ((T.tubeLeanSpeed ?? 1) - 1) * r.frontLean);
+    const carry = T.tubeCarry * (T.tubeHold || 1) * PEEL_SPEED * (1 + ((T.tubeBackSpeed ?? 1) - 1) * sBack) * (1 + ((T.tubeLeanSpeed ?? 1) - 1) * r.frontLean) * (1 - (1 - T.stallHold) * (r.stallK || 0));
     if (r.speed < carry) r.speed = Math.min(carry, r.speed + (T.tubeCarryAccel ?? 8) * dt);
     r.carry = Math.max(r.carry, carry);
   }

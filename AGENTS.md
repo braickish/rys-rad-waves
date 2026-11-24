@@ -81,6 +81,19 @@ slightly more pivot (`backPivot` 0.05 of the turn rate stops depending on speed;
 radian), slightly slower (`backSpeed` 0.95). Forward: helps you accelerate (`fwdFeed` 1.25, `fwdAccel` 1.15,
 `fwdSpeed` 1.04) and turns more rail to rail (`fwdRadius` 1.15, `fwdTurn` 0.9). `node test/shuffle.mjs` measures it:
 back turns ~17-24% sharper and runs ~1 mph slower, forward turns ~12-17% wider; the middle is unchanged.
+**The stall** (2026-11-23, the user; every board): already all the way back (the shortboard's back spot, the longboard's
+tail), Down (or a down swipe) again pushes hard on the tail: for `stallTime` 0.5 s (held, as long as you hold Down) it scrubs
+`stallScrub` 5 m/s^2 (~11 mph/s) and halves the pocket's pull (`stallHold`), and in a built barrel the carry eases the same, so
+you sink deeper or let the curl catch up. You keep steering; moving the feet off the back ends it. Flash "Stall" (no
+points). `node test/stall.mjs`: shortboard 17 -> 11 mph in 0.6 s, longboard 9 -> 4. On a steep face (`handSteep` 45 deg or more under you, or in the tube; the user, 2026-11-23: in the barrel
+and right outside it) the stall is a hand in the face instead (rider.js `r.handDrag`). Pose from frontside-barrel-stall /
+backside-barrel-stall (braickish/reference-images), surfer.js: a deep crouch; the back hand cuts the water where the back
+shoulder drops onto the face (the deck's plane: on a steep face that's beside you on the wave side, about an arm's length;
+the shoulder reaches up to 0.35 m to meet it), a little behind (more backside, by the tail). Frontside the torso leans out
+over the toe rail and the front hand is low by the front knee; backside a deeper squat, upright and open, the front arm out
+forward at shoulder height down the line. White where the hand cuts the water: a short streak trailing behind it (shaders.js,
+`F.hand` from surfer.js `pose.handTouch`). `node test/stallpose.mjs` draws both poses (test/out/stallpose.png) and checks the
+hand meets the water. Same scrub. `?cam=4` (testing): a front-on close-up.
 The Up = Left / Down = Right steering below still exists in the rider (`tilt`, tested) but no wave's keys use it now.
 Controls (before 2026-11-18; Queens was the exception: see `walkKeys` below): one control, from the surfer's point of view. Left (or Up) turns the board to the surfer's
 left, Right (or Down) to their right; Up is exactly Left and Down exactly Right in every situation
@@ -408,6 +421,25 @@ section (25-30 deg), backing off (slower than 70 deg, or a gap), or closing out 
   along the line; backing off has no mark: the user, 2026-11-22, dropped the red and the dashed white); each side's summary reads "breaks steep (ξ 0.88)". Dynamic's arms 0.88 (the right ~1.5 over its ledge shelf; Python's ray_zone.py 0.9-1.5);
   1:6 / 1:10 / 1:15 lines 1.14 / 0.88 / 0.72 at the same peel; 10 / 18 s swell 0.67 / 1.00.
 - **Next (agreed 2026-11-22):** shape, size and barrels from the reef, in steps: plans/2026-11-22-reef-driven-waves.md (step 8: stacked reefs).
+
+## Heats (`?heat=10m` / `?heat=5w`, `src/heat.js`; accounts plan task 3 = the contests plan's phase 1, 2026-11-23)
+
+Solo heat mode, no network yet. `?heat=10m` (a timer; any minutes) or `?heat=5w` (a wave count), `&bots=N` rivals (3 by
+default, 0-7), `&seed=` to fix the heat (else random). Judging is on. DROP IN starts the heat: its seed is the sea's, so your waves
+are that seed's waves 0, 1, 2 ... (wave addresses), the same for anyone with the seed. Each wave is judged with the judges' seed
+from the heat seed and wave number (`judgeSeed`), and the judges' memory of maneuvers (variety) is the heat's. Best two waves
+make your total. Ties go to the best wave, then the next (WSL). On a timer, a wave counts if caught before the horn, even when the
+horn sounds mid-ride ("HORN!": this wave still counts). The clock runs in game time while you ride and while the sheet shows
+(it stops on the title and in replays). The sheet paddles you back out by itself after 6 s (Space sooner).
+Bots: a skill each (mean wave scores spread ~3.8-6.4), waves on a schedule from the seed (timer: first at 20-60 s, then every
+45-95 s; a wave count: every 35-70 s, the rest coming in at once when you've ridden yours). Their scores pop in beside the board.
+The board (top left, after WSL's broadcast graphic): the clock (or "Wave 3 of 5", then HORN / FINAL), a row per surfer by place
+(jersey colour, name, total, best two, what they need: "6.18 to win", "combo"), your row lit. On a phone only the rows around
+you show; tap the board for all. The arcade points and Best are hidden in a heat, and move callouts lose their "+points".
+The end: a results card (places, best two, totals; "Watch your best wave" replays it from its recording; Space for a new heat).
+A built break's loop rides its full ride in a heat. `heat.js` is pure (`createHeat`, `stepHeat`, `canCatch`, `addWave`,
+`checkOver`, `standings` with `needFor`, `clockText`). `window.__heat` and `window.__heatResults` are for tests. `advance` (top N
+go through, needs "to adv") is in heat.js for brackets later, not on a URL yet.
 
 ## Replays (`src/replay.js`; accounts plan task 2, 2026-11-23)
 
@@ -1088,6 +1120,8 @@ bot's real ride. Not yet: a heat timer, priority / interference, other players.
 ```sh
 node test/determinism.mjs # a ride is the same whatever came before (wave addresses; contests and replays need it)
 node test/replay.mjs   # record, save, replay: the same ride bit for bit; checkpoints put a knocked-off replay back
+node test/heat.mjs     # heats: the seed's waves in order, best two, places and tie-breaks, needs, the horn, wave counts, bots
+node test/heat-browser.mjs [shots] # in headless Chrome: a 1 min heat (board, sheet, horn, results, watch your best wave) and a 2 wave heat
 node test/replay-browser.mjs # in headless Chrome: ride, "Watch it" at 4x slower CPU, ?replay=<file>: all the same (WAVE=trestles ...)
 node test/feel.mjs     # the feel numbers: climb time, drop speed, cutback re-entries, pocket riding
 node test/tube.mjs     # barrel riding: balance and speed choices and their outcomes

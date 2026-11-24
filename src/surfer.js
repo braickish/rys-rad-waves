@@ -220,6 +220,17 @@ export function surferObjects(pose, rider, info, dt) {
   let kneeT = 0.25 + 0.45 * turnAmt + 0.15 * clamp(vUp / 3, 0, 1) + 0.2 * (rider.hard || 0);
   if (info.pump) kneeT = vUp > 0.3 ? 0.75 : 0.05; // compress going up, extend driving down
   if (rider.crouch && !rider.tube) kneeT = 0.85;
+  const tailStall = (rider.stallK || 0) * (1 - (rider.handDrag || 0)); // (by a steep face the stall is a hand in it, below, not sitting back)
+  if (tailStall > 0.01) kneeT = Math.max(kneeT, 0.35 + 0.35 * tailStall); // (the stall: knees bent, sitting back on the tail)
+  // The hand-drag stall (frontside-barrel-stall / backside-barrel-stall in braickish/reference-images, 2026-11-23): a deep
+  // crouch, the torso fairly upright, head up down the line. Frontside (the wave on the toe side): the back hand out to the
+  // side into the face about shin height, nearly straight; the front hand low by the front knee over the rail. Backside
+  // (the wave behind you): a deeper squat, knees wide, hips low and the chest open; the back hand reaching behind, by the
+  // tail, into the face; the front arm out forward at about shoulder height, down the line.
+  const hd = rider.mode === 'surf' && rider.wallPt ? rider.handDrag || 0 : 0;
+  const fsDrag = v3.dot(T, info.e2) >= 0 ? 1 : 0; // (frontside: the toe side facing up the face, toward the wave)
+  const hdF = hd * fsDrag, hdB = hd * (1 - fsDrag);
+  if (hd > 0.01) kneeT = Math.max(kneeT, 0.95 * hd);
   // In the tube: a compact, athletic crouch going in, right down deep in the barrel.
   if (bc > 0.01) kneeT = Math.max(kneeT, Math.min(1, inB * (0.42 + 0.58 * deep + 0.15 * tt)));
   if (nr > 0.01) kneeT = kneeT * (1 - nr) + 0.22 * nr; // standing tall and relaxed walking up and on the nose
@@ -342,8 +353,8 @@ export function surferObjects(pose, rider, info, dt) {
   const mid = (st[0] + st[1]) / 2;
   // Hips drop and slide back over the heels as the knees bend.
   // (deep in the barrel the hips sink further, and leaning onto the front foot moves them forward)
-  const hipH = (0.92 - 0.44 * knee - 0.1 * deep - 0.08 * tt - 0.12 * dk) * (1 - 0.4 * tuck) * (1 - 0.22 * aTuck); // (an air's tuck: knees up toward the chest)
-  const hip = add(B, v3.mul(bf, mid + 0.1 * fl - 0.08 * aReach), v3.mul(bodyUp, hipH), v3.mul(chest, -0.12 * knee)); // (an air's reach: hips back over the tail, the front leg straightens)
+  const hipH = (0.92 - 0.44 * knee - 0.1 * deep - 0.08 * tt - 0.12 * dk - 0.15 * hdB) * (1 - 0.4 * tuck) * (1 - 0.22 * aTuck); // (an air's tuck: knees up toward the chest; a backside hand-drag stall squats lower)
+  const hip = add(B, v3.mul(bf, mid + 0.1 * fl - 0.08 * aReach - 0.12 * tailStall), v3.mul(bodyUp, hipH), v3.mul(chest, -0.12 * knee)); // (an air's reach: hips back over the tail, the front leg straightens)
   const hipAx = ten > 0.001 ? v3.norm(lerp3(f, v3.mul(T, -1), ten)) : f; // (hips square to the nose in a hang ten)
   const hipBack = add(hip, v3.mul(hipAx, -0.12)), hipFront = add(hip, v3.mul(hipAx, 0.12));
   // (deep in the barrel the back knee drops in toward the deck, pointing at the front foot)
@@ -370,7 +381,8 @@ export function surferObjects(pose, rider, info, dt) {
   // Torso leans forward (toward the chest side) as you crouch.
   const torsoDir0 = v3.norm(add(bodyUp, v3.mul(chest, (0.1 + 0.6 * knee) * (1 - 0.45 * upr) + 0.35 * inB + 0.45 * deep + 0.2 * tt), v3.mul(f, 0.1 * deep + 0.22 * fl))); // leaning into the tube (and onto the front foot)
   const torsoDir1 = v3.norm(add(lerp3(torsoDir0, v3.norm(add(v3.mul(bodyUp, 0.45), chest)), 0.65 * aTuck), v3.mul(f, -0.15 * aReach))); // (an air: folded over the knees at the top, upright and back over the tail coming down)
-  const torsoDir = v3.norm(lerp3(torsoDir1, v3.norm(add(v3.mul(bodyUp, 0.45), chest)), tuck)); // (folded over the knees in a tuck)
+  const torsoDir2 = v3.norm(lerp3(torsoDir1, v3.norm(add(v3.mul(bodyUp, 0.45), chest)), tuck)); // (folded over the knees in a tuck)
+  const torsoDir = hd > 0.01 ? v3.norm(lerp3(torsoDir2, v3.norm(add(bodyUp, v3.mul(chest, 0.95 * hdF - 0.12 * hdB), v3.mul(f, -0.12 * hdB))), 0.85 * hd)) : torsoDir2; // (a hand-drag stall: frontside leaning out over the toe rail toward the wave, backside upright and open, back toward the tail)
   const neck = add(hip, v3.mul(torsoDir, 0.58));
   const headDir = v3.norm(lerp3(torsoDir, bodyUp, 0.5 * deep)); // head up, looking down the line, in the barrel stance
   const head = add(neck, v3.mul(headDir, 0.2), v3.mul(chest, 0.03), v3.mul(across, 0.03));
@@ -491,6 +503,24 @@ export function surferObjects(pose, rider, info, dt) {
     handBack = lerp3(handBack, add(lerp3(legB.joint, backFoot, 0.4), v3.mul(chest, 0.08)), tuck);
     handFront = lerp3(handFront, add(lerp3(legF.joint, frontFoot, 0.4), v3.mul(chest, 0.08)), tuck);
   }
+  // The hand-drag stall (see the drivers above; last, so it wins over the other arm poses: the feet are on the back spot, the
+  // tail pivot's arms-out would take it otherwise): the back hand into the face, fingers just in the water at rider.wallPt
+  // (frontside out to the side about shin height, backside behind by the tail); the front hand low by the front knee over the
+  // rail (frontside), or out forward at shoulder height down the line (backside).
+  // (the touch placed off the board, where the water is whatever the face: the board lies on the face, so just off its rail
+  // at deck level is the face; frontside beside the back foot on the toe side, backside behind the tail on the heel side;
+  // pose.handTouch: where it cuts the water, for the white there, main.js)
+  pose.handTouch = null;
+  if (hd > 0.01) {
+    // (the water nearest the back shoulder: the shoulder dropped onto the face, the deck's plane; on a steep face that's beside
+    // you on the wave side, about an arm's length away, as in the photos; a little behind, more so backside, by the tail)
+    const off = v3.dot(v3.sub(shBack, B), du), onFace = v3.sub(shBack, v3.mul(du, off + 0.02));
+    const touch = add(onFace, v3.mul(bf, -(0.12 * hdF + 0.3 * hdB) / Math.max(hd, 1e-3)));
+    pose.handTouch = touch;
+    handBack = lerp3(handBack, touch, hd);
+    if (hdF > 0.01) handFront = lerp3(handFront, add(legF.joint, v3.mul(chest, 0.12), v3.mul(T, 0.12), v3.mul(f, 0.06), v3.mul(bodyUp, -0.06)), hdF);
+    if (hdB > 0.01) handFront = lerp3(handFront, add(shFront, v3.mul(f, 0.55), v3.mul(T, 0.12), v3.mul(bodyUp, -0.04)), hdB);
+  }
   // Smooth the hands (2026-11-18, the user: the arms moved jerkily): the poses above switch between hand spots
   // quickly (turn direction, wind-up, snap, barrel stance), so each hand eases toward its spot with a ~0.07 s time
   // constant, measured from its shoulder in the body's frame (so riding fast doesn't make it lag). Tumbling and
@@ -506,7 +536,10 @@ export function surferObjects(pose, rider, info, dt) {
     handBack = world(pose.hands.b, shBack); handFront = world(pose.hands.f, shFront);
   }
   const elbowPole = add(v3.mul(bodyUp, -0.6), v3.mul(chest, -0.2), v3.mul(across, 0.2));
-  const armB = ik(shBack, handBack, UPPER, FORE, elbowPole);
+  // (a hand-drag stall: the back shoulder drops and reaches toward the touch, up to 0.35 m, so the hand meets the water)
+  let shBackArm = shBack;
+  if (hd > 0.01 && pose.handTouch) { const toT = v3.sub(pose.handTouch, shBack), dT = v3.len(toT); if (dT > 0.57) shBackArm = add(shBack, v3.mul(toT, Math.min(0.35, dT - 0.57) * hd / dT)); }
+  const armB = ik(shBackArm, handBack, UPPER, FORE, elbowPole);
   const armF = ik(shFront, handFront, UPPER, FORE, elbowPole);
   // (the skinned body's elbows, body.js: each points back, out to its own side and a little down. The shared
   // elbowPole above points mostly down, so an arm hanging down lined up with it and its elbow flipped about.)
@@ -515,7 +548,7 @@ export function surferObjects(pose, rider, info, dt) {
   // The joints, for the skinned body (body.js), which is posed from them.
   pose.J = { ss, ten, bodyUp, torsoDir, chest, hip, headDir, hChest, ub, f, T,
     legF: { root: hipFront, ...legF }, legB: { root: hipBack, ...legB }, frontFoot, backFoot,
-    armF, armB, shFront, shBack, poleF: elbowOut(1), poleB: elbowOut(-1), dt, tumble: null,
+    armF, armB, shFront, shBack: shBackArm, poleF: elbowOut(1), poleB: elbowOut(-1), dt, tumble: null,
     lookDown: WAVE.noseride && rider.mode === 'surf' ? 0.55 : 0 }; // (the longboarder watches her feet and the nose: the references)
 
   // --- meshes ---

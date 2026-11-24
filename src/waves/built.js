@@ -11,7 +11,7 @@ import reef from './reef.js';
 import { KF_PIPE_HEAD, sstep, withBore, matchTs } from './shapes.js';
 // (the wave model's shape state and tubeAt, handed over by wave.js once it has them: importing wave.js here would loop,
 // since it loads the wave list, which loads this)
-export const env = { SHAPE: { a: 0 }, tubeAt: () => 0 };
+export const env = { SHAPE: { a: 0 }, tubeAt: () => 0, setTube: (a) => (a === 3 ? 1 : 0) };
 
 // The barrel end of the scale (plan step 7): Pipe's classic hand-built barrel (KF_PIPE: the wall stands up, the lip throws
 // into a round tube), scaled to the height of Raglan+'s section shape so blending toward it changes the shape, not the size.
@@ -62,8 +62,9 @@ const wave = {
   faceTop: (s, xs) => { const k = xs === undefined ? 0 : env.tubeAt(xs); return raglanPlus.faceTop(s) * (1 - k) + pipeFaceTop(s) * k; },
   foam: (s, t, xs) => { const k = xs === undefined ? 0 : env.tubeAt(xs); return raglanPlus.foam(s, t) * (1 - k) + reef.foam(s, t) * k; },
   // (the GPU table is built one shape set at a time: the tube set takes Pipe's foam and glow)
-  foamVisual: (s, t, xs) => { const k = wave.sizeK || 1; return env.SHAPE.a === 3 ? reef.foamVisual(s, t, xs / k) : raglanPlus.foamVisual(s, t, xs / k); }, // (lengths along the wave by size)
-  thin: (s, t) => (env.SHAPE.a === 3 ? reef.thin(s, t) : raglanPlus.thin(s, t)),
+  // (by how much tube the set is: the half-barrel sets between, wave.js SET_TUBE)
+  foamVisual: (s, t, xs) => { const k = wave.sizeK || 1, w = env.setTube(env.SHAPE.a); return raglanPlus.foamVisual(s, t, xs / k) * (1 - w) + (w > 0 ? reef.foamVisual(s, t, xs / k) * w : 0); }, // (lengths along the wave by size)
+  thin: (s, t) => { const w = env.setTube(env.SHAPE.a); return raglanPlus.thin(s, t) * (1 - w) + (w > 0 ? reef.thin(s, t) * w : 0); },
   tune: {
     ...raglanPlus.tune,
     // Pipe's tube riding, as Trestles takes it (rider.js stepTube)

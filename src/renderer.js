@@ -39,7 +39,7 @@ export async function createRenderer(canvas) {
   const format = navigator.gpu.getPreferredCanvasFormat();
   ctx.configure({ device, format, alphaMode: 'opaque' });
 
-  const frameBuf = device.createBuffer({ size: 256, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
+  const frameBuf = device.createBuffer({ size: 272, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
   const camBuf = device.createBuffer({ size: 32, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
   const objBuf = device.createBuffer({ size: OBJ_STRIDE * MAX_OBJECTS, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
 
@@ -207,7 +207,7 @@ export async function createRenderer(canvas) {
     depthTex = device.createTexture({ size: [w, h], sampleCount: SAMPLES, format: 'depth24plus', usage: GPUTextureUsage.RENDER_ATTACHMENT });
   }
 
-  const frameData = new Float32Array(64);
+  const frameData = new Float32Array(68);
   const objData = new Float32Array((OBJ_STRIDE / 4) * MAX_OBJECTS);
 
   // f: { viewProj, invViewProj, camPos, time, sunDir, peel, rider, spray, riderVel, dt, sprayDir, frame, burst, camRight, camUp }
@@ -229,6 +229,7 @@ export async function createRenderer(canvas) {
     frameData.set([LIP.x0, LIP.step, LIP.count, f.burst], 52);
     frameData.set([Math.min(1, Math.max(0.3, WAVE.scale / 1.25)), WAVE.rippleK || 1, WAVE.dir < 0 ? -1 : 1, opts.look ? (opts.shadow === false ? 0.75 : 1) : 0], 56); // (w: the real look; 1 with the surfer's shadow, 0.75 without) // particle scale: smaller spray on small waves (Queens); ripple scale (finer on Queens)
     frameData.set([f.flow ?? 0, f.flowDev ?? 0, 0, 0], 60); // (flow: how far the water texture has flowed; flowDev: peel speed beyond its smoothed value)
+    frameData.set(f.hand || [0, 0, 0, 0], 64); // (a hand dragging in the face: where, how much)
     device.queue.writeBuffer(frameBuf, 0, frameData);
     device.queue.writeBuffer(camBuf, 0, new Float32Array([...f.camRight, 0, ...f.camUp, 0]));
     const n = Math.min(objects.length, MAX_OBJECTS);

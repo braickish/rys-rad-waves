@@ -45,6 +45,7 @@ export function setWave(w) {
   WAVE = typeof w === 'string' ? waveById(w) : w;
   WAVE_TYPE = WAVE.kind; KF = WAVE.keyframes;
   SHAPES = WAVE.shapes || [WAVE.keyframes];
+  if (WAVE.tubeScale && WAVE.shapes) SHAPES = withHalfTubes(WAVE.shapes); // (a built wave: half-barrels between its last two sets)
   SHAPE.a = SHAPE.b = 0; SHAPE.w = 0; SHAPE.ver++;
   setWaveSize(1);
   SECTIONS.length = 0;
@@ -55,6 +56,46 @@ export function setWave(w) {
 // stops). The wave's cross-section is set `a` blended toward set `b` by `w`, point by point; `ver` changes
 // whenever the blend does (for anything that caches the shape). Waves without `shapes` have one set.
 export let SHAPES = [KF];
+// Half-barrels (a built wave between its section shape and its tube; the user, 2026-11-23: blended point by point the two made a
+// slab, the tube's outer curtain with the section's open face behind it, and too small a cavity to fit in). In between,
+// HALF_STEPS - 1 sets, each a smaller round tube: while the lip is thrown (phase -0.25 to 1.65) the tube's own lip, shrunk
+// toward the crest by how much tube it is (w); the rest blended as before (the shapes line up there). The wave's shape
+// scale (shapeU, 0 .. last) is unchanged; shapeSet maps it to a set: the last step is split HALF_STEPS ways.
+// SET_TUBE: how much tube each set is (foam and glow follow it, built.js).
+export const HALF_STEPS = 4;
+export let SET_TUBE = [0];
+const halfCache = new WeakMap();
+function withHalfTubes(base) {
+  if (halfCache.has(base)) { SET_TUBE = halfCache.get(base).tube; return halfCache.get(base).sets; }
+  const n = base.length, A = base[n - 2], T = base[n - 1], a = new Float64Array(NP * 2), t = new Float64Array(NP * 2);
+  const stops = [...new Set([...A.map((k) => k.s), ...T.map((k) => k.s)])].sort((x, y) => x - y);
+  const sst = (e0, e1, x) => { const u = Math.min(1, Math.max(0, (x - e0) / (e1 - e0))); return u * u * (3 - 2 * u); };
+  const halves = [];
+  for (let k = 1; k < HALF_STEPS; k++) {
+    const w = k / HALF_STEPS;
+    halves.push(stops.map((s) => {
+      kfPoints(A, s, a, 1); kfPoints(T, s, t, 1);
+      const throwK = sst(-0.25, 0.25, s) * (1 - sst(1.475, 1.65, s));
+      const p = [];
+      for (let i = 0; i < NP; i++) p.push([a[i * 2] + (t[i * 2] - a[i * 2]) * w, a[i * 2 + 1] + (t[i * 2 + 1] - a[i * 2 + 1]) * w]);
+      const C = p[4];
+      for (let i = 5; i <= 11; i++) for (let c = 0; c < 2; c++) {
+        const small = C[c] + (t[i * 2 + c] - t[4 * 2 + c]) * w;
+        p[i][c] += (small - p[i][c]) * throwK;
+      }
+      return { s, p };
+    }));
+  }
+  const sets = [...base.slice(0, n - 1), ...halves, T], tube = sets.map((_, i) => (i < n - 1 ? 0 : (i - (n - 2)) / HALF_STEPS));
+  halfCache.set(base, { sets, tube }); SET_TUBE = tube;
+  return sets;
+}
+// The set (fractional) for a place u on the wave's shape scale.
+export function shapeSet(u) {
+  if (!(WAVE.tubeScale && WAVE.shapes) || SHAPES.length === WAVE.shapes.length) return u;
+  const last = WAVE.shapes.length - 2;
+  return u <= last ? u : last + (u - last) * HALF_STEPS;
+}
 export const SHAPE = { a: 0, b: 0, w: 0, ver: 0 };
 // Run fn with the wave's shape forced to set i (to build per-set tables: the GPU water table, the rider's lines).
 export function withShape(i, fn) {
@@ -195,7 +236,7 @@ function profileAt(key, X) {
 export function shapeU(xs) {
   if (!WAVE.ridges) return 0;
   const P = WAVE.ridges.profile;
-  if (P && P[0].u != null) return Math.min(SHAPES.length - 1, Math.max(0, profileAt('u', RIDGE.c + xs)));
+  if (P && P[0].u != null) return Math.min((WAVE.shapes || SHAPES).length - 1, Math.max(0, profileAt('u', RIDGE.c + xs)));
   return ridgeAt(xs);
 }
 // How much of a tube the wave's shape has at xs (0-1; plan step 7): a built wave's barrel sections, where its shape scale
@@ -470,7 +511,7 @@ export function controlPoints(s, out = new Float64Array(NP * 2), scale = SCALE, 
   // (a wave with `ridges`, Raglan+: the plain shape blended toward the section shape by the reef ridge under xs)
   if (WAVE.ridges && xs !== undefined && SHAPE.a === SHAPE.b) {
     // (the place on the wave's shape scale: Raglan+ 0-1 plain -> section by the ridge; a built wave 0-2 by how it breaks)
-    const u = shapeU(xs), i = Math.min(SHAPES.length - 2, Math.floor(u)), w = u - i;
+    const u = shapeSet(shapeU(xs)), i = Math.min(SHAPES.length - 2, Math.floor(u)), w = u - i;
     kfPoints(SHAPES[i], s, out, scale);
     if (w > 1e-4) { kfPoints(SHAPES[i + 1], s, _cpB, scale); for (let q = 0; q < NP * 2; q++) out[q] += (_cpB[q] - out[q]) * w; }
     const f = sizeAt(xs); // (a built wave's size along its stretch)
@@ -617,4 +658,4 @@ export function segmentHit(sl, az, ay, bz, by) {
 }
 
 // (the built wave's functions need the shape state and tubeAt: handed over here, src/waves/built.js env)
-builtEnv.SHAPE = SHAPE; builtEnv.tubeAt = tubeAt;
+builtEnv.SHAPE = SHAPE; builtEnv.tubeAt = tubeAt; builtEnv.setTube = (a) => SET_TUBE[a] ?? 0;

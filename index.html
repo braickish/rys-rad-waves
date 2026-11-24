@@ -50,7 +50,47 @@
   .replay-btns button:hover { background: rgba(255,255,255,.24); }
   .replay-note { font-size: 13px; opacity: .8; margin: -10px 0 14px; }
   .replay-note:empty { display: none; }
-  #replay-badge { position: fixed; top: 14px; left: 50%; transform: translateX(-50%); font: 700 13px Rubik, sans-serif; letter-spacing: .12em; color: #fff; background: rgba(230,40,110,.85); padding: 5px 12px; border-radius: 999px; pointer-events: none; }
+  #replay-badge { position: fixed; top: 14px; left: 50%; transform: translateX(-50%); font: 700 13px Rubik, sans-serif; letter-spacing: .12em; color: #fff; background: rgba(230,40,110,.85); padding: 5px 6px 5px 12px; border-radius: 999px; border: 0; cursor: pointer; display: flex; align-items: center; gap: 10px; }
+  #replay-badge[hidden] { display: none; }
+  #replay-badge span { letter-spacing: .04em; font-weight: 600; background: rgba(11,26,36,.45); padding: 3px 10px; border-radius: 999px; }
+  #replay-badge:hover span { background: rgba(11,26,36,.7); }
+  /* the heat board (?heat): after WSL's broadcast graphic, top left */
+  .hud-left { position: relative; }
+  .board { position: relative; min-width: 250px; background: rgba(11,26,36,.82); border-radius: 8px; overflow: hidden; font-size: 14px; text-shadow: none; pointer-events: auto; cursor: default; box-shadow: 0 4px 16px rgba(0,0,0,.25); }
+  .board[hidden] { display: none; }
+  .board .bh { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 6px 10px; background: var(--pink); }
+  .board .bh span { font-family: Bungee, sans-serif; font-size: 20px; }
+  .board .bh small { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; font-weight: 700; }
+  .br { display: grid; grid-template-columns: 10px 1fr auto; column-gap: 8px; align-items: center; padding: 5px 10px; border-top: 1px solid rgba(255,255,255,.08); }
+  .br i { width: 10px; height: 22px; border-radius: 2px; grid-row: span 2; box-shadow: inset 0 0 0 1px rgba(255,255,255,.3); }
+  .br .nm { font-weight: 700; }
+  .br b { font-family: Bungee, sans-serif; font-size: 16px; text-align: right; }
+  .br .bt { font-size: 11px; opacity: .7; }
+  .br .nd { font-size: 11px; color: var(--yellow); text-align: right; }
+  .br.you { background: rgba(0,194,199,.28); }
+  .board-pop { position: absolute; top: 0; left: calc(100% + 10px); padding: 6px 12px; border-radius: 6px; background: rgba(11,26,36,.85); font-size: 14px; font-weight: 700; opacity: 0; transform: translateX(-8px); transition: opacity .3s, transform .3s; pointer-events: none; display: flex; align-items: center; gap: 8px; text-shadow: none; }
+  .board-pop i { width: 10px; height: 18px; border-radius: 2px; }
+  .board-pop b { font-family: Bungee, sans-serif; font-size: 18px; color: var(--yellow); }
+  .board-pop.pop { opacity: 1; transform: none; }
+  @media (max-width: 600px) {
+    .board { min-width: 0; width: 200px; font-size: 12px; }
+    .board:not(.open) .br.far { display: none; }
+    .br .bt { display: none; }
+    .board-pop { left: 0; top: calc(100% + 8px); }
+  }
+  .heat-note { margin-top: 12px; font-size: 13px; font-weight: 700; opacity: .9; text-shadow: 0 1px 0 rgba(0,0,0,.4); }
+  .heat-note[hidden] { display: none; }
+  .results-title { font-family: Bungee, sans-serif; font-size: clamp(36px, 8vw, 56px); color: var(--yellow); text-shadow: 3px 3px 0 var(--pink); margin: 4px 0 12px; }
+  .results-rows { background: rgba(11,26,36,.7); border-radius: 10px; overflow: hidden; margin-bottom: 14px; text-align: left; }
+  .rr { display: grid; grid-template-columns: 22px 12px 1fr auto auto; gap: 10px; align-items: center; padding: 8px 12px; border-top: 1px solid rgba(255,255,255,.08); }
+  .rr:first-child { border-top: 0; }
+  .rr .pl { font-family: Bungee, sans-serif; opacity: .8; }
+  .rr i { width: 12px; height: 22px; border-radius: 2px; box-shadow: inset 0 0 0 1px rgba(255,255,255,.3); }
+  .rr .nm { font-weight: 700; }
+  .rr .bt { font-size: 12px; opacity: .75; }
+  .rr b { font-family: Bungee, sans-serif; font-size: 18px; color: var(--yellow); }
+  .rr.you { background: rgba(0,194,199,.28); }
+  .results-note { margin: -4px 0 12px; }
   #hint { position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%); font-size: 13px; background: rgba(11,26,36,.45); padding: 7px 14px; border-radius: 20px; pointer-events: none; white-space: nowrap; }
   #hint.warn { background: var(--pink); }
   #hint.warn::after { content: "  ·  CROUCH (Shift) in the barrel!"; font-weight: 700; }
@@ -125,10 +165,23 @@
     <h1 class="logo">Ry's Rad<span>Waves</span></h1>
     <div id="waves" class="waves"></div>
     <button id="start" class="start">Drop in</button>
+    <div id="heat-note" class="heat-note" hidden></div>
   </div>
 </div>
 
-<div id="replay-badge" hidden>▶ REPLAY</div>
+<button id="replay-badge" hidden>▶ REPLAY <span id="replay-exit">✕ Stop</span></button>
+<div id="board" class="board" hidden><div class="bh"><span id="board-clock">10:00</span><small>Heat</small></div><div id="board-rows"></div></div>
+<div id="board-pop" class="board-pop"></div>
+<div class="panel" id="results" hidden>
+  <div class="card sheet">
+    <div class="sheet-wave" id="results-sub">Heat</div>
+    <div class="big results-title" id="results-title">You win!</div>
+    <div id="results-rows" class="results-rows"></div>
+    <div id="results-note" class="replay-note results-note"></div>
+    <div class="replay-btns"><button id="results-watch">▶ Watch your best wave</button></div>
+    <div class="go"><span class="desk">Space for a new heat</span><span class="mob">Tap for a new heat</span></div>
+  </div>
+</div>
 <div class="panel" id="over" hidden>
   <div class="card">
     <div id="over-reason" style="font-size:18px;margin-bottom:6px"></div>
@@ -150,7 +203,7 @@
     <div class="sheet-heat" id="judge-heat"></div>
     <div class="sheet-reason" id="judge-reason"></div>
     <div class="replay-btns" hidden><button data-act="watch">▶ Watch it</button><button data-act="save">⬇ Save replay</button></div>
-    <div class="go"><span class="desk">Space to paddle back out</span><span class="mob">Tap to paddle back out</span></div>
+    <div class="go" id="judge-go"><span class="desk">Space to paddle back out</span><span class="mob">Tap to paddle back out</span></div>
   </div>
 </div>
 
