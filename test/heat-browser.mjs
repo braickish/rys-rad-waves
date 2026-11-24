@@ -41,6 +41,17 @@ await send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 720, dev
 const base = `http://127.0.0.1:${webPort}/`;
 const H = (expr) => evaluate(`(() => { const h = window.__heat; return h && (${expr}); })()`);
 
+// 0. Into a heat from the title screen: the mode buttons reload with ?heat=, the wave kept; Free surf goes back.
+await send('Page.navigate', { url: `${base}?wave=${WAVE}` });
+const modeBtn = (label) => `[...document.querySelectorAll('#modes button')].find((b) => b.textContent === '${label}')`;
+check(!!(await waitFor(`${modeBtn('Free surf')}?.className === 'on'`, 20000)), 'title: Free surf is lit');
+await evaluate(`${modeBtn('Heat · 5 waves')}.click()`);
+const into = await waitFor(`location.search.includes('heat=5w') && ${modeBtn('Heat · 5 waves')}?.className === 'on' && document.getElementById('heat-note').textContent`, 20000);
+check(!!into && (await evaluate(`new URLSearchParams(location.search).get('wave')`)) === WAVE, `"Heat · 5 waves" reloads into a heat: "${into}"`);
+await shot('0-modes');
+await evaluate(`${modeBtn('Free surf')}.click()`);
+check(!!(await waitFor(`!location.search.includes('heat') && document.getElementById('heat-note').hidden && ${modeBtn('Free surf')}?.className === 'on'`, 20000)), 'Free surf goes back');
+
 // 1. A one-minute heat.
 await send('Page.navigate', { url: `${base}?play&auto&heat=1m&seed=5&wave=${WAVE}` });
 check(!!(await waitFor(`window.__heat && !document.getElementById('board').hidden`, 20000)), 'the heat starts at DROP IN and the board shows');

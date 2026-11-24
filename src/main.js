@@ -953,6 +953,23 @@ async function main() {
     }
   };
   drawPicker();
+  // Mode, under the waves: free surf or a solo heat against bots (accounts plan task 3). A heat is set up as the page
+  // loads, so picking one reloads with ?heat= (the wave kept); a live contest will take a code here later (task 11).
+  const modes = $('modes'), cur = JSON.stringify(HEAT_END); // (a heat of another length, ?heat=3m, lights none)
+  for (const [label, val] of [['Free surf', ''], ['Heat · 10 min', '10m'], ['Heat · 5 waves', '5w']]) {
+    const b = document.createElement('button');
+    b.textContent = label; b.className = JSON.stringify(parseHeatParam(val)) === cur ? 'on' : '';
+    b.addEventListener('pointerdown', (e) => e.stopPropagation());
+    b.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (b.className === 'on') return;
+      const u = new URL(location.href);
+      if (val) u.searchParams.set('heat', val); else u.searchParams.delete('heat');
+      u.searchParams.delete('seed'); u.searchParams.delete('play');
+      location.href = u;
+    });
+    modes.appendChild(b);
+  }
   if (params.has('play') && !params.has('replay')) startOrRestart();
   if (params.has('replay')) { // (?replay=<url of a saved recording>; 'session': one handed over by a reload, startReplay)
     const src = params.get('replay');

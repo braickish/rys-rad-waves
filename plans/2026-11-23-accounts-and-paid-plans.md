@@ -166,7 +166,7 @@ sees it on their profile.
 - [x] **3. Solo heat mode** (done 2026-11-23). Contests phase 1: `src/heat.js` (pure), `?heat=10m` / `?heat=5w` (`&bots=`, `&seed=`),
   the WSL-style board with needs and score pops, the horn rule, the sheet paddling back out by itself, and a results card
   with "Watch your best wave" (each wave's ride is recorded). `test/heat.mjs` and `test/heat-browser.mjs` pass on Raglan+ and
-  Trestles. Not yet: a way into a heat from the title screen (URL only for now), and bracket `advance` on a URL.
+  Trestles. The title screen's mode row (Free surf · Heat 10 min · Heat 5 waves, 2026-11-24) reloads with `?heat=`. Not yet: bracket `advance` on a URL.
 - [x] **4. The Supabase project and auth** (done 2026-11-24). Project `rys-rad-waves` (ref `lyttzshnxspdugvonjea`), the CLI
   in the repo (`supabase/`, `npm run db:start`): magic link only (`private.strip_password` trigger erases any password),
   anonymous sign-ins on, redirect URLs for Pages, rysradwaves.com and local (`[remotes.production]` in config.toml, sent

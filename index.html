@@ -127,6 +127,7 @@
   @keyframes bob { 50% { transform: translateY(-4px); } }
   .waves { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin: 0 auto 16px; max-width: 460px; }
   .waves button { font-family: Rubik, sans-serif; font-weight: 700; font-size: 13px; color: #fff; background: rgba(11,26,36,.55); border: 2px solid rgba(255,255,255,.5); border-radius: 18px; padding: 6px 12px; cursor: pointer; }
+  .modes { margin-top: -6px; } .modes button { font-size: 12px; padding: 4px 10px; }
   .waves button.on { background: var(--teal); border-color: #fff; color: var(--ink); }
   .start { font-family: Bungee, sans-serif; font-size: 22px; color: var(--ink); background: var(--teal); border: 3px solid #fff; border-radius: 28px; padding: 10px 34px; cursor: pointer; box-shadow: 3px 3px 0 rgba(0,0,0,.3); }
   /* Sign in (accounts plan task 4): small, under DROP IN, so it never gets in the way of surfing */
@@ -183,6 +184,7 @@
   <div class="card">
     <h1 class="logo">Ry's Rad<span>Waves</span></h1>
     <div id="waves" class="waves"></div>
+    <div id="modes" class="waves modes"></div>
     <button id="start" class="start">Drop in</button>
     <div id="heat-note" class="heat-note" hidden></div>
     <div id="account" class="account">
