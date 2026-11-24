@@ -280,8 +280,9 @@ function blockLabel(b) {
 // its own handle there), everything else at its position.
 function handle(b) {
   if (b.type !== 'arm' && b.type !== 'ledge') return { x: b.x, y: b.y };
-  // (on the feature, the user, 2026-11-22: at the arm's far end, on its line; its start is the peak's own handle)
-  const a = b.angle * Math.PI / 180, L = blockLength(b);
+  // (on the feature, in its middle (the user, 2026-11-23; it was at the far end): half way along its line; its start is the
+  // peak's own handle. Ridges, channels, sandbars, pinnacles and peaks are already centred on themselves)
+  const a = b.angle * Math.PI / 180, L = blockLength(b) / 2;
   return { x: b.x + Math.sin(a) * L, y: b.y + b.side * Math.cos(a) * L };
 }
 // The coastline's handles (plan step 5): round, on the waterline; you drag them in and out. Its name shows on hover.

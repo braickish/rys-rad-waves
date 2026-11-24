@@ -46,15 +46,19 @@ factors (fix causes); the other waves stay unchanged.
   the ride carries on to 236 m (it ended at ~80 before); plain Dynamic has none. A 10 ft 9 s +35 swell on Dynamic now also
   lists an inside wave B (left, 49 deg) whose line runs through a short section.
 
-## 2. The game places the water by break time (built waves)
+## 2. The game places the water by break time (built waves) (done 2026-11-23)
 
-- wave.js: a built wave with `tb` gets a break map like Trestles' (`breaksAt` from the profile); the phase everywhere,
-  ahead of the curl too, is the time since that spot broke (negative before it does). The curl frame stays the running
-  latest (as `RIDE.front`), so riding is unchanged where nothing breaks ahead. Replaces `PASSED` for these waves (the
-  map holds the same information); older links without `tb` keep today's behavior.
-- The section's shape: blend toward the tube set by the profile's `u` there, as now.
-- Check: screenshots from the channel (`cam=3`) of a section standing up, throwing and peeling both ways; plots of the
-  phase along the wave over time.
+- Simpler than planned: no break map replacing `PASSED`. wave.js `earlyPhase` adds each spot's lead to its phase: `e` (the
+  builder's seconds) x v / peel (the game's curl runs along the crest at `peel`, the builder's along the line at
+  v = sqrt(peel^2 + c^2)) at the wave's own phase rate (`peelSpeed` / `phase.behind`, as behindDist). Where `e` is 0 nothing
+  changes. The lead rises toward the section's peak on its near side and falls away on its far side, so the section stands
+  up, breaks and peels both ways ahead of the curl. The GPU water, the lip/mist table and the riding physics all read
+  `phaseAt`, so they all follow. `ridges.early` (built.js) skips it on waves without a section; profile keys a point leaves
+  out read as 0.
+- On the pinnacle wave (920, 440): at 9.5 s the section (~100 m) is breaking (phase 0.6-1.0) with the curl 20 m short of
+  it, the water either side still unbroken (-0.8 at 88 m, -0.5 at 112 m); the curl then runs through at 25 m/s. This
+  pinnacle's section isn't hollow enough for a tube (its shape `u` there is the steep wall), so it breaks as a wall.
+- test/phasetime.mjs: a 3 s lead around 100 m breaks with the curl 33 m short of it, unbroken either side.
 
 ## 3. Riding through it
 

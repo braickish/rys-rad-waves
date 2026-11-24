@@ -107,7 +107,7 @@ export function applyBuilt(data) {
     peelSpeed: data.base, // (what trimming holds: the plain wall's pace, wave.js holdPeel)
     waveSpeed: data.c ?? raglanPlus.waveSpeed, // (the wave's speed toward the shore at breaking, from the builder)
     ...(data.side === 'right' ? { dir: -1, stance: 'regular' } : {}), // (a right peels the other way; ridden frontside, regular foot)
-    ridges: { profile: data.profile, length: data.length, loop: data.mode === 'loop', fast: 1 },
+    ridges: { profile: data.profile, length: data.length, loop: data.mode === 'loop', fast: 1, early: data.profile.some((q) => q.e > 0) }, // (early: a section breaks ahead, wave.js earlyPhase)
   });
   return wave;
 }

@@ -170,15 +170,15 @@ function layRidges() {
 function profileAt(key, X) {
   const R = WAVE.ridges, P = R.profile, L = R.length;
   const lin = (u) => {
-    if (u <= 0) return P[0][key];
-    for (let i = 1; i < P.length; i++) if (u <= P[i].s) { const f = (u - P[i - 1].s) / Math.max(1e-6, P[i].s - P[i - 1].s); return P[i - 1][key] + (P[i][key] - P[i - 1][key]) * f; }
-    return P[P.length - 1][key];
+    if (u <= 0) return P[0][key] ?? 0;
+    for (let i = 1; i < P.length; i++) if (u <= P[i].s) { const f = (u - P[i - 1].s) / Math.max(1e-6, P[i].s - P[i - 1].s); return (P[i - 1][key] ?? 0) + ((P[i][key] ?? 0) - (P[i - 1][key] ?? 0)) * f; }
+    return P[P.length - 1][key] ?? 0; // (keys a point leaves out, `e`, are 0)
   };
   if (R.loop) {
     const u = ((X % L) + L) % L, B = R.seam ?? Math.max(20, Math.min(30, 0.15 * L));
     if (u <= L - B) return lin(u);
     const w = smooth((u - (L - B)) / B);
-    return lin(u) * (1 - w) + P[0][key] * w;
+    return lin(u) * (1 - w) + (P[0][key] ?? 0) * w;
   }
   if (X <= L) return lin(Math.max(0, X));
   const fade = Math.max(0, 1 - (X - L) / 30); // (past the end: backing off; the size stays as it was at the end)
@@ -245,6 +245,19 @@ function behindDist(xs) {
   const vRef = WAVE.peelSpeed * Math.sqrt(SIZE);
   const d = (RIDE.time - passedAt(RIDGE.c + xs, vRef)) * vRef, w = smooth(Math.min(1, -xs / 8));
   return -xs + (d + xs) * w;
+}
+
+// Sections that break ahead (built waves, open-barrel plan step 2; the user, 2026-11-23): the builder's payload gives, per
+// point, how long before the curl gets there a spot breaks on its own (`e`, s of the builder's clock). Each spot's phase is
+// moved on by that lead, so a section stands up, throws and peels both ways ahead of the curl (the lead grows toward the
+// section's peak on the near side and falls away on the far side: open at both ends). The builder's curl runs along the
+// break line at v = sqrt(peel^2 + c^2), the game's along the crest at `peel`, so the game's clock runs v / peel times slower
+// there; then into phase at the wave's own rate (behindDist's: `phase.behind` m at its own pace).
+function earlyPhase(xs) {
+  const R = WAVE.ridges; if (!R || !R.early) return 0;
+  const X = RIDGE.c + xs, e = profileAt('e', X); if (!(e > 0)) return 0;
+  const peel = Math.max(0.5, profileAt('peel', X)), c = profileAt('c', X) || 0;
+  return e * Math.sqrt(1 + (c / peel) ** 2) * WAVE.peelSpeed * Math.sqrt(SIZE) / WAVE.phase.behind;
 }
 
 // The speed the pocket holds you at when you trim (rider.js energy pocket): the curl's speed, except through a ridge's
@@ -367,7 +380,7 @@ export function phaseAt(xs) {
   let s;
   if (WAVE.bar) {
     s = barPhase(xs); // (a wave with a bar: the time since it broke there, from the simulation's break map)
-  } else s = behindDist(xs) / (WAVE.phase.behind + (WAVE.phase.ahead - WAVE.phase.behind) * k);
+  } else s = behindDist(xs) / (WAVE.phase.behind + (WAVE.phase.ahead - WAVE.phase.behind) * k) + earlyPhase(xs);
   // Optionally the broken wave behind lasts longer: past phase `farFrom` it
   // changes `behindFar` m per phase instead of `behind`, eased in smoothly
   // over ±0.3 so there's no crease.
