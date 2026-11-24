@@ -9,7 +9,7 @@ import { traceRays, analyse, tooSlow, isRide } from './rays.js';
 import { runPE } from './pewave.js';
 import { LOOP, curlAt, defaultLoop, clampLoop, loopInfo, snapEnd, bestLoop, wavePayload, takeoffStart } from './loop.js';
 import { encodeBuilt, BUILT_KEY, outfitFor } from '../waves/built.js';
-import { BLOCKS, SNAP, ARM_ANGLES, ARM_LENGTHS, ARM_SLOPES, BAR_CRESTS, DEPTHS, SIZES, BACKS, blockLength, ROTATIONS, reefComponents, newBlock, dynamicPreset, beachPreset, stackedPreset, armRot, nearestArm } from './blocks.js';
+import { BLOCKS, SNAP, ARM_ANGLES, ARM_LENGTHS, ARM_SLOPES, BAR_CRESTS, DEPTHS, DEPTH_RANGE, TOP_DEPTH, SIZES, BACKS, blockLength, ROTATIONS, reefComponents, newBlock, dynamicPreset, beachPreset, stackedPreset, armRot, nearestArm } from './blocks.js';
 
 const canvas = document.getElementById('map'), ctx = canvas.getContext('2d');
 // Heights and lengths are shown in feet (the user, 2026-11-22); the model works in metres underneath.
@@ -445,6 +445,25 @@ function opt(label, values, cur, fmt, set) {
   }
   return wrap;
 }
+// Depth: a slider for the water over the block's top (a channel: how deep it cuts), in feet; it changes the block's depth factor
+// (b.depth), live while you drag it, the wave recomputing as for a block you move.
+function depthSlider(b) {
+  const wrap = document.createElement('label'); wrap.className = 'sl';
+  const base = (TOP_DEPTH[b.type] || 3) * (b.size || 1), out = document.createElement('b');
+  const show = () => { out.textContent = `${ft((b.depth || 1) * base)} ft`; };
+  wrap.title = b.type === 'channel' ? 'How deep the channel cuts' : 'Water over the top of the reef';
+  wrap.append('Depth');
+  const r = document.createElement('input'); r.type = 'range'; r.min = DEPTH_RANGE[0]; r.max = DEPTH_RANGE[1]; r.step = 0.05; r.value = b.depth || 1; r.autocomplete = 'off';
+  r.oninput = () => {
+    b.depth = +r.value; show();
+    // (a peak takes its arms and ledges with it, as Size and Behind do: a point is deepened as a whole)
+    if (b.type === 'peak') for (const q of state.blocks) if ((q.type === 'arm' || q.type === 'ledge') && q.x === b.x && q.y === b.y) q.depth = b.depth;
+    state.dirty = true; schedule();
+  };
+  r.onchange = () => save();
+  wrap.append(r, out); show();
+  return wrap;
+}
 function showSel() {
   const el = $('sel'); el.innerHTML = '';
   const b = state.sel; if (!b) { el.innerHTML = '<div class="note">Tap a block on the map to move or change it.</div>'; return; }
@@ -462,7 +481,7 @@ function showSel() {
   }
   el.appendChild(opt('Size', SIZES.map(([z]) => z), b.size || 1, (v) => SIZES.find(([z]) => z === v)[1], (v) => { b.size = v; if (b.type === 'peak') for (const q of state.blocks) if ((q.type === 'arm' || q.type === 'ledge') && q.x === b.x && q.y === b.y) q.size = v; })); // (a peak's size goes to its arms too)
   if (b.type === 'peak' || b.type === 'arm') el.appendChild(opt('Behind', BACKS.map(([k]) => k), b.back || 'flat', (v) => BACKS.find(([k]) => k === v)[1], (v) => { b.back = v; if (b.type === 'peak') for (const q of state.blocks) if (q.type === 'arm' && q.x === b.x && q.y === b.y) q.back = v; })); // (a lagoon behind: broken waves reform and break again inside; a peak's goes to its arms)
-  if (b.type !== 'sandbar') el.appendChild(opt('Depth', DEPTHS.map(([f]) => f), b.depth || 1, (v) => DEPTHS.find(([f]) => f === v)[1], (v) => { b.depth = v; })); // (deeper reefs for big swells)
+  if (b.type !== 'sandbar') el.appendChild(depthSlider(b)); // (deeper reefs for big swells)
   if (b.type === 'sandbar') el.appendChild(opt('Crest', BAR_CRESTS.map(([d]) => d), b.crest, (v) => BAR_CRESTS.find(([d]) => d === v)[1], (v) => { b.crest = v; }));
   const del = document.createElement('button'); del.className = 'danger'; del.textContent = 'Remove'; del.style.marginTop = '8px';
   del.onclick = () => { state.blocks = state.blocks.filter((q) => q !== b); state.sel = null; state.dirty = true; showSel(); schedule(); };

@@ -85,9 +85,10 @@ struct VO {
   @location(0) wpos: vec3f,
   @location(1) n: vec3f,
   @location(2) attr: vec4f,
+  @location(3) lumpK: f32,
 };
 // The water surface, built from the cross-section table (see mesh.js).
-struct WaterInfo { cols: u32, nx: u32, rows: u32, setA: u32, sMin: f32, sMax: f32, scale: f32, turquoise: f32, green: f32, blend: f32, setB: u32, ridges: f32 };
+struct WaterInfo { cols: u32, nx: u32, rows: u32, setA: u32, sMin: f32, sMax: f32, scale: f32, turquoise: f32, green: f32, blend: f32, setB: u32, ridges: f32, tube: f32 };
 @group(0) @binding(1) var<uniform> W: WaterInfo;
 @group(0) @binding(2) var<storage, read> table: array<vec4f>;   // [z, y, foam, thin] per (row, col)
 @group(0) @binding(3) var<storage, read> slices: array<vec4f>;  // [xs, phase, shape, size] per slice
@@ -141,7 +142,13 @@ fn surfacePoint(i: u32, j: u32) -> vec3f {
   let foam = e.z; // (older whitewater goes patchy in the fragment shader, by phase, instead of fading by distance)
   // Broken whitewater is lumpy (2026-11-23): the surface bumps in and out along its normal, the lumps tumbling toward
   // the shore down the bore's front.
-  let broken = smoothstep(0.2, 0.9, sl.y) * smoothstep(0.3, 0.8, foam); // (any whitewater behind the curl, not the feathering ahead of it)
+  // (any whitewater behind the curl, not the feathering ahead of it; on a barrel only once its tube has collapsed (phase 1.3):
+  // before that the white is the thrown lip, a smooth curtain, and lumps bent its outline. W.tube 2: a built wave, per slice
+  // by how much tube its shape has)
+  let tk = select(W.tube, smoothstep(2.3, 2.8, sl.z), W.tube > 1.5);
+  let lumpFrom = mix(0.2, 1.3, clamp(tk, 0.0, 1.0));
+  let lumpK = smoothstep(lumpFrom, lumpFrom + 0.7, sl.y);
+  let broken = lumpK * smoothstep(0.3, 0.8, foam);
   let sz = select(1.0, sl.w, sl.w > 0.0);
   let lq = vec2f((sl.x + F.flow.x) * 0.35, p.z * 0.45 - F.camPos.w * 0.9);
   let lump = noise(lq) + 0.5 * noise(lq * 2.3 + vec2f(3.1, 0.0)) - 0.75;
@@ -151,6 +158,7 @@ fn surfacePoint(i: u32, j: u32) -> vec3f {
   o.wpos = pw;
   o.n = dirX(n);
   o.attr = vec4f(sl.y, foam, e.w, f32(max(j, 1u) - 1u) * 15.0 / f32(W.cols - 3u)); // (w: the place along the cross-section, t)
+  o.lumpK = lumpK;
   return o;
 }
 
@@ -260,7 +268,7 @@ fn coarseTex(q: vec2f, t: f32) -> f32 {
   let fn1 = noise(fq * 1.4) * 0.6 + noise(fq * 3.9 + vec2f(t, 0.0)) * 0.4;
   // Whitewater (2026-11-23): thins out across the apron ahead of the bore instead of ending in a line, and goes patchy
   // as it ages (holes and streaks opening up), in place of a flat fade by distance.
-  let broken = smoothstep(0.2, 0.9, phase) * smoothstep(0.2, 0.6, foamAmt);
+  let broken = i.lumpK * smoothstep(0.2, 0.6, foamAmt);
   let age = smoothstep(3.0, 12.0, phase);
   let fA = foamAmt * (1.0 - 0.75 * smoothstep(1.3, 2.0, phase) * smoothstep(12.5, 15.0, tcol)); // (the apron: from the bore on)
   var foam = clamp(fA * 1.6 - (1.0 - fn1) * (0.9 + 0.8 * age), 0.0, 1.0);

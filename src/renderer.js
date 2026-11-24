@@ -57,13 +57,14 @@ export async function createRenderer(canvas) {
   let waterTable = upload(buildWaterTable(), GPUBufferUsage.STORAGE);
   const slicePhaseData = slicePhases();
   const sliceBuf = upload(slicePhaseData, GPUBufferUsage.STORAGE);
-  const waterInfoBuf = device.createBuffer({ size: 48, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
+  const waterInfoBuf = device.createBuffer({ size: 64, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
   const writeWaterInfo = () => {
-    const b = new ArrayBuffer(48), u = new Uint32Array(b), f = new Float32Array(b);
+    const b = new ArrayBuffer(64), u = new Uint32Array(b), f = new Float32Array(b);
     u[0] = COLS; u[1] = WATER_XS.length; u[2] = TABLE.rows; u[3] = SHAPE.a; u[10] = SHAPE.b; f[9] = SHAPE.w; // (shape sets: wave.js SHAPE)
     f[4] = TABLE.sMin; f[5] = TABLE.sMax; f[6] = SCALE; f[7] = WAVE.turquoise || 0; // (clear, shallow water: Queens)
     f[8] = WAVE.green || 0; // (cold, green water: Raglan)
     f[11] = WAVE.ridges ? 1 : 0; // (Raglan+: the shape blends per slice by the reef ridge, shaders.js tableAt)
+    f[12] = WAVE.tubeScale ? 2 : WAVE.tube ? 1 : 0; // (a barrel: lumpy whitewater only once its tube has collapsed; 2: per slice, a built wave's shape)
     device.queue.writeBuffer(waterInfoBuf, 0, b);
   };
   writeWaterInfo();

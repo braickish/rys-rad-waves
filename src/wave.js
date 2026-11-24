@@ -291,7 +291,7 @@ function stepRidges(dt) {
     PEEL_SPEED = profileAt('peel', RIDGE.c) * Math.sqrt(SIZE);
     RIDGE.c += PEEL_SPEED * dt;
     notePassed();
-    if (WAVE.section && PEEL_SPEED > WAVE.section.sectionSpeed) RIDE.sectionT = RIDE.time; // (a section going: forgiving whitewater)
+    if (WAVE.section && PEEL_SPEED > WAVE_SPEED / Math.tan(WAVE.section.closeout * Math.PI / 180)) RIDE.sectionT = RIDE.time; // (a section going: forgiving whitewater)
     if (!WAVE.ridges.loop && !RIDE.done && RIDGE.c >= WAVE.ridges.length) RIDE.done = { time: RIDE.time, c: RIDGE.c };
     SHAPE.ver++;
     return;

@@ -29,7 +29,11 @@ export const FLOOR = [{ type: 'ramp', start_depth_m: 13, end_depth_m: 8.5, x0_m:
 // 24 -> 16 m, so a big swell reaches the reef instead of breaking out on the shelf (a 4.5 m swell's set waves break ~10 m deep).
 export const FLOOR_DEEP = [{ type: 'ramp', start_depth_m: 24, end_depth_m: 16, x0_m: 300, length_m: 420 }];
 // A block's Depth (same day): its depths x 0.7 / 1 / 1.8, so a reef can sit deep enough for a big swell to break on it.
+// (2026-11-23, the user: Pipe's three reefs, the outer ones far deeper: a slider from DEPTH_RANGE[0] to [1] x, shown as the
+// water over the block's top, TOP_DEPTH m at 1x; the three old steps are its marks)
 export const DEPTHS = [[0.7, 'Shallow'], [1, 'Medium'], [1.8, 'Deep']];
+export const DEPTH_RANGE = [0.5, 5];
+export const TOP_DEPTH = { peak: 3.0, arm: 1.0, ridge: 2.6, pinnacle: 2.2, ledge: 1.6, channel: 9 }; // (m at 1x: blockComponents)
 
 // A block's Size (the user, 2026-11-22: reefs for big swells): every length and depth x 1 / 1.5 / 2.5 about its anchor, slopes
 // unchanged. Waves scale the same way (Froude: a wave and a reef both 2.5x bigger break alike), so a reef that breaks a 5 ft

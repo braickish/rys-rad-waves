@@ -54,7 +54,9 @@ const wave = {
   // Sections (2026-11-23, the user: sections must be allowed): where the curl runs through a stretch faster than anyone can
   // surf (a section breaking ahead, a fast section), its whitewater is forgiving as Trestles' is (wave.js sectionGrace,
   // rider.js): for `sectionGrace` s it takes `sectionFoam` x as long to catch you, any turn rebounds off it.
-  section: { sectionSpeed: 12, sectionGrace: 3, sectionFoam: 2.5 },
+  // A section: the curl faster than anyone can surf, the builder's closeout limit (peel angle under `closeout` deg: faster than
+  // c / tan 25 along the crest; a fixed 12 m/s, Trestles', was most of a big built wave's ride, and turns kept rebounding).
+  section: { closeout: 25, sectionGrace: 3, sectionFoam: 2.5 },
   // the face's top, the foam you ride in and the foam and glow you see follow the local shape: Pipe's where it barrels
   faceTop: (s, xs) => { const k = xs === undefined ? 0 : env.tubeAt(xs); return raglanPlus.faceTop(s) * (1 - k) + pipeFaceTop(s) * k; },
   foam: (s, t, xs) => { const k = xs === undefined ? 0 : env.tubeAt(xs); return raglanPlus.foam(s, t) * (1 - k) + reef.foam(s, t) * k; },
