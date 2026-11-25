@@ -130,10 +130,8 @@
   .modes { margin-top: -6px; } .modes button { font-size: 12px; padding: 4px 10px; }
   /* The landing: three ways in (free surf, build a reef, compete) */
   #title [hidden] { display: none !important; }
-  .home { display: grid; gap: 12px; max-width: 320px; margin: 0 auto; }
-  .home button, .home a { display: block; font-family: Bungee, sans-serif; font-size: 22px; line-height: 1.1; color: var(--ink); background: var(--teal); border: 3px solid #fff; border-radius: 24px; padding: 12px 20px 10px; cursor: pointer; text-decoration: none; text-shadow: none; box-shadow: 3px 3px 0 rgba(0,0,0,.3); }
-  .home a { background: var(--yellow); } .home #go-compete { background: var(--pink); color: #fff; }
-  .home small { display: block; font: 500 13px Rubik, sans-serif; margin-top: 4px; opacity: .85; }
+  .home { display: grid; justify-items: center; gap: 14px; margin: 0 auto; }
+  .home .start { display: block; width: 260px; max-width: 100%; text-decoration: none; text-align: center; }
   .step-head { display: flex; align-items: center; justify-content: center; gap: 10px; margin: -8px 0 12px; }
   .step-head b { font-family: Bungee, sans-serif; font-weight: 400; font-size: 18px; color: var(--yellow); text-shadow: 2px 2px 0 var(--ink); }
   #compete-note { margin: -4px 0 14px; }
@@ -197,9 +195,9 @@
   <div class="card">
     <h1 class="logo">Ry's Rad<span>Waves</span></h1>
     <div id="home" class="home">
-      <button id="go-surf" type="button">Free surf<small>Pick a wave and ride</small></button>
-      <a id="go-build" href="builder.html">Build a reef<small>Shape your own break</small></a>
-      <button id="go-compete" type="button">Compete live<small>Heats against rivals</small></button>
+      <button id="go-surf" type="button" class="start">Free surf</button>
+      <a id="go-build" href="builder.html" class="start">Build a reef</a>
+      <button id="go-compete" type="button" class="start">Compete live</button>
     </div>
     <div id="step" hidden>
       <div id="step-head" class="step-head"><button id="step-back" type="button" class="acct-link">← Back</button><b id="step-title"></b></div>
