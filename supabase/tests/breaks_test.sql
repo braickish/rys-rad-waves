@@ -1,6 +1,7 @@
 -- npm run test:db: cloud breaks (accounts plan task 7). Only Pro saves or changes; private stays private, unlisted is
 -- readable by id, public is listed; a lapsed Pro keeps, surfs and deletes their breaks but changes nothing.
 begin;
+-- (counts are of this test's own users' breaks: the local stack keeps other tests' public ones)
 select plan(22);
 
 insert into auth.users (id, email, aud, role, is_anonymous) values
@@ -22,7 +23,7 @@ select lives_ok($$ insert into public.breaks (id, name, design, visibility) valu
   ('c0000000-0000-0000-0000-000000000002', 'Friends Only', '{"blocks":[]}', 'unlisted'),
   ('c0000000-0000-0000-0000-000000000003', 'Open Reef', '{"blocks":[]}', 'public') $$, 'Pro saves breaks');
 select is((select name from public.breaks where id = 'c0000000-0000-0000-0000-000000000001'), 'Secret Spot', 'names are trimmed');
-select is((select count(*)::int from public.breaks), 3, 'you see all of yours');
+select is((select count(*)::int from public.breaks where owner::text like 'b0000000-%'), 3, 'you see all of yours');
 select throws_ok($$ insert into public.breaks (owner, name, design) values ('b0000000-0000-0000-0000-000000000003', 'Not mine', '{}') $$,
   '42501', null, 'you can''t save a break as someone else');
 select throws_ok($$ insert into public.breaks (name, design) values ('shit break', '{}') $$, '23514', null, 'names stay clean');
@@ -32,7 +33,7 @@ select is((select version from public.breaks where id = 'c0000000-0000-0000-0000
 
 -- Someone else (Pro too).
 select pg_temp.act_as('b0000000-0000-0000-0000-000000000003');
-select is((select array_agg(name) from public.breaks), array['Open Reef'], 'others see only the public one listed');
+select is((select array_agg(name) from public.breaks where owner::text like 'b0000000-%'), array['Open Reef'], 'others see only the public one listed');
 select is((select count(*)::int from public.get_break('c0000000-0000-0000-0000-000000000001')), 0, 'a private break, even by id: nothing');
 select is((select name from public.get_break('c0000000-0000-0000-0000-000000000002')), 'Friends Only', 'an unlisted one by id');
 update public.breaks set name = 'Mine now' where id = 'c0000000-0000-0000-0000-000000000003';
@@ -42,7 +43,7 @@ select is((select count(*)::int from public.get_break('c0000000-0000-0000-0000-0
 
 -- Signed out.
 select set_config('role', 'anon', true), set_config('request.jwt.claims', '{"role":"anon"}', true);
-select is((select array_agg(name) from public.breaks), array['Open Reef'], 'signed out: the public one');
+select is((select array_agg(name) from public.breaks where owner::text like 'b0000000-%'), array['Open Reef'], 'signed out: the public one');
 select is((select name from public.get_break('c0000000-0000-0000-0000-000000000002')), 'Friends Only', 'signed out: an unlisted link works');
 select throws_ok($$ insert into public.breaks (name, design) values ('Guest', '{}') $$, '42501', null, 'signed out: no saving');
 

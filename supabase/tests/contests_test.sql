@@ -140,7 +140,7 @@ select throws_ok($$ select public.submit_ride((select v::uuid from t where k = '
 select pg_temp.act_as('d0000000-0000-0000-0000-000000000001');
 insert into t select 'pub', (public.create_contest('Open Day', wave => 'trestles', end_waves => 5, visibility => 'public')).id;
 select set_config('role', 'anon', true), set_config('request.jwt.claims', '{"role":"anon"}', true);
-select is((select array_agg(name) from public.contests), array['Open Day'], 'signed out: only the public contest');
+select is((select array_agg(name) from public.contests where host = 'd0000000-0000-0000-0000-000000000001'), array['Open Day'], 'signed out: only the public contest');
 reset role;
 update public.entitlements set status = 'canceled', expires_at = now() - interval '1 hour' where user_id = 'd0000000-0000-0000-0000-000000000001';
 select pg_temp.act_as('d0000000-0000-0000-0000-000000000003', true);

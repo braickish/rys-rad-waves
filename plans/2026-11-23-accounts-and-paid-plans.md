@@ -242,8 +242,21 @@ sees it on their profile.
   `cancel_contest`. Errors carry a short code (`pro_needed`, `contest_full`, `after_horn`...) for the game to word.
   Not yet: the host isn't entered automatically (the lobby decides, task 11); the ride logs' bucket comes with task 12.
   Tests: `supabase/tests/contests_test.sql` (59). Cloud: `supabase db push` (the user).
-- [ ] **11. Lobby.** Contests phase 3 with sign-in for hosts, starting from a saved break in My Breaks, guests joining
-  anonymously. Test: two browser contexts.
+- [x] **11. Lobby** (2026-11-25). Under Compete live: **Host a contest** (Pro: where, one of the game's waves or a
+  saved break; how long, 10/15/20 minutes or 5/8/10 waves; a name; public or not; the host is entered as their handle
+  and can Leave to just run it; signed out it asks you to sign in, not Pro it says so and opens the Go Pro sheet when
+  sales are open), a **code** field to join, and the **lobby** (`?contest=<code>`: name, wave, length, host, the code
+  with Share link, who's in and who's here now, Join (a guest gets an anonymous session there and then and joins with
+  a nickname, remembered; a member as their handle), Leave, and the host's Start and Cancel). My Breaks in the builder
+  has **Host** on each break (`index.html?host=<id>` opens the form with it picked). Live: a Realtime channel per
+  contest (`contest:<id>`): presence for who's here, a "changed" broadcast after each join, leave, start or cancel so
+  everyone reads the contest again, and a read every 15 s as a backstop (src/contests.js, src/lobby.js). On Start
+  everyone in it counts down to the heat's server start and drops in: boot.js turns `?contest=<code>&go` into the heat
+  (the contest's wave, or its break's ride as `#built=`; its length; the heat's seed; your drawn jersey; no bots), and
+  the contest pass opens the wave even without a Wave Pass (account.js `allowWave`). For now each screen runs the heat
+  on its own: sharing scores is task 12. Also: `initAccount()` makes one Supabase client however many callers ask at
+  once. Local Realtime is on in config.toml. Test: `npm run test:lobby-browser` (18, two Chrome instances: a host and a
+  guest).
 - **Jerseys in contests (the user, 2026-11-24):** each contest heat draws its surfers' jersey colours at random (from
   the heat's seed, all different, stored with the heat so every client shows the same), whatever your profile says. Your
   profile's jersey is what you wear in solo heats. The surfer wears the jersey over any outfit, at every water temperature.

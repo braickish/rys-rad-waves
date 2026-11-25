@@ -130,10 +130,31 @@
   /* The landing: three ways in (free surf, build a reef, compete) */
   #title [hidden] { display: none !important; }
   .home { display: grid; justify-items: center; gap: 14px; margin: 0 auto; }
-  .home .start { display: block; width: 260px; max-width: 100%; text-decoration: none; text-align: center; }
+  .home .start { display: block; width: 290px; max-width: 100%; padding-left: 12px; padding-right: 12px; white-space: nowrap; text-decoration: none; text-align: center; }
   .step-head { display: flex; align-items: center; justify-content: center; gap: 10px; margin: -8px 0 12px; }
   .step-head b { font-family: Bungee, sans-serif; font-weight: 400; font-size: 18px; color: var(--yellow); text-shadow: 2px 2px 0 var(--ink); }
   /* Free surf: every break, then yours (the same pills) */
+  /* Compete live: join by code; hosting; the lobby (accounts plan task 11) */
+  .join-form { display: flex; gap: 8px; justify-content: center; }
+  .join-form input { font: 400 18px Bungee, sans-serif; letter-spacing: .12em; text-transform: uppercase; color: var(--ink); background: #fff; border: 3px solid #fff; border-radius: 24px; padding: 8px 14px; width: 150px; text-align: center; }
+  #lobby-nick { text-transform: none; letter-spacing: 0; font: 500 16px Rubik, sans-serif; width: 190px; }
+  .join-form button { font: 400 16px Bungee, sans-serif; color: var(--ink); background: var(--yellow); border: 3px solid #fff; border-radius: 24px; padding: 8px 18px; cursor: pointer; }
+  .cform { display: grid; gap: 6px; max-width: 320px; margin: 0 auto; text-align: left; }
+  .cform label { font: 700 13px Rubik, sans-serif; margin-top: 6px; text-shadow: 0 1px 0 rgba(0,0,0,.4); }
+  .cform select, .cform input[type=text], .cform #host-name { font: 500 15px Rubik, sans-serif; color: var(--ink); background: #fff; border: 2px solid #fff; border-radius: 12px; padding: 8px 10px; }
+  .cform .check { display: flex; gap: 8px; align-items: center; font-weight: 500; }
+  .cform .start { justify-self: center; margin-top: 12px; }
+  .lobby { max-width: 360px; margin: 0 auto; display: grid; gap: 10px; justify-items: center; }
+  .lobby-name { font: 400 22px Bungee, sans-serif; color: var(--yellow); text-shadow: 2px 2px 0 var(--ink); }
+  .lobby-what { font-weight: 700; font-size: 14px; text-shadow: 0 1px 0 rgba(0,0,0,.4); }
+  .lobby-code { display: flex; align-items: baseline; gap: 10px; background: rgba(11,26,36,.6); border: 2px solid rgba(255,255,255,.5); border-radius: 14px; padding: 8px 14px; }
+  .lobby-code small { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; opacity: .8; }
+  .lobby-code b { font: 400 26px Bungee, sans-serif; letter-spacing: .14em; }
+  .lobby-list { list-style: none; margin: 0; padding: 0; width: 100%; display: grid; gap: 6px; }
+  .lobby-list li { display: flex; justify-content: space-between; gap: 10px; background: rgba(11,26,36,.55); border-radius: 10px; padding: 7px 12px; font-weight: 700; font-size: 14px; }
+  .lobby-list li .here { font-weight: 500; font-size: 12px; opacity: .75; }
+  .lobby-list li.away .here { opacity: .45; }
+  .lobby-more { display: flex; gap: 14px; }
   /* Solo: Start heat, and its length beside it */
   .heat-start { display: flex; flex-direction: column; align-items: center; gap: 6px; }
   .heat-start select { appearance: none; -webkit-appearance: none; font: 700 13px Rubik, sans-serif; color: #fff; background: none; border: 0; padding: 2px 4px; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; text-shadow: 0 1px 0 rgba(0,0,0,.4); text-align: center; text-align-last: center; }
@@ -207,7 +228,27 @@
       <div id="step-head" class="step-head"><button id="step-back" type="button" class="acct-link">← Back</button><b id="step-title"></b></div>
       <div id="compete-menu" class="home" hidden>
         <button id="go-solo" type="button" class="start">Solo</button>
-        <div class="heat-note">Live heats against your friends are coming soon.</div>
+        <button id="go-host" type="button" class="start">Host a contest</button>
+        <form id="join-form" class="join-form"><input id="join-code" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="6" placeholder="CODE" aria-label="Contest code"><button type="submit">Join</button></form>
+        <div id="compete-msg" class="heat-note" hidden></div>
+      </div>
+      <form id="host-form" class="cform" hidden>
+        <label for="host-spot">Where</label><select id="host-spot"></select>
+        <label for="host-len">How long</label><select id="host-len"></select>
+        <label for="host-name">Name</label><input id="host-name" maxlength="40" autocomplete="off" required>
+        <label class="check"><input id="host-public" type="checkbox"> Public: results show on profiles</label>
+        <button id="host-create" type="submit" class="start">Create contest</button>
+        <div id="host-msg" class="heat-note" hidden></div>
+      </form>
+      <div id="lobby" class="lobby" hidden>
+        <div id="lobby-name" class="lobby-name"></div>
+        <div id="lobby-what" class="lobby-what"></div>
+        <div class="lobby-code"><small>Code</small><b id="lobby-code"></b><button id="lobby-share" type="button" class="acct-link">Share link</button></div>
+        <ol id="lobby-list" class="lobby-list"></ol>
+        <form id="lobby-join" class="join-form" hidden><input id="lobby-nick" maxlength="20" autocomplete="nickname" placeholder="Your nickname" aria-label="Nickname"><button type="submit">Join</button></form>
+        <button id="lobby-start" type="button" class="start" hidden>Start</button>
+        <div id="lobby-msg" class="heat-note" hidden></div>
+        <div class="lobby-more"><button id="lobby-leave" type="button" class="acct-link" hidden>Leave</button><button id="lobby-cancel" type="button" class="acct-link" hidden>Cancel contest</button></div>
       </div>
       <div id="waves" class="waves"></div>
       <div id="my-breaks-wrap" hidden><div class="list-head">Your breaks</div><div id="my-breaks" class="waves"></div></div>

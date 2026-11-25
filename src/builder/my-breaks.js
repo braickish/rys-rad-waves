@@ -1,5 +1,5 @@
 // My Breaks (accounts plan task 7): the builder's panel for breaks kept in your account. Save (Pro), open, rename,
-// duplicate, delete, and who can see each one; `builder.html?break=<id>` opens one (someone else's opens as a copy to
+// duplicate, delete, host a contest on it (Pro, task 11: index.html?host=<id>), and who can see each one; `builder.html?break=<id>` opens one (someone else's opens as a copy to
 // keep). On first sign-in with Pro, the design this browser remembers is offered as your first saved break.
 //
 // ui.js hands in the builder: `design()` (what it keeps), `apply(design)`, `ride()` (the payload DROP IN would surf, or
@@ -121,6 +121,7 @@ export function startMyBreaks(B) {
         meta.append(h('div', { className: 'row' },
           b.id === cur.id ? null : button('Edit', () => open(b.id)),
           h('a', { className: 'btn', href: surfLink(b.id), textContent: 'Surf' }),
+          canSave ? h('a', { className: 'btn', href: `index.html?host=${encodeURIComponent(b.id)}`, textContent: 'Host', title: 'Host a contest on this break' }) : null,
           button('Rename', () => { renaming = b.id; render(); }, '', !canSave),
           button('Duplicate', () => act(() => duplicateBreak(b.id, `${b.name.slice(0, 33)} (copy)`), 'Duplicated.'), '', !canSave),
           button('Delete', () => { if (confirm(`Delete “${b.name}”? This can't be undone.`)) act(async () => { await deleteBreak(b.id, b.thumb_path); if (cur.id === b.id) setCur({ ...cur, id: null, saved: null }); }, 'Deleted.'); }, 'danger')));

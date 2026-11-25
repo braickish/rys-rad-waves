@@ -16,6 +16,7 @@ import { startAccountUI } from './account-ui.js';
 import { cachedProfile, onPlan, waveLocked, onAccount } from './account.js';
 import { myBreaks } from './breaks.js';
 import { openPaywall, startPaywall } from './paywall.js';
+import { initLobby, leaveLobby } from './lobby.js';
 
 const params = new URLSearchParams(location.search);
 // Competition judging (?judge; the user, 2026-11-22): every wave scored by a five-judge panel (judging.js), the score sheet
@@ -308,14 +309,17 @@ $('start').addEventListener('click', (e) => { e.preventDefault(); startOrRestart
 // surf from there reloads without it (?menu=surf opens Free surf). A link that lands on a locked wave, or on a saved
 // break, opens Free surf.
 let step = null;
-const STEPS = { surf: 'Free surf', compete: 'Compete live', solo: 'Solo heat' };
+const STEPS = { surf: 'Free surf', compete: 'Compete live', solo: 'Solo heat', host: 'Host a contest', lobby: 'Contest' };
 function showStep(which) {
+  if (step === 'lobby' && which !== 'lobby') leaveLobby();
   step = which;
   $('home').hidden = !!which; $('step').hidden = !which;
   if (!which) return;
   $('step-title').textContent = STEPS[which];
   $('compete-menu').hidden = which !== 'compete';
-  $('waves').hidden = which === 'compete';
+  $('host-form').hidden = which !== 'host';
+  $('lobby').hidden = which !== 'lobby';
+  $('waves').hidden = which !== 'surf' && which !== 'solo';
   $('my-breaks-wrap').hidden = which !== 'surf' || !$('my-breaks').children.length;
   $('heat-start').hidden = which !== 'solo';
   $('start').hidden = which !== 'surf'; // (Solo has Start heat)
@@ -345,9 +349,10 @@ const HEAT_LEN_KEY = 'rys-rad-waves-heat-len';
     location.href = u.href.replace(/play=(&|$)/, 'play$1');
   });
 }
-$('step-back').addEventListener('click', (e) => { e.stopPropagation(); showStep(step === 'solo' ? 'compete' : null); });
+$('step-back').addEventListener('click', (e) => { e.stopPropagation(); showStep(['solo', 'host', 'lobby'].includes(step) ? 'compete' : null); });
 for (const id of ['home', 'step']) $(id).addEventListener('pointerdown', (e) => e.stopPropagation());
 showStep(HEAT_END ? 'solo' : params.get('menu') === 'surf' || params.has('break') ? 'surf' : null); // (set up as the page starts, so the buttons work before the game has loaded)
+initLobby(showStep, { inHeat: !!HEAT_END }); // (Compete live's Host and Join, and the lobby: src/lobby.js; ?contest= and ?host= open them)
 if (params.has('menu')) { const u = new URL(location.href); u.searchParams.delete('menu'); history.replaceState(null, '', u); }
 startAccountUI();
 // The walk buttons (longboard wave): walk up toward the nose / back toward the tail, one spot per press.

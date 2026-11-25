@@ -23,8 +23,9 @@ const emit = () => { for (const f of listeners) f(session); };
 // here with the tokens in the URL hash, which supabase-js reads and then clears.
 export const supabaseTarget = () => target();
 
-export async function initAccount() {
-  if (client) return client;
+let starting = null; // (one client, however many callers ask at once)
+export function initAccount() { return (starting ||= startClient().catch((e) => { starting = null; throw e; })); } // (a failed start can be tried again)
+async function startClient() {
   const { createClient } = await import(SUPABASE_JS);
   const { url, key } = target();
   client = createClient(url, key, {
@@ -174,7 +175,10 @@ export async function myPlan() {
 // Calls f with your plan now (if known) and whenever it changes (signing in or out reads it again).
 export const onPlan = (f) => { planListeners.add(f); if (planKnown) f(plan); return () => planListeners.delete(f); };
 export const currentPlan = () => plan;
-export const waveLocked = (id) => PAYWALL && !FREE_WAVES.includes(id) && !plan.wave_pass;
+// The contest pass (task 11): a contest's wave is open to everyone in it, for its heat (boot.js allows it).
+const passWaves = new Set();
+export const allowWave = (id) => passWaves.add(id);
+export const waveLocked = (id) => PAYWALL && !FREE_WAVES.includes(id) && !passWaves.has(id) && !plan.wave_pass;
 
 // (read the plan again when the user changes; a timeout because supabase-js mustn't be awaited inside its own
 // auth callback)
