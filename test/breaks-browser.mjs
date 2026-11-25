@@ -86,7 +86,6 @@ await waitFor(`document.querySelectorAll('#waves button').length > 0`, 20000);
 await evaluate(`document.getElementById('go-surf').click()`);
 const mineCard = `document.querySelector('#my-breaks button[data-id="${orig.id}"]')`;
 check(!!(await waitFor(`!!${mineCard} && !document.getElementById('my-breaks-wrap').hidden`, 15000)), `Free surf: your breaks listed (${await evaluate(`document.getElementById('my-breaks').innerText.replace(/\\n/g, ' ')`)})`);
-check(await evaluate(`!!${mineCard}.querySelector('img')`), '... with its thumbnail');
 await shot('4-free-surf');
 await evaluate(`${mineCard}.click()`);
 check(!!(await waitFor(`/wave=built/.test(location.search) && /built=/.test(location.hash) && ${mineCard}?.className === 'on'`, 20000)), 'a tap loads it, lit in the list');

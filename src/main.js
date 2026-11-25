@@ -14,7 +14,7 @@ import { loadSkinnedGLB } from './glb.js';
 import { createBody } from './body.js';
 import { startAccountUI } from './account-ui.js';
 import { cachedProfile, onPlan, waveLocked, onAccount } from './account.js';
-import { myBreaks, thumbUrl } from './breaks.js';
+import { myBreaks } from './breaks.js';
 import { openPaywall, startPaywall } from './paywall.js';
 
 const params = new URLSearchParams(location.search);
@@ -303,7 +303,7 @@ $('over').addEventListener('pointerdown', (e) => { e.preventDefault(); startOrRe
 $('judge').addEventListener('pointerdown', (e) => { e.preventDefault(); startOrRestart(); });
 $('start').addEventListener('click', (e) => { e.preventDefault(); startOrRestart(); });
 // The landing: three ways in. Free surf lists every break (and yours, signed in) with DROP IN; Build a reef is a link to
-// the builder; Compete live offers Solo (a heat against bots: the waves, the heat length, DROP IN), and live heats with
+// the builder; Compete live offers Solo (a heat against bots: the waves, then Start heat with its length), and live heats with
 // friends later (task 11). A heat is set up as the page loads, so a heat link (?heat=) opens straight on Solo, and Free
 // surf from there reloads without it (?menu=surf opens Free surf). A link that lands on a locked wave, or on a saved
 // break, opens Free surf.
@@ -317,14 +317,34 @@ function showStep(which) {
   $('compete-menu').hidden = which !== 'compete';
   $('waves').hidden = which === 'compete';
   $('my-breaks-wrap').hidden = which !== 'surf' || !$('my-breaks').children.length;
-  $('modes').hidden = which !== 'solo';
-  $('start').hidden = which === 'compete' || (which === 'solo' && !HEAT_END); // (Solo: pick a heat length first)
+  $('heat-start').hidden = which !== 'solo';
+  $('start').hidden = which !== 'surf'; // (Solo has Start heat)
   if (which !== 'surf') $('lock-note').hidden = true;
 }
 const leaveHeat = () => { const u = new URL(location.href); for (const k of ['heat', 'seed', 'play']) u.searchParams.delete(k); u.searchParams.set('menu', 'surf'); location.href = u; };
 $('go-surf').addEventListener('click', (e) => { e.stopPropagation(); if (HEAT_END) leaveHeat(); else showStep('surf'); });
 $('go-compete').addEventListener('click', (e) => { e.stopPropagation(); showStep('compete'); });
 $('go-solo').addEventListener('click', (e) => { e.stopPropagation(); showStep('solo'); });
+// Start heat (Solo): the length from the dropdown (remembered). A heat is set up as the page loads, so a new length
+// reloads with ?heat=<length>&play; the heat that's already set up just starts.
+const HEAT_LEN_KEY = 'rys-rad-waves-heat-len';
+{
+  const sel = $('heat-len');
+  const label = (h) => (h.minutes ? `${h.minutes} minute${h.minutes === 1 ? '' : 's'}` : `${h.waves} wave${h.waves === 1 ? '' : 's'}`);
+  const same = (v) => JSON.stringify(parseHeatParam(v)) === JSON.stringify(HEAT_END);
+  if (HEAT_END && ![...sel.options].some((o) => same(o.value))) sel.add(new Option(label(HEAT_END), params.get('heat'))); // (?heat=1m and the like)
+  let stored = null; try { stored = localStorage.getItem(HEAT_LEN_KEY); } catch {}
+  sel.value = HEAT_END ? [...sel.options].find((o) => same(o.value)).value : [...sel.options].some((o) => o.value === stored) ? stored : '10m';
+  sel.addEventListener('change', () => { try { localStorage.setItem(HEAT_LEN_KEY, sel.value); } catch {} });
+  for (const ev of ['pointerdown', 'click']) sel.addEventListener(ev, (e) => e.stopPropagation());
+  $('start-heat').addEventListener('click', (e) => {
+    e.stopPropagation(); e.preventDefault();
+    if (same(sel.value)) { startOrRestart(); return; }
+    const u = new URL(location.href);
+    u.searchParams.set('heat', sel.value); u.searchParams.delete('seed'); u.searchParams.set('play', '');
+    location.href = u.href.replace(/play=(&|$)/, 'play$1');
+  });
+}
 $('step-back').addEventListener('click', (e) => { e.stopPropagation(); showStep(step === 'solo' ? 'compete' : null); });
 for (const id of ['home', 'step']) $(id).addEventListener('pointerdown', (e) => e.stopPropagation());
 showStep(HEAT_END ? 'solo' : params.get('menu') === 'surf' || params.has('break') ? 'surf' : null); // (set up as the page starts, so the buttons work before the game has loaded)
@@ -984,7 +1004,7 @@ async function main() {
     const u = new URL(location.href); u.searchParams.set('wave', id); if (id !== 'built') u.searchParams.delete('break'); history.replaceState(null, '', u);
     drawPicker();
   };
-  // Your saved breaks (signed in), as cards under the game's own. A tap reloads with ?break=<id>&pick: boot.js fetches
+  // Your saved breaks (signed in), as pills under the game's own. A tap reloads with ?break=<id>&pick: boot.js fetches
   // its ride and the page opens on Free surf with it picked, ready for DROP IN.
   let saved = [];
   const onBreak = () => (WAVE.id === 'built' && params.get('break')) || null; // (the saved break you're on, if any)
@@ -1019,7 +1039,6 @@ async function main() {
     const list = $('my-breaks'); list.innerHTML = '';
     for (const br of saved) {
       const kids = document.createDocumentFragment();
-      const src = thumbUrl(br); if (src) kids.append(Object.assign(document.createElement('img'), { src, alt: '', loading: 'lazy' }));
       kids.append(Object.assign(document.createElement('span'), { textContent: br.name }));
       const b = card(kids, br.id === onBreak());
       b.dataset.id = br.id;
@@ -1063,23 +1082,6 @@ async function main() {
     why: (kind) => (kind === 'wave_pass' && wanted ? why(WAVES.find((w) => w.id === wanted)) : ''),
     back: (kind) => (kind === 'wave_pass' ? wantedBack() : undefined),
   }).catch((e) => console.warn('paywall', e));
-  // Heat length, on Compete: a solo heat against bots (accounts plan task 3) reloads with ?heat= (the wave kept); a
-  // live contest will take a code here later (task 11).
-  const modes = $('modes'), cur = JSON.stringify(HEAT_END); // (a heat of another length, ?heat=3m, lights none)
-  for (const [label, val] of [['Heat · 10 min', '10m'], ['Heat · 5 waves', '5w']]) {
-    const b = document.createElement('button');
-    b.textContent = label; b.className = JSON.stringify(parseHeatParam(val)) === cur ? 'on' : '';
-    b.addEventListener('pointerdown', (e) => e.stopPropagation());
-    b.addEventListener('click', (e) => {
-      e.stopPropagation();
-      if (b.className === 'on') return;
-      const u = new URL(location.href);
-      u.searchParams.set('heat', val);
-      u.searchParams.delete('seed'); u.searchParams.delete('play');
-      location.href = u;
-    });
-    modes.appendChild(b);
-  }
   if (params.has('play') && !params.has('replay')) startOrRestart();
   if (params.has('replay')) { // (?replay=<url of a saved recording>; 'session': one handed over by a reload, startReplay)
     const src = params.get('replay');
