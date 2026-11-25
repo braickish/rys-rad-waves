@@ -142,7 +142,8 @@ sees it on their profile.
 
 - **Prices:** Wave Pass **$5** one-time, for life. Pro **$3/month** for everything else (it includes the Wave Pass).
 - **Domain:** **rysradwaves.com**. Magic-link emails come from **howdy@rysradwaves.com**, sent by Resend through
-  Supabase's Send Email Hook (task 11a; the user, 2026-11-25), and the domain carries the site (Pages custom domain) and the Supabase auth redirect URLs.
+  Supabase's Send Email Hook (task 11a; the user, 2026-11-25), and the site is served there since 2026-11-25 (Pages custom
+  domain, `CNAME`; the github.io and braickish.com/rys-rad-waves/ addresses redirect to it), and the domain carries the site (Pages custom domain) and the Supabase auth redirect URLs.
 - **iOS app:** purchases go through Apple's in-app purchase (`source = 'apple'`), with no link-out.
 - The defaults stand: a visitor gets one demo wave (Raglan), the builder to try (no saving), and any contest they're
   invited to. The Wave Pass unlocks every non-Pro wave, including future ones. The builder stays open to try. Visitors

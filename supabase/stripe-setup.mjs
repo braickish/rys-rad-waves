@@ -60,9 +60,17 @@ for (const it of ITEMS) {
 // your sign-in, changed on the account page).
 const configs = stripe('billing_portal', 'configurations', 'list', '--active', 'true', '--limit', '100');
 const mine = configs.data.find((c) => c.metadata?.game_id === GAME);
-if (mine) console.log(`have portal configuration ${mine.id}`);
-else {
-  const c = stripe('billing_portal', 'configurations', 'create',
+// (its links to the game's terms and privacy pages are kept in step on every run)
+const SITE = 'https://rysradwaves.com';
+const LINKS = ['-d', `business_profile[privacy_policy_url]=${SITE}/privacy.html`, '-d', `business_profile[terms_of_service_url]=${SITE}/terms.html`];
+if (mine) {
+  const bp = mine.business_profile || {};
+  if (bp.privacy_policy_url !== `${SITE}/privacy.html` || bp.terms_of_service_url !== `${SITE}/terms.html`) {
+    stripe('billing_portal', 'configurations', 'update', mine.id, ...LINKS);
+    console.log(`portal configuration ${mine.id}: terms and privacy links set to ${SITE}`);
+  } else console.log(`have portal configuration ${mine.id}`);
+} else {
+  const c = stripe('billing_portal', 'configurations', 'create', ...LINKS,
     '-d', "business_profile[headline]=Ry's Rad Waves",
     '-d', 'features[invoice_history][enabled]=true',
     '-d', 'features[payment_method_update][enabled]=true',
