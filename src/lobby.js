@@ -22,8 +22,9 @@ let show = () => {};
 let inHeat = false;
 let L = null; // the open lobby: { code, id, preview, data, live, present, timers }
 
-export function initLobby(showStep, { inHeat: heat = false } = {}) {
-  show = showStep; inHeat = heat;
+let joinStep = () => 'compete'; // (where the code box is: Compete live, or for players without Pro the Join step)
+export function initLobby(showStep, { inHeat: heat = false, joinStep: js } = {}) {
+  show = showStep; inHeat = heat; if (js) joinStep = js;
   for (const id of ['host-form', 'lobby', 'join-form']) for (const ev of ['pointerdown', 'click', 'keydown']) $(id).addEventListener(ev, (e) => e.stopPropagation());
   $('go-host').addEventListener('click', (e) => { e.stopPropagation(); openHost(); });
   $('join-form').addEventListener('submit', (e) => {
@@ -108,7 +109,7 @@ async function openLobby(code) {
     await initAccount();
     me.preview = await contestByCode(code);
     if (L !== me) return;
-    if (!me.preview) { leaveLobby(); show('compete'); say('compete-msg', describeContestError({ hint: 'no_contest' })); return; }
+    if (!me.preview) { leaveLobby(); show(joinStep()); say('compete-msg', describeContestError({ hint: 'no_contest' })); return; }
     me.id = me.preview.id;
     await refresh();
     await connect();

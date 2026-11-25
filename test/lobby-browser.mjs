@@ -1,7 +1,7 @@
 // The lobby in two browsers (accounts plan task 11; headless Chrome x2, the local stack with Realtime):
 //   1. a guest (signed out) can't host; a wrong code says so
 //   2. a Pro member hosts a contest on Pipe (5 waves) from Compete live and lands in its lobby, entered as their handle
-//   3. the guest opens the contest link, sees the preview, joins with a nickname (an anonymous session made then); both
+//   3. the guest, without Pro, finds it by code ("Have a contest code?") and by link, sees the preview, joins with a nickname (an anonymous session made then); both
 //      lobbies list both surfers, here
 //   4. the host starts: both count down and drop into the heat on Pipe, 5 waves, the heat's seed, different jerseys
 //   5. the builder's My Breaks has Host on each break; index.html?host=<id> opens the form with it picked
@@ -53,7 +53,18 @@ check(!!(await A.waitFor(`new RegExp('${handle} \\\\(you\\\\) here').test(${list
 check(await A.evaluate(`${shown('lobby-start')} && ${shown('lobby-cancel')}`), 'the host has Start and Cancel');
 await A.shot('1-lobby');
 
-// 3. The guest joins by link.
+// 3. The guest, without Pro (sales open: ?paywall): Compete live is locked, but "Have a contest code?" finds it.
+await B.go(`${B.base}?paywall`); await ready(B);
+check(!!(await B.waitFor(`document.getElementById('go-compete').classList.contains('locked') && ${shown('go-code')}`, 15000)), 'without Pro: Compete live locked, "Have a contest code?" offered');
+await B.evaluate(`document.getElementById('go-code').click()`);
+check(await B.evaluate(`${shown('join-code')} && !${shown('go-solo')} && !${shown('go-host')} && document.getElementById('step-title').textContent === 'Join a contest'`), '... just the code box (no Solo, no Host)');
+await B.evaluate(`document.getElementById('join-code').value = 'ZZZZZZ'; document.getElementById('join-form').requestSubmit()`);
+check(!!(await B.waitFor(`${shown('join-code')} && /No contest has that code/.test(${msg('compete-msg')})`, 15000)), 'a wrong code: back on the code box, saying so');
+await B.evaluate(`document.getElementById('join-code').value = '${code.toLowerCase()}'; document.getElementById('join-form').requestSubmit()`);
+check(!!(await B.waitFor(`${shown('lobby')} && /1 of 8 in/.test(${listText})`, 20000)), 'the right code (any case): the lobby');
+await B.evaluate(`document.getElementById('step-back').click()`);
+check(await B.evaluate(`${shown('go-code')} && !${shown('compete-menu')}`), 'Back from that lobby: the landing, not the locked Compete live');
+// ... and by link.
 await B.go(`${B.base}index.html?contest=${code}`);
 check(!!(await B.waitFor(`${shown('lobby')} && /1 of 8 in/.test(${listText}) && ${shown('lobby-join')}`, 20000)), 'the link opens the lobby: a preview, 1 of 8 in, Join');
 await B.evaluate(`document.getElementById('lobby-nick').value = 'Kai'; document.getElementById('lobby-join').requestSubmit()`);

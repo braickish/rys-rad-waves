@@ -309,14 +309,15 @@ $('start').addEventListener('click', (e) => { e.preventDefault(); startOrRestart
 // surf from there reloads without it (?menu=surf opens Free surf). A link that lands on a locked wave, or on a saved
 // break, opens Free surf.
 let step = null;
-const STEPS = { surf: 'Free surf', compete: 'Compete live', solo: 'Solo heat', host: 'Host a contest', lobby: 'Contest' };
+const STEPS = { surf: 'Free surf', compete: 'Compete live', solo: 'Solo heat', host: 'Host a contest', lobby: 'Contest', join: 'Join a contest' };
 function showStep(which) {
   if (step === 'lobby' && which !== 'lobby') leaveLobby();
   step = which;
   $('home').hidden = !!which; $('step').hidden = !which;
   if (!which) return;
   $('step-title').textContent = STEPS[which];
-  $('compete-menu').hidden = which !== 'compete';
+  $('compete-menu').hidden = which !== 'compete' && which !== 'join';
+  $('go-solo').hidden = $('go-host').hidden = which === 'join'; // (Join: just the code box, for anyone)
   $('host-form').hidden = which !== 'host';
   $('lobby').hidden = which !== 'lobby';
   $('waves').hidden = which !== 'surf' && which !== 'solo';
@@ -327,8 +328,8 @@ function showStep(which) {
 }
 const leaveHeat = () => { const u = new URL(location.href); for (const k of ['heat', 'seed', 'play']) u.searchParams.delete(k); u.searchParams.set('menu', 'surf'); location.href = u; };
 // Build a reef and Compete live come with Pro (the user, 2026-11-25): without it they show greyed with a lock, and a
-// tap opens the Go Pro sheet. Only once sales are open (SALES_OPEN), like the wave locks. A contest link still takes
-// anyone straight to its lobby.
+// tap opens the Go Pro sheet. Only once sales are open (SALES_OPEN), like the wave locks. Joining a contest stays
+// free (the user, 2026-11-25): its link goes straight to the lobby, and "Have a contest code?" opens the code box.
 const PRO_DOORS = { 'go-build': ['Build a reef', 'Building reefs comes with Pro.'], 'go-compete': ['Compete live', 'Competing live comes with Pro.'] };
 let doorsLocked = false;
 onPlan((p) => {
@@ -338,6 +339,7 @@ onPlan((p) => {
     $(id).classList.toggle('locked', doorsLocked);
     $(id).setAttribute('aria-disabled', String(doorsLocked));
   }
+  $('go-code').hidden = !doorsLocked; // (joining a contest is free: by code here, or by its link)
 });
 const proDoor = (id, e) => {
   if (!doorsLocked) return false;
@@ -346,6 +348,7 @@ const proDoor = (id, e) => {
   return true;
 };
 $('go-build').addEventListener('click', (e) => { e.stopPropagation(); proDoor('go-build', e); });
+$('go-code').addEventListener('click', (e) => { e.stopPropagation(); showStep('join'); setTimeout(() => $('join-code').focus(), 0); });
 $('go-surf').addEventListener('click', (e) => { e.stopPropagation(); if (HEAT_END) leaveHeat(); else showStep('surf'); });
 $('go-compete').addEventListener('click', (e) => { e.stopPropagation(); if (!proDoor('go-compete', e)) showStep('compete'); });
 $('go-solo').addEventListener('click', (e) => { e.stopPropagation(); showStep('solo'); });
@@ -369,10 +372,10 @@ const HEAT_LEN_KEY = 'rys-rad-waves-heat-len';
     location.href = u.href.replace(/play=(&|$)/, 'play$1');
   });
 }
-$('step-back').addEventListener('click', (e) => { e.stopPropagation(); showStep(['solo', 'host', 'lobby'].includes(step) ? 'compete' : null); });
+$('step-back').addEventListener('click', (e) => { e.stopPropagation(); showStep(['solo', 'host'].includes(step) || (step === 'lobby' && !doorsLocked) ? 'compete' : null); });
 for (const id of ['home', 'step']) $(id).addEventListener('pointerdown', (e) => e.stopPropagation());
 showStep(HEAT_END ? 'solo' : params.get('menu') === 'surf' || params.has('break') ? 'surf' : null); // (set up as the page starts, so the buttons work before the game has loaded)
-initLobby(showStep, { inHeat: !!HEAT_END }); // (Compete live's Host and Join, and the lobby: src/lobby.js; ?contest= and ?host= open them)
+initLobby(showStep, { inHeat: !!HEAT_END, joinStep: () => (doorsLocked ? 'join' : 'compete') }); // (Compete live's Host and Join, and the lobby: src/lobby.js; ?contest= and ?host= open them)
 if (params.has('menu')) { const u = new URL(location.href); u.searchParams.delete('menu'); history.replaceState(null, '', u); }
 startAccountUI();
 // The walk buttons (longboard wave): walk up toward the nose / back toward the tail, one spot per press.
