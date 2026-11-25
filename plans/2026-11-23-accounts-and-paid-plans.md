@@ -209,9 +209,12 @@ sees it on their profile.
   month is paid; `delete_my_account` waits until Pro is cancelled. Edge Functions `checkout` (Checkout or the Portal;
   no guests, nothing you already have, only the game's own return pages) and `stripe-webhook` (signature-checked;
   re-reads Stripe's current state, so late or repeated events end in the same place).
-  Tests: `supabase/tests/stripe_test.sql` (24), `npm run test:stripe` (31: pays on the real Checkout page in headless
+  Tests: `supabase/tests/stripe_test.sql` (25), `npm run test:stripe` (31: pays on the real Checkout page in headless
   Chrome; Pro on a Stripe test clock through renewal, failed renewal, paying after all, cancelling, ending; refunds
   of both). Local: `npm run functions:serve`, keys in `supabase/functions/.env` (`rrw-set-stripe-key --local`).
+  Cloud: both functions deployed; the sandbox's webhook endpoint (`we_1UfcJk5JByhnbHbWl8XR8NDP`, API 2025-08-27.basil)
+  points at the cloud `stripe-webhook`, its secret in Supabase secrets. The sandbox is shared by local tests and the
+  cloud, so an event for a player a database doesn't have is acknowledged and skipped (not retried).
 - [ ] **9. Paywall UX.** Locked waves in the picker with a "Wave Pass" sheet, "Go Pro" where building or hosting needs it,
   the plan on the account page, and the return from checkout landing back where you were. Terms and privacy pages.
   Check it end to end in test mode in the browser, on a phone too.

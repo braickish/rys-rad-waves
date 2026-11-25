@@ -51,7 +51,8 @@ as $$
   on conflict (user_id) do update set customer_id = excluded.customer_id
 $$;
 
--- Insert or update the row for this payment or subscription.
+-- Insert or update the row for this payment or subscription. A user that isn't here (deleted, or a test's from another
+-- database sharing the Stripe sandbox) answers null, so the webhook can say so instead of failing and being retried.
 create function public.stripe_put_entitlement(uid uuid, want text, external text, new_status text, until timestamptz)
 returns public.entitlements
 language plpgsql
@@ -61,6 +62,9 @@ as $$
 declare
   row public.entitlements;
 begin
+  if not exists (select 1 from auth.users u where u.id = uid) then
+    return null;
+  end if;
   insert into public.entitlements as e (user_id, kind, source, status, expires_at, external_id)
   values (uid, want, 'stripe', new_status, until, external)
   on conflict (source, external_id) where external_id is not null do update

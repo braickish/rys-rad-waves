@@ -2,7 +2,7 @@
 -- call these; a payment or subscription is one row, kept in step; a refund sticks until a later period is paid; and
 -- you can't delete your account while Pro is still renewing.
 begin;
-select plan(24);
+select plan(25);
 
 insert into auth.users (id, email, aud, role, is_anonymous) values
   ('b0000000-0000-0000-0000-000000000001', 'buyer@example.com', 'authenticated', 'authenticated', false),
@@ -34,6 +34,10 @@ select pg_temp.as_service();
 select lives_ok($$ select public.stripe_link_customer('b0000000-0000-0000-0000-000000000001', 'cus_buyer') $$, 'link a customer');
 select is(public.stripe_customer_of('b0000000-0000-0000-0000-000000000001'), 'cus_buyer', 'customer of the user');
 select is(public.stripe_user_of('cus_buyer'), 'b0000000-0000-0000-0000-000000000001'::uuid, 'user of the customer');
+
+-- A player this database doesn't have (another database's test, sharing the sandbox): nothing written, no error.
+select is((public.stripe_put_entitlement('c0000000-0000-0000-0000-00000000000f', 'wave_pass', 'pi_elsewhere', 'active', null)).id, null,
+  'a user who is not here: no row, no error');
 
 -- A Wave Pass: once per payment, however many times the webhook comes.
 select public.stripe_put_entitlement('b0000000-0000-0000-0000-000000000001', 'wave_pass', 'pi_1', 'active', null);

@@ -14,8 +14,9 @@ const ok = (body: unknown = { received: true }, status = 200) =>
 const id = (x: string | { id: string } | null | undefined) => (typeof x === 'string' ? x : x?.id ?? null);
 const at = (seconds: number | null | undefined) => (seconds ? new Date(seconds * 1000).toISOString() : null);
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 async function userOf(meta: Stripe.Metadata | null | undefined, customer: string | null): Promise<string | null> {
-  if (meta?.user_id) return meta.user_id;
+  if (meta?.user_id) return UUID.test(meta.user_id) ? meta.user_id : null;
   return customer ? await rpc<string | null>('stripe_user_of', { customer }) : null;
 }
 
@@ -54,8 +55,8 @@ async function syncSubscription(subId: string) {
     default: // (incomplete, paused: nothing paid for yet)
       return `skipped ${sub.status}`;
   }
-  await rpc('stripe_put_entitlement', { uid, want: 'pro', external: sub.id, new_status: status, until });
-  return `pro ${status} until ${until}`;
+  const row = await rpc<{ id: number | null } | null>('stripe_put_entitlement', { uid, want: 'pro', external: sub.id, new_status: status, until });
+  return row?.id ? `pro ${status} until ${until}` : 'no such user here';
 }
 
 async function checkoutDone(sessionId: string) {
@@ -63,11 +64,12 @@ async function checkoutDone(sessionId: string) {
   if (s.metadata?.game_id && s.metadata.game_id !== GAME_ID) return 'another game';
   if (s.payment_status !== 'paid' && s.payment_status !== 'no_payment_required') return `not paid (${s.payment_status})`;
   if (s.mode === 'subscription') return await syncSubscription(id(s.subscription)!);
-  const uid = s.client_reference_id ?? await userOf(s.metadata, id(s.customer));
+  const uid = (s.client_reference_id && UUID.test(s.client_reference_id) ? s.client_reference_id : null) ??
+    await userOf(s.metadata, id(s.customer));
   const pi = id(s.payment_intent);
   if (!uid || !pi || s.metadata?.kind !== 'wave_pass') return 'not a Wave Pass';
-  await rpc('stripe_put_entitlement', { uid, want: 'wave_pass', external: pi, new_status: 'active', until: null });
-  return 'wave pass';
+  const row = await rpc<{ id: number | null } | null>('stripe_put_entitlement', { uid, want: 'wave_pass', external: pi, new_status: 'active', until: null });
+  return row?.id ? 'wave pass' : 'no such user here';
 }
 
 // A full refund. A Pro month is found through the subscription invoice its payment paid (basil: InvoicePayments, since
