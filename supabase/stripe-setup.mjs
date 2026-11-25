@@ -1,6 +1,6 @@
 // Sets up Stripe for Ry's Rad Waves (accounts plan task 8): the products, prices and Customer Portal. Safe to run
 // again: it creates only what's missing. Goes through the Stripe CLI (logged in; `stripe switch` picks the account),
-// so no key passes through here. Test mode only unless you add --live on purpose.
+// so no key passes through here. Names and descriptions are kept in step with this file. Test mode only unless you add --live on purpose.
 //   node supabase/stripe-setup.mjs            (the sandbox the CLI is on)
 //
 // Conventions (one Stripe account for all the games):
@@ -23,7 +23,7 @@ const tryGet = (...args) => { try { return stripe(...args); } catch (e) { if (/N
 const GAME = 'rys_rad_waves';
 const ITEMS = [
   { id: `${GAME}_wave_pass`, type: 'wave_pass', name: "Ry's Rad Waves: Wave Pass",
-    description: 'Every wave in the game, for life.', tax_code: 'txcd_10201000', // (video games, downloaded, permanent rights)
+    description: 'All the waves. For life.', tax_code: 'txcd_10201000', // (video games, downloaded, permanent rights)
     lookup: `${GAME}_wave_pass_usd`, amount: 500 },
   { id: `${GAME}_pro`, type: 'pro', name: "Ry's Rad Waves: Pro",
     description: 'Build and save your own breaks, host contests, and every wave.', tax_code: 'txcd_10201002', // (subscription)
@@ -36,6 +36,10 @@ for (const it of ITEMS) {
     product = stripe('products', 'create', '--id', it.id, '--name', it.name, '--description', it.description,
       '--tax-code', it.tax_code, '-d', `metadata[game_id]=${GAME}`, '-d', `metadata[type]=${it.type}`, '-d', 'metadata[platform]=web');
     console.log(`made product ${product.id}`);
+  } else if (product.name !== it.name || product.description !== it.description) {
+    // (the words on the Checkout page follow this file)
+    product = stripe('products', 'update', it.id, '--name', it.name, '--description', it.description);
+    console.log(`updated product ${product.id}: ${product.description}`);
   } else console.log(`have product ${product.id}`);
 
   const prices = stripe('prices', 'list', '-d', `lookup_keys[]=${it.lookup}`, '--active', 'true');
