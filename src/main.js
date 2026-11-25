@@ -13,7 +13,7 @@ import { createPose, surferObjects } from './surfer.js';
 import { loadSkinnedGLB } from './glb.js';
 import { createBody } from './body.js';
 import { startAccountUI } from './account-ui.js';
-import { cachedProfile, onPlan, waveLocked, onAccount } from './account.js';
+import { cachedProfile, onPlan, waveLocked, onAccount, SALES_OPEN } from './account.js';
 import { myBreaks } from './breaks.js';
 import { openPaywall, startPaywall } from './paywall.js';
 import { initLobby, leaveLobby } from './lobby.js';
@@ -326,8 +326,28 @@ function showStep(which) {
   if (which !== 'surf') $('lock-note').hidden = true;
 }
 const leaveHeat = () => { const u = new URL(location.href); for (const k of ['heat', 'seed', 'play']) u.searchParams.delete(k); u.searchParams.set('menu', 'surf'); location.href = u; };
+// Build a reef and Compete live come with Pro (the user, 2026-11-25): without it they show greyed with a lock, and a
+// tap opens the Go Pro sheet. Only once sales are open (SALES_OPEN), like the wave locks. A contest link still takes
+// anyone straight to its lobby.
+const PRO_DOORS = { 'go-build': ['Build a reef', 'Building reefs comes with Pro.'], 'go-compete': ['Compete live', 'Competing live comes with Pro.'] };
+let doorsLocked = false;
+onPlan((p) => {
+  doorsLocked = SALES_OPEN && !p.pro;
+  for (const [id, [label]] of Object.entries(PRO_DOORS)) {
+    $(id).textContent = (doorsLocked ? '🔒 ' : '') + label;
+    $(id).classList.toggle('locked', doorsLocked);
+    $(id).setAttribute('aria-disabled', String(doorsLocked));
+  }
+});
+const proDoor = (id, e) => {
+  if (!doorsLocked) return false;
+  e.preventDefault();
+  openPaywall({ want: 'pro', why: PRO_DOORS[id][1] });
+  return true;
+};
+$('go-build').addEventListener('click', (e) => { e.stopPropagation(); proDoor('go-build', e); });
 $('go-surf').addEventListener('click', (e) => { e.stopPropagation(); if (HEAT_END) leaveHeat(); else showStep('surf'); });
-$('go-compete').addEventListener('click', (e) => { e.stopPropagation(); showStep('compete'); });
+$('go-compete').addEventListener('click', (e) => { e.stopPropagation(); if (!proDoor('go-compete', e)) showStep('compete'); });
 $('go-solo').addEventListener('click', (e) => { e.stopPropagation(); showStep('solo'); });
 // Start heat (Solo): the length from the dropdown (remembered). A heat is set up as the page loads, so a new length
 // reloads with ?heat=<length>&play; the heat that's already set up just starts.

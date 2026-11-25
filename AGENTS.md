@@ -21,7 +21,7 @@ original pills, then your saved breaks the same way when signed in, and DROP IN;
 which boot.js loads without dropping in), **Build a reef** (builder.html) and **Compete live** (**Solo**: the waves, then
 **Start heat** (DROP IN's style) with its length (10 minutes or 5 waves, remembered) as small text below it, a dropdown; against bots; live
 heats with friends later; **Host a contest** and a code field to **Join**, and the lobby at `?contest=<code>`:
-src/lobby.js, src/contests.js; accounts plan task 11). A `?heat=` link opens on Solo; `?menu=surf`, a
+src/lobby.js, src/contests.js; accounts plan task 11). Build a reef and Compete live are Pro: without it (once sales are open, `SALES_OPEN`) they show greyed with 🔒 and a tap opens the Go Pro sheet; a contest link still reaches its lobby. A `?heat=` link opens on Solo; `?menu=surf`, a
 `?break=` link, or a link to a locked wave opens Free surf.
 URL options: `?wave=point|reef|queens|trestles` (older `?wave=barrel` / `crumble` still work), `?play` (skip the
 title), `?auto` (autopilot works the pocket; a test can set `window.__manual = true` to take over the keys), `?xs=-4` (start behind the peel), `?cam=1` (chase

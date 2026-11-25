@@ -12,9 +12,10 @@ const CORS = {
 const answer = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), { status, headers: { ...CORS, 'content-type': 'application/json' } });
 
-// Where Stripe may send you back to: the game's own pages only.
+// Where Stripe may send you back to: the game's own pages only (Pages serves it at braickish.com/rys-rad-waves/; the
+// github.io address redirects there; rysradwaves.com later).
 const SITES = (Deno.env.get('CHECKOUT_RETURN_SITES') ??
-  'https://braickish.github.io/rys-rad-waves/,https://rysradwaves.com/,https://www.rysradwaves.com/').split(',');
+  'https://braickish.com/rys-rad-waves/,https://www.braickish.com/rys-rad-waves/,https://braickish.github.io/rys-rad-waves/,https://rysradwaves.com/,https://www.rysradwaves.com/').split(',');
 function returnTo(raw: unknown): URL | null {
   try {
     const u = new URL(String(raw));

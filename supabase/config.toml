@@ -427,8 +427,9 @@ enabled = true
 project_id = "lyttzshnxspdugvonjea"
 
 [remotes.production.auth]
-site_url = "https://braickish.github.io/rys-rad-waves/"
-additional_redirect_urls = ["https://braickish.github.io/rys-rad-waves/**", "https://rysradwaves.com/**", "https://www.rysradwaves.com/**"]
+# (Pages serves the game at braickish.com/rys-rad-waves/; the github.io address redirects there)
+site_url = "https://braickish.com/rys-rad-waves/"
+additional_redirect_urls = ["https://braickish.com/rys-rad-waves/**", "https://www.braickish.com/rys-rad-waves/**", "https://braickish.github.io/rys-rad-waves/**", "https://rysradwaves.com/**", "https://www.rysradwaves.com/**"]
 # Emails (accounts plan task 11a): the send-email hook, through Resend from howdy@rysradwaves.com. On since 2026-11-25
 # (the domain verified in Resend, the key in Supabase secrets by ~/scripts/rrw-set-resend-key). The hook's secret is the cloud's own (supabase/.env, SEND_EMAIL_HOOK_SECRET_CLOUD,
 # git-ignored; the same value is in Supabase secrets as SEND_EMAIL_HOOK_SECRET). Until then Supabase's built-in sender

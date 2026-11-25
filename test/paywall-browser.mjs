@@ -40,6 +40,15 @@ check(!(await evaluate(vis('buy-pass'))) && !(await evaluate(vis('buy-pro'))), '
 // 2. A visitor taps a locked wave.
 await go(`${b.base}?paywall&wave=point`);
 await ready(); await sleep(800);
+const door = (id) => `(() => { const e = document.getElementById('${id}'); return e.classList.contains('locked') && /🔒/.test(e.textContent); })()`;
+check(!!(await waitFor(`${door('go-build')} && ${door('go-compete')} && !document.getElementById('go-surf').classList.contains('locked')`, 15000)), 'not Pro: Build a reef and Compete live are locked, Free surf isn\'t');
+await evaluate(`document.getElementById('go-compete').click()`); await sleep(300);
+check((await evaluate(offers)) === 'pw-pro' && /Competing live comes with Pro/.test(await evaluate(`document.querySelector('#paywall .pw-why').textContent`)), 'tapping Compete live opens the Pro sheet');
+check(await evaluate(`!document.getElementById('home').hidden`), '... and stays on the landing');
+await key('Escape', 'Escape');
+await evaluate(`document.getElementById('go-build').click()`); await sleep(300);
+check((await evaluate(offers)) === 'pw-pro' && /^\?/.test(await evaluate('location.search')) && !/builder/.test(await evaluate('location.pathname')), 'tapping Build a reef opens the Pro sheet, not the builder');
+await key('Escape', 'Escape');
 await tap('Pipe'); await sleep(300);
 check(await evaluate(sheet), 'tapping Pipe opens the sheet');
 check((await evaluate(offers)) === 'pw-wave_pass,pw-pro', `both offers, the pass first (${await evaluate(offers)})`);
@@ -117,6 +126,8 @@ check((await evaluate(on)) === 'Raglan', '... waiting on Raglan');
 await grant(uid2, 'wave_pass'); // (as the webhook would)
 check(!!(await waitFor(`/yours/.test(${toastText})`, 15000)), 'then the pass shows up');
 check(!!(await waitFor(`${on} === 'Trestles'`, 5000)), `... and you're put on Trestles (${await evaluate(on)})`);
+await go(`${b.base}?wave=point`);
+check(!!(await waitFor(`document.getElementById('go-compete').classList.contains('locked')`, 15000)), 'a Wave Pass alone: Compete live stays locked (it\'s Pro)');
 await go(`${b.base}?wave=point&checkout=cancel`);
 check(/No charge/.test(await waitFor(`/No charge/.test(${toastText}) && ${toastText}`, 15000) || ''), 'cancelled: "No charge."');
 
@@ -138,5 +149,10 @@ check(!!(await waitFor(`${vis('buy-pass')} && ${vis('buy-pro')} && !${vis('billi
 await evaluate(`document.getElementById('buy-pro').click()`); await sleep(300);
 check((await evaluate(offers)) === 'pw-pro', 'Go Pro there opens the Pro sheet');
 await shot('6-account');
+await grant(await evaluate(`JSON.parse(localStorage.getItem('rys-rad-waves-auth')).user.id`), 'pro');
+await go(`${b.base}?wave=point`);
+check(!!(await waitFor(`!document.getElementById('go-compete').classList.contains('locked') && document.getElementById('go-compete').textContent === 'Compete live' && document.getElementById('go-build').textContent === 'Build a reef' && document.querySelectorAll('#waves button').length > 0`, 15000)), 'Pro: both open');
+await evaluate(`document.getElementById('go-compete').click()`);
+check(await evaluate(`!document.getElementById('compete-menu').hidden && !document.getElementById('paywall')`), '... and Compete live opens its menu');
 
 await b.done();
