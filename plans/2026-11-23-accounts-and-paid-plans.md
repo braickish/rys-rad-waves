@@ -141,8 +141,8 @@ sees it on their profile.
 ## Decisions (the user, 2026-11-23)
 
 - **Prices:** Wave Pass **$5** one-time, for life. Pro **$3/month** for everything else (it includes the Wave Pass).
-- **Domain:** **rysradwaves.com**. Magic-link emails come from **howdy@rysradwaves.com** through a custom SMTP sender
-  (e.g. Resend), and the domain carries the site (Pages custom domain) and the Supabase auth redirect URLs.
+- **Domain:** **rysradwaves.com**. Magic-link emails come from **howdy@rysradwaves.com**, sent by Resend through
+  Supabase's Send Email Hook (task 11a; the user, 2026-11-25), and the domain carries the site (Pages custom domain) and the Supabase auth redirect URLs.
 - **iOS app:** purchases go through Apple's in-app purchase (`source = 'apple'`), with no link-out.
 - The defaults stand: a visitor gets one demo wave (Raglan), the builder to try (no saving), and any contest they're
   invited to. The Wave Pass unlocks every non-Pro wave, including future ones. The builder stays open to try. Visitors
@@ -247,6 +247,17 @@ sees it on their profile.
 - **Jerseys in contests (the user, 2026-11-24):** each contest heat draws its surfers' jersey colours at random (from
   the heat's seed, all different, stored with the heat so every client shows the same), whatever your profile says. Your
   profile's jersey is what you wear in solo heats. The surfer wears the jersey over any outfit, at every water temperature.
+- [ ] **11a. Email through Resend (the Send Email Hook).** Supabase's built-in sender allows only about 2 emails an
+  hour, too few for sign-ups, sign-ins and email changes once people play. Auth hands every email to an Edge Function
+  `send-email` (Auth Hooks: Send Email, HTTP), which checks the hook's signature (Standard Webhooks, the hook secret),
+  words the email itself (sign-in and sign-up link, email change to both addresses, reauthentication; the game's look,
+  plain-text part too) and sends it with Resend's API from **howdy@rysradwaves.com**. Then the email rate limit goes
+  up (`[auth.rate_limit] email_sent`, e.g. 100 an hour; per-address limits stay Supabase's).
+  The user's part: a Resend account, the domain rysradwaves.com verified in Resend (its SPF, DKIM and return-path DNS
+  records), and the API key into Supabase secrets through a hidden-prompt script (`rrw-set-resend-key`, as with
+  Stripe). Local: the hook in `config.toml` points at the local function, with emails still landing in Mailpit when
+  no key is set (so the browser tests keep reading links there). Tests: the function refuses an unsigned or wrongly
+  signed call, builds each email type with the right link, and a sign-in end to end in the browser.
 - [ ] **12. Live heats.** Contests phase 4, uploading each ride's log with its score, plus "Keep your scores" (claiming
   an anonymous account) on the results card. Test: a two-player heat end to end, then the guest claims and the results
   move to their profile.
