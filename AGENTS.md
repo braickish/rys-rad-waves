@@ -1231,3 +1231,16 @@ WebGPU enabled, so it catches WGSL/pipeline errors and shows real frames.
 Sound (surf roar, spray), more trick moves, wave sets with varying size and peel speed, bringing
 the barrel back into the default wave, and testing on a real iPhone (only emulated so far; GPU errors
 now show on screen to help).
+
+## Free access by hand (comps)
+
+Give someone the Wave Pass or Pro for free, or take it back, from the Supabase dashboard's SQL editor (they must have
+signed in once). It's a row in `entitlements` with `source = 'grant'`, which every Pro check already reads (the menu
+locks, saving breaks, hosting contests, the account page's Plan).
+
+```sql
+select private.grant_entitlement('friend@example.com', 'pro', interval '1 year', 'beta tester'); -- Pro needs an end; '100 years' for open-ended
+select private.grant_entitlement('friend@example.com', 'wave_pass');                             -- for life
+select private.revoke_grant('friend@example.com', 'pro');  -- ends granted Pro now (bought Pro is never touched)
+select private.revoke_grant('friend@example.com');         -- ends every grant they have
+```
