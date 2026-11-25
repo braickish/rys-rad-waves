@@ -47,10 +47,11 @@ export async function openBrowser({ shots } = {}) {
   // Visible: not hidden and laid out.
   const vis = (elId) => `(() => { const e = document.getElementById('${elId}'); return !!e && !e.hidden && e.offsetParent !== null; })()`;
   const text = (elId) => evaluate(`document.getElementById('${elId}')?.textContent`);
-  const done = async () => { try { ws.close(); } catch {} chrome.kill(); server.close(); await sleep(300); rmSync(profile, { recursive: true, force: true }); console.log(fails ? `${fails} failed` : 'all passed'); process.exit(fails ? 1 : 0); };
+  const close = async () => { try { ws.close(); } catch {} chrome.kill(); server.close(); await sleep(300); rmSync(profile, { recursive: true, force: true }); };
+  const done = async () => { await close(); console.log(fails ? `${fails} failed` : 'all passed'); process.exit(fails ? 1 : 0); };
   await send('Runtime.enable'); await send('Page.enable');
   for (let i = 0; i < 50; i++) { try { if ((await fetch(`http://127.0.0.1:${webPort}/`)).ok) break; } catch {} await sleep(100); }
-  return { base: `http://127.0.0.1:${webPort}/`, send, evaluate, waitFor, shot, key, type, go, vis, text, check, done };
+  return { base: `http://127.0.0.1:${webPort}/`, send, evaluate, waitFor, shot, key, type, go, vis, text, check, done, close };
 }
 
 // The newest sign-in (or confirm) link sent to this address, waiting for it to arrive.

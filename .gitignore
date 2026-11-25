@@ -6,3 +6,6 @@ node_modules/
 supabase/.temp/
 supabase/.branches/
 .claude/
+
+# Edge Function secrets for local runs (Stripe test keys)
+supabase/functions/.env

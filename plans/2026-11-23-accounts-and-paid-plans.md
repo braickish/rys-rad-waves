@@ -196,9 +196,22 @@ sees it on their profile.
   browser remembers is offered as your first break. `index.html?break=<id>` drops straight in (`src/boot.js`);
   `builder.html?break=<id>` opens it (someone else's as a copy to keep). Tests: `supabase/tests/breaks_test.sql` (22),
   `test:breaks-browser` (20). Also: service_role can now run the name check (it couldn't change a profile or a break).
-- [ ] **8. Stripe.** Products and prices (test mode), the `checkout` and `stripe-webhook` Edge Functions, the Customer
-  Portal link, and Stripe Tax. Tests: Stripe CLI test events → the right `entitlements` rows (buy, renew, cancel, failed
-  payment, refund).
+- [x] **8. Stripe.** (2026-11-25) **Managed Payments** (the user's call): Stripe is the merchant of record and handles
+  sales tax and VAT; receipts come from Link, and statements read `LINK.COM*`. `STRIPE_MANAGED_PAYMENTS=off` falls back
+  to selling as Braickish with Stripe Tax (`STRIPE_TAX=on`, which needs a head office set). Prices **include tax** ($5 is
+  the total). One Stripe account for all the games: product ids `{game}_{item}` (`rys_rad_waves_wave_pass`,
+  `rys_rad_waves_pro`), prices found by lookup key `{game}_{item}_{currency}` (`rys_rad_waves_wave_pass_usd`,
+  `rys_rad_waves_pro_monthly_usd`), metadata `game_id`/`type`/`platform`, video game tax codes; the Customer Portal
+  (cards, receipts, cancel at the end of the month, renew). `node supabase/stripe-setup.mjs` makes all of it (it only
+  adds what's missing). Stripe API pinned to `2025-08-27.basil` (`npm:stripe@18.5.0`).
+  Migration `20261125000000_stripe.sql`: customers and an event log (private), and functions only service_role can call;
+  Pro past due counts from the start of the unpaid month (so the 3 days' grace is real); a refund sticks until a later
+  month is paid; `delete_my_account` waits until Pro is cancelled. Edge Functions `checkout` (Checkout or the Portal;
+  no guests, nothing you already have, only the game's own return pages) and `stripe-webhook` (signature-checked;
+  re-reads Stripe's current state, so late or repeated events end in the same place).
+  Tests: `supabase/tests/stripe_test.sql` (24), `npm run test:stripe` (31: pays on the real Checkout page in headless
+  Chrome; Pro on a Stripe test clock through renewal, failed renewal, paying after all, cancelling, ending; refunds
+  of both). Local: `npm run functions:serve`, keys in `supabase/functions/.env` (`rrw-set-stripe-key --local`).
 - [ ] **9. Paywall UX.** Locked waves in the picker with a "Wave Pass" sheet, "Go Pro" where building or hosting needs it,
   the plan on the account page, and the return from checkout landing back where you were. Terms and privacy pages.
   Check it end to end in test mode in the browser, on a phone too.

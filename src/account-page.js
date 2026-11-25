@@ -74,7 +74,11 @@ $('delete-form').addEventListener('submit', async (e) => {
   if ($('delete').disabled) return;
   $('delete').disabled = true;
   try { await deleteAccount(); location.href = './?deleted'; }
-  catch (err) { hint('delete-msg', describeAuthError(err), 'bad'); $('delete').disabled = false; }
+  catch (err) {
+    // (Pro that still renews has to be cancelled first, so nobody keeps paying for an account that's gone)
+    const words = err?.hint === 'pro_renewing' ? 'Cancel Pro first (in Manage billing). Then you can delete your account.' : describeAuthError(err);
+    hint('delete-msg', words, 'bad'); $('delete').disabled = false;
+  }
 });
 
 // Your plan (task 6; buying and the Customer Portal come in tasks 8-9).

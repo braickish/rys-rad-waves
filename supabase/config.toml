@@ -424,3 +424,11 @@ site_url = "https://braickish.github.io/rys-rad-waves/"
 additional_redirect_urls = ["https://braickish.github.io/rys-rad-waves/**", "https://rysradwaves.com/**", "https://www.rysradwaves.com/**"]
 # Launch: custom SMTP so magic links come from howdy@rysradwaves.com (e.g. Resend). Until then Supabase's
 # built-in sender is used, which is limited to a few emails an hour.
+
+# Accounts plan task 8. Both check who you are themselves: checkout reads your session, the webhook checks Stripe's
+# signature (Stripe sends no Supabase token).
+[functions.checkout]
+verify_jwt = false
+
+[functions.stripe-webhook]
+verify_jwt = false
