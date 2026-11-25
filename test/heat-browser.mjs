@@ -41,16 +41,26 @@ await send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 720, dev
 const base = `http://127.0.0.1:${webPort}/`;
 const H = (expr) => evaluate(`(() => { const h = window.__heat; return h && (${expr}); })()`);
 
-// 0. Into a heat from the title screen: the mode buttons reload with ?heat=, the wave kept; Free surf goes back.
+// 0. The landing: three ways in. Compete -> a heat length reloads with ?heat=, the wave kept, back on Compete; Free
+// surf goes back out of the heat.
 await send('Page.navigate', { url: `${base}?wave=${WAVE}` });
+const shown = (id) => `(() => { const e = document.getElementById('${id}'); return !!e && e.offsetParent !== null; })()`;
 const modeBtn = (label) => `[...document.querySelectorAll('#modes button')].find((b) => b.textContent === '${label}')`;
-check(!!(await waitFor(`${modeBtn('Free surf')}?.className === 'on'`, 20000)), 'title: Free surf is lit');
+check(!!(await waitFor(`${shown('go-surf')} && ${shown('go-build')} && ${shown('go-compete')} && !${shown('start')} && document.querySelectorAll('#waves button').length > 0`, 20000)), 'landing: Free surf, Build a reef, Compete live; no DROP IN yet');
+check((await evaluate(`document.getElementById('go-build').getAttribute('href')`)) === 'builder.html', 'Build a reef goes to the builder');
+await shot('0-landing');
+await evaluate(`document.getElementById('go-surf').click()`);
+check(await evaluate(`${shown('waves')} && ${shown('start')} && !${shown('modes')} && !${shown('go-surf')}`), 'Free surf: the waves and DROP IN');
+await evaluate(`document.getElementById('step-back').click()`);
+check(await evaluate(shown('go-compete')), 'Back: the landing again');
+await evaluate(`document.getElementById('go-compete').click()`);
+check(await evaluate(`${shown('modes')} && ${shown('compete-note')} && !${shown('start')}`), 'Compete: heat lengths, no DROP IN until one is picked');
 await evaluate(`${modeBtn('Heat · 5 waves')}.click()`);
-const into = await waitFor(`location.search.includes('heat=5w') && ${modeBtn('Heat · 5 waves')}?.className === 'on' && document.getElementById('heat-note').textContent`, 20000);
-check(!!into && (await evaluate(`new URLSearchParams(location.search).get('wave')`)) === WAVE, `"Heat · 5 waves" reloads into a heat: "${into}"`);
+const into = await waitFor(`location.search.includes('heat=5w') && ${modeBtn('Heat · 5 waves')}?.className === 'on' && ${shown('start')} && document.getElementById('heat-note').textContent`, 20000);
+check(!!into && (await evaluate(`new URLSearchParams(location.search).get('wave')`)) === WAVE, `"Heat · 5 waves" reloads into a heat, on Compete: "${into}"`);
 await shot('0-modes');
-await evaluate(`${modeBtn('Free surf')}.click()`);
-check(!!(await waitFor(`!location.search.includes('heat') && document.getElementById('heat-note').hidden && ${modeBtn('Free surf')}?.className === 'on'`, 20000)), 'Free surf goes back');
+await evaluate(`document.getElementById('step-back').click(); document.getElementById('go-surf').click()`);
+check(!!(await waitFor(`!location.search.includes('heat') && document.getElementById('heat-note').hidden && ${shown('go-surf')}`, 20000)), 'Free surf leaves the heat');
 
 // 1. A one-minute heat.
 await send('Page.navigate', { url: `${base}?play&auto&heat=1m&seed=5&wave=${WAVE}` });

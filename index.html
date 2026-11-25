@@ -128,6 +128,15 @@
   .waves { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin: 0 auto 16px; max-width: 460px; }
   .waves button { font-family: Rubik, sans-serif; font-weight: 700; font-size: 13px; color: #fff; background: rgba(11,26,36,.55); border: 2px solid rgba(255,255,255,.5); border-radius: 18px; padding: 6px 12px; cursor: pointer; }
   .modes { margin-top: -6px; } .modes button { font-size: 12px; padding: 4px 10px; }
+  /* The landing: three ways in (free surf, build a reef, compete) */
+  #title [hidden] { display: none !important; }
+  .home { display: grid; gap: 12px; max-width: 320px; margin: 0 auto; }
+  .home button, .home a { display: block; font-family: Bungee, sans-serif; font-size: 22px; line-height: 1.1; color: var(--ink); background: var(--teal); border: 3px solid #fff; border-radius: 24px; padding: 12px 20px 10px; cursor: pointer; text-decoration: none; text-shadow: none; box-shadow: 3px 3px 0 rgba(0,0,0,.3); }
+  .home a { background: var(--yellow); } .home #go-compete { background: var(--pink); color: #fff; }
+  .home small { display: block; font: 500 13px Rubik, sans-serif; margin-top: 4px; opacity: .85; }
+  .step-head { display: flex; align-items: center; justify-content: center; gap: 10px; margin: -8px 0 12px; }
+  .step-head b { font-family: Bungee, sans-serif; font-weight: 400; font-size: 18px; color: var(--yellow); text-shadow: 2px 2px 0 var(--ink); }
+  #compete-note { margin: -4px 0 14px; }
   .waves button.locked { opacity: .7; border-style: dashed; }
   #lock-note { margin: -4px 0 14px; }
   .waves button.on { background: var(--teal); border-color: #fff; color: var(--ink); }
@@ -187,11 +196,20 @@
 <div class="panel" id="title">
   <div class="card">
     <h1 class="logo">Ry's Rad<span>Waves</span></h1>
-    <div id="waves" class="waves"></div>
-    <div id="modes" class="waves modes"></div>
-    <div id="lock-note" class="heat-note" hidden></div>
-    <button id="start" class="start">Drop in</button>
-    <div id="heat-note" class="heat-note" hidden></div>
+    <div id="home" class="home">
+      <button id="go-surf" type="button">Free surf<small>Pick a wave and ride</small></button>
+      <a id="go-build" href="builder.html">Build a reef<small>Shape your own break</small></a>
+      <button id="go-compete" type="button">Compete live<small>Heats against rivals</small></button>
+    </div>
+    <div id="step" hidden>
+      <div id="step-head" class="step-head"><button id="step-back" type="button" class="acct-link">← Back</button><b id="step-title"></b></div>
+      <div id="waves" class="waves"></div>
+      <div id="modes" class="waves modes" hidden></div>
+      <div id="compete-note" class="heat-note" hidden>Live heats against your friends are coming soon. For now, surf a heat against three rivals.</div>
+      <div id="lock-note" class="heat-note" hidden></div>
+      <button id="start" class="start">Drop in</button>
+      <div id="heat-note" class="heat-note" hidden></div>
+    </div>
     <div id="account" class="account">
       <button id="acct-open" class="acct-link" hidden>Sign in</button>
       <form id="acct-form" class="acct-form" hidden>

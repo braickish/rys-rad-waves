@@ -301,6 +301,24 @@ const SWIPE_PX = 45; // full turn at this far from where the swipe started
 $('over').addEventListener('pointerdown', (e) => { e.preventDefault(); startOrRestart(); });
 $('judge').addEventListener('pointerdown', (e) => { e.preventDefault(); startOrRestart(); });
 $('start').addEventListener('click', (e) => { e.preventDefault(); startOrRestart(); });
+// The landing: three ways in. Free surf and Compete open a step with the wave picker and DROP IN (Compete adds the
+// heat length); Build a reef is a link to the builder. A heat is set up as the page loads, so a heat link (?heat=)
+// opens straight on Compete, and Free surf from there reloads without it. A link that lands on a locked wave opens
+// Free surf, where the note is.
+function showStep(which) {
+  $('home').hidden = !!which; $('step').hidden = !which;
+  if (!which) return;
+  $('step-title').textContent = which === 'compete' ? 'Compete' : 'Free surf';
+  $('modes').hidden = $('compete-note').hidden = which !== 'compete';
+  $('start').hidden = which === 'compete' && !HEAT_END; // (pick a heat length first)
+  if (which === 'compete') $('lock-note').hidden = true;
+}
+const leaveHeat = () => { const u = new URL(location.href); u.searchParams.delete('heat'); u.searchParams.delete('seed'); u.searchParams.delete('play'); location.href = u; };
+$('go-surf').addEventListener('click', (e) => { e.stopPropagation(); if (HEAT_END) leaveHeat(); else showStep('surf'); });
+$('go-compete').addEventListener('click', (e) => { e.stopPropagation(); showStep('compete'); });
+$('step-back').addEventListener('click', (e) => { e.stopPropagation(); showStep(null); });
+for (const id of ['home', 'step']) $(id).addEventListener('pointerdown', (e) => e.stopPropagation());
+showStep(HEAT_END ? 'compete' : null); // (set up as the page starts, so the buttons work before the game has loaded)
 startAccountUI();
 // The walk buttons (longboard wave): walk up toward the nose / back toward the tail, one spot per press.
 $('walk-up').addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); walkPress = 1; });
@@ -996,6 +1014,7 @@ async function main() {
     if (state === 'title' && waveLocked(WAVE.id) && !params.has('replay')) {
       const was = WAVE; wanted = was.id; pickWave('point');
       $('lock-note').hidden = false; $('lock-note').textContent = `${why(was)} You're on Raglan, free for everyone.`;
+      if (!HEAT_END) showStep('surf'); // (where the note is)
     } else if (state === 'title' && wanted && !waveLocked(wanted) && WAVES.some((w) => w.id === wanted)) {
       const id = wanted; wanted = null; $('lock-note').hidden = true; pickWave(id);
     } else drawPicker();
@@ -1005,10 +1024,10 @@ async function main() {
     why: (kind) => (kind === 'wave_pass' && wanted ? why(WAVES.find((w) => w.id === wanted)) : ''),
     back: (kind) => (kind === 'wave_pass' ? wantedBack() : undefined),
   }).catch((e) => console.warn('paywall', e));
-  // Mode, under the waves: free surf or a solo heat against bots (accounts plan task 3). A heat is set up as the page
-  // loads, so picking one reloads with ?heat= (the wave kept); a live contest will take a code here later (task 11).
+  // Heat length, on Compete: a solo heat against bots (accounts plan task 3) reloads with ?heat= (the wave kept); a
+  // live contest will take a code here later (task 11).
   const modes = $('modes'), cur = JSON.stringify(HEAT_END); // (a heat of another length, ?heat=3m, lights none)
-  for (const [label, val] of [['Free surf', ''], ['Heat · 10 min', '10m'], ['Heat · 5 waves', '5w']]) {
+  for (const [label, val] of [['Heat · 10 min', '10m'], ['Heat · 5 waves', '5w']]) {
     const b = document.createElement('button');
     b.textContent = label; b.className = JSON.stringify(parseHeatParam(val)) === cur ? 'on' : '';
     b.addEventListener('pointerdown', (e) => e.stopPropagation());
@@ -1016,7 +1035,7 @@ async function main() {
       e.stopPropagation();
       if (b.className === 'on') return;
       const u = new URL(location.href);
-      if (val) u.searchParams.set('heat', val); else u.searchParams.delete('heat');
+      u.searchParams.set('heat', val);
       u.searchParams.delete('seed'); u.searchParams.delete('play');
       location.href = u;
     });

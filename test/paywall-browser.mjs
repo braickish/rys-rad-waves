@@ -24,7 +24,7 @@ const grant = async (user_id, kind) => {
 const b = await openBrowser({ shots: process.argv[2] });
 const { check, evaluate, waitFor, vis, shot, go, text, send, key } = b;
 const on = `document.querySelector('#waves button.on')?.textContent`;
-const tap = (name) => evaluate(`[...document.querySelectorAll('#waves button')].find((x) => x.textContent.includes(${JSON.stringify(name)})).click()`);
+const tap = (name) => evaluate(`document.getElementById('home').hidden || document.getElementById('go-surf').click(); [...document.querySelectorAll('#waves button')].find((x) => x.textContent.includes(${JSON.stringify(name)})).click()`);
 const sheet = `!!document.getElementById('paywall')`;
 const offers = `[...document.querySelectorAll('#paywall .pw-offer')].map((x) => x.id).join(',')`;
 const toastText = `document.getElementById('pw-toast')?.textContent || ''`;
