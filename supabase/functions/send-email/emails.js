@@ -47,6 +47,10 @@ const WORDS = {
 };
 const fallback = () => ({ subject: "Your Ry's Rad Waves link", title: 'Your link', lines: ['Tap the button to carry on in Ry\'s Rad Waves.'], button: 'Open the game' });
 
+// The logo from the title screen, as an image (email apps ignore web fonts and text shadows), served with the game.
+export const LOGO_URL = 'https://braickish.github.io/rys-rad-waves/assets/email/logo.png';
+const INK = '#0b2233', DIM = '#4a6a7a';
+
 export function buildEmail(e) {
   const w = (WORDS[e.kind] || fallback)(e);
   const ignore = w.ignore || "If you didn't ask for this, you can ignore this email.";
@@ -58,23 +62,25 @@ export function buildEmail(e) {
     expiry, ignore, '',
     "Ry's Rad Waves · rysradwaves.com",
   ].join('\n');
-  const button = w.code
-    ? `<p style="margin:18px 0;font:700 30px/1 'Courier New',monospace;letter-spacing:6px;color:#ffd426">${esc(w.code)}</p>`
-    : `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:22px 0"><tr><td style="background:#00c2c7;border:3px solid #ffffff;border-radius:26px">
-        <a href="${esc(e.link)}" style="display:inline-block;padding:12px 28px;font:700 17px Arial,Helvetica,sans-serif;color:#0b1a24;text-decoration:none">${esc(w.button)}</a>
-      </td></tr></table>
-      <p style="margin:0 0 14px;font:13px/1.5 Arial,Helvetica,sans-serif;color:#9fc1cf">Or paste this into your browser:<br><a href="${esc(e.link)}" style="color:#00c2c7;word-break:break-all">${esc(e.link)}</a></p>`;
-  const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(w.subject)}</title></head>
-<body style="margin:0;padding:0;background:#0b2233">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0b2233"><tr><td align="center" style="padding:28px 16px">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background:#0f2c41;border-radius:18px"><tr><td style="padding:26px 24px">
-    <p style="margin:0 0 18px;font:700 15px Arial,Helvetica,sans-serif;letter-spacing:1px;color:#ff3d8b">RY'S RAD WAVES</p>
-    <h1 style="margin:0 0 12px;font:700 26px/1.2 Arial,Helvetica,sans-serif;color:#ffd426">${esc(w.title)}</h1>
-    ${w.lines.map((l) => `<p style="margin:0 0 10px;font:16px/1.5 Arial,Helvetica,sans-serif;color:#eaf6fa">${esc(l)}</p>`).join('\n    ')}
-    ${button}
-    <p style="margin:0;font:13px/1.5 Arial,Helvetica,sans-serif;color:#9fc1cf">${esc(expiry)} ${esc(ignore)}</p>
+  // One button, as the game's own (Free surf, DROP IN): Bungee capitals, dark on teal, a round pill.
+  const action = w.code
+    ? `<p style="margin:20px 0;font:700 30px/1 'Courier New',monospace;letter-spacing:6px;color:${INK}">${esc(w.code)}</p>`
+    : `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:24px 0"><tr><td style="background:#00c2c7;border-radius:28px;box-shadow:3px 3px 0 rgba(0,0,0,.3)">
+      <a href="${esc(e.link)}" style="display:inline-block;padding:12px 34px;font-family:Bungee,'Arial Black',Arial,sans-serif;font-size:20px;font-weight:400;letter-spacing:1px;text-transform:uppercase;color:#0b1a24;text-decoration:none">${esc(w.button)}</a>
+    </td></tr></table>`;
+  const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light"><title>${esc(w.subject)}</title>
+<link href="https://fonts.googleapis.com/css2?family=Bungee&display=swap" rel="stylesheet"></head>
+<body style="margin:0;padding:0;background:#ffffff">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff"><tr><td align="left" style="padding:28px 20px">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px"><tr><td align="left" style="text-align:left">
+    <img src="${LOGO_URL}" width="200" alt="Ry's Rad Waves" style="display:block;width:200px;max-width:100%;height:auto;border:0;margin:0 0 22px">
+    <h1 style="margin:0 0 12px;font:700 24px/1.25 Arial,Helvetica,sans-serif;color:${INK}">${esc(w.title)}</h1>
+    ${w.lines.map((l) => `<p style="margin:0 0 10px;font:16px/1.5 Arial,Helvetica,sans-serif;color:${INK}">${esc(l)}</p>`).join('\n    ')}
+    ${action}
+    <p style="margin:0 0 24px;font:13px/1.5 Arial,Helvetica,sans-serif;color:${DIM}">${esc(expiry)} ${esc(ignore)}</p>
+    <p style="margin:0;font:12px Arial,Helvetica,sans-serif;color:${DIM}">Ry's Rad Waves · rysradwaves.com</p>
   </td></tr></table>
-  <p style="margin:16px 0 0;font:12px Arial,Helvetica,sans-serif;color:#6f93a3">Ry's Rad Waves · rysradwaves.com</p>
 </td></tr></table>
 </body></html>`;
   return { subject: w.subject, html, text };

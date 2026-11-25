@@ -11,3 +11,6 @@ supabase/.branches/
 supabase/functions/.env
 # The local stack's own secrets for config.toml's env(...) (the send-email hook)
 supabase/.env
+
+# The logo the auth emails show (supabase/functions/send-email/emails.js links to it on Pages)
+!assets/email/logo.png
