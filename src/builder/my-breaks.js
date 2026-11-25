@@ -4,7 +4,8 @@
 //
 // ui.js hands in the builder: `design()` (what it keeps), `apply(design)`, `ride()` (the payload DROP IN would surf, or
 // null), `thumb()` (a Blob of the map).
-import { initAccount, onAccount, onPlan, myPlan, currentUser, currentPlan } from '../account.js';
+import { initAccount, onAccount, onPlan, myPlan, currentUser, currentPlan, SALES_OPEN } from '../account.js';
+import { openPaywall, startPaywall } from '../paywall.js';
 import { myBreaks, getBreak, saveBreak, duplicateBreak, deleteBreak, setThumb, thumbUrl, surfLink, buildLink, describeBreakError, VISIBILITY } from '../breaks.js';
 
 const CUR_KEY = 'rys-rad-waves-builder-break'; // { id, name, visibility, saved: the design's JSON when last saved or opened }
@@ -73,6 +74,7 @@ export function startMyBreaks(B) {
     const u = currentUser();
     if (!u || u.is_anonymous) {
       el.append(h('div', { className: 'note' }, 'Sign in on the ', h('a', { href: 'index.html', textContent: 'title screen' }), ' to keep your breaks in your account.'));
+      if (SALES_OPEN) el.append(h('div', { className: 'row', style: 'margin-top:6px' }, button('Go Pro · $3/mo', () => openPaywall({ want: 'pro', why: 'Saving your breaks comes with Pro.' }))));
       return;
     }
     const canSave = pro();
@@ -87,6 +89,7 @@ export function startMyBreaks(B) {
     state.textContent = !canSave ? (list?.length ? 'Your Pro has ended: your breaks are safe, and you can surf and delete them. Saving comes back with Pro.' : 'Saving breaks comes with Pro.')
       : cur.id ? (changed() ? 'Changed since you saved.' : 'All saved.') : 'Not saved yet.';
     el.append(state);
+    if (!canSave && SALES_OPEN) el.append(h('div', { className: 'row', style: 'margin-top:6px' }, button('Go Pro · $3/mo', () => openPaywall({ want: 'pro', why: 'Saving your breaks comes with Pro.' }), 'on')));
     if (cur.id) {
       const vis = h('div', { className: 'row', style: 'margin-top:6px' });
       for (const [v, label, who] of VISIBILITY) {
@@ -132,6 +135,7 @@ export function startMyBreaks(B) {
   initAccount().then(async () => {
     onAccount((s) => { const who = s?.user?.id || null; if (who !== uid) { uid = who; myPlan().catch(() => {}).finally(refresh); } });
     onPlan(() => render());
+    startPaywall({ why: () => 'Saving your breaks comes with Pro.' }).catch((e) => console.warn('paywall', e));
     const id = new URLSearchParams(location.search).get('break');
     if (id) { const u = new URL(location.href); u.searchParams.delete('break'); history.replaceState(null, '', u); await open(id, false); }
   }).catch((e) => { console.warn('account', e); el.innerHTML = '<div class="note">Couldn\'t reach your account just now.</div>'; });

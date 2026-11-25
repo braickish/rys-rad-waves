@@ -12,6 +12,7 @@
     "test:profile-browser": "node test/profile-browser.mjs",
     "test:plan-browser": "node test/plan-browser.mjs",
     "test:breaks-browser": "node test/breaks-browser.mjs",
+    "test:paywall-browser": "node test/paywall-browser.mjs",
     "functions:serve": "supabase functions serve --env-file supabase/functions/.env",
     "test:stripe": "node test/stripe.mjs"
   },

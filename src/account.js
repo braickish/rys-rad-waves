@@ -41,10 +41,9 @@ export async function initAccount() {
 export const onAccount = (f) => { listeners.add(f); f(session); return () => listeners.delete(f); };
 export const currentUser = () => session?.user || null;
 
-// Emails a sign-in link that comes back to this page (same waves and options, no hash).
-export async function sendMagicLink(email) {
+// Emails a sign-in link that comes back to this page (same waves and options, no hash), or to `back`.
+export async function sendMagicLink(email, back = location.origin + location.pathname + location.search) {
   const c = await initAccount();
-  const back = location.origin + location.pathname + location.search;
   const { error } = await c.auth.signInWithOtp({ email, options: { emailRedirectTo: back, shouldCreateUser: true } });
   if (error) throw error;
 }
@@ -142,9 +141,18 @@ export function describeProfileError(e) {
 // { wave_pass, pro, pro_until, grace }, from the database (my_plan). Signed out or a guest: all false.
 //
 // The wave lock is a soft gate (the plan): the picker locks every wave but the free ones until you have a Wave Pass.
-// PAYWALL stays off until payments are live (task 9), so nobody loses a wave before they can buy one; ?paywall turns
-// it on to try it.
-export const PAYWALL = new URLSearchParams(location.search).has('paywall');
+// SALES_OPEN turns on the lock and every buy button (src/paywall.js) together. It stays false until Stripe has live
+// keys, so nobody loses a wave before they can buy one, or pays the sandbox. `?paywall` turns it on to try it (and
+// stays on for the visit, since Checkout and the sign-in link come back without it).
+const LIVE = false; // (flip at launch, with the live Stripe keys in Supabase secrets)
+const TRY = (() => {
+  try {
+    if (new URLSearchParams(location.search).has('paywall')) sessionStorage.setItem('rys-rad-waves-paywall', '1');
+    return sessionStorage.getItem('rys-rad-waves-paywall') === '1';
+  } catch { return new URLSearchParams(location.search).has('paywall'); }
+})();
+export const SALES_OPEN = LIVE || TRY;
+export const PAYWALL = SALES_OPEN; // (the wave lock)
 export const FREE_WAVES = ['point', 'queens', 'built']; // (Raglan, the demo wave; Queens (the user, 2026-11-24); and your own break from the builder)
 const NO_PLAN = { wave_pass: false, pro: false, pro_until: null, grace: false };
 let plan = NO_PLAN, planKnown = false, planFor;

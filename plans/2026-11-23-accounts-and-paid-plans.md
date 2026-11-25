@@ -215,9 +215,16 @@ sees it on their profile.
   Cloud: both functions deployed; the sandbox's webhook endpoint (`we_1UfcJk5JByhnbHbWl8XR8NDP`, API 2025-08-27.basil)
   points at the cloud `stripe-webhook`, its secret in Supabase secrets. The sandbox is shared by local tests and the
   cloud, so an event for a player a database doesn't have is acknowledged and skipped (not retried).
-- [ ] **9. Paywall UX.** Locked waves in the picker with a "Wave Pass" sheet, "Go Pro" where building or hosting needs it,
-  the plan on the account page, and the return from checkout landing back where you were. Terms and privacy pages.
-  Check it end to end in test mode in the browser, on a phone too.
+- [x] **9. Paywall UX** (2026-11-25). `src/paywall.js`, one module for every page (its own markup and styles): the
+  Wave Pass sheet (a locked wave: both offers, the pass first; `want: 'pro'`: Pro only), signed out it asks for the
+  email first and the link comes back with `?buy=` to reopen it, one tap from paying. Checkout returns to the page you
+  were on (the game: the wave you tapped) with `?checkout=done&bought=`; the plan is read again until the webhook lands
+  it ("Unlocking…", then "The Wave Pass is yours.") and you're put on that wave; `?checkout=cancel` says "No charge.";
+  the address is cleaned. The builder's My Breaks has "Go Pro"; the account page's Plan has the buy buttons and Manage
+  billing (the Customer Portal; a granted plan has none to manage). `terms.html` and `privacy.html` (drafts for the user
+  to review before launch). **`SALES_OPEN` (account.js `LIVE`) is false** until Stripe has live keys: the lock and every
+  buy button stay off, `?paywall` turns them on for the visit. Test: `npm run test:paywall-browser` (33: pays in the
+  sandbox through `stripe listen`; `SKIP_PAY=1` skips that), on a phone-sized screen too.
 - [ ] **10. The contest schema on accounts.** Contests phase 2, with the changes above: Pro-gated `create_contest`, spot
   snapshots, the contest pass, `rides` with replay paths, visibility, and limits. Tests: functions and RLS, a guest
   entrant reading the spot, and a non-Pro user unable to create.

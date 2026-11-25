@@ -36,7 +36,8 @@ check((await evaluate(on)) === 'Raglan' && /wave=point/.test(await evaluate('loc
 check((await evaluate(lockedCount)) === 4 && !/🔒 Queens/.test(await evaluate(pickerState)), `Raglan and Queens free, the other four locked: ${await evaluate(pickerState)}`);
 await evaluate(`[...document.querySelectorAll('#waves button')].find((x) => /Pipe/.test(x.textContent)).click()`);
 await sleep(300);
-check((await evaluate(on)) === 'Raglan' && /Pipe comes with a Wave Pass/.test(await text('lock-note')), 'tapping a locked wave keeps you on Raglan and explains');
+check((await evaluate(on)) === 'Raglan' && /Pipe comes with the Wave Pass/.test(await evaluate(`document.querySelector('#paywall .pw-why')?.textContent || ''`)), 'tapping a locked wave keeps you on Raglan and opens the Wave Pass sheet');
+await evaluate(`document.querySelector('#paywall .pw-x').click()`);
 await shot('1-locked');
 
 // 3. Signed in, free.

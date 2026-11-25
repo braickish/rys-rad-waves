@@ -14,6 +14,7 @@ import { loadSkinnedGLB } from './glb.js';
 import { createBody } from './body.js';
 import { startAccountUI } from './account-ui.js';
 import { cachedProfile, onPlan, waveLocked } from './account.js';
+import { openPaywall, startPaywall } from './paywall.js';
 
 const params = new URLSearchParams(location.search);
 // Competition judging (?judge; the user, 2026-11-22): every wave scored by a five-judge panel (judging.js), the score sheet
@@ -966,8 +967,8 @@ async function main() {
       b.addEventListener('pointerdown', (e) => { e.stopPropagation(); });
       b.addEventListener('click', (e) => {
         e.stopPropagation();
-        if (waveLocked(w.id)) { lockNote(w.name); return; }
-        $('lock-note').hidden = true;
+        if (waveLocked(w.id)) { lockNote(w); return; }
+        $('lock-note').hidden = true; wanted = null;
         pickWave(w.id);
       });
       picker.appendChild(b);
@@ -982,11 +983,28 @@ async function main() {
   drawPicker();
   // The plan arrives after the page (signing in reads it again): lock the picker, and a locked wave you're on goes back
   // to Raglan, the free demo wave (on the title screen only; a replay shows whatever it recorded).
-  const lockNote = (name) => { $('lock-note').hidden = false; $('lock-note').textContent = `${name} comes with a Wave Pass: every wave, for life. Coming soon.`; };
+  // A locked wave opens the Wave Pass sheet (src/paywall.js, accounts plan task 9). Checkout comes back to this page
+  // with that wave in the address; until the plan shows the pass you wait on Raglan, then you're put on it.
+  let wanted = null; // (the locked wave you asked for)
+  const why = (w) => `${w.name} comes with the Wave Pass.`;
+  const lockNote = (w) => {
+    wanted = w.id;
+    if (openPaywall({ want: 'wave_pass', why: why(w), back: wantedBack() })) { $('lock-note').hidden = true; return; }
+    $('lock-note').hidden = false; $('lock-note').textContent = why(w);
+  };
   onPlan(() => {
-    if (state === 'title' && waveLocked(WAVE.id) && !params.has('replay')) { const was = WAVE.name; pickWave('point'); lockNote(was); }
-    else drawPicker();
+    if (state === 'title' && waveLocked(WAVE.id) && !params.has('replay')) {
+      const was = WAVE; wanted = was.id; pickWave('point');
+      $('lock-note').hidden = false; $('lock-note').textContent = `${why(was)} You're on Raglan, free for everyone.`;
+    } else if (state === 'title' && wanted && !waveLocked(wanted) && WAVES.some((w) => w.id === wanted)) {
+      const id = wanted; wanted = null; $('lock-note').hidden = true; pickWave(id);
+    } else drawPicker();
   });
+  const wantedBack = () => { if (!wanted) return undefined; const u = new URL(location.href); u.searchParams.set('wave', wanted); return u.href; };
+  startPaywall({
+    why: (kind) => (kind === 'wave_pass' && wanted ? why(WAVES.find((w) => w.id === wanted)) : ''),
+    back: (kind) => (kind === 'wave_pass' ? wantedBack() : undefined),
+  }).catch((e) => console.warn('paywall', e));
   // Mode, under the waves: free surf or a solo heat against bots (accounts plan task 3). A heat is set up as the page
   // loads, so picking one reloads with ?heat= (the wave kept); a live contest will take a code here later (task 11).
   const modes = $('modes'), cur = JSON.stringify(HEAT_END); // (a heat of another length, ?heat=3m, lights none)

@@ -1,8 +1,10 @@
 // account.html: your handle, name and jersey; your email; sign out; delete your account (accounts plan task 5).
-// Billing and your breaks and contests join it later (tasks 9 and 14).
-import { initAccount, onAccount, onPlan, myProfile, saveProfile, handleProblem, changeEmail, deleteAccount, signOut, describeAuthError, describeProfileError } from './account.js';
+// The plan panel buys the Wave Pass or Pro, and opens Stripe's billing page (task 9). Your breaks and contests join it
+// later (task 14).
+import { initAccount, onAccount, onPlan, SALES_OPEN, myProfile, saveProfile, handleProblem, changeEmail, deleteAccount, signOut, describeAuthError, describeProfileError } from './account.js';
 import { JERSEYS } from './heat.js';
 import { handleFromEmail } from './account-ui.js';
+import { openPaywall, startPaywall, goToStripe } from './paywall.js';
 
 const $ = (id) => document.getElementById(id);
 const hint = (id, text, kind = '') => { const e = $(id); e.textContent = text || ''; e.className = `hint ${kind}`; };
@@ -81,7 +83,17 @@ $('delete-form').addEventListener('submit', async (e) => {
   }
 });
 
-// Your plan (task 6; buying and the Customer Portal come in tasks 8-9).
+// Your plan (task 6), and buying it (task 9): the sheet for the Wave Pass or Pro; Manage billing opens Stripe's
+// Customer Portal (cards, receipts, cancelling Pro) for anything bought.
+$('buy-pass').addEventListener('click', () => openPaywall({ want: 'wave_pass' }));
+$('buy-pro').addEventListener('click', () => openPaywall({ want: 'pro' }));
+$('billing').addEventListener('click', async () => {
+  $('billing').disabled = true; hint('plan-msg', '');
+  try { await goToStripe('portal'); } catch (err) {
+    hint('plan-msg', err.code === 'no_customer' ? "Your plan was given to you, so there's no billing to manage." : err.message, 'bad');
+  }
+  $('billing').disabled = false;
+});
 const day = (t) => new Date(t).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' });
 onPlan((p) => {
   $('plan-now').innerHTML = p.pro
@@ -89,7 +101,11 @@ onPlan((p) => {
       : `<b>Pro</b> until ${day(p.pro_until)}: every wave, saving your breaks, and hosting contests.`)
     : p.wave_pass ? '<b>Wave Pass</b>: every wave, for life.'
     : '<b>Free</b>: Raglan and Queens, the wave builder to try, and any contest you\'re invited to.';
+  $('buy-pass').hidden = !SALES_OPEN || p.wave_pass || p.pro;
+  $('buy-pro').hidden = !SALES_OPEN || p.pro;
+  $('billing').hidden = !(p.wave_pass || p.pro);
 });
+startPaywall().catch((e) => console.warn('paywall', e));
 
 try {
   await initAccount();
