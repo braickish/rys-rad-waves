@@ -332,7 +332,7 @@ const HEAT_LEN_KEY = 'rys-rad-waves-heat-len';
   const sel = $('heat-len');
   const label = (h) => (h.minutes ? `${h.minutes} minute${h.minutes === 1 ? '' : 's'}` : `${h.waves} wave${h.waves === 1 ? '' : 's'}`);
   const same = (v) => JSON.stringify(parseHeatParam(v)) === JSON.stringify(HEAT_END);
-  if (HEAT_END && ![...sel.options].some((o) => same(o.value))) sel.add(new Option(label(HEAT_END), params.get('heat'))); // (?heat=1m and the like)
+  if (HEAT_END && ![...sel.options].some((o) => same(o.value))) sel.add(new Option(`${label(HEAT_END)} ▾`, params.get('heat'))); // (?heat=1m and the like)
   let stored = null; try { stored = localStorage.getItem(HEAT_LEN_KEY); } catch {}
   sel.value = HEAT_END ? [...sel.options].find((o) => same(o.value)).value : [...sel.options].some((o) => o.value === stored) ? stored : '10m';
   sel.addEventListener('change', () => { try { localStorage.setItem(HEAT_LEN_KEY, sel.value); } catch {} });

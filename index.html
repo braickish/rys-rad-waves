@@ -135,8 +135,9 @@
   .step-head b { font-family: Bungee, sans-serif; font-weight: 400; font-size: 18px; color: var(--yellow); text-shadow: 2px 2px 0 var(--ink); }
   /* Free surf: every break, then yours (the same pills) */
   /* Solo: Start heat, and its length beside it */
-  .heat-start { display: flex; gap: 10px; justify-content: center; align-items: center; flex-wrap: wrap; }
-  .heat-start select { font: 400 15px Bungee, sans-serif; color: #fff; background: rgba(11,26,36,.6); border: 3px solid #fff; border-radius: 28px; padding: 12px 16px; cursor: pointer; box-shadow: 3px 3px 0 rgba(0,0,0,.3); }
+  .heat-start { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .heat-start select { appearance: none; -webkit-appearance: none; font: 700 13px Rubik, sans-serif; color: #fff; background: none; border: 0; padding: 2px 4px; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; text-shadow: 0 1px 0 rgba(0,0,0,.4); text-align: center; text-align-last: center; }
+  .heat-start select option { color: var(--ink); background: #fff; }
   .list-head { font: 400 14px Bungee, sans-serif; color: var(--yellow); text-shadow: 2px 2px 0 var(--ink); margin: 4px 0 10px; }
   .waves button.locked { opacity: .7; border-style: dashed; }
   #lock-note { margin: -4px 0 14px; }
@@ -214,7 +215,7 @@
       <button id="start" class="start">Drop in</button>
       <div id="heat-start" class="heat-start" hidden>
         <button id="start-heat" type="button" class="start">Start heat</button>
-        <select id="heat-len" aria-label="Heat length"><option value="10m">10 minutes</option><option value="5w">5 waves</option></select>
+        <select id="heat-len" aria-label="Heat length"><option value="10m">10 minutes ▾</option><option value="5w">5 waves ▾</option></select>
       </div>
       <div id="heat-note" class="heat-note" hidden></div>
     </div>

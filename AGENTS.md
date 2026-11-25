@@ -19,7 +19,7 @@ Waves (2026-11-17 names, after real waves): **Raglan** (`point`, the crumbling p
 screen (2026-11-25, the user) lands on three buttons, styled like DROP IN, with the demo surfer riding behind: **Free surf** (every break as the
 original pills, then your saved breaks the same way when signed in, and DROP IN; a saved break reloads with `?break=<id>&pick`,
 which boot.js loads without dropping in), **Build a reef** (builder.html) and **Compete live** (**Solo**: the waves, then
-**Start heat** (DROP IN's style) with a dropdown for its length, 10 minutes or 5 waves, remembered; against bots; live
+**Start heat** (DROP IN's style) with its length (10 minutes or 5 waves, remembered) as small text below it, a dropdown; against bots; live
 heats with friends later). A `?heat=` link opens on Solo; `?menu=surf`, a
 `?break=` link, or a link to a locked wave opens Free surf.
 URL options: `?wave=point|reef|queens|trestles` (older `?wave=barrel` / `crumble` still work), `?play` (skip the
