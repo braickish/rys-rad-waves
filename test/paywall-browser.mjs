@@ -90,7 +90,7 @@ else {
     check(!!there, 'Get the Wave Pass goes to Stripe Checkout');
     await sleep(500);
     const landed = await payOnCheckout(b, await evaluate('location.href'), b.base);
-    check(/checkout=done/.test(landed) && /wave=reef/.test(landed) && /bought=wave_pass/.test(landed), `paid: back on the game (${landed.replace(b.base, '/')})`);
+    check(/wave=reef/.test(landed), `paid: back on the game, on the wave you tapped (${landed.replace(b.base, '/')}; the page may already have cleaned up ?checkout=)`);
     check(/Wave Pass is yours/.test(await waitFor(`/yours/.test(${toastText}) && ${toastText}`, 40000) || ''), `a note says so: "${await evaluate(toastText)}"`);
     check(!!(await waitFor(`${on} === 'Pipe'`, 5000)), `... and you're on Pipe (${await evaluate(on)})`);
     check(!/checkout|session_id|bought/.test(await evaluate('location.search')), `the address is clean (${await evaluate('location.search')})`);

@@ -16,9 +16,11 @@ Waves (2026-11-17 names, after real waves): **Raglan** (`point`, the crumbling p
 (`raglanPlus`, Raglan with random faster sections; see below),
 **Pipe** (`reef`, the simulated barrel; was "Reef Barrel"), **Queens** (`queens`, a small longboard wave: a right, ridden regular foot; see below),
 **Trestles** (`trestles`, Lower Trestles: a right that changes as you ride it; see below). The title
-screen (2026-11-25, the user) lands on three buttons: **Free surf** (the wave picker and DROP IN), **Build a reef**
-(builder.html) and **Compete live** (the wave picker, the heat length, DROP IN; solo heats against bots until live
-contests arrive). A `?heat=` link opens on Compete; a link to a locked wave opens Free surf with the note.
+screen (2026-11-25, the user) lands on three buttons, styled like DROP IN, with the demo surfer riding behind: **Free surf** (every break as a
+card, then your saved breaks with thumbnails when signed in, and DROP IN; a saved break reloads with `?break=<id>&pick`,
+which boot.js loads without dropping in), **Build a reef** (builder.html) and **Compete live** (**Solo**: the waves, the
+heat length, DROP IN against bots; live heats with friends later). A `?heat=` link opens on Solo; `?menu=surf`, a
+`?break=` link, or a link to a locked wave opens Free surf.
 URL options: `?wave=point|reef|queens|trestles` (older `?wave=barrel` / `crumble` still work), `?play` (skip the
 title), `?auto` (autopilot works the pocket; a test can set `window.__manual = true` to take over the keys), `?xs=-4` (start behind the peel), `?cam=1` (chase
 camera), `?cam=3` (testing: fixed out in the channel, looking at the curl side-on, like a photo

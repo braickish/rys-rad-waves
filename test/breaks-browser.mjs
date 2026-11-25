@@ -5,6 +5,7 @@
 //   4. rename, duplicate, unlisted, edit the copy, delete it
 //   5. index.html?break=<id> drops straight into it; signed out, an unlisted link still works, a private one doesn't
 //   6. builder.html?break=<id> opens it
+//   (and in 5, Free surf lists your breaks; a tap loads one without dropping in)
 // npm run db:start first, then: npm run test:breaks-browser [shotPrefix]
 import { execSync } from 'node:child_process';
 import { openBrowser, signInOnTitle, sleep, root } from './browser-lib.mjs';
@@ -79,6 +80,19 @@ await go(`${b.base}index.html?break=${orig.id}`);
 check(!!(await waitFor(`/wave=built/.test(location.search) && /built=/.test(location.hash)`, 20000)), 'index.html?break= drops into it');
 await sleep(1500);
 await shot('3-surf');
+// Free surf lists your breaks after the game's own; a tap loads one, waiting for DROP IN.
+await go(`${b.base}index.html?wave=point`);
+await waitFor(`document.querySelectorAll('#waves button').length > 0`, 20000);
+await evaluate(`document.getElementById('go-surf').click()`);
+const mineCard = `document.querySelector('#my-breaks button[data-id="${orig.id}"]')`;
+check(!!(await waitFor(`!!${mineCard} && !document.getElementById('my-breaks-wrap').hidden`, 15000)), `Free surf: your breaks listed (${await evaluate(`document.getElementById('my-breaks').innerText.replace(/\\n/g, ' ')`)})`);
+check(await evaluate(`!!${mineCard}.querySelector('img')`), '... with its thumbnail');
+await shot('4-free-surf');
+await evaluate(`${mineCard}.click()`);
+check(!!(await waitFor(`/wave=built/.test(location.search) && /built=/.test(location.hash) && ${mineCard}?.className === 'on'`, 20000)), 'a tap loads it, lit in the list');
+check(await evaluate(`!/play/.test(location.search) && !document.getElementById('title').hidden && !document.getElementById('start').hidden && document.getElementById('step-title').textContent === 'Free surf'`), '... on Free surf, waiting for DROP IN');
+await evaluate(`[...document.querySelectorAll('#waves button')].find((x) => x.textContent === 'Raglan').click()`);
+check(await evaluate(`!/break=/.test(location.search) && ${mineCard}.className !== 'on'`), 'picking Raglan leaves it');
 await evaluate(`localStorage.removeItem('rys-rad-waves-auth')`);
 await go(`${b.base}index.html?break=${orig.id}`);
 check(!!(await waitFor(`/wave=built/.test(location.search)`, 20000)), 'signed out: an unlisted link works');

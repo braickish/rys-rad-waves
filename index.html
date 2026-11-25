@@ -134,7 +134,13 @@
   .home .start { display: block; width: 260px; max-width: 100%; text-decoration: none; text-align: center; }
   .step-head { display: flex; align-items: center; justify-content: center; gap: 10px; margin: -8px 0 12px; }
   .step-head b { font-family: Bungee, sans-serif; font-weight: 400; font-size: 18px; color: var(--yellow); text-shadow: 2px 2px 0 var(--ink); }
-  #compete-note { margin: -4px 0 14px; }
+  /* Free surf: every break as a card, then yours */
+  #title { grid-template-columns: minmax(0, 1fr); } #title .card { width: 100%; }
+  .waves.list { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; width: 100%; max-width: 460px; }
+  .waves.list button { font: 400 15px/1.15 Bungee, sans-serif; padding: 16px 8px; border-radius: 14px; background: rgba(11,26,36,.6); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; min-height: 58px; }
+  .waves.list button img { width: 100%; aspect-ratio: 16 / 10; object-fit: cover; border-radius: 8px; display: block; }
+  .waves.list button.edit { font: 700 13px Rubik, sans-serif; }
+  .list-head { font: 400 14px Bungee, sans-serif; color: var(--yellow); text-shadow: 2px 2px 0 var(--ink); margin: 4px 0 10px; }
   .waves button.locked { opacity: .7; border-style: dashed; }
   #lock-note { margin: -4px 0 14px; }
   .waves button.on { background: var(--teal); border-color: #fff; color: var(--ink); }
@@ -201,9 +207,13 @@
     </div>
     <div id="step" hidden>
       <div id="step-head" class="step-head"><button id="step-back" type="button" class="acct-link">← Back</button><b id="step-title"></b></div>
-      <div id="waves" class="waves"></div>
+      <div id="compete-menu" class="home" hidden>
+        <button id="go-solo" type="button" class="start">Solo</button>
+        <div class="heat-note">Live heats against your friends are coming soon.</div>
+      </div>
+      <div id="waves" class="waves list"></div>
+      <div id="my-breaks-wrap" hidden><div class="list-head">Your breaks</div><div id="my-breaks" class="waves list"></div></div>
       <div id="modes" class="waves modes" hidden></div>
-      <div id="compete-note" class="heat-note" hidden>Live heats against your friends are coming soon. For now, surf a heat against three rivals.</div>
       <div id="lock-note" class="heat-note" hidden></div>
       <button id="start" class="start">Drop in</button>
       <div id="heat-note" class="heat-note" hidden></div>

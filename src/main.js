@@ -13,7 +13,8 @@ import { createPose, surferObjects } from './surfer.js';
 import { loadSkinnedGLB } from './glb.js';
 import { createBody } from './body.js';
 import { startAccountUI } from './account-ui.js';
-import { cachedProfile, onPlan, waveLocked } from './account.js';
+import { cachedProfile, onPlan, waveLocked, onAccount } from './account.js';
+import { myBreaks, thumbUrl } from './breaks.js';
 import { openPaywall, startPaywall } from './paywall.js';
 
 const params = new URLSearchParams(location.search);
@@ -301,24 +302,33 @@ const SWIPE_PX = 45; // full turn at this far from where the swipe started
 $('over').addEventListener('pointerdown', (e) => { e.preventDefault(); startOrRestart(); });
 $('judge').addEventListener('pointerdown', (e) => { e.preventDefault(); startOrRestart(); });
 $('start').addEventListener('click', (e) => { e.preventDefault(); startOrRestart(); });
-// The landing: three ways in. Free surf and Compete open a step with the wave picker and DROP IN (Compete adds the
-// heat length); Build a reef is a link to the builder. A heat is set up as the page loads, so a heat link (?heat=)
-// opens straight on Compete, and Free surf from there reloads without it. A link that lands on a locked wave opens
-// Free surf, where the note is.
+// The landing: three ways in. Free surf lists every break (and yours, signed in) with DROP IN; Build a reef is a link to
+// the builder; Compete live offers Solo (a heat against bots: the waves, the heat length, DROP IN), and live heats with
+// friends later (task 11). A heat is set up as the page loads, so a heat link (?heat=) opens straight on Solo, and Free
+// surf from there reloads without it (?menu=surf opens Free surf). A link that lands on a locked wave, or on a saved
+// break, opens Free surf.
+let step = null;
+const STEPS = { surf: 'Free surf', compete: 'Compete live', solo: 'Solo heat' };
 function showStep(which) {
+  step = which;
   $('home').hidden = !!which; $('step').hidden = !which;
   if (!which) return;
-  $('step-title').textContent = which === 'compete' ? 'Compete' : 'Free surf';
-  $('modes').hidden = $('compete-note').hidden = which !== 'compete';
-  $('start').hidden = which === 'compete' && !HEAT_END; // (pick a heat length first)
-  if (which === 'compete') $('lock-note').hidden = true;
+  $('step-title').textContent = STEPS[which];
+  $('compete-menu').hidden = which !== 'compete';
+  $('waves').hidden = which === 'compete';
+  $('my-breaks-wrap').hidden = which !== 'surf' || !$('my-breaks').children.length;
+  $('modes').hidden = which !== 'solo';
+  $('start').hidden = which === 'compete' || (which === 'solo' && !HEAT_END); // (Solo: pick a heat length first)
+  if (which !== 'surf') $('lock-note').hidden = true;
 }
-const leaveHeat = () => { const u = new URL(location.href); u.searchParams.delete('heat'); u.searchParams.delete('seed'); u.searchParams.delete('play'); location.href = u; };
+const leaveHeat = () => { const u = new URL(location.href); for (const k of ['heat', 'seed', 'play']) u.searchParams.delete(k); u.searchParams.set('menu', 'surf'); location.href = u; };
 $('go-surf').addEventListener('click', (e) => { e.stopPropagation(); if (HEAT_END) leaveHeat(); else showStep('surf'); });
 $('go-compete').addEventListener('click', (e) => { e.stopPropagation(); showStep('compete'); });
-$('step-back').addEventListener('click', (e) => { e.stopPropagation(); showStep(null); });
+$('go-solo').addEventListener('click', (e) => { e.stopPropagation(); showStep('solo'); });
+$('step-back').addEventListener('click', (e) => { e.stopPropagation(); showStep(step === 'solo' ? 'compete' : null); });
 for (const id of ['home', 'step']) $(id).addEventListener('pointerdown', (e) => e.stopPropagation());
-showStep(HEAT_END ? 'compete' : null); // (set up as the page starts, so the buttons work before the game has loaded)
+showStep(HEAT_END ? 'solo' : params.get('menu') === 'surf' || params.has('break') ? 'surf' : null); // (set up as the page starts, so the buttons work before the game has loaded)
+if (params.has('menu')) { const u = new URL(location.href); u.searchParams.delete('menu'); history.replaceState(null, '', u); }
 startAccountUI();
 // The walk buttons (longboard wave): walk up toward the nose / back toward the tail, one spot per press.
 $('walk-up').addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); walkPress = 1; });
@@ -971,18 +981,25 @@ async function main() {
     renderer.rebuildWave();
     resetRider(rider);
     try { localStorage.setItem('rys-rad-waves-wave', id); } catch {}
-    const u = new URL(location.href); u.searchParams.set('wave', id); history.replaceState(null, '', u);
+    const u = new URL(location.href); u.searchParams.set('wave', id); if (id !== 'built') u.searchParams.delete('break'); history.replaceState(null, '', u);
     drawPicker();
+  };
+  // Your saved breaks (signed in), as cards under the game's own. A tap reloads with ?break=<id>&pick: boot.js fetches
+  // its ride and the page opens on Free surf with it picked, ready for DROP IN.
+  let saved = [];
+  const onBreak = () => (WAVE.id === 'built' && params.get('break')) || null; // (the saved break you're on, if any)
+  const card = (label, on, extra = '') => {
+    const b = document.createElement('button');
+    b.className = (on ? 'on' : '') + extra;
+    if (label instanceof Node) b.append(label); else b.textContent = label;
+    b.addEventListener('pointerdown', (e) => { e.stopPropagation(); });
+    return b;
   };
   const drawPicker = () => {
     picker.innerHTML = '';
-    // (a hidden wave you're on, the wave builder's `built`, shows too, with a way back to the builder)
-    for (const w of WAVE.hidden ? [...WAVES, WAVE] : WAVES) {
-      const b = document.createElement('button');
+    for (const w of WAVES) {
       const locked = waveLocked(w.id); // (the Wave Pass's soft gate, accounts plan task 6: off until payments are live)
-      b.textContent = (locked ? '🔒 ' : '') + w.name;
-      b.className = (w.id === WAVE.id ? 'on' : '') + (locked ? ' locked' : '');
-      b.addEventListener('pointerdown', (e) => { e.stopPropagation(); });
+      const b = card((locked ? '🔒 ' : '') + w.name, w.id === WAVE.id, locked ? ' locked' : '');
       b.addEventListener('click', (e) => {
         e.stopPropagation();
         if (waveLocked(w.id)) { lockNote(w); return; }
@@ -991,13 +1008,35 @@ async function main() {
       });
       picker.appendChild(b);
     }
+    // (the builder's DROP IN, or someone's shared break: the wave you're on, with a way back to the builder)
+    const mine = saved.find((b) => b.id === onBreak());
+    if (WAVE.hidden && !mine) picker.appendChild(card(WAVE.name, true));
     if (WAVE.id === 'built') {
-      const e = document.createElement('button'); e.textContent = '✎ Edit your break';
-      e.addEventListener('pointerdown', (ev) => ev.stopPropagation());
-      e.addEventListener('click', (ev) => { ev.stopPropagation(); location.href = 'builder.html'; });
+      const e = card('✎ Edit this break', false, ' edit');
+      e.addEventListener('click', (ev) => { ev.stopPropagation(); location.href = mine ? `builder.html?break=${mine.id}` : 'builder.html'; });
       picker.appendChild(e);
     }
+    const list = $('my-breaks'); list.innerHTML = '';
+    for (const br of saved) {
+      const kids = document.createDocumentFragment();
+      const src = thumbUrl(br); if (src) kids.append(Object.assign(document.createElement('img'), { src, alt: '', loading: 'lazy' }));
+      kids.append(Object.assign(document.createElement('span'), { textContent: br.name }));
+      const b = card(kids, br.id === onBreak());
+      b.dataset.id = br.id;
+      b.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (br.id === onBreak()) return;
+        location.href = new URL(`index.html?break=${encodeURIComponent(br.id)}&pick`, location.href).href;
+      });
+      list.appendChild(b);
+    }
+    $('my-breaks-wrap').hidden = step !== 'surf' || !saved.length;
   };
+  onAccount((s) => {
+    const member = s?.user && !s.user.is_anonymous;
+    if (!member) { if (saved.length) { saved = []; drawPicker(); } return; }
+    myBreaks().then((l) => { saved = l || []; drawPicker(); }).catch((e) => console.warn('breaks', e));
+  });
   drawPicker();
   // The plan arrives after the page (signing in reads it again): lock the picker, and a locked wave you're on goes back
   // to Raglan, the free demo wave (on the title screen only; a replay shows whatever it recorded).

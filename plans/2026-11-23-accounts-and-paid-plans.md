@@ -225,8 +225,9 @@ sees it on their profile.
   to review before launch). **`SALES_OPEN` (account.js `LIVE`) is false** until Stripe has live keys: the lock and every
   buy button stay off, `?paywall` turns them on for the visit. Test: `npm run test:paywall-browser` (33: pays in the
   sandbox through `stripe listen`; `SKIP_PAY=1` skips that), on a phone-sized screen too.
-  Also (the user): the title screen lands on three buttons, Free surf, Build a reef and Compete live (heats against
-  bots, with a note that live heats are coming; task 11 adds join-by-code there). Checked in test/heat-browser.mjs.
+  Also (the user): the title screen lands on three buttons, Free surf (every break, then your saved ones), Build a
+  reef and Compete live (Solo: heats against bots; task 11 adds live heats there). Checked in test/heat-browser.mjs
+  and test/breaks-browser.mjs.
 - [ ] **10. The contest schema on accounts.** Contests phase 2, with the changes above: Pro-gated `create_contest`, spot
   snapshots, the contest pass, `rides` with replay paths, visibility, and limits. Tests: functions and RLS, a guest
   entrant reading the spot, and a non-Pro user unable to create.
