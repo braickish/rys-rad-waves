@@ -228,9 +228,20 @@ sees it on their profile.
   Also (the user): the title screen lands on three buttons, Free surf (every break, then your saved ones), Build a
   reef and Compete live (Solo: heats against bots; task 11 adds live heats there). Checked in test/heat-browser.mjs
   and test/breaks-browser.mjs.
-- [ ] **10. The contest schema on accounts.** Contests phase 2, with the changes above: Pro-gated `create_contest`, spot
-  snapshots, the contest pass, `rides` with replay paths, visibility, and limits. Tests: functions and RLS, a guest
-  entrant reading the spot, and a non-Pro user unable to create.
+- [x] **10. The contest schema on accounts** (2026-11-25). Migration `20261125010000_contests.sql`: `contests` (a
+  6-letter code without look-alikes, host, name, `spot` = `{wave}` or a break snapshot `{break_id, name, ride}`, seed,
+  `end_minutes` or `end_waves`, format, sizes, `visibility` unlisted/public, state lobby/running/done/cancelled),
+  `entrants` (guests by nickname, members by handle; results stay by name if an account is deleted), `heats`,
+  `heat_entries` (jersey drawn from the heat's seed, all different; total, place), `rides` (score, five judges, sheet,
+  `caught_at`, `replay_path` in your own folder, `sim_version`). Read by the host and entrants (the contest pass: they
+  read the spot), and by everyone when public; written only through functions: `create_contest` (Pro; 3 open at once;
+  one heat of up to 8 until brackets), `contest_by_code` (the lobby's preview, signed out too), `join_contest` /
+  `leave_contest` (in the lobby), `start_contest` (the host, still Pro: a 10 s countdown on the server's clock; a waves
+  heat gets 3 minutes a wave), `submit_ride` (yours, in order, caught before the horn by the server's clock, in within 2
+  minutes), `close_heat` (anyone in it, once over: best two, WSL tie-breaks; the contest ends with its last heat),
+  `cancel_contest`. Errors carry a short code (`pro_needed`, `contest_full`, `after_horn`...) for the game to word.
+  Not yet: the host isn't entered automatically (the lobby decides, task 11); the ride logs' bucket comes with task 12.
+  Tests: `supabase/tests/contests_test.sql` (59). Cloud: `supabase db push` (the user).
 - [ ] **11. Lobby.** Contests phase 3 with sign-in for hosts, starting from a saved break in My Breaks, guests joining
   anonymously. Test: two browser contexts.
 - **Jerseys in contests (the user, 2026-11-24):** each contest heat draws its surfers' jersey colours at random (from
