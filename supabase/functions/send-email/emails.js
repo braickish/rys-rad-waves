@@ -48,7 +48,7 @@ const WORDS = {
 const fallback = () => ({ subject: "Your Ry's Rad Waves link", title: 'Your link', lines: ['Tap the button to carry on in Ry\'s Rad Waves.'], button: 'Open the game' });
 
 // The logo from the title screen, as an image (email apps ignore web fonts and text shadows), served with the game.
-export const LOGO_URL = 'https://braickish.github.io/rys-rad-waves/assets/email/logo.png';
+export const LOGO_URL = 'https://braickish.com/rys-rad-waves/assets/email/logo.png';
 const INK = '#0b2233', DIM = '#4a6a7a';
 
 export function buildEmail(e) {
