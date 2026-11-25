@@ -260,13 +260,15 @@ sees it on their profile.
 - **Jerseys in contests (the user, 2026-11-24):** each contest heat draws its surfers' jersey colours at random (from
   the heat's seed, all different, stored with the heat so every client shows the same), whatever your profile says. Your
   profile's jersey is what you wear in solo heats. The surfer wears the jersey over any outfit, at every water temperature.
-- [ ] **11a. Email through Resend (the Send Email Hook).** *Built and tested locally, and the function deployed
-  (2026-11-25): `supabase/functions/send-email` (index.ts; the words in emails.js, shared with the tests), local hook on
-  (`[auth.hook.send_email]`, secret in the git-ignored supabase/.env and supabase/functions/.env; with no Resend key it
-  posts into Mailpit), `npm run test:email-hook` (25: signatures, each email, an email change's two links routed by
-  token hash, escaping, a real email change in the browser). Left: the user's Resend account, domain and DNS, then
-  `rrw-set-resend-key`; then a test email and the cloud hook switched on (`[remotes.production.auth.hook.send_email]`
-  enabled, `npx supabase config push`) with the email rate limit raised.* Originally: Supabase's built-in sender allows only about 2 emails an
+- [x] **11a. Email through Resend (the Send Email Hook)** (2026-11-25). `supabase/functions/send-email` (index.ts;
+  the words in emails.js, shared with the tests): Standard Webhooks signature checked, each email worded in the game's
+  look, sent through Resend from howdy@rysradwaves.com; an email change's two links routed by token hash. Local: hook on
+  in `[auth.hook.send_email]`, secret in the git-ignored supabase/.env and supabase/functions/.env, no Resend key so it
+  posts into Mailpit. Cloud: the domain verified in Resend, key and hook secret in Supabase secrets
+  (`rrw-set-resend-key`), a signed test send to Resend's test address accepted, then the hook switched on
+  (`[remotes.production.auth.hook.send_email]`, `npx supabase config push`). The email rate limit isn't managed by
+  config push: raise it in the dashboard (Authentication > Rate Limits). Test: `npm run test:email-hook` (25).
+  Originally: Supabase's built-in sender allows only about 2 emails an
   hour, too few for sign-ups, sign-ins and email changes once people play. Auth hands every email to an Edge Function
   `send-email` (Auth Hooks: Send Email, HTTP), which checks the hook's signature (Standard Webhooks, the hook secret),
   words the email itself (sign-in and sign-up link, email change to both addresses, reauthentication; the game's look,

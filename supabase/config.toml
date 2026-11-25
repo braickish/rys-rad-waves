@@ -429,15 +429,18 @@ project_id = "lyttzshnxspdugvonjea"
 [remotes.production.auth]
 site_url = "https://braickish.github.io/rys-rad-waves/"
 additional_redirect_urls = ["https://braickish.github.io/rys-rad-waves/**", "https://rysradwaves.com/**", "https://www.rysradwaves.com/**"]
-# Emails (accounts plan task 11a): the send-email hook, through Resend from howdy@rysradwaves.com. OFF until the domain is
-# verified in Resend and its key is in Supabase secrets (~/scripts/rrw-set-resend-key): turned on with `enabled = true`
-# and `npx supabase config push`. The hook's secret is the cloud's own (supabase/.env, SEND_EMAIL_HOOK_SECRET_CLOUD,
+# Emails (accounts plan task 11a): the send-email hook, through Resend from howdy@rysradwaves.com. On since 2026-11-25
+# (the domain verified in Resend, the key in Supabase secrets by ~/scripts/rrw-set-resend-key). The hook's secret is the cloud's own (supabase/.env, SEND_EMAIL_HOOK_SECRET_CLOUD,
 # git-ignored; the same value is in Supabase secrets as SEND_EMAIL_HOOK_SECRET). Until then Supabase's built-in sender
-# is used, which is limited to a few emails an hour.
+# was used, limited to a few emails an hour; with the hook the limit is ours to set (below).
 [remotes.production.auth.hook.send_email]
-enabled = false
+enabled = true
 uri = "https://lyttzshnxspdugvonjea.supabase.co/functions/v1/send-email"
 secrets = "env(SEND_EMAIL_HOOK_SECRET_CLOUD)"
+
+# (config push doesn't manage this one: set in the dashboard, Authentication > Rate Limits)
+[remotes.production.auth.rate_limit]
+email_sent = 100
 
 # Accounts plan task 8. Both check who you are themselves: checkout reads your session, the webhook checks Stripe's
 # signature (Stripe sends no Supabase token).
