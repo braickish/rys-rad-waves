@@ -276,6 +276,13 @@ max_frequency = "5s"
 # Force log out if the user has been inactive longer than the specified duration.
 # inactivity_timeout = "8h"
 
+# Accounts plan task 11a: every auth email goes to the send-email Edge Function, which sends it through Resend (or, locally
+# with no Resend key, into Mailpit). The secret is in supabase/.env (git-ignored) and, the same, in supabase/functions/.env.
+[auth.hook.send_email]
+enabled = true
+uri = "http://host.docker.internal:55321/functions/v1/send-email"
+secrets = "env(SEND_EMAIL_HOOK_SECRET)"
+
 # This hook runs before a new user is created and allows developers to reject the request based on the incoming user object.
 # [auth.hook.before_user_created]
 # enabled = true
@@ -422,8 +429,15 @@ project_id = "lyttzshnxspdugvonjea"
 [remotes.production.auth]
 site_url = "https://braickish.github.io/rys-rad-waves/"
 additional_redirect_urls = ["https://braickish.github.io/rys-rad-waves/**", "https://rysradwaves.com/**", "https://www.rysradwaves.com/**"]
-# Launch: custom SMTP so magic links come from howdy@rysradwaves.com (e.g. Resend). Until then Supabase's
-# built-in sender is used, which is limited to a few emails an hour.
+# Emails (accounts plan task 11a): the send-email hook, through Resend from howdy@rysradwaves.com. OFF until the domain is
+# verified in Resend and its key is in Supabase secrets (~/scripts/rrw-set-resend-key): turned on with `enabled = true`
+# and `npx supabase config push`. The hook's secret is the cloud's own (supabase/.env, SEND_EMAIL_HOOK_SECRET_CLOUD,
+# git-ignored; the same value is in Supabase secrets as SEND_EMAIL_HOOK_SECRET). Until then Supabase's built-in sender
+# is used, which is limited to a few emails an hour.
+[remotes.production.auth.hook.send_email]
+enabled = false
+uri = "https://lyttzshnxspdugvonjea.supabase.co/functions/v1/send-email"
+secrets = "env(SEND_EMAIL_HOOK_SECRET_CLOUD)"
 
 # Accounts plan task 8. Both check who you are themselves: checkout reads your session, the webhook checks Stripe's
 # signature (Stripe sends no Supabase token).
@@ -431,4 +445,8 @@ additional_redirect_urls = ["https://braickish.github.io/rys-rad-waves/**", "htt
 verify_jwt = false
 
 [functions.stripe-webhook]
+verify_jwt = false
+
+# Auth calls it with the hook's signature, not a user's token (task 11a).
+[functions.send-email]
 verify_jwt = false

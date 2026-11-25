@@ -14,6 +14,7 @@
     "test:breaks-browser": "node test/breaks-browser.mjs",
     "test:paywall-browser": "node test/paywall-browser.mjs",
     "test:lobby-browser": "node test/lobby-browser.mjs",
+    "test:email-hook": "node test/email-hook.mjs",
     "functions:serve": "supabase functions serve --env-file supabase/functions/.env",
     "test:stripe": "node test/stripe.mjs"
   },

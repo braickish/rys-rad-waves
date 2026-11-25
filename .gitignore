@@ -7,5 +7,7 @@ supabase/.temp/
 supabase/.branches/
 .claude/
 
-# Edge Function secrets for local runs (Stripe test keys)
+# Edge Function secrets for local runs (Stripe test keys, the email hook's secret)
 supabase/functions/.env
+# The local stack's own secrets for config.toml's env(...) (the send-email hook)
+supabase/.env
