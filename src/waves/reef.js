@@ -74,7 +74,7 @@ const reef = {
   tune: {
     ...point.tune,
     // (Raglan's 2026-11-18 turn-drive changes are kept off Pipe for now: these are the values Pipe had)
-    bottomDrive: 8, bottomCarveDrive: 1.6, topDrive: 1.6, driveMaxAccel: 0, highDropAccel: 4, roundhouseNoDrive: false,
+    bottomDrive: 8, bottomCarveDrive: 1.6, topDrive: 1.6, highDropAccel: 4, roundhouseNoDrive: false,
     topDropBoost: 8, driveRefSpeed: 0, dropTerminal: 0, postMoveDrop: 1, moveEase: 0, // (Raglan's speed-on-speed changes, 2026-11-18, kept off Pipe: the user)
     heightSpeed: [0.45, 0.75], feed: 2.0, maxAccel: 10, // (Raglan's smoother pocket speed, 2026-11-19, kept off Pipe)
     lipSnapDrag: 1.4, slashDrag: 3.2, moveCalm: 0.95, bleed: 0.9, shoulderFade: 1,

@@ -69,6 +69,17 @@ const RIDER_TUNE = {
   maxAccelFast: 0.3,
   accelTaper: [7, 14], // ... between these speeds (m/s, ~16 -> 31 mph)
   driveSmooth: 0.2, // turn drive builds in over about this long (s), no jumps
+  // Wave rules (the user, 2026-11-25): settings that come from what the wave is like where you are, not from numbers set
+  // per wave, so a wave built from any reef design rides right. Read live (waveRules): the curl's speed (smoothed over
+  // `curlSmooth` s) and the face's steepness at your spot along the wave (its steepest open-face angle, bottom to lip).
+  // Turn drive's speed limit (m/s^2): `driveAccel` on a wave like Raglan (curl `curlRef` m/s, face `steepRef` deg),
+  // scaled by the square root of the curl's speed times the face's slope: a faster curl needs more drive to keep up
+  // with it, a steeper face gives more (sin: gravity's pull down it). (Square roots: straight ratios gave Trestles'
+  // racing sections 3x Raglan's gain and cut its gentle ~30 deg walls well below the old limit.) Each within its range.
+  driveAccel: 6.5, curlRef: 8.3, steepRef: 40, curlSmooth: 2.0, driveCurlK: [0.8, 1.25], driveSteepK: [0.75, 1.15],
+  // Coming up the face out of a bottom turn, speed can build this much faster than the general limit (maxAccel), so
+  // the turn's drive comes through instead of being clipped (2026-11-25, the user: more drive off the bottom turn).
+  carveAccel: 0.3,
   turnWindow: 0.08, // steering this recently when you reach the lip = a turn off the top; otherwise an air
   lipExit: 1.2, // moves off the lip point you this far below the line (rad, ~70 deg)
   foamExit: 0.6, // ... but out of the whitewater, shallower (down and forward, ~35 deg) // speed gained per radian of carving up near the top of the pocket (m/s)
@@ -313,6 +324,29 @@ function waveHeightFrac(y) {
 // Heading up the face and down the line (climbing up the whitewater).
 function climbingFoam(r) {
   return Math.sin(r.phi) > 0.2 && Math.cos(r.phi) > -0.15;
+}
+
+// How steep the face is at xs (deg): the upper face's overall angle, from 30% of the face's height up to the lip, the
+// part you ride. (Not the steepest point: a pitching lip reads 60-125 deg over a gentle face. Not bottom to lip either:
+// the bottom line can sit well out on the flats, Pipe's ~11 m out.) Raglan ~40, Pipe ~54, Trestles ~30, less out on
+// the shoulder.
+export function faceSteepness(xs) {
+  const top = topOfFace(xs), B = frameAt(xs, TUNE.tBottom).P, L = frameAt(xs, top).P;
+  const y30 = B[1] + 0.3 * (L[1] - B[1]);
+  let lo = top, hi = TUNE.tBottom; // (t: the 30% point, by bisection; height rises as t goes from the bottom toward the lip)
+  for (let i = 0; i < 14; i++) { const mid = (lo + hi) / 2; if (frameAt(xs, mid).P[1] >= y30) lo = mid; else hi = mid; }
+  const M = frameAt(xs, lo).P;
+  return Math.atan2(L[1] - M[1], Math.max(1e-3, Math.hypot(L[0] - M[0], L[2] - M[2]))) * 180 / Math.PI;
+}
+// The wave rules' readings where you are (see `driveAccel` in the settings): the curl's speed, smoothed, and the face's
+// steepness at your spot, re-read every 0.2 s (the wave changes as it peels; a scan every step costs too much).
+function waveRules(r, dt) {
+  const T = TUNE;
+  r.curlS = r.curlS === undefined ? PEEL_SPEED : r.curlS + (PEEL_SPEED - r.curlS) * (1 - Math.exp(-dt / T.curlSmooth));
+  r.steepAge = (r.steepAge ?? 9) + dt;
+  if (r.steepAge >= 0.2 || r.steepS === undefined) { r.steepS = faceSteepness(r.xs); r.steepAge = 0; }
+  const rad = Math.PI / 180;
+  r.driveCap = T.driveAccel * clamp(Math.sqrt(r.curlS / T.curlRef), ...T.driveCurlK) * clamp(Math.sqrt(Math.sin(r.steepS * rad) / Math.sin(T.steepRef * rad)), ...T.driveSteepK);
 }
 
 // Where the rideable face tops out at xs (the barrel's roof starts earlier).
@@ -1112,9 +1146,10 @@ function stepSurf(r, input, dt) {
   // Pivoting on the fin scrubs speed as the board swings (more the faster it swings).
   if (T.pivotRate && r.pivot > 0 && playerD) r.speed *= Math.exp(-T.pivotDrag * r.pivot * Math.abs(playerD)); // (pivotDrag: per radian swung)
   const release = r.driveBank * (1 - Math.exp(-dt / T.driveSmooth));
-  // (waves with `driveMaxAccel`: turn drive alone never adds speed faster than this, m/s^2; the rest of the
-  // bank is spent, not saved, so it doesn't carry on pushing after the turn)
-  r.speed += T.driveMaxAccel ? Math.min(release, T.driveMaxAccel * dt) : release; r.driveBank -= release;
+  // (turn drive alone never adds speed faster than the wave rules' limit, `r.driveCap` m/s^2; the rest of the bank is
+  // spent, not saved, so it doesn't carry on pushing after the turn)
+  waveRules(r, dt);
+  r.speed += Math.min(release, r.driveCap * dt); r.driveBank -= release;
   if (playerD) { r.lastTurnTime = r.time; r.lastTurnDir = Math.sign(playerD); }
 
   // Track bottom turns (for moves and combos): down low heading down, then up.
@@ -1234,7 +1269,7 @@ function stepSurf(r, input, dt) {
   // drive, pump), it never surges: speed builds at most maxAccel.
   // Pointing down high on the wave is allowed to build speed faster.
   const highDrop = highDropNow;
-  const accelCap = T.maxAccel * (1 - (1 - T.maxAccelFast) * sstep(T.accelTaper[0], T.accelTaper[1], speedAtStart)) * (1 + T.highDropAccel * highDrop) * (1 + (T.fwdAccel - 1) * sFwd);
+  const accelCap = T.maxAccel * (1 - (1 - T.maxAccelFast) * sstep(T.accelTaper[0], T.accelTaper[1], speedAtStart)) * (1 + T.highDropAccel * highDrop) * (1 + (T.fwdAccel - 1) * sFwd) * (1 + T.carveAccel * (r.bottomCarve && r.carvingUp ? 1 : 0));
   r.speed = Math.min(r.speed, speedAtStart + accelCap * dt);
   r.speed += gDv;
   // During a move, and for a moment after it, you don't speed up at all:
