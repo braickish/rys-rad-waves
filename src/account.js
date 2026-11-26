@@ -148,7 +148,7 @@ export function describeProfileError(e) {
 // SALES_OPEN turns on the lock and every buy button (src/paywall.js) together. It stays false until Stripe has live
 // keys, so nobody loses a wave before they can buy one, or pays the sandbox. `?paywall` turns it on to try it (and
 // stays on for the visit, since Checkout and the sign-in link come back without it).
-const LIVE = false; // (flip at launch, with the live Stripe keys in Supabase secrets)
+const LIVE = true; // (live since 2026-11-26: the live Stripe keys are in Supabase secrets; false hides the buy buttons again)
 const TRY = (() => {
   try {
     if (new URLSearchParams(location.search).has('paywall')) sessionStorage.setItem('rys-rad-waves-paywall', '1');
