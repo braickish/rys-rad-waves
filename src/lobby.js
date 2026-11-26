@@ -167,7 +167,8 @@ function render() {
     if (member && me.handle === undefined) { me.handle = null; myProfile().then((pr) => { me.handle = pr?.handle || null; render(); }).catch(() => {}); }
   }
   $('lobby-start').hidden = !(lobby && isHost);
-  $('lobby-start').disabled = !d?.entrants.length;
+  const count = d?.entrants.length ?? p.entrants;
+  $('lobby-start').disabled = count < 2; // (a heat is 2 to 4 surfers: the host can't start alone, the user 2026-11-26)
   $('lobby-leave').hidden = !(lobby && mine);
   $('lobby-cancel').hidden = !(isHost && (lobby || state === 'running'));
   clearInterval(me.count); me.count = null;
@@ -180,13 +181,13 @@ function render() {
     if (mine && my?.state === 'live' && !inHeat) countdown(my.starts_at);
     else if (mine && my?.state === 'done' && entry?.advanced) say('lobby-msg', "You're through! The next round starts once every heat of this one is done.");
     else if (mine && my?.state === 'done') say('lobby-msg', "You're out. The rest is on: watch the bracket here.");
-    else if (!mine) say('lobby-msg', 'This contest has started.');
+    else if (!mine) say('lobby-msg', "This contest has already started, so it's too late to join this one. Ask the host to start another.");
   } else if (state === 'done') {
     const last = heats[heats.length - 1], win = last?.heat_entries.find((x) => x.place === 1);
     const name = win && d.entrants.find((e) => e.id === win.entrant_id)?.name;
     say('lobby-msg', name ? `Won by ${name}${win.entrant_id === mine?.id ? ' (you!)' : ''}.` : 'This contest is over.');
   } else if (state === 'cancelled') say('lobby-msg', 'The host cancelled this contest.');
-  else if (lobby && !me.msgKept) say('lobby-msg', mine ? (isHost ? 'Share the code. Start when everyone\'s in.' : 'You\'re in. Waiting for the host to start.') : '');
+  else if (lobby && !me.msgKept) say('lobby-msg', mine ? (isHost ? (count < 2 ? 'Share the link. You can start once someone else joins.' : 'Share the link. Start when everyone\'s in.') : 'You\'re in. Waiting for the host to start.') : '');
 }
 
 // The heats, round by round: who's in each (by place once it's done), their totals, who went through.

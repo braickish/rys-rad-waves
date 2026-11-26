@@ -43,8 +43,8 @@ await post('entitlements', { user_id: uid, kind: 'pro', source: 'grant', expires
 const brk = await post('breaks', { owner: uid, name: 'Test Bombie', design: {}, ride: { peaks: [1] }, visibility: 'private' });
 await A.go(`${A.base}?wave=point`); await ready(A);
 await A.evaluate(`document.getElementById('go-compete').click(); document.getElementById('go-host').click()`);
-check(!!(await A.waitFor(`${shown('host-form')} && document.getElementById('host-name').value === '${handle}\\'s contest' && document.querySelectorAll('#host-spot option').length === 7`, 15000)),
-  'Host a contest: the form, named for you, the six waves and your break');
+check(!!(await A.waitFor(`${shown('host-form')} && document.getElementById('host-name').value === '${handle}\\'s contest' && document.querySelectorAll('#host-spot option').length === 4`, 15000)),
+  'Host a contest: the form, named for you, the three waves and your break');
 await A.evaluate(`document.getElementById('host-spot').value = 'wave:reef'; document.getElementById('host-len').value = '5w'; document.getElementById('host-form').requestSubmit()`);
 const code = await A.waitFor(`${shown('lobby')} && /^[A-Z0-9]{6}$/.test(document.getElementById('lobby-code').textContent) && document.getElementById('lobby-code').textContent`, 20000);
 check(!!code && (await A.evaluate(`new URLSearchParams(location.search).get('contest')`)) === code, `created: the lobby, code ${code}, in the address`);
