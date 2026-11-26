@@ -80,6 +80,12 @@ const RIDER_TUNE = {
   // Coming up the face out of a bottom turn, speed can build this much faster than the general limit (maxAccel), so
   // the turn's drive comes through instead of being clipped (2026-11-25, the user: more drive off the bottom turn).
   carveAccel: 0.3,
+  // Turns stop adding speed once you're already well past the curl's speed (a wave rule, the user's idea, 2026-11-26: held
+  // on and on, a bottom turn kept accelerating): full drive up to `driveOverCurl[0]` x the curl's speed, none by
+  // `driveOverCurl[1]` x. Holding a turn never costs speed; it just stops gaining. (The curl's speed smoothed, within
+  // `overCurlRange` x Raglan's: Trestles' curl creeps between breaks and read as ~12 mph choked its drive from ~15 mph.
+  // Raglan full to ~24 mph, none by ~35.) Replaces the per-wave `driveRefSpeed`.
+  driveOverCurl: [1.3, 1.9], overCurlRange: [0.8, 1.6],
   // Whitewater's drag on your speed builds with its age (a wave rule, the user, 2026-11-25: speed dropped off too fast
   // behind the curl): water that broke under `foamAge[0]` s ago is still moving with the wave and doesn't slow you;
   // its full drag by `foamAge[1]` s. By time, not distance, so a faster curl leaves a longer stretch of young water.
@@ -376,7 +382,9 @@ function waveRules(r, dt) {
   const T = TUNE;
   r.curlS = r.curlS === undefined ? PEEL_SPEED : r.curlS + (PEEL_SPEED - r.curlS) * (1 - Math.exp(-dt / T.curlSmooth));
   r.steepAge = (r.steepAge ?? 9) + dt;
-  if (r.steepAge >= 0.2 || r.steepS === undefined) { r.steepS = faceSteepness(r.xs); r.steepAge = 0; }
+  if (r.steepAge >= 0.2 || r.steepS === undefined) {
+    r.steepS = faceSteepness(r.xs); r.steepAge = 0;
+  }
   const rad = Math.PI / 180;
   r.driveCap = T.driveAccel * clamp(Math.sqrt(r.curlS / T.curlRef), ...T.driveCurlK) * clamp(Math.sqrt(Math.sin(r.steepS * rad) / Math.sin(T.steepRef * rad)), ...T.driveSteepK);
 }
@@ -1194,18 +1202,18 @@ function stepSurf(r, input, dt) {
   r.carvingUp = d !== 0 && Math.sign(d) === (Math.cos(r.phi - d) >= 0 ? 1 : -1);
   const driving = r.bottomCarve ? r.carvingUp : Math.sin(r.phi) > sinBefore;
   const turnDrives = !(r.roundhouse && T.roundhouseNoDrive); // (a dropknee turn turns you, it doesn't make speed)
-  // (waves with `driveRefSpeed`: above that speed a radian of turn pays less, so drive per second stops growing with
-  // speed: turns come round faster when you're fast, and paying per radian made speed build on speed; the user, 2026-11-18)
-  const driveK = T.driveRefSpeed ? Math.min(1, T.driveRefSpeed / Math.max(r.speed, 1e-3)) : 1;
-  if (turnDrives && driveLow > 0 && driving && d === playerD && !(r.slash && r.slash.released) && !r.slide) r.driveBank += T.bottomDrive * carveDrive * Math.abs(d) * driveLow * (0.4 + 0.6 * pkDrive) * driveK;
-  if (turnDrives && high > 0 && d === playerD && !(r.slash && r.slash.released) && !r.slide) r.driveBank += T.topDrive * Math.abs(d) * high * pkDrive * pivotK * driveK;
+  if (turnDrives && driveLow > 0 && driving && d === playerD && !(r.slash && r.slash.released) && !r.slide) r.driveBank += T.bottomDrive * carveDrive * Math.abs(d) * driveLow * (0.4 + 0.6 * pkDrive);
+  if (turnDrives && high > 0 && d === playerD && !(r.slash && r.slash.released) && !r.slide) r.driveBank += T.topDrive * Math.abs(d) * high * pkDrive * pivotK;
   // Pivoting on the fin scrubs speed as the board swings (more the faster it swings).
   if (T.pivotRate && r.pivot > 0 && playerD) r.speed *= Math.exp(-T.pivotDrag * r.pivot * Math.abs(playerD)); // (pivotDrag: per radian swung)
   const release = r.driveBank * (1 - Math.exp(-dt / T.driveSmooth));
   // (turn drive alone never adds speed faster than the wave rules' limit, `r.driveCap` m/s^2; the rest of the bank is
   // spent, not saved, so it doesn't carry on pushing after the turn)
   waveRules(r, dt);
-  r.speed += Math.min(release, r.driveCap * dt); r.driveBank -= release;
+  // (well past the curl's speed, the turn redirects your speed rather than adding to it: `driveOverCurl`)
+  const curlV = clamp(r.curlS ?? PEEL_SPEED, T.overCurlRange[0] * T.curlRef, T.overCurlRange[1] * T.curlRef);
+  const overK = 1 - sstep(T.driveOverCurl[0], T.driveOverCurl[1], r.speed / Math.max(1, curlV));
+  r.speed += Math.min(release, r.driveCap * dt) * overK; r.driveBank -= release;
   // (the turn's over: what's left of its drive is spent, on every wave. Paid out up the face after the turn it was a
   // slingshot out of the end of it; the user, 2026-11-25)
   if (!playerD) r.driveBank = 0;

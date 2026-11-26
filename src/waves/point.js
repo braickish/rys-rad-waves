@@ -85,7 +85,7 @@ export default {
     // Speed building on speed (2026-11-18, the user: as you go faster it all builds on each other; and the snap sped
     // back up dropping down): a turn's drive per radian falls off above `driveRefSpeed` (~20 mph), a drop adds less
     // the faster you go (nothing by `dropTerminal`, ~38 mph), and the drop off a move pays `postMoveDrop` of a normal one.
-    driveRefSpeed: 9, dropTerminal: 17, postMoveDrop: 0, // (off a snap the wave alone brings your speed back: the user)
+    dropTerminal: 17, postMoveDrop: 0, // (off a snap the wave alone brings your speed back: the user)
     moveEase: 0.4, // and once a move hands the board back, speed eases back in over 0.4 s instead of switching on at once
     roundhouseNoDrive: true, // a roundhouse turns you without making speed (moves don't add speed; was +5 mph)
     // Snaps and slashes (2026-11-18, the user: they dropped too much speed and held you for a moment after): the snap
