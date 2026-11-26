@@ -567,23 +567,25 @@ function kfPoints(KF, s, out, scale) {
   return onFloor(out);
 }
 // The flats are a fixed floor at sea level (0), on every wave and every shape (the user, 2026-11-25): no drawdown in front of
-// the face. A shape that dips below 0 out toward the flats is raised as a whole instead: the wave (points 2-14, back of the
-// crest to the trough) moves straight up, unchanged, until the lowest water in front of it (and behind) sits on 0; only the
+// the face. A shape whose lowest water out toward the flats isn't on 0 is moved as a whole instead: the wave (points 2-14, back
+// of the crest to the trough) moves straight up (or down), unchanged, until the lowest water in front of it (and behind) sits on 0; only the
 // long run out to the far flats (points 0, 1, 15, at 0) bends to meet it. Where one shape dipped and the next didn't, the
 // flats stepped along the wave: a ridge out on the flats behind the curl. (Not a clamp, and not a lift by height: both bent
 // the foot of the face, a hard edge where the flats meet the barrel; the user, same day.)
 const _fo = [0, 0];
-function floorLow(p) {
-  let lo = Infinity;
-  for (let t = I.FACE_LOW; t <= NP - 1; t += 0.05) lo = Math.min(lo, crPoint(p, t, _fo)[1]);
-  for (let t = 0; t <= I.CREST_BACK; t += 0.1) lo = Math.min(lo, crPoint(p, t, _fo)[1]);
-  return lo;
-}
+// (the lowest water in front, from the face's foot to the trough, and behind, from the far flats to the back of the crest)
+function lowIn(p, t0, t1) { let lo = Infinity; for (let k = 0, n = Math.round((t1 - t0) / 0.05); k <= n; k++) lo = Math.min(lo, crPoint(p, t0 + (t1 - t0) * k / n, _fo)[1]); return lo; }
 function onFloor(p) {
-  // (the run out to the far flats bends as the wave rises, which moves its lowest point: a few passes settle it)
+  // (the trough sets the level: on 0, up or down. The wave behind can't go under 0 either, so if it would, it's lifted by that.
+  // Raising the wave bends the runs out to the far flats, which can move the lowest point: a few passes settle it)
   for (let pass = 0; pass < 4; pass++) {
-    const lo = floorLow(p); if (!(lo < -1e-4)) break;
-    for (let i = 2; i <= I.TROUGH; i++) p[i * 2 + 1] -= lo;
+    const front = lowIn(p, I.FACE_LOW, I.TROUGH);
+    let d = -front;
+    if (Math.abs(d) <= 1e-4) d = 0;
+    if (d) for (let i = 2; i <= I.TROUGH; i++) p[i * 2 + 1] += d;
+    const back = lowIn(p, 1, I.CREST_BACK);
+    if (back < -1e-4) for (let i = 2; i <= I.TROUGH; i++) p[i * 2 + 1] -= back;
+    if (!d && !(back < -1e-4)) break;
   }
   return p;
 }

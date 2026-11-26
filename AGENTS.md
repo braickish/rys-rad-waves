@@ -99,13 +99,18 @@ behind the curl on every barrel, half-barrel and ledge (Pipe too). The trough no
 the wall's toe. The GPU water now uses the same size as the CPU shape (wave.js `sizeFor`: eased to 1 behind the curl, and the
 trough's height not scaled; it had scaled every slice by its raw local size). `node test/flats.mjs`: on every wave's every shape
 set, out on the flats ahead of the whitewater the water only fills in (no drop over 3 cm within 0.4 of phase).
-Then (same day, the user: still a ridge; the flats are a fixed 0 floor, anything that would go negative shifts the rest of
-the wave instead): wave.js `onFloor`, on every wave and shape set (kfPoints, so the GPU table, physics and blends all get it):
-a trough under 0 is set on 0 and the wave above lifts by as much (fading out under 0.3 of the crest's height, so a lip landing
-on the water stays there), and `crPoint` keeps the curve out to the flats (t >= 13, t <= 3) from swinging under 0. The ridge
-was the drawdown in front of the curl (Raglan ~0.25 m, built barrels ~0.3 m, Pipe deeper) against whitewater at 0 behind it.
-flats.mjs also checks no flats under sea level at any phase. Riding tests unchanged (sections/shuffle/stripe/wallspeed failed
-before it too).
+Then (same day, the user: still a ridge, then a hard edge where the flats meet the barrel; the flats are a fixed 0 floor and
+the whole shape is offset, not reshaped): wave.js `onFloor`, per shape set and phase (kfPoints, so every slice gets its own
+offset, and the GPU table, physics and blends all get it): the wave (points 2-14) moves straight up or down, unchanged, until
+its trough sits on 0; if the run out behind would then dip under 0 it lifts by that too. `crPoint` (via `slopeY`) makes the curve
+level at the trough and where the far flats behind begin, and limits the slope at the back of the wave (point 2, Fritsch-Carlson
+3x), all as one smooth cubic: centripetal Catmull-Rom had sagged ~0.7 under the trough past it and ~0.4 under 0 behind the
+wave, which made the lift far bigger than the trough's depth (a ledge raised 0.67 m for a 0.24 m trough). An earlier clamp and a
+lift that faded with height bent the face's foot: a hard edge. Behind a collapsed tube (withBore with `collapse`) the
+whitewater's base stays where the lip landed and its foam apron is `TUBE_APRON` 0.35 the size (it had run 5 m further in and
+lifted the flats 0.3-0.6 m out to 20 m within a few metres behind the collapse: the lump the user first saw). Now the flats from
+~8 m in front of the wave out are 0.00 ahead of and behind the curl. flats.mjs also checks the flats sit on sea level at every
+phase. Riding tests unchanged (sections/shuffle/stripe/wallspeed failed before it too).
 The look (shaders.js water, every wave): whitewater behind the curl (phase 0.2+, with foam) is lumpy (vertex bumps along
 the normal, rolling toward shore, 0.3 x scale), lit mostly by the sky with lumpy normals (the sun is usually behind the
 wave, so sunlight alone left it one flat white), thins across the bore's apron (t 12.5-15) instead of ending in a line,
