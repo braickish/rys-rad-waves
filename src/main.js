@@ -294,17 +294,40 @@ function loadBody(which) {
 window.__bodyColors = bodyColors; // (tests: the paint map, test/jersey.mjs)
 // The look worn now (task 16): a replay wears the recording's (so you see someone else's wave as they rode it); otherwise
 // yours, while you have Pro (as the database lets you save it), and the game's own look without.
-let planPro = false;
-onPlan((p) => { planPro = !!p.pro; });
+let planPro = false, planSeen = false;
+onPlan((p) => { planPro = !!p.pro; planSeen = true; });
+// Your look loads from your profile (and Pro from your plan) a moment after the game starts; until then the game's own
+// surfer showed, then switched: a different-coloured surfer for a second (the user, 2026-11-26). So the look you last wore
+// is kept in this browser (with your account's id) and worn straight away while your profile is on its way; signed out,
+// it's dropped. With nothing kept yet (a new device) the surfer waits for your look, up to `LOOK_WAIT` ms.
+const LOOK_KEY = 'rys-rad-waves-look', LOOK_WAIT = 2500;
+let lookKept = null, accountKnown = false;
+try { lookKept = JSON.parse(localStorage.getItem(LOOK_KEY) || 'null'); } catch {}
+initAccount().then(() => { accountKnown = true; }, () => { accountKnown = true; });
+const member = () => { const u = currentUser(); return !!(u && !u.is_anonymous); };
+// (your look is known: signed out, or signed in with your profile and plan both read)
+const lookKnown = () => accountKnown && (!member() || (!!cachedProfile() && planSeen));
+// (the kept look, while yours isn't known yet: only if it's this account's, or before the account has been read)
+const keptLook = () => (!lookKept || lookKnown() || (accountKnown && (!member() || lookKept.uid !== currentUser().id)) ? null : lookKept);
+function keepLook() {
+  if (!lookKnown()) return;
+  const want = member() ? { uid: currentUser().id, surfer: cachedProfile()?.surfer || null, stance: cachedProfile()?.stance || null, styling: planPro ? cachedProfile()?.styling || null : null } : null;
+  const now = JSON.stringify(want);
+  if (JSON.stringify(lookKept) === now) return;
+  lookKept = want;
+  try { if (want) localStorage.setItem(LOOK_KEY, now); else localStorage.removeItem(LOOK_KEY); } catch {}
+}
 // Which surfer (male or female): a replay's rider's, else yours (profiles.surfer, free), else the wave's own.
 function currentBody() {
-  const pick = player ? cleanBody(player.rec.surfer) : cleanBody(cachedProfile()?.surfer);
+  const pick = player ? cleanBody(player.rec.surfer) : cleanBody(cachedProfile()?.surfer ?? keptLook()?.surfer);
   return pick || (WAVE.surfer === 'girl' ? 'girl' : 'guy');
 }
 // Regular or goofy: a replay's rider's, else yours (profiles.stance, free), else the wave's own.
-const currentStance = () => (player ? cleanStance(player.rec.stance) : cleanStance(params.get('stance')) || cleanStance(cachedProfile()?.stance)) || null; // (?stance=regular|goofy: try one, for testing)
+const currentStance = () => (player ? cleanStance(player.rec.stance) : cleanStance(params.get('stance')) || cleanStance(cachedProfile()?.stance ?? keptLook()?.stance)) || null; // (?stance=regular|goofy: try one, for testing)
 function currentStyle() {
   if (player) return cleanStyling(player.rec.styling);
+  const kept = keptLook();
+  if (kept) return cleanStyling(kept.styling);
   return planPro ? cleanStyling(cachedProfile()?.styling) : {};
 }
 function wantBody() {
@@ -313,6 +336,9 @@ function wantBody() {
   setSurferBody(which); window.__bodyWhich = which; // (tests: who's riding)
   setSurferStance(currentStance()); window.__stance = currentStanceOf();
   if (!BODY_FILES[which]) return null; // (not built yet: the parts surfer)
+  keepLook();
+  // (a new device, your look not known yet: the surfer waits for it rather than showing the game's own and switching)
+  if (!player && !lookKnown() && !keptLook() && performance.now() < LOOK_WAIT && !H) return null;
   const b = loadBody(which);
   // (the wave's outfit, e.g. Raglan's wetsuit, painted once per body and outfit)
   // (?outfit=topper|shortsleeve|wetsuit|hood: try a look on any wave, for testing)
