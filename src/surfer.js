@@ -40,7 +40,7 @@ const TWIST_WIND = 0.7; // bottom turn: shoulders wind round toward the lip (rad
 // Backside (backside-1..3 in braickish/reference-images; the user, 2026-11-26: the hips and shoulders turned to the face too
 // much, too soon): through the bottom turn the chest stays open to the beach, the back to the wave, and the rail does the
 // turning; the shoulders come round toward the face only as the nose comes up out of the turn, and less.
-const TWIST_WIND_BACK = 0.3; // (rad, ~17 deg)
+const TWIST_WIND_BACK = 0.35; // (rad, ~20 deg: a bit, building as the turn deepens)
 const TWIST_UNLOAD = 0.9; // snap: they spring open the other way (rad) // how far the chest turns from the wave toward the nose (rad)
 
 const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
@@ -336,9 +336,10 @@ export function surferObjects(pose, rider, info, dt) {
   const unloadT = rider.unload > 0 ? 1 : 0;
   pose.unload = (pose.unload || 0) + (unloadT - (pose.unload || 0)) * (1 - Math.exp(-dt * (unloadT ? 22 : 6)));
   const windup = pose.windup, unload = pose.unload;
-  // (backside: the wind-up comes in only as the nose comes up the face out of the turn, `bsLate`)
-  const bsLate = fs < 0 && rider.mode === 'surf' ? sstepS(0.35, 0.9, Math.sin(rider.phi || 0)) : 1;
-  const wind = fs > 0 ? TWIST_WIND * windup : TWIST_WIND_BACK * windup * bsLate;
+  // (backside: the shoulders turn a bit toward the face as the turn deepens, from the nose ~35 deg down through to ~45 deg
+  // up; the user, 2026-11-26)
+  const bsDeep = fs < 0 && rider.mode === 'surf' ? sstepS(-0.6, 0.7, Math.sin(rider.phi || 0)) : 1;
+  const wind = fs > 0 ? TWIST_WIND * windup : TWIST_WIND_BACK * windup * bsDeep;
   const twist = (wind - TWIST_UNLOAD * unload) * ss * fs; // + = front shoulder round toward the toe side (toward the wave: backside, the heel side)
   // On the longboard's nose the hips and chest turn further toward the nose (2026-11-18, the user: so stepping into
   // a hang ten and back is a short move), and in the hang ten she faces the nose nearly square.
@@ -466,6 +467,8 @@ export function surferObjects(pose, rider, info, dt) {
   // chest height, back arm low and behind, reaching toward the water.
   let handBack = add(shBack, v3.mul(across, -0.36), v3.mul(bodyUp, -0.48), v3.mul(chest, 0.14));
   let handFront = add(shFront, v3.mul(across, 0.26), v3.mul(bodyUp, -0.08), v3.mul(chest, 0.34));
+  // Backside, the front arm hangs nearly straight down from the shoulder, relaxed (the user, 2026-11-26).
+  if (fs < 0 && rider.mode === 'surf') handFront = lerp3(handFront, add(shFront, v3.mul(bodyUp, -0.56), v3.mul(chest, 0.1), v3.mul(across, 0.05)), 0.85);
   const handBack0 = handBack, handFront0 = handFront; // (the usual spots, relative to the shoulders: a backside bottom turn keeps them)
   // Longboard, standing in the middle (stance for longboard.jpg in braickish/reference-images, 2026-11-18): relaxed
   // and upright, the front arm hanging nearly straight down by her side, the back arm bent at the elbow with the
