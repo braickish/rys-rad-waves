@@ -467,8 +467,9 @@ export function surferObjects(pose, rider, info, dt) {
   // chest height, back arm low and behind, reaching toward the water.
   let handBack = add(shBack, v3.mul(across, -0.36), v3.mul(bodyUp, -0.48), v3.mul(chest, 0.14));
   let handFront = add(shFront, v3.mul(across, 0.26), v3.mul(bodyUp, -0.08), v3.mul(chest, 0.34));
-  // Backside, the front arm hangs nearly straight down from the shoulder, relaxed (the user, 2026-11-26).
-  if (fs < 0 && rider.mode === 'surf') handFront = lerp3(handFront, add(shFront, v3.mul(bodyUp, -0.56), v3.mul(chest, 0.1), v3.mul(across, 0.05)), 0.85);
+  // Backside, the front arm hangs down from the shoulder, relaxed, the hand ~20 cm forward of straight down, toward the
+  // nose, clear of the front knee (the user, 2026-11-26).
+  if (fs < 0 && rider.mode === 'surf') handFront = lerp3(handFront, add(shFront, v3.mul(bodyUp, -0.52), v3.mul(chest, 0.1), v3.mul(across, 0.05), v3.mul(f, 0.2)), 0.85);
   const handBack0 = handBack, handFront0 = handFront; // (the usual spots, relative to the shoulders: a backside bottom turn keeps them)
   // Longboard, standing in the middle (stance for longboard.jpg in braickish/reference-images, 2026-11-18): relaxed
   // and upright, the front arm hanging nearly straight down by her side, the back arm bent at the elbow with the
