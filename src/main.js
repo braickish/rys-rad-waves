@@ -130,9 +130,13 @@ function bodyColors(m, which, outfit, jersey = null, style = {}) {
       const ax2 = Math.abs(x - pv[0]);
       const backEdge = !back ? -0.05
         : cut === 'cheeky' && ax2 > 0.012 ? -0.03 + 0.11 * Math.min(1, (ax2 - 0.012) / 0.07) ** 0.7
-        : cut === 'classic' ? -0.05 + 0.065 * ((u) => u * u * (3 - 2 * u))(Math.min(1, Math.max(0, (ax2 - 0.055) / 0.065))) // (the cheeks covered; the leg line rises only toward the outer edge)
+        : cut === 'classic' ? -0.05 + 0.085 * ((u) => u * u * (3 - 2 * u))(Math.min(1, Math.max(0, (ax2 - 0.04) / 0.07))) // (most of the cheeks covered; the leg line rises from about the middle of each toward the outer edge)
         : -0.05;
-      const rise = { full: 0.12, classic: 0.1, cheeky: 0.085 }[cut] ?? 0.12, string = bikini && y > rise - 0.012;
+      const side = ((u) => u * u * (3 - 2 * u))(Math.min(1, Math.max(0, (ax2 - 0.08) / 0.05))); // (0 front and back, 1 on the side of the hip)
+      const rise0 = { full: 0.12, classic: 0.1, cheeky: 0.085 }[cut] ?? 0.12, rise = rise0 + 0.012 * side;
+      // the band round the hips: ~2.4 cm front and back, taller where it wraps the side of the hip (the mesh's rows aren't
+      // level there, and a thinner band broke into a gap between front and back)
+      const string = bikini && y > rise - (0.024 + 0.022 * side);
       const t = Math.min(1, Math.max(0, (y + 0.05) / (rise + 0.05)));
       const half = cut === 'cheeky' ? 0.034 + 0.105 * t : 0.05 + 0.12 * t; // (the mesh is ~2 cm a vertex here: narrower and it breaks up)
       const frontCut = bikini && hipFront && !string && ax2 > half;
