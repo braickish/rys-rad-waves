@@ -49,6 +49,7 @@ export default {
   pocket: (xs) => (xs >= 0 ? Math.exp(-((xs / 5) ** 2)) : sstep(-5, -1, xs)),
   faceTop: () => 5.3,
   tube: false,
+  period: 15, // (s: a south swell at Waikiki; wave.js runOut)
   sea: { set: [0.9, 1.0, 1.1], sections: false },
 
   // A longboard: slower, wider turns and it glides, carrying its speed.

@@ -65,6 +65,7 @@ export default {
   tube: false,
 
   // Sets and sections (src/sea.js).
+  period: 13, // (s: Raglan's usual groundswell; wave.js runOut, how far the face takes to reach the flats)
   sea: {
     set: [0.9, 1.0, 1.15], // sizes of the waves in a set, relative to normal
     sections: false, // (closeout sections were tried; off for now)

@@ -564,7 +564,44 @@ function kfPoints(KF, s, out, scale) {
       out[i * 2 + c] = (h00 * y0 + h10 * m0 + h01 * y1 + h11 * m1) * scale;
     }
   }
-  return onFloor(out);
+  return onFloor(runOut(out, KF, scale));
+}
+// The run out from the face to the flats (the user, 2026-11-26, after a photo of Teahupoo: real waves don't go flat as quickly
+// as ours, the face sweeps out past where the lip lands and eases down). A rule on the swell, for every wave that has a period:
+// the water in front of a breaking wave is the trough before the next one, so how far the face takes to reach the flats goes
+// with the wavelength where it breaks: L = T sqrt(g h), with h the depth it breaks in (~ its height / 0.78). The trough (point
+// 14, where the curve is level) goes at least RUNOUT_K L in front of the face's foot (13); the curve between is a concave ramp,
+// whose shape comes from the face: a steep, plunging face enters it steep and bowls out, a gentle one eases straight down.
+// Long-period groundswell gets long, smooth ramps; short wind swell short ones. RUNOUT_K: the built barrel the user approved
+// the same day (2 m breakers, 16 s: ~7 m from the foot to the trough). The lip lands on the ramp, not through it. Waves whose
+// shapes come from a simulation (Pipe, Trestles, Dynamic) have no `period` here: their troughs are the sim's.
+const RUNOUT_K = 0.07, BREAK_DEPTH = 0.78, LAND = 0.03;
+const _crest = new WeakMap(), _ro = [0, 0];
+function crestOf(KF) { let c = _crest.get(KF); if (c == null) { c = Math.max(...KF.map((k) => k.p[I.CREST][1])); _crest.set(KF, c); } return c; }
+// (the curve's height where it crosses z on the way out from the face's foot to the trough, or null)
+function rampAt(p, z) {
+  let pz = p[I.FACE_LOW * 2];
+  for (let t = I.FACE_LOW + 0.01; t <= I.TROUGH + 1e-9; t += 0.01) {
+    crPoint(p, t, _ro);
+    if ((pz - z) * (_ro[0] - z) <= 0) return _ro[1];
+    pz = _ro[0];
+  }
+  return null;
+}
+function runOut(p, KF, scale) {
+  const T = WAVE.period;
+  if (!T) return p;
+  const hb = crestOf(KF) * scale / BREAK_DEPTH, R = RUNOUT_K * T * Math.sqrt(9.81 * Math.max(0.1, hb));
+  const want = p[I.FACE_LOW * 2] + R;
+  if (p[I.TROUGH * 2] >= want) return p;
+  p[I.TROUGH * 2] = want;
+  if (p[I.FRONT_FAR * 2] < want + R) p[I.FRONT_FAR * 2] = want + R; // (the far flats stay well out in front of it)
+  // the lip lands on the ramp: wherever its tip (or the water just inside it) would come down under the face, it lands on it
+  for (const j of [I.TIP, I.LIP_IN1]) {
+    const y = rampAt(p, p[j * 2]);
+    if (y != null && p[j * 2 + 1] < y + LAND * scale) p[j * 2 + 1] = y + LAND * scale;
+  }
+  return p;
 }
 // The flats are a fixed floor at sea level (0), on every wave and every shape (the user, 2026-11-25): no drawdown in front of
 // the face. A shape whose lowest water out toward the flats isn't on 0 is moved as a whole instead: the wave (points 2-14, back

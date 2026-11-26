@@ -11,6 +11,10 @@ import { applyBuilt } from '../src/waves/built.js';
 import * as W from '../src/wave.js';
 
 const TOL = 0.03; // (m at scale 1: how far the flats may drop back after rising)
+// The run out to the flats (wave.js runOut, the user, 2026-11-26): the ramp in front of a breaking wave settles as the wave
+// collapses into whitewater and loses height (the user: "let the ramp settle"). So the wave's own shape (no run-out) is held
+// to TOL as before (a dip filling in, a shelf), and with the run-out the water in front may settle by up to SETTLE.
+const SETTLE = 0.08;
 // (a bump comes and goes quickly: a drop within WINDOW of phase. The sim shapes' toe ebbs ~5 cm over a whole unit of phase
 // (Trestles/Dynamic set 2), too slow to stand out)
 const WINDOW = 0.4;
@@ -34,7 +38,11 @@ function frontZ() { let f = -Infinity; for (let k = 0; k < pts.length; k += 2) i
 applyBuilt({ v: 1, mode: 'loop', side: 'left', length: 60, base: 8, H: 3.5, c: 7, profile: [{ s: 0, peel: 8, k: 0, H: 3.5, u: 3 }, { s: 60, peel: 8, k: 0, H: 3.5, u: 4 }] });
 for (const def of [...WAVES, ...HIDDEN]) {
   W.setWave(def.id);
+  const period = W.WAVE.period;
   W.SHAPES.forEach((_, i) => {
+   for (const ramp of period ? [false, true] : [false]) {
+    W.WAVE.period = ramp ? period : 0;
+    const tol = ramp ? SETTLE : TOL, tag = ramp ? ' (with the run-out: settles at most ' + SETTLE + ')' : '';
     let worst = { d: 0 };
     for (let z = 6; z <= 14; z += 1) {
       const seen = [];
@@ -52,9 +60,11 @@ for (const def of [...WAVES, ...HIDDEN]) {
       W.withShape(i, () => W.controlPoints(s, cp, 1));
       for (let t = 0; t <= W.NP - 1; t += 0.02) { if (t > W.I.CREST_BACK && t < W.I.FACE_LOW) continue; W.crPoint(cp, t, o); if (o[1] < low.y) low = { y: o[1], s, t }; }
     }
-    check(low.y >= -0.005, `${def.id} set ${i}: the flats sit on sea level` + (low.y < -0.005 ? ` (${low.y.toFixed(2)} at s ${low.s.toFixed(2)}, t ${low.t.toFixed(2)})` : ''));
-    check(worst.d <= TOL, `${def.id} set ${i}: the flats only fill in` + (worst.d > 0.005 ? ` (drop ${worst.d.toFixed(2)} at z ${worst.z}, s ${worst.s.toFixed(2)} after rising to s ${worst.at.toFixed(2)})` : ''));
+    check(low.y >= -0.005, `${def.id} set ${i}: the flats sit on sea level${tag}` + (low.y < -0.005 ? ` (${low.y.toFixed(2)} at s ${low.s.toFixed(2)}, t ${low.t.toFixed(2)})` : ''));
+    check(worst.d <= tol, `${def.id} set ${i}: the flats only fill in${tag}` + (worst.d > 0.005 ? ` (drop ${worst.d.toFixed(2)} at z ${worst.z}, s ${worst.s.toFixed(2)} after rising to s ${worst.at.toFixed(2)})` : ''));
+   }
   });
+  W.WAVE.period = period;
 }
 console.log(fails ? 'SOME FAILED' : 'all passed');
 process.exit(fails ? 1 : 0);

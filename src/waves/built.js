@@ -128,6 +128,7 @@ export function applyBuilt(data) {
     outfit: data.water != null ? outfitFor(data.water)[1] : raglanPlus.outfit, // (what the water's temperature calls for; older links: Raglan's wetsuit)
     tune: { ...T, curlZone: T.curlZone.map((x) => x * k), startXs: 4 * k, shoulderReach: T.shoulderReach * k, snapIntoLip: T.snapIntoLip * k,
       airCurlZone: T.airCurlZone * k, airBoostZone: T.airBoostZone * k, airIntoCurl: T.airIntoCurl * k, ...(data.board === 'gun' ? GUN : {}) },
+    period: data.swell?.T > 0 ? data.swell.T : raglanPlus.period, // (the builder's swell: how far the face runs out to the flats, wave.js runOut)
     peelSpeed: data.base, // (what trimming holds: the plain wall's pace, wave.js holdPeel)
     waveSpeed: data.c ?? raglanPlus.waveSpeed, // (the wave's speed toward the shore at breaking, from the builder)
     ...(data.side === 'right' ? { dir: -1, stance: 'regular' } : {}), // (a right peels the other way; ridden frontside, regular foot)
