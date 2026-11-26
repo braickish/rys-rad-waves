@@ -127,7 +127,11 @@ function bodyColors(m, which, outfit, jersey = null, style = {}) {
       const pv = m.rest.pelvis.head, back = z < pv[2] - 0.03, cheeky = style.cut === 'cheeky';
       const ax2 = Math.abs(x - pv[0]); // (a strip down the middle stays covered; out from it the cut climbs to high on the hips)
       const backEdge = cheeky && back && ax2 > 0.012 ? -0.03 + 0.11 * Math.min(1, (ax2 - 0.012) / 0.07) ** 0.7 : -0.05;
-      if (hipBone && y < 0.12 && y > backEdge) {
+      // cheeky is a little bikini all round: a lower rise, a thin string round the hips, and at the front a small
+      // triangle narrowing to the crotch (the hips bare)
+      const rise = cheeky ? 0.085 : 0.12, string = cheeky && y > rise - 0.012;
+      const frontCut = cheeky && !back && !string && ax2 > 0.034 + 0.105 * Math.min(1, Math.max(0, (y + 0.05) / 0.135)); // (the mesh is ~2 cm a vertex here: narrower and it breaks up)
+      if (hipBone && y < rise && (y > backEdge || string) && !frontCut) {
         col = sage;
         const f = Math.sin(x * 120 + 0.4) * Math.sin(y * 135 + 1.1) * Math.sin(z * 110);
         if (f > 0.45) col = cream; else if (f < -0.55) col = brown;

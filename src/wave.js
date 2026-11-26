@@ -576,7 +576,7 @@ const _fo = [0, 0];
 function floorLow(p) {
   let lo = Infinity;
   for (let t = I.FACE_LOW; t <= NP - 1; t += 0.05) lo = Math.min(lo, crPoint(p, t, _fo)[1]);
-  for (let t = 1; t <= I.CREST_BACK; t += 0.1) lo = Math.min(lo, crPoint(p, t, _fo)[1]);
+  for (let t = 0; t <= I.CREST_BACK; t += 0.1) lo = Math.min(lo, crPoint(p, t, _fo)[1]);
   return lo;
 }
 function onFloor(p) {
@@ -592,6 +592,16 @@ function onFloor(p) {
 // control points are unevenly spaced, which ours are).
 function knot(az, ay, bz, by) {
   return Math.max(1e-4, Math.sqrt(Math.hypot(bz - az, by - ay)));
+}
+// d(height)/d(knot parameter) at control point j, as the centripetal Catmull-Rom has it, with the flats' rules (crPoint)
+function slopeY(c, j) {
+  if (j === 1 || j === I.TROUGH) return 0;
+  const n = NP - 1, P = (q, k) => (q < 0 ? 2 * c[k] - c[2 + k] : q > n ? 2 * c[n * 2 + k] - c[(n - 1) * 2 + k] : c[q * 2 + k]);
+  const dA = knot(P(j - 1, 0), P(j - 1, 1), P(j, 0), P(j, 1)), dB = knot(P(j, 0), P(j, 1), P(j + 1, 0), P(j + 1, 1));
+  const y0 = P(j - 1, 1), y1 = P(j, 1), y2 = P(j + 1, 1);
+  let m = (y1 - y0) / dA - (y2 - y0) / (dA + dB) + (y2 - y1) / dB;
+  if (j === 2) { const r = (y1 - y0) / dA; m = r * m <= 0 ? 0 : Math.sign(m) * Math.min(Math.abs(m), 3 * Math.abs(r)); }
+  return m;
 }
 export function crPoint(c, t, out) {
   const n = NP - 1;
@@ -620,9 +630,16 @@ export function crPoint(c, t, out) {
     const B1 = l(A1, A2, t0, t2), B2 = l(A2, A3, t1, t3);
     out[k] = l(B1, B2, t1, t2);
   }
-  // (the far run out to sea behind the wave, 30-40 m back (points 0-1), sags a few cm under 0 where it curves up toward the back
-  // of the wave: held on the floor there, where it's all but level, so no edge shows; the wave itself sits on 0 by onFloor)
-  if (t < 1 && out[1] < 0) out[1] = 0;
+  // The run out to the flats can't swing under them. Centripetal Catmull-Rom aimed the slope at the trough (14) from the face's
+  // foot toward the far flats point and sagged up to ~0.7 below the trough past it; behind, where the low back of the wave turns
+  // sharply up into the crest (2 -> 3), it sagged ~0.4 under sea level 10-17 m out to sea. Here the same curve as a cubic Hermite
+  // (Yuksel et al.: equal to the Barry-Goldman form above) with its height's slopes, per unit of the knot parameter so the curve
+  // stays smooth across points: level at the trough and where the far flats behind begin (1), and at the back of the wave (2) no
+  // steeper than its rise from the flats allows without dipping (Fritsch-Carlson's 3x). Nothing else moves.
+  if (i <= 2 || i >= I.TROUGH - 1) {
+    const f2 = f * f, f3 = f2 * f, h = t2 - t1;
+    out[1] = (2 * f3 - 3 * f2 + 1) * p1y + (f3 - 2 * f2 + f) * h * slopeY(c, i) + (-2 * f3 + 3 * f2) * p2y + (f3 - f2) * h * slopeY(c, i + 1);
+  }
   return out;
 }
 

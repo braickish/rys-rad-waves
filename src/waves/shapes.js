@@ -71,17 +71,18 @@ export const BORE_DECAY = [[3, 1.0], [6, 0.96], [10, 0.84], [15, 0.67], [21, 0.5
 // bore of a wave keeps one layout, so it can shrink and spread without points sliding along it.
 // BORE_TS: the layout after a closing tube: the tip (8) at the base of the wall, where the lip landed, 9-13 the apron.
 export const BORE_TS = [0.3, 0.55, 0.78, 1, 1.14, 1.3, 1.5, 1.72, 2];
-function boreCurve(t, zc, H, w) {
+// (`ap`: the apron's size, 1 = the full 1.8 H reach and 0.15 H depth at its base)
+function boreCurve(t, zc, H, w, ap = 1) {
   const zb = zc + w * H;
-  if (t > 1) { const a = Math.min(1, t - 1); return [zb + 1.8 * H * a, H * (0.15 * (1 - a) ** 1.6 + 0.02 * a)]; }
+  if (t > 1) { const a = Math.min(1, t - 1); return [zb + 1.8 * ap * H * a, ap * H * (0.15 * (1 - a) ** 1.6 + 0.02 * a)]; }
   const a = [zc, H], b = [zc + 0.45 * w * H, 1.03 * H], c = [zb - Math.min(0.15, 0.09 / w) * w * H, (0.32 + 0.12 / w) * H], d = [zb, 0.15 * H], u = 1 - t;
   return [0, 1].map((i) => u * u * u * a[i] + 3 * u * u * t * b[i] + 3 * u * t * t * c[i] + t * t * t * d[i]);
 }
-export function boreKF(s, { zc, H, w, back, ts = BORE_TS }) {
+export function boreKF(s, { zc, H, w, back, ts = BORE_TS, apron = 1 }) {
   const hb = Math.max(...back.p.map((q) => q[1]), 1e-3), k = H / hb, zb = zc + w * H;
-  const toe = Math.min(21, zb + 2.6 * H);
+  const toe = Math.min(21, zb + (0.8 + 1.8 * apron) * H);
   return { s, p: [[-40, 0], [-30, 0], [back.p[2][0] * Math.min(1, k), back.p[2][1] * k], [back.p[3][0] * Math.min(1, k), back.p[3][1] * k],
-    [zc, H], ...ts.map((t) => boreCurve(t, zc, H, w)), [toe, -0.01 * H], [22, 0]] };
+    [zc, H], ...ts.map((t) => boreCurve(t, zc, H, w, apron)), [toe, -0.01 * H], [22, 0]] };
 }
 // The layout (ts) that matches a keyframe's own points 5-13: the same share of the way along points 4-14, measured on a
 // bore with the same crest and height.
@@ -102,6 +103,9 @@ export function matchTs(kf, w = 2.6) {
 // after a spot broke (each wave's own rate). The last authored keyframe's height is the 100%.
 // `ts` (optional): the bore's point layout, for a set blended point by point with another (a built wave's tube set takes its
 // section set's, or the blend of the two bores bulged into a step behind the curl; the user, 2026-11-23).
+// (behind a collapsed tube the foam apron is this size: the full one (0.15 H deep, 1.8 H out) lifted the flats behind the curl
+// 0.25-0.5 m out to ~12 m from the whitewater where in front of the curl they're at sea level; the user, 2026-11-25)
+const TUBE_APRON = 0.35;
 export function withBore(kf, { from, sOf, collapse, ts: tsOver }) {
   const head = kf.filter((k) => k.s <= from), last = head[head.length - 1];
   const H = Math.max(...last.p.map((q) => q[1])), zc = last.p[4][0], out = [...head];
@@ -109,7 +113,7 @@ export function withBore(kf, { from, sOf, collapse, ts: tsOver }) {
   if (collapse != null) {
     ts = tsOver || BORE_TS;
     const zt = last.p[8][0] + 0.3, Hc = 0.97 * H;
-    const wall = boreKF(collapse, { zc, H: Hc, w: Math.max(0.6, (zt - zc) / Hc), back: last, ts });
+    const wall = boreKF(collapse, { zc, H: Hc, w: Math.max(0.6, (zt - zc) / Hc), back: last, ts, apron: TUBE_APRON });
     // (half way: the front half way to the wall, the tip down on the water where it landed, the tube's inside (9-14)
     // closed in onto the tip, just starting to spread forward toward the wall's apron. It used to lie flattened along the
     // bottom back to the trough: hidden behind the curtain in a full barrel, but on a half-barrel (a built wave between the
@@ -129,7 +133,16 @@ export function withBore(kf, { from, sOf, collapse, ts: tsOver }) {
     }) };
     out.push(mid, wall);
   }
-  for (const [t, f] of BORE_DECAY) { const s = sOf(t); if (s > out[out.length - 1].s + 0.05) out.push(boreKF(s, { zc: zc * f, H: H * f, w: 2.6, back: last, ts })); }
+  // (after a tube collapses, the whitewater's base stays where the lip landed (the wall's): the broken wave behind the curl travels
+  // with the rest of it, it doesn't run out ahead. Relaxing to 2.6 H wide moved its base ~5 m further in within a few metres
+  // behind the collapse and spread its apron 0.3-0.6 m deep out to ~20 m: a lump sticking out into the flats behind the curl;
+  // the user, 2026-11-25)
+  const base = collapse != null ? last.p[8][0] + 0.3 : null;
+  for (const [t, f] of BORE_DECAY) {
+    const s = sOf(t); if (!(s > out[out.length - 1].s + 0.05)) continue;
+    const w = base != null ? Math.max(0.6, (base - zc * f) / (H * f)) : 2.6;
+    out.push(boreKF(s, { zc: zc * f, H: H * f, w, back: last, ts, apron: base != null ? TUBE_APRON : 1 }));
+  }
   return out;
 }
 
