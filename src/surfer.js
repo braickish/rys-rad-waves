@@ -178,11 +178,15 @@ export function surferObjects(pose, rider, info, dt) {
   // Hang ten (rider.js r.ten, 0 hang five -> 1 hang ten): the back foot steps up beside the front one.
   const ten = rider.mode === 'surf' ? sstepS(0, 1, rider.ten || 0) : 0;
   const girl = WAVE.surfer === 'girl';
+  // Faster, further over (the user, 2026-11-25): from ~15 mph up to ~27 mph the board goes higher on its rail and the
+  // body lays over further, until in a fast bottom turn the inside hand is almost in the water.
+  const fast = rider.mode === 'surf' ? sstepS(6.5, 12, speed0) * (1 - Math.min(1, 2 * (rider.barrelCrouch || 0))) : 0; // (not in the tube)
+  const maxRoll = MAX_ROLL + 0.25 * fast;
   let rollT = rider.mode === 'surf'
-    ? clamp(info.turn * 0.17 * clamp(speed0 / 5, 0.85, 1.4) * (1 + 0.35 * committed), -MAX_ROLL, MAX_ROLL)
+    ? clamp(info.turn * 0.17 * clamp(speed0 / 5, 0.85, 1.4) * (1 + 0.35 * committed) * (1 + 0.3 * fast), -maxRoll, maxRoll)
     : 0;
   if (rider.mode === 'surf' && committed > 0.5 && Math.abs(info.turn) > 0.3) {
-    rollT = Math.sign(rollT) * Math.max(Math.abs(rollT), (rider.bottomCarve ? 0.85 : 0.7) * committed);
+    rollT = Math.sign(rollT) * Math.max(Math.abs(rollT), ((rider.bottomCarve ? 0.85 : 0.7) + 0.3 * fast) * committed);
   }
   // Roundhouse: up on the rail more and more as it comes round (past the usual limit).
   if (rh > 0.01 && Math.abs(info.turn) > 0.2) rollT = Math.sign(rollT || info.turn) * Math.max(Math.abs(rollT), 0.7 + 0.5 * rh);
@@ -260,8 +264,9 @@ export function surferObjects(pose, rider, info, dt) {
   const so = rider.stepOff ? rider.stepOff.time : -1;
   if (so >= 0) kneeT = 0.1;
   pose.knee += (clamp(kneeT, 0, 1) - pose.knee) * (1 - Math.exp(-dt * (flying || aLand > 0.01 ? 16 : 9))); // (quicker through an air and its landing)
-  let leanT = clamp(info.turn * 0.2 * clamp(speed / 4, 0.8, 1.25) * (1 + 0.3 * committed), -0.85, 0.85); // + = toward L (the rider's left, whatever the stance)
-  if (committed > 0.5 && Math.abs(info.turn) > 0.3) leanT = Math.sign(leanT) * Math.max(Math.abs(leanT), (rider.bottomCarve ? 0.65 : 0.5) * committed);
+  const maxLean = 0.85 + 0.35 * fast; // (~49 deg, up to ~69 deg fast)
+  let leanT = clamp(info.turn * 0.2 * clamp(speed / 4, 0.8, 1.25) * (1 + 0.3 * committed) * (1 + 0.45 * fast), -maxLean, maxLean); // + = toward L (the rider's left, whatever the stance)
+  if (committed > 0.5 && Math.abs(info.turn) > 0.3) leanT = Math.sign(leanT) * Math.max(Math.abs(leanT), ((rider.bottomCarve ? 0.65 : 0.5) + (rider.bottomCarve ? 0.5 : 0.3) * fast) * committed);
   if (rh > 0.01 && Math.abs(info.turn) > 0.3) leanT = Math.sign(leanT) * Math.max(Math.abs(leanT), 0.5 + 0.35 * rh); // deeper into the roundhouse
   leanT *= 1 - 0.5 * pv; // (pivoting: standing over the tail, not laid over on a rail)
   leanT *= 1 - 0.6 * ten; // (hang ten: feet side by side, she stays upright over them rather than leaning out)
@@ -440,6 +445,16 @@ export function surferObjects(pose, rider, info, dt) {
   if (windup > 0.01) {
     handFront = lerp3(handFront, add(B, v3.mul(f, mid + 0.3), v3.mul(T, 0.42), v3.mul(u, 0.32 + 0.3 * (1 - knee))), windup);
     handBack = lerp3(handBack, add(B, v3.mul(f, mid - 0.45), v3.mul(T, 0.25), v3.mul(u, 0.35)), windup * 0.8);
+  }
+  // Fast and laid right over (the user, 2026-11-25): the inside hand reaches down until it's almost touching the water,
+  // just outside the inside rail (on the water's surface, `info.n`, a few cm above it).
+  pose.skim = (pose.skim || 0) + (fast * reach * sstepS(0.3, 0.8, committed) - (pose.skim || 0)) * (1 - Math.exp(-dt * 6)); // (eased: the bottom-turn flag flips at once)
+  const skim = pose.skim;
+  if (skim > 0.01) {
+    const inside = v3.norm(v3.rej(v3.mul(L, Math.sign(lean) || 1), info.n)); // (+ lean = toward L)
+    const water = add(p, v3.mul(inside, 0.55), v3.mul(info.n, 0.06));
+    if (lean * ss > 0) handBack = lerp3(handBack, add(water, v3.mul(f, mid - 0.15)), 0.9 * skim);
+    else handFront = lerp3(handFront, add(water, v3.mul(f, mid + 0.15)), 0.9 * skim);
   }
   // Snap: like a spring unloading, both arms swing across the body (at about
   // chest height) toward the tail and the open side, turning the shoulders,
