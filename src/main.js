@@ -244,9 +244,44 @@ function hairObjects(b, mats) {
   return out;
 }
 // Fetch a body (once): both are fetched at start-up (~1 MB each), the current wave's first.
+// The girl's shape (the user, 2026-11-25): rounder, fuller buttocks than MakeHuman's. Each cheek's back surface is pushed
+// out in a smooth round bump (back, a little down and a little wide), in the rest pose before rigging, so every pose
+// carries it; the normals around it are worked out again so the light follows the new shape.
+const BUTT = { depth: 0.022, down: 0.006, wide: 0.006, cx: 0.066, cy: 0.005, rx: 0.052, ry: 0.07 };
+function shapeGirl(m, k = BUTT) {
+  const pv = m.rest.pelvis.head, moved = new Set();
+  for (let v = 0; v < m.vertexCount; v++) {
+    const x = m.pos[v * 3] - pv[0], y = m.pos[v * 3 + 1], z = m.pos[v * 3 + 2];
+    const back = Math.min(1, Math.max(0, (pv[2] - 0.015 - z) / 0.035)); // (only the back surface; 0 at the sides and front)
+    if (!back) continue;
+    const s = Math.sign(x) || 1;
+    const w = back * Math.exp(-(((x - s * k.cx) / k.rx) ** 2 + ((y - k.cy) / k.ry) ** 2));
+    if (w < 0.01) continue;
+    m.pos[v * 3] += s * k.wide * w; m.pos[v * 3 + 1] -= k.down * w; m.pos[v * 3 + 2] -= k.depth * w;
+    moved.add(v);
+  }
+  // normals again, for the moved vertices (from the triangles they're in)
+  const acc = new Float32Array(m.vertexCount * 3), idx = m.index;
+  for (let t = 0; t < idx.length; t += 3) {
+    const a = idx[t], b2 = idx[t + 1], c = idx[t + 2];
+    if (!moved.has(a) && !moved.has(b2) && !moved.has(c)) continue;
+    const P = (i, j) => m.pos[i * 3 + j];
+    const ux = P(b2, 0) - P(a, 0), uy = P(b2, 1) - P(a, 1), uz = P(b2, 2) - P(a, 2), wx = P(c, 0) - P(a, 0), wy = P(c, 1) - P(a, 1), wz = P(c, 2) - P(a, 2);
+    const nx = uy * wz - uz * wy, ny = uz * wx - ux * wz, nz = ux * wy - uy * wx;
+    for (const i of [a, b2, c]) { acc[i * 3] += nx; acc[i * 3 + 1] += ny; acc[i * 3 + 2] += nz; }
+  }
+  for (const v of moved) {
+    const nx = acc[v * 3], ny = acc[v * 3 + 1], nz = acc[v * 3 + 2], l = Math.hypot(nx, ny, nz);
+    if (!l) continue;
+    const old = [m.nrm[v * 3], m.nrm[v * 3 + 1], m.nrm[v * 3 + 2]], sgn = nx * old[0] + ny * old[1] + nz * old[2] < 0 ? -1 : 1; // (keep it facing out, as the file's did)
+    m.nrm[v * 3] = sgn * nx / l; m.nrm[v * 3 + 1] = sgn * ny / l; m.nrm[v * 3 + 2] = sgn * nz / l;
+  }
+  return moved.size;
+}
+window.__shapeGirl = shapeGirl; // (tests)
 function loadBody(which) {
   const b = bodies[which] ||= { body: null, loading: null };
-  if (!b.body && !b.loading) b.loading = loadSkinnedGLB(BODY_FILES[which]).then((m) => { const bc = bodyColors(m, which); Object.assign(b, { body: createBody(m), model: m, colors: bc.colors, outfits: { ':': bc.colors }, head: bc.head, which }); }).catch((e) => console.error('body', e));
+  if (!b.body && !b.loading) b.loading = loadSkinnedGLB(BODY_FILES[which]).then((m) => { if (which === 'girl') shapeGirl(m); const bc = bodyColors(m, which); Object.assign(b, { body: createBody(m), model: m, colors: bc.colors, outfits: { ':': bc.colors }, head: bc.head, which }); }).catch((e) => console.error('body', e));
   return b;
 }
 window.__bodyColors = bodyColors; // (tests: the paint map, test/jersey.mjs)
