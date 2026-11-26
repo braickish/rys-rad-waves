@@ -22,7 +22,8 @@
     "test:styling-browser": "node test/styling-browser.mjs",
     "test:recap-browser": "node test/recap-browser.mjs",
     "functions:serve": "supabase functions serve --env-file supabase/functions/.env",
-    "test:stripe": "node test/stripe.mjs"
+    "test:stripe": "node test/stripe.mjs",
+    "test:watch-browser": "node test/watch-browser.mjs"
   },
   "devDependencies": {
     "supabase": "2.120.0"

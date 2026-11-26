@@ -5,6 +5,7 @@
 // after anyone joins, leaves, starts or cancels tells everyone to read the contest again (the tables stay the truth,
 // so a missed message only means the next read catches up; the lobby also reads every 15 s).
 import { initAccount, currentUser } from './account.js';
+import { standings } from './heat.js';
 
 export const WAVE_NAMES = { point: 'Raglan', raglanPlus: 'Raglan+', reef: 'Pipe', queens: 'Queens', trestles: 'Trestles', dynamic: 'Dynamic' };
 // The waves a new contest can be held on (the title screen's list, src/waves/index.js WAVES); older contests keep their names above.
@@ -73,7 +74,27 @@ export async function readContest(id) {
   const mine = me ? all.filter((h) => h.heat_entries.some((x) => x.entrant_id === me.id)) : [];
   const heat = mine[mine.length - 1] || null;
   const inRound = (r) => all.filter((h) => h.round === r).length;
-  return { contest, entrants: entrants || [], heats: all, heat, final: !!heat && inRound(heat.round) === 1, rounds: Math.max(0, ...all.map((h) => h.round)) };
+  // the scored waves, so a live heat's totals show before it closes (heat_entries.total is written at the close)
+  const { data: rides } = all.length ? await c.from('rides').select('heat_id, entrant_id, wave_no, score, caught_at').in('heat_id', all.map((h) => h.id)) : { data: [] };
+  return { contest, entrants: entrants || [], heats: all, rides: rides || [], heat, final: !!heat && inRound(heat.round) === 1, rounds: Math.max(0, ...all.map((h) => h.round)) };
+}
+
+// Watching a contest you're not in (the lobby, once it's started): anyone with the code, signed in or not, read-only.
+// The same shape as readContest, with no heat of your own. null: no contest has that code.
+export async function watchContest(code) {
+  const c = await initAccount();
+  const { data, error } = await c.rpc('watch_contest', { code });
+  if (error) throw error;
+  if (!data) return null;
+  return { ...data, watching: true, heat: null, final: false, rounds: Math.max(0, ...data.heats.map((h) => h.round)) };
+}
+
+// A heat's standings as they stand: the closed totals and places once it's done, else worked out from its scored waves
+// (best two, the heat engine's tie-breaks). [{ entrant_id, jersey, total, place, advanced }]
+export function heatBoard(heat, rides = []) {
+  if (heat.state === 'done') return heat.heat_entries.map((x) => ({ ...x, total: x.total == null ? null : Number(x.total) }));
+  const h = { advance: 0, surfers: heat.heat_entries.map((x) => ({ id: x.entrant_id, jersey: x.jersey, waves: rides.filter((r) => r.heat_id === heat.id && r.entrant_id === x.entrant_id).map((r) => ({ score: Number(r.score) })) })) };
+  return standings(h).map((r) => ({ entrant_id: r.surfer.id, jersey: r.surfer.jersey, total: r.surfer.waves.length ? r.total : null, place: r.surfer.waves.length ? r.place : null, advanced: null }));
 }
 
 // Contests you host or entered (your account page, task 14), newest first: [{ ...contest, hosting, entered }].

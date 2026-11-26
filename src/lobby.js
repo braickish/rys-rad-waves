@@ -13,7 +13,7 @@ import { initAccount, onAccount, currentUser, myProfile, SALES_OPEN } from './ac
 import { openPaywall } from './paywall.js';
 import { JERSEYS } from './heat.js';
 import { myBreaks } from './breaks.js';
-import { WAVE_NAMES, CONTEST_WAVES, LENGTHS, SIZES, contestLink, spotName, lengthName, savedNickname, createContest, contestByCode, joinContest,
+import { WAVE_NAMES, CONTEST_WAVES, watchContest, heatBoard, LENGTHS, SIZES, contestLink, spotName, lengthName, savedNickname, createContest, contestByCode, joinContest,
   leaveContest, startContest, cancelContest, readContest, contestChannel, describeContestError } from './contests.js';
 
 const $ = (id) => document.getElementById(id);
@@ -124,14 +124,19 @@ async function openLobby(code) {
 async function connect() {
   const me = L; if (!me) return;
   me.live?.close();
-  const live = await contestChannel(me.id, { change: () => refresh().catch(() => {}), presence: (ids) => { me.present = ids; render(); } }).catch((e) => { console.warn('live', e); return null; });
+  const again = () => refresh().catch(() => {});
+  const live = await contestChannel(me.id, { change: again, score: again, finished: again, presence: (ids) => { me.present = ids; render(); } }).catch((e) => { console.warn('live', e); return null; });
   if (L !== me) { live?.close(); return; }
   me.live = live;
 }
 
 async function refresh() {
   const me = L; if (!me) return;
-  const [preview, data] = await Promise.all([contestByCode(me.code), currentUser() ? readContest(me.id) : null]);
+  const [preview, read] = await Promise.all([contestByCode(me.code), currentUser() ? readContest(me.id).catch(() => null) : null]);
+  if (L !== me) return;
+  // not in it (nor hosting) once it's started: watch it (read-only, by its code)
+  const uid = currentUser()?.id, inIt = read && (read.contest.host === uid || read.entrants.some((e) => e.user_id === uid));
+  const data = !inIt && preview && preview.state !== 'lobby' ? await watchContest(me.code).catch(() => read) : read;
   if (L !== me) return;
   me.preview = preview || me.preview; me.data = data;
   render();
@@ -141,8 +146,8 @@ function render() {
   const me = L; if (!me?.preview) return;
   const p = me.preview, d = me.data, uid = currentUser()?.id;
   const contest = d?.contest, state = contest?.state || p.state;
-  const isHost = !!contest && contest.host === uid;
-  const mine = d?.entrants.find((e) => e.user_id === uid);
+  const isHost = !!uid && !!contest && contest.host === uid; // (a watcher's view has no host id)
+  const mine = uid ? d?.entrants.find((e) => e.user_id === uid) : undefined; // (a watcher's view has no user ids)
   $('lobby-name').textContent = p.name;
   $('lobby-what').textContent = `${spotName(p)} · ${lengthName(p)}${p.host_handle ? ` · hosted by @${p.host_handle}` : ''}`;
   // who's in
@@ -181,7 +186,7 @@ function render() {
     if (mine && my?.state === 'live' && !inHeat) countdown(my.starts_at);
     else if (mine && my?.state === 'done' && entry?.advanced) say('lobby-msg', "You're through! The next round starts once every heat of this one is done.");
     else if (mine && my?.state === 'done') say('lobby-msg', "You're out. The rest is on: watch the bracket here.");
-    else if (!mine) say('lobby-msg', "This contest has already started, so it's too late to join this one. Ask the host to start another.");
+    else if (!mine) say('lobby-msg', "This contest has already started, so it's too late to join. You're watching: the scores fill in as they come.");
   } else if (state === 'done') {
     const last = heats[heats.length - 1], win = last?.heat_entries.find((x) => x.place === 1);
     const name = win && d.entrants.find((e) => e.id === win.entrant_id)?.name;
@@ -201,14 +206,14 @@ function drawBracket(d, mine) {
     const inRound = heats.filter((x) => x.round === r), final = inRound.length === 1;
     const box = h('div', { className: 'heats' });
     for (const ht of inRound) {
-      const rows = [...ht.heat_entries].sort((a, b) => (a.place ?? 99) - (b.place ?? 99) || a.jersey.localeCompare(b.jersey));
+      const rows = heatBoard(ht, d.rides).sort((a, b) => (a.place ?? 99) - (b.place ?? 99) || a.jersey.localeCompare(b.jersey));
       const when = ht.state === 'done' ? 'done' : Date.parse(ht.starts_at) > Date.now() ? 'starting soon' : 'on now';
       const card = h('div', { className: `heat${rows.some((x) => x.entrant_id === mine?.id) ? ' yours' : ''}` }, h('small', { textContent: final ? when : `Heat ${ht.number} · ${when}` }));
       for (const x of rows) {
         const color = JERSEYS.find((j) => j.id === x.jersey)?.color || '#888';
         card.append(h('div', { className: `row${x.advanced === false ? ' out' : ''}${x.entrant_id === mine?.id ? ' me' : ''}` },
           h('i', { style: `background:${color}` }), h('span', { textContent: `${x.place ? `${x.place}. ` : ''}${name(x.entrant_id)}${x.advanced ? ' ✓' : ''}` }),
-          x.total != null ? h('b', { textContent: Number(x.total).toFixed(2) }) : null));
+          h('b', { textContent: x.total != null ? Number(x.total).toFixed(2) : '–' })));
       }
       box.append(card);
     }
