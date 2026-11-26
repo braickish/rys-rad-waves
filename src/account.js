@@ -131,6 +131,7 @@ export function describeProfileError(e) {
     const m = e.message || '';
     if (/display_name_blocked/.test(m)) return 'Keep it clean: pick another name.';
     if (/city_blocked/.test(m)) return 'Keep it clean: pick another town name.';
+    if (/styling_bad/.test(m)) return "That option isn't available yet. Try again later."; // (an option the database doesn't know yet: a migration not pushed)
     if (/styling/.test(m)) return 'Styling your surfer comes with Pro.';
     if (/handle_blocked/.test(m)) return HANDLE_WORDS.blocked;
     if (/jersey/.test(m)) return 'Pick a jersey from the list.';

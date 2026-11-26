@@ -660,7 +660,8 @@ $('WT').addEventListener('input', () => { state.water = Number($('WT').value); $
 const resync = () => { syncSwell(); requestAnimationFrame(syncSwell); setTimeout(syncSwell, 250); };
 window.addEventListener('pageshow', () => { resync(); draw(); });
 window.addEventListener('load', resync);
-// The coast panel: the beach face's slope (the Skeleton Bay research: it sets the hollowness, not the peel), and straighten.
+// The coast panel: the beach face's slope (the Skeleton Bay research: it sets the hollowness, not the peel). (Reset coast,
+// which straightens it, sits by Clear the reef: the user, 2026-11-25.)
 const BEACH = [[12, 'Steep 1:12'], [20, 'Medium 1:20'], [35, 'Gentle 1:35'], [66.7, 'Flat 1:67']];
 function showCoast() {
   const el = $('coast'); el.innerHTML = '';
@@ -678,9 +679,6 @@ function showCoast() {
   for (const [v, label] of [['sharp', 'Sharp'], ['soft', 'Soft']]) { const b = document.createElement('button'); b.textContent = label; if ((state.edges) === v) b.className = 'on'; b.onclick = () => { state.edges = v; state.dirty = true; save(); showCoast(); schedule(); }; ed.appendChild(b); }
   el.appendChild(ed);
   const note3 = document.createElement('div'); note3.className = 'note'; note3.style.marginTop = '4px'; note3.textContent = (state.edges) === 'sharp' ? 'Sharp: reef pieces start suddenly, so the wave changes suddenly over them, as on a lot of real reefs.' : 'Soft: reef pieces blend into the floor over ~40 m, for smoother waves.'; el.appendChild(note3);
-  const st = document.createElement('button'); st.textContent = 'Straighten'; st.style.marginTop = '6px';
-  st.onclick = () => { const face = state.coast.face, deep = state.coast.deep; state.coast = defaultCoast(); state.coast.face = face; state.coast.deep = deep; state.dirty = true; schedule(); };
-  el.appendChild(st);
 }
 function showZoom() { // (the map's corner: zoom out / in / fit)
   const el = $('colorby'); el.innerHTML = '';
@@ -700,6 +698,8 @@ const startPipeline = () => {
 $('pipeline').onclick = () => { startPipeline(); syncSwell(); showCoast(); showSel(); schedule(); };
 $('reset').onclick = () => { state.coast = reefCoast(); showCoast(); state.blocks = dynamicPreset(); state.sel = null; state.dirty = true; showSel(); schedule(); };
 $('clear').onclick = () => { state.blocks = []; state.sel = null; state.dirty = true; showSel(); schedule(); };
+// Reset coast (was Straighten in the coast panel): the coastline straight again, keeping the beach's slope and the offshore water.
+$('reset-coast').onclick = () => { const face = state.coast.face, deep = state.coast.deep; state.coast = defaultCoast(); state.coast.face = face; state.coast.deep = deep; state.dirty = true; showCoast(); schedule(); };
 window.addEventListener('resize', () => { layout(); draw(); });
 
 restore();

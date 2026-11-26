@@ -580,10 +580,23 @@ function exitReplay() {
   $('over').hidden = false;
 }
 $('replay-badge').addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); exitReplay(); });
+// Switch wave (free surf's end card): back to the title on Free surf, the waves to pick from and DROP IN, with the
+// demo surfer riding behind as on arrival.
+function toWaves() {
+  state = 'title'; sheetTimer = 0; player = null;
+  for (const id of ['over', 'judge', 'results']) $(id).hidden = true;
+  $('replay-badge').hidden = true;
+  resetRider(rider);
+  $('title').hidden = false;
+  showStep('surf');
+}
 // The replay buttons on the game-over card and the score sheet (the last ride's recording).
 function showReplayButtons() {
   for (const b of document.querySelectorAll('.replay-btns')) b.hidden = !lastRecording;
   for (const b of document.querySelectorAll('.replay-btns [data-act="share"]')) b.hidden = !canMakeVideo(); // (no WebCodecs: Save replay only)
+  // Free surf (the user, 2026-11-25): Switch wave instead of Save replay; a heat keeps Save replay (its waves are set)
+  for (const b of document.querySelectorAll('.replay-btns [data-act="save"]')) b.hidden = !H;
+  for (const b of document.querySelectorAll('.replay-btns [data-act="switch"]')) b.hidden = !!H;
 }
 
 // Share video (plans/2026-11-24-share-ride-video.md step 1): the last ride's replay, as it plays, made into an MP4 on the
@@ -665,7 +678,13 @@ function saveReplay() {
 }
 for (const b of document.querySelectorAll('.replay-btns button[data-act]')) { // (the end card's and the sheet's; the results card's has its own)
   b.addEventListener('pointerdown', (e) => e.stopPropagation()); // (a tap elsewhere on the card paddles back out)
-  b.addEventListener('click', (e) => { e.stopPropagation(); if (b.dataset.act === 'save') saveReplay(); else if (b.dataset.act === 'share') startVideo(); else if (lastRecording) startReplay(decodeRecording(encodeRecording(lastRecording))); });
+  b.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (b.dataset.act === 'save') saveReplay();
+    else if (b.dataset.act === 'share') startVideo();
+    else if (b.dataset.act === 'switch') toWaves();
+    else if (lastRecording) startReplay(decodeRecording(encodeRecording(lastRecording)));
+  });
 }
 $('results').addEventListener('pointerdown', (e) => { e.preventDefault(); startOrRestart(); });
 $('results-watch').addEventListener('pointerdown', (e) => e.stopPropagation());

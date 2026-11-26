@@ -119,5 +119,15 @@ await send('Page.navigate', { url: `${base}?play&auto&heat=2w&seed=8&wave=${WAVE
 const res2 = await waitFor(`window.__heatResults && JSON.stringify(window.__heatResults)`, 240000);
 const w2 = await H(`JSON.stringify(h.surfers.map((s) => s.waves.length))`);
 check(!!res2 && w2 === '[2,2,2,2]', `2-wave heat: results after your 2nd wave, everyone's 2 in (${w2}): ${res2}`);
+
+// 3. Free surf's end card (the user, 2026-11-25): Switch wave instead of Save replay, back to the waves.
+await send('Page.navigate', { url: `${base}?play&auto&wave=${WAVE}` });
+const btn = (act) => `(() => { const b = document.querySelector('#over .replay-btns [data-act="${act}"]'); return !!b && b.offsetParent !== null; })()`;
+check(!!(await waitFor(`!document.getElementById('over').hidden && ${btn('switch')}`, 120000)), 'free surf: the end card has Switch wave');
+check(!(await evaluate(btn('save'))), '... and no Save replay');
+await evaluate(`document.querySelector('#over [data-act="switch"]').click()`);
+check(!!(await waitFor(`window.__dbg?.state === 'title' && !document.getElementById('title').hidden && document.getElementById('step-title').textContent === 'Free surf' && document.getElementById('over').hidden`, 5000)), 'Switch wave: back on Free surf, the waves to pick');
+await evaluate(`[...document.querySelectorAll('#waves button')].find((b) => b.textContent === 'Queens').click(); document.getElementById('start').click()`);
+check(!!(await waitFor(`window.__dbg?.state === 'play' && window.__dbg.wave === 'queens'`, 20000)), '... pick Queens and drop in');
 console.log(fails ? `\n${fails} failed` : '\nheat mode ok');
 await done();
