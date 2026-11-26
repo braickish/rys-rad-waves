@@ -25,6 +25,11 @@ export const setBoardStyle = (deck, nose) => { boardStyle = deck || nose ? { dec
 // Which body is riding ('guy' | 'girl'; the player's pick, else the wave's): a few poses are the girl's own.
 let bodyWhich = null;
 export const setSurferBody = (w) => { bodyWhich = w; };
+// Regular or goofy (the player's pick, else the wave's): which foot is forward. On a wave that peels the other way, the
+// surfer rides backside (the chest away from the wave); the body is built from the toe side either way.
+let stanceWhich = null;
+export const setSurferStance = (st) => { stanceWhich = st === 'regular' || st === 'goofy' ? st : null; };
+export const currentStanceOf = () => stanceWhich || WAVE.stance || 'goofy';
 // The surfer's body is the skinned one (body.js), posed from the joints worked out here (pose.J); this file
 // draws only the board. (The parts surfer, made of spheres and cylinders, was dropped 2026-11-18, the user's call.)
 const THIGH = 0.46, SHIN = 0.46, UPPER = 0.3, FORE = 0.3;
@@ -159,11 +164,15 @@ export function surferObjects(pose, rider, info, dt) {
   const ft = boardShape().faceTilt;
   if (ft !== undefined && rider.mode === 'surf') u = v3.norm(v3.add(v3.mul(v3.norm(v3.rej([0, 1, 0], f)), 1 - ft), v3.mul(u, ft)));
   const L = v3.norm(v3.cross(u, f)); // rider's left
-  // Stance (WAVE.stance): goofy (right foot forward, the default) faces their left, regular (left foot forward)
+  // Stance (the player's, else WAVE.stance): goofy (right foot forward, the default) faces their left, regular (left foot forward)
   // their right. T is the toe side, where the chest faces: toward the wave riding frontside (goofy on a left,
   // regular on a right). The body is built from it (front / back foot, shoulder and arm), not flipped.
-  const ss = WAVE.stance === 'regular' ? -1 : 1;
+  const ss = currentStanceOf() === 'regular' ? -1 : 1;
   const T = v3.mul(L, ss);
+  // Frontside (the chest to the wave: each wave's own stance) or backside (the player picked the other foot forward, so the
+  // wave is on the heel side). `fs` points the moves that lead toward the wave (the bottom turn's wind-up) at it either way.
+  const fs = currentStanceOf() === (WAVE.stance || 'goofy') ? 1 : -1;
+  const W = v3.mul(T, fs); // (toward the wave, across the board)
 
   // Air phases (see the air pose below).
   const flying = rider.mode === 'air' && !rider.overTheBack;
@@ -320,7 +329,7 @@ export function surferObjects(pose, rider, info, dt) {
   const unloadT = rider.unload > 0 ? 1 : 0;
   pose.unload = (pose.unload || 0) + (unloadT - (pose.unload || 0)) * (1 - Math.exp(-dt * (unloadT ? 22 : 6)));
   const windup = pose.windup, unload = pose.unload;
-  const twist = (TWIST_WIND * windup - TWIST_UNLOAD * unload) * ss; // + = front shoulder round toward the toe side
+  const twist = (TWIST_WIND * windup - TWIST_UNLOAD * unload) * ss * fs; // + = front shoulder round toward the toe side (toward the wave: backside, the heel side)
   // On the longboard's nose the hips and chest turn further toward the nose (2026-11-18, the user: so stepping into
   // a hang ten and back is a short move), and in the hang ten she faces the nose nearly square.
   const open = CHEST_OPEN + (NOSE_OPEN - CHEST_OPEN) * onNose + (TEN_OPEN - NOSE_OPEN) * ten;
@@ -470,8 +479,8 @@ export function surferObjects(pose, rider, info, dt) {
   // Bottom turn: front arm low and across the body toward the inside of the
   // turn (the wave side), leading the turn; back arm low behind.
   if (windup > 0.01) {
-    handFront = lerp3(handFront, add(B, v3.mul(f, mid + 0.3), v3.mul(T, 0.42), v3.mul(u, 0.32 + 0.3 * (1 - knee))), windup);
-    handBack = lerp3(handBack, add(B, v3.mul(f, mid - 0.45), v3.mul(T, 0.25), v3.mul(u, 0.35)), windup * 0.8);
+    handFront = lerp3(handFront, add(B, v3.mul(f, mid + 0.3), v3.mul(W, 0.42), v3.mul(u, 0.32 + 0.3 * (1 - knee))), windup);
+    handBack = lerp3(handBack, add(B, v3.mul(f, mid - 0.45), v3.mul(W, 0.25), v3.mul(u, 0.35)), windup * 0.8);
   }
   // Fast and laid right over (the user, 2026-11-25): the inside hand reaches down until it's almost touching the water,
   // just outside the inside rail (on the water's surface, `info.n`, a few cm above it).

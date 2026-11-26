@@ -2,7 +2,7 @@
 -- without Pro it can't be set; when Pro lapses it stays, can be cleared, and can't be changed. Which surfer (male or
 -- female) is free for everyone.
 begin;
-select plan(14);
+select plan(16);
 
 insert into auth.users (id, email, aud, role, is_anonymous) values
   ('a2000000-0000-0000-0000-000000000001', 'stylepro@example.com', 'authenticated', 'authenticated', false),
@@ -32,6 +32,8 @@ select pg_temp.act_as('a2000000-0000-0000-0000-000000000002');
 select lives_ok($$ update public.profiles set surfer = 'girl' where id = 'a2000000-0000-0000-0000-000000000002' $$, 'without Pro: pick your surfer');
 select is((select surfer from public.profiles where id = 'a2000000-0000-0000-0000-000000000002'), 'girl', '... saved');
 select throws_ok($$ update public.profiles set surfer = 'shark' where id = 'a2000000-0000-0000-0000-000000000002' $$, '23514', null, 'male or female only');
+select lives_ok($$ update public.profiles set stance = 'regular' where id = 'a2000000-0000-0000-0000-000000000002' $$, 'without Pro: pick regular or goofy');
+select throws_ok($$ update public.profiles set stance = 'mongo' where id = 'a2000000-0000-0000-0000-000000000002' $$, '23514', null, 'regular or goofy only');
 select pg_temp.act_as('a2000000-0000-0000-0000-000000000001');
 
 reset role;

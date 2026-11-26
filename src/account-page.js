@@ -7,7 +7,7 @@ import { handleFromEmail } from './account-ui.js';
 import { countriesByName, flag } from './countries.js';
 import { searchTowns } from './places.js';
 import { myContests, cancelContest, spotName, describeContestError } from './contests.js';
-import { PALETTE, PATTERNS, PARTS, CUTS, BODIES, hex, cleanStyling, cleanBody } from './styling.js';
+import { PALETTE, PATTERNS, PARTS, CUTS, BODIES, STANCES, hex, cleanStyling, cleanBody, cleanStance } from './styling.js';
 import { openPaywall, startPaywall, goToStripe } from './paywall.js';
 
 const $ = (id) => document.getElementById(id);
@@ -65,7 +65,7 @@ function fill() {
   $('handle').value = profile?.handle || handleFromEmail(user.email);
   $('display').value = profile?.display_name || '';
   jersey = profile?.jersey || 'red'; drawJerseys();
-  style = cleanStyling(profile?.styling); body = cleanBody(profile?.surfer); drawStyle(); lockStyle();
+  style = cleanStyling(profile?.styling); body = cleanBody(profile?.surfer); stance = cleanStance(profile?.stance); drawStyle(); lockStyle();
   $('city').value = profile?.city || ''; $('country').value = profile?.country || '';
   place = { city: profile?.city || null, lat: profile?.lat ?? null, lng: profile?.lng ?? null }; placeHint();
   $('email-now').textContent = user.email;
@@ -154,7 +154,7 @@ startPaywall().catch((e) => console.warn('paywall', e));
 // Your surfer (task 16, Pro): swatches for the wetsuit, trunks, board and nose (a striped swatch: the game's own), the
 // trunks' pattern, and a flat little preview. Saved to profiles.styling; worn in your rides while you have Pro.
 const DEFAULTS = { suit: [0.045, 0.047, 0.055], shorts: [0.22, 0.33, 0.5], board: [0.95, 0.93, 0.86], nose: [0.55, 0.84, 0.8] };
-let style = {}, body = null;
+let style = {}, body = null, stance = null;
 function drawPreview() {
   const c = (k) => hex(style[k] ? PALETTE[style[k]] : DEFAULTS[k]);
   const stripes = style.pattern === 'stripes', floral = style.pattern === 'floral', girl = body === 'girl';
@@ -187,6 +187,23 @@ function drawStyle() {
   }
   if (!body) br.append(Object.assign(document.createElement('p'), { className: 'hint', textContent: "Until you pick, each wave has its own surfer." }));
   rows.append(br);
+  // Regular or goofy: free too, saved straight away (profiles.stance).
+  const sr = document.createElement('div'); sr.className = 'style-row body-row';
+  sr.innerHTML = '<b>Stance</b><div class="row"></div>';
+  for (const [id, label] of STANCES) {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = `pattern-btn${stance === id ? ' on' : ''}`; b.textContent = label; b.dataset.stance = id;
+    b.title = id === 'regular' ? 'left foot forward' : 'right foot forward';
+    b.addEventListener('click', async () => {
+      if (!profile) { hint('style-msg', 'Make your profile first (above).', 'bad'); return; }
+      stance = id; drawStyle();
+      try { profile = await saveProfile({ stance: id }); hint('style-msg', `Saved: you ride ${label.toLowerCase()} (${b.title}).`, 'good'); }
+      catch (err) { hint('style-msg', describeProfileError(err), 'bad'); }
+    });
+    sr.querySelector('.row').append(b);
+  }
+  sr.append(Object.assign(document.createElement('p'), { className: 'hint', textContent: stance ? 'On a wave peeling the other way you ride it backside.' : 'Until you pick, you ride each wave frontside.' }));
+  rows.append(sr);
   for (const [k, label] of PARTS) {
     const row = document.createElement('div'); row.className = 'style-row';
     row.innerHTML = `<b>${label}</b><div class="swatches" role="radiogroup" aria-label="${label}"></div>`;

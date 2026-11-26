@@ -347,7 +347,12 @@ sees it on their profile.
   cut**, Full (the boy-short), Classic (a standard bikini: the cheeks covered, the leg line rising toward the outside)
   or Cheeky (a little bikini: a low rise and a string, a small front triangle, at the back cut high on the hips to a
   strip down the middle) (Pro styling `cut`). The female body's buttocks are rounder and fuller (main.js `shapeGirl`,
-  the rest pose reshaped at load). Migrations `20261125080000_surfer_body.sql`, `20261125090000_classic_cut.sql`.
+  the rest pose reshaped at load). **Regular / Goofy** (`profiles.stance`, free, saved at once; null: each wave's own,
+  frontside): worn in your rides (surfer.js `setSurferStance`; the leash on the back foot's ankle), carried in
+  recordings; against the wave's own stance you ride backside, and the bottom turn's wind-up now leads toward the wave
+  either way (surfer.js `fs`/`W`; checked on contact sheets of Raglan, Pipe, Queens, Trestles in both stances).
+  `?stance=` tries one. Migrations `20261125080000_surfer_body.sql`, `20261125090000_classic_cut.sql`,
+  `20261125100000_stance.sql`.
   Tests: `supabase/tests/styling_test.sql` (13), `npm run test:styling-browser` (15).
 - [ ] **17. Recap video.** A recap page from a heat's rides and timeline, with broadcast cameras, a lower-third scoreboard,
   commentary written by Claude in an Edge Function and voiced by text-to-speech, `MediaRecorder` export, kept in Storage,

@@ -67,7 +67,7 @@ export function describeAuthError(e) {
 // ---- Profiles (task 5) ----
 // A member's public profile: { id, handle, display_name, jersey, created_at, country, city, lat, lng } (the place: task 14). Anonymous guests have none.
 export const JERSEY_IDS = ['red', 'white', 'blue', 'yellow', 'green', 'black', 'pink', 'teal'];
-const PROFILE_COLS = 'id, handle, display_name, jersey, created_at, country, city, lat, lng, styling, surfer';
+const PROFILE_COLS = 'id, handle, display_name, jersey, created_at, country, city, lat, lng, styling, surfer, stance';
 let mine = null; // (your profile once read: the game takes your jersey from it)
 export const cachedProfile = () => (mine && mine.id === session?.user?.id ? mine : null);
 
@@ -90,7 +90,7 @@ export async function profileByHandle(handle) {
 export async function saveProfile(fields) {
   const c = await initAccount(), uid = session?.user?.id;
   if (!uid) throw new Error('Sign in first.');
-  const row = Object.fromEntries(Object.entries(fields).filter(([k]) => ['handle', 'display_name', 'jersey', 'country', 'city', 'lat', 'lng', 'styling', 'surfer'].includes(k)));
+  const row = Object.fromEntries(Object.entries(fields).filter(([k]) => ['handle', 'display_name', 'jersey', 'country', 'city', 'lat', 'lng', 'styling', 'surfer', 'stance'].includes(k)));
   const existing = await myProfile();
   const q = existing ? c.from('profiles').update(row).eq('id', uid) : c.from('profiles').insert({ id: uid, ...row });
   const { data, error } = await q.select(PROFILE_COLS).single();

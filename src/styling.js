@@ -16,6 +16,9 @@ export const CUTS = [['full', 'Full'], ['classic', 'Classic'], ['cheeky', 'Cheek
 // Which surfer (free for everyone: profiles.surfer, not styling): null is each wave's own.
 export const BODIES = [['guy', 'Male'], ['girl', 'Female']];
 export const cleanBody = (b) => (b === 'guy' || b === 'girl' ? b : null);
+// Regular (left foot forward) or goofy (right foot forward): free too (profiles.stance); null is each wave's own (frontside).
+export const STANCES = [['regular', 'Regular'], ['goofy', 'Goofy']];
+export const cleanStance = (s) => (s === 'regular' || s === 'goofy' ? s : null);
 export const hex = (rgb) => '#' + rgb.map((v) => Math.round(v * 255).toString(16).padStart(2, '0')).join('');
 
 // Only known ids, whatever came in (an old recording, a hand-made link): anything else is the game's own look.

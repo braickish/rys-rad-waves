@@ -10,8 +10,8 @@ import { applyBuilt } from './waves/built.js';
 import { parseHeatParam, createHeat, stepHeat, canCatch, addWave, addRivalWave, checkOver, standings, judgeSeed, clockText, you as heatYou } from './heat.js';
 import { connectLive } from './live-heat.js';
 import { perspective, lookAt, mul, invert } from './math.js';
-import { createPose, surferObjects, setBoardStyle, setSurferBody } from './surfer.js';
-import { PALETTE, cleanStyling, stylingKey, cleanBody } from './styling.js';
+import { createPose, surferObjects, setBoardStyle, setSurferBody, setSurferStance, currentStanceOf } from './surfer.js';
+import { PALETTE, cleanStyling, stylingKey, cleanBody, cleanStance } from './styling.js';
 import { loadSkinnedGLB } from './glb.js';
 import { createBody } from './body.js';
 import { startAccountUI } from './account-ui.js';
@@ -96,7 +96,7 @@ function bodyColors(m, which, outfit, jersey = null, style = {}) {
   const topBlue = [0.6, 0.72, 0.93, 0.12], topLilac = [0.74, 0.68, 0.92, 0.12], topWhite = [0.94, 0.95, 0.98, 0.12];
   const sage = [0.6, 0.66, 0.52, 0.1], cream = [0.93, 0.91, 0.82, 0.1], brown = [0.44, 0.37, 0.27, 0.1];
   const cord = [0.28, 0.2, 0.16, 0.2], cuffBlack = [0.05, 0.05, 0.06, 0.15];
-  const backSide = WAVE.stance === 'regular' ? 'r' : 'l'; // (regular: left foot forward, so the leash is on the right ankle)
+  const backSide = currentStanceOf() === 'regular' ? 'r' : 'l'; // (regular: left foot forward, so the leash is on the right ankle)
   const c = new Float32Array(m.vertexCount * 4);
   const kneeY = m.rest.calf_l.head[1], waistY = m.rest.spine_01.head[1] + 0.02, neckY = m.rest.neck_01.head[1];
   const hipY = m.rest.thigh_l.head[1];
@@ -296,6 +296,8 @@ function currentBody() {
   const pick = player ? cleanBody(player.rec.surfer) : cleanBody(cachedProfile()?.surfer);
   return pick || (WAVE.surfer === 'girl' ? 'girl' : 'guy');
 }
+// Regular or goofy: a replay's rider's, else yours (profiles.stance, free), else the wave's own.
+const currentStance = () => (player ? cleanStance(player.rec.stance) : cleanStance(params.get('stance')) || cleanStance(cachedProfile()?.stance)) || null; // (?stance=regular|goofy: try one, for testing)
 function currentStyle() {
   if (player) return cleanStyling(player.rec.styling);
   return planPro ? cleanStyling(cachedProfile()?.styling) : {};
@@ -304,17 +306,18 @@ function wantBody() {
   if (!renderer) return null;
   const which = currentBody();
   setSurferBody(which); window.__bodyWhich = which; // (tests: who's riding)
+  setSurferStance(currentStance()); window.__stance = currentStanceOf();
   if (!BODY_FILES[which]) return null; // (not built yet: the parts surfer)
   const b = loadBody(which);
   // (the wave's outfit, e.g. Raglan's wetsuit, painted once per body and outfit)
   // (?outfit=topper|shortsleeve|wetsuit|hood: try a look on any wave, for testing)
   const outfit = params.get('outfit') ?? (WAVE.outfit || ''), jersey = H ? heatYou(H).jersey.color : null;
-  const style = currentStyle(), sk = stylingKey(style), key = which + ':' + outfit + ':' + (jersey || '') + ':' + sk;
+  const style = currentStyle(), sk = stylingKey(style) + ':' + currentStanceOf(), key = which + ':' + outfit + ':' + (jersey || '') + ':' + sk; // (the stance moves the leash)
   if (b.body && renderer.bodyShown !== key) {
     b.colors = b.outfits[outfit + ':' + (jersey || '') + ':' + sk] ||= bodyColors(b.model, which, outfit, jersey, style).colors;
     renderer.setBody(b.body.model, b.colors); renderer.bodyShown = key;
     setBoardStyle(style.board && PALETTE[style.board], style.nose && PALETTE[style.nose]);
-    window.__styleKey = sk; // (tests: the look being worn)
+    window.__styleKey = stylingKey(style); // (tests: the look being worn)
   }
   return b.body ? b : null;
 }
@@ -798,7 +801,7 @@ function startOrRestart() {
   score = 0; rideTime = 0; lastMove = ''; lastMoveTime = -9; // (each ride: its clock starts at 0, so the last ride's move would count as a repeat)
   rideLog = createRideLog(); // (always: the recording keeps the judged score; the sheet shows with ?judge)
   player = null;
-  recording = createRecording({ wave: WAVE.id, built: WAVE.id === 'built' ? WAVE.built : null, seed: SEA.seed, n: SEA.n, params: physicsParams(), styling: currentStyle(), surfer: currentBody() });
+  recording = createRecording({ wave: WAVE.id, built: WAVE.id === 'built' ? WAVE.built : null, seed: SEA.seed, n: SEA.n, params: physicsParams(), styling: currentStyle(), surfer: currentBody(), stance: currentStance() || WAVE.stance || 'goofy' });
   $('replay-badge').hidden = true;
   $('title').hidden = true;
   $('over').hidden = true;
