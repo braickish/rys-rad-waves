@@ -497,11 +497,11 @@ export function surferObjects(pose, rider, info, dt) {
     handBack = lerp3(handBack, add(B, v3.mul(f, mid - 0.45), v3.mul(W, 0.25), v3.mul(u, 0.35)), windup * 0.8);
   } else if (windup > 0.01) {
     // Backside bottom turn (backside-1, -2): the front hand reaches down to the water on the heel side (the inside, toward
-    // the wave), beside the front foot, leading the turn; the back arm up and back behind, toward the whitewater.
+    // the wave), beside the front foot, leading the turn; the back arm back behind, toward the whitewater, at about the waist.
     bsReach = windup * (1 - 0.5 * bsLate);
     bsTouch = add(B, v3.mul(f, mid + 0.35), v3.mul(W, 0.5), v3.mul(u, 0.06));
     handFront = lerp3(handFront, bsTouch, bsReach);
-    handBack = lerp3(handBack, add(shBack, v3.mul(bodyUp, 0.4), v3.mul(f, -0.35), v3.mul(W, 0.12)), windup * 0.85);
+    handBack = lerp3(handBack, add(hip, v3.mul(bodyUp, -0.15), v3.mul(f, -0.45), v3.mul(W, 0.2)), windup * 0.85); // (back and out, about mid-waist, no higher: the user, 2026-11-26)
   }
   // Fast and laid right over (the user, 2026-11-25): the inside hand reaches down until it's almost touching the water,
   // just outside the inside rail (on the water's surface, `info.n`, a few cm above it).
