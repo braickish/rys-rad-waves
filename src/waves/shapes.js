@@ -153,7 +153,7 @@ export function withBore(kf, { from, sOf, collapse, ts: tsOver }) {
 // KF_PIPE_HEAD's stages with the pitch, the full tube and the closing tube redrawn that way (same units: crest ~4.2).
 // (the user, 2026-11-26: from inside it looked square: the back wall dropped straight to the floor, which ran flat ~2 m out
 // to where the lip lands. Now the back wall sweeps forward under the lip, so the opening narrows to a point where it lands.)
-const ALMOND_FULL = [[-40, 0], [-30, 0], [-8, 0.4], [-2.5, 2.7], [0, 4.2], [1.45, 4.5], [2.95, 4.05], [4.1, 2.75], [4.6, 0.05], [4.3, 0.1], [3.6, 2.1], [2.3, 3.5], [1.2, 2.75], [1.6, 0.75], [3.6, -0.3], [22, 0]];
+const ALMOND_FULL = [[-40, 0], [-30, 0], [-8, 0.4], [-2.5, 2.7], [0, 4.2], [1.45, 4.5], [2.95, 4.05], [4.1, 2.75], [4.6, 0.45], [4.3, 0.5], [3.6, 2.1], [2.3, 3.5], [1.2, 2.75], [2.3, 1.0], [11, -0.3], [22, 0]];
 export const KF_ALMOND_HEAD = KF_PIPE_HEAD.map((k) => {
   if (k.s === 0.25) return { s: 0.25, p: [[-40, 0], [-30, 0], [-8, 0.4], [-2.5, 2.6], [0, 4.1], [1.4, 4.45], [2.85, 4.2], [3.95, 3.5], [4.5, 2.8], [4.22, 2.74], [3.45, 3.3], [2.4, 3.72], [1.6, 3.05], [1.75, 1.15], [3.5, -0.5], [22, 0]] };
   if (k.s === 0.8) return { s: 0.8, p: ALMOND_FULL };
