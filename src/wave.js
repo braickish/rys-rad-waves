@@ -567,17 +567,24 @@ function kfPoints(KF, s, out, scale) {
   return onFloor(out);
 }
 // The flats are a fixed floor at sea level (0), on every wave and every shape (the user, 2026-11-25): no drawdown in front of
-// the face. A shape whose trough (14) dips below 0 is lifted instead: the trough sits on 0 and the wave above it rises by the
-// same amount, so it keeps its height over the water (as the ledge jacks up). The lift fades out toward the waterline (under
-// 0.3 of the crest's height), so a lip that lands on the water stays on it. Where one shape dipped and the next didn't, the
-// flats stepped along the wave: a ridge out on the flats behind the curl, where the broken water sits at 0 and the drawdown
-// in front of the curl below it.
+// the face. A shape that dips below 0 out toward the flats is raised as a whole instead: the wave (points 2-14, back of the
+// crest to the trough) moves straight up, unchanged, until the lowest water in front of it (and behind) sits on 0; only the
+// long run out to the far flats (points 0, 1, 15, at 0) bends to meet it. Where one shape dipped and the next didn't, the
+// flats stepped along the wave: a ridge out on the flats behind the curl. (Not a clamp, and not a lift by height: both bent
+// the foot of the face, a hard edge where the flats meet the barrel; the user, same day.)
+const _fo = [0, 0];
+function floorLow(p) {
+  let lo = Infinity;
+  for (let t = I.FACE_LOW; t <= NP - 1; t += 0.05) lo = Math.min(lo, crPoint(p, t, _fo)[1]);
+  for (let t = 1; t <= I.CREST_BACK; t += 0.1) lo = Math.min(lo, crPoint(p, t, _fo)[1]);
+  return lo;
+}
 function onFloor(p) {
-  const d = -p[I.TROUGH * 2 + 1]; if (!(d > 0)) return p;
-  let top = 0; for (let i = I.CREST_BACK; i <= I.TIP; i++) top = Math.max(top, p[i * 2 + 1]);
-  const h0 = Math.max(1e-6, 0.3 * top);
-  for (let i = I.CREST_BACK; i < I.TROUGH; i++) { const y = p[i * 2 + 1]; p[i * 2 + 1] = y + d * Math.min(1, Math.max(0, y / h0)); }
-  p[I.TROUGH * 2 + 1] = 0;
+  // (the run out to the far flats bends as the wave rises, which moves its lowest point: a few passes settle it)
+  for (let pass = 0; pass < 4; pass++) {
+    const lo = floorLow(p); if (!(lo < -1e-4)) break;
+    for (let i = 2; i <= I.TROUGH; i++) p[i * 2 + 1] -= lo;
+  }
   return p;
 }
 
@@ -613,9 +620,9 @@ export function crPoint(c, t, out) {
     const B1 = l(A1, A2, t0, t2), B2 = l(A2, A3, t1, t3);
     out[k] = l(B1, B2, t1, t2);
   }
-  // (the floor (onFloor): the curve out to the flats, in front from the face's foot on and behind the back of the crest, never
-  // swings under sea level between its points)
-  if ((t >= I.FACE_LOW || t <= I.CREST_BACK) && out[1] < 0) out[1] = 0;
+  // (the far run out to sea behind the wave, 30-40 m back (points 0-1), sags a few cm under 0 where it curves up toward the back
+  // of the wave: held on the floor there, where it's all but level, so no edge shows; the wave itself sits on 0 by onFloor)
+  if (t < 1 && out[1] < 0) out[1] = 0;
   return out;
 }
 

@@ -10,8 +10,8 @@ import { applyBuilt } from './waves/built.js';
 import { parseHeatParam, createHeat, stepHeat, canCatch, addWave, addRivalWave, checkOver, standings, judgeSeed, clockText, you as heatYou } from './heat.js';
 import { connectLive } from './live-heat.js';
 import { perspective, lookAt, mul, invert } from './math.js';
-import { createPose, surferObjects, setBoardStyle } from './surfer.js';
-import { PALETTE, cleanStyling, stylingKey } from './styling.js';
+import { createPose, surferObjects, setBoardStyle, setSurferBody } from './surfer.js';
+import { PALETTE, cleanStyling, stylingKey, cleanBody } from './styling.js';
 import { loadSkinnedGLB } from './glb.js';
 import { createBody } from './body.js';
 import { startAccountUI } from './account-ui.js';
@@ -122,7 +122,12 @@ function bodyColors(m, which, outfit, jersey = null, style = {}) {
         if (f > 0.5) col = topLilac; else if (f < -0.62) col = topWhite;
         col = cloth(x, y, z) || col;
       }
-      if (hipBone && y < 0.12 && y > -0.05) {
+      // the bottoms; cheeky (a Pro cut, task 16): at the back, cut high toward the sides and narrowing to the middle, so
+      // more of the butt shows (the front as full)
+      const pv = m.rest.pelvis.head, back = z < pv[2] - 0.03, cheeky = style.cut === 'cheeky';
+      const ax2 = Math.abs(x - pv[0]); // (a strip down the middle stays covered; out from it the cut climbs to high on the hips)
+      const backEdge = cheeky && back && ax2 > 0.012 ? -0.03 + 0.11 * Math.min(1, (ax2 - 0.012) / 0.07) ** 0.7 : -0.05;
+      if (hipBone && y < 0.12 && y > backEdge) {
         col = sage;
         const f = Math.sin(x * 120 + 0.4) * Math.sin(y * 135 + 1.1) * Math.sin(z * 110);
         if (f > 0.45) col = cream; else if (f < -0.55) col = brown;
@@ -242,13 +247,19 @@ window.__bodyColors = bodyColors; // (tests: the paint map, test/jersey.mjs)
 // yours, while you have Pro (as the database lets you save it), and the game's own look without.
 let planPro = false;
 onPlan((p) => { planPro = !!p.pro; });
+// Which surfer (male or female): a replay's rider's, else yours (profiles.surfer, free), else the wave's own.
+function currentBody() {
+  const pick = player ? cleanBody(player.rec.surfer) : cleanBody(cachedProfile()?.surfer);
+  return pick || (WAVE.surfer === 'girl' ? 'girl' : 'guy');
+}
 function currentStyle() {
   if (player) return cleanStyling(player.rec.styling);
   return planPro ? cleanStyling(cachedProfile()?.styling) : {};
 }
 function wantBody() {
   if (!renderer) return null;
-  const which = WAVE.surfer === 'girl' ? 'girl' : 'guy';
+  const which = currentBody();
+  setSurferBody(which); window.__bodyWhich = which; // (tests: who's riding)
   if (!BODY_FILES[which]) return null; // (not built yet: the parts surfer)
   const b = loadBody(which);
   // (the wave's outfit, e.g. Raglan's wetsuit, painted once per body and outfit)
@@ -743,7 +754,7 @@ function startOrRestart() {
   score = 0; rideTime = 0; lastMove = ''; lastMoveTime = -9; // (each ride: its clock starts at 0, so the last ride's move would count as a repeat)
   rideLog = createRideLog(); // (always: the recording keeps the judged score; the sheet shows with ?judge)
   player = null;
-  recording = createRecording({ wave: WAVE.id, built: WAVE.id === 'built' ? WAVE.built : null, seed: SEA.seed, n: SEA.n, params: physicsParams(), styling: currentStyle() });
+  recording = createRecording({ wave: WAVE.id, built: WAVE.id === 'built' ? WAVE.built : null, seed: SEA.seed, n: SEA.n, params: physicsParams(), styling: currentStyle(), surfer: currentBody() });
   $('replay-badge').hidden = true;
   $('title').hidden = true;
   $('over').hidden = true;

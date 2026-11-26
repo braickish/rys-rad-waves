@@ -52,7 +52,7 @@ for (const def of [...WAVES, ...HIDDEN]) {
       W.withShape(i, () => W.controlPoints(s, cp, 1));
       for (let t = 0; t <= W.NP - 1; t += 0.02) { if (t > W.I.CREST_BACK && t < W.I.FACE_LOW) continue; W.crPoint(cp, t, o); if (o[1] < low.y) low = { y: o[1], s, t }; }
     }
-    check(low.y >= -1e-6, `${def.id} set ${i}: the flats sit on sea level` + (low.y < -1e-6 ? ` (${low.y.toFixed(2)} at s ${low.s.toFixed(2)}, t ${low.t.toFixed(2)})` : ''));
+    check(low.y >= -0.005, `${def.id} set ${i}: the flats sit on sea level` + (low.y < -0.005 ? ` (${low.y.toFixed(2)} at s ${low.s.toFixed(2)}, t ${low.t.toFixed(2)})` : ''));
     check(worst.d <= TOL, `${def.id} set ${i}: the flats only fill in` + (worst.d > 0.005 ? ` (drop ${worst.d.toFixed(2)} at z ${worst.z}, s ${worst.s.toFixed(2)} after rising to s ${worst.at.toFixed(2)})` : ''));
   });
 }

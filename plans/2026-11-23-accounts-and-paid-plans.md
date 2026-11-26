@@ -342,7 +342,11 @@ sees it on their profile.
   "See it on the wave" (the demo surfer behind the title wears it). The game wears it while you have Pro (main.js
   `currentStyle`, `bodyColors(.., style)`, surfer.js `setBoardStyle`), and every recording carries it (`styling`), so a
   replay (a contest's ▶, a recap) shows the rider's look to anyone; unknown values are dropped (`cleanStyling`).
-  Tests: `supabase/tests/styling_test.sql` (8), `npm run test:styling-browser` (10).
+  Also (the user): **Male / Female** (`profiles.surfer`, free for everyone, saved at once; null: each wave's own; worn in
+  your rides, carried in recordings as `surfer`, and the girl's own poses follow it), "Trunks / Bikini", and a **bikini
+  cut**, Full or Cheeky (Pro styling `cut`: at the back the cut climbs high on the hips, a strip down the middle, more
+  of the butt showing). Migration `20261125080000_surfer_body.sql`.
+  Tests: `supabase/tests/styling_test.sql` (13), `npm run test:styling-browser` (15).
 - [ ] **17. Recap video.** A recap page from a heat's rides and timeline, with broadcast cameras, a lower-third scoreboard,
   commentary written by Claude in an Edge Function and voiced by text-to-speech, `MediaRecorder` export, kept in Storage,
   and shown on the profiles of everyone in it.

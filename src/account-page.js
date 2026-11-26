@@ -7,7 +7,7 @@ import { handleFromEmail } from './account-ui.js';
 import { countriesByName, flag } from './countries.js';
 import { searchTowns } from './places.js';
 import { myContests, cancelContest, spotName, describeContestError } from './contests.js';
-import { PALETTE, PATTERNS, PARTS, hex, cleanStyling } from './styling.js';
+import { PALETTE, PATTERNS, PARTS, CUTS, BODIES, hex, cleanStyling, cleanBody } from './styling.js';
 import { openPaywall, startPaywall, goToStripe } from './paywall.js';
 
 const $ = (id) => document.getElementById(id);
@@ -65,7 +65,7 @@ function fill() {
   $('handle').value = profile?.handle || handleFromEmail(user.email);
   $('display').value = profile?.display_name || '';
   jersey = profile?.jersey || 'red'; drawJerseys();
-  style = cleanStyling(profile?.styling); drawStyle(); lockStyle();
+  style = cleanStyling(profile?.styling); body = cleanBody(profile?.surfer); drawStyle(); lockStyle();
   $('city').value = profile?.city || ''; $('country').value = profile?.country || '';
   place = { city: profile?.city || null, lat: profile?.lat ?? null, lng: profile?.lng ?? null }; placeHint();
   $('email-now').textContent = user.email;
@@ -154,21 +154,39 @@ startPaywall().catch((e) => console.warn('paywall', e));
 // Your surfer (task 16, Pro): swatches for the wetsuit, trunks, board and nose (a striped swatch: the game's own), the
 // trunks' pattern, and a flat little preview. Saved to profiles.styling; worn in your rides while you have Pro.
 const DEFAULTS = { suit: [0.045, 0.047, 0.055], shorts: [0.22, 0.33, 0.5], board: [0.95, 0.93, 0.86], nose: [0.55, 0.84, 0.8] };
-let style = {};
+let style = {}, body = null;
 function drawPreview() {
   const c = (k) => hex(style[k] ? PALETTE[style[k]] : DEFAULTS[k]);
-  const stripes = style.pattern === 'stripes', floral = style.pattern === 'floral';
+  const stripes = style.pattern === 'stripes', floral = style.pattern === 'floral', girl = body === 'girl';
+  const pp = (d) => `<path d="${d}" fill="${c('shorts')}"/><path d="${d}" fill="url(#pp)"/>`;
   $('style-preview').innerHTML = `
     <defs><pattern id="pp" width="8" height="8" patternUnits="userSpaceOnUse">${stripes ? `<rect width="4" height="8" fill="rgba(255,255,255,.45)"/>` : floral ? `<circle cx="2" cy="2" r="1.6" fill="#fff"/><circle cx="6" cy="6" r="1.2" fill="rgba(0,0,0,.35)"/>` : ''}</pattern></defs>
+    ${girl ? '<path d="M48 14 q12 -12 24 0 l4 30 h-32 z" fill="#8a5a33"/>' : ''}
     <circle cx="60" cy="24" r="11" fill="#d9915e"/>
-    <path d="M44 40 h32 l6 34 h-44 z" fill="${c('suit')}"/>
-    <path d="M38 74 h44 l-4 22 h-36 z" fill="${c('shorts')}"/><path d="M38 74 h44 l-4 22 h-36 z" fill="url(#pp)"/>
-    <path d="M44 96 h12 v22 h-12 z M64 96 h12 v22 h-12 z" fill="${c('suit')}"/>
+    ${girl
+      ? `<path d="M46 40 h28 l4 34 h-36 z" fill="#d9915e"/>${pp('M45 46 h30 v10 h-30 z')}<path d="M42 74 h36 l-3 12 h-30 z" fill="#d9915e"/>${pp('M42 74 h36 l-8 12 h-20 z')}<path d="M45 86 h12 v32 h-12 z M63 86 h12 v32 h-12 z" fill="#d9915e"/>`
+      : `<path d="M44 40 h32 l6 34 h-44 z" fill="${c('suit')}"/>${pp('M38 74 h44 l-4 22 h-36 z')}<path d="M44 96 h12 v22 h-12 z M64 96 h12 v22 h-12 z" fill="${c('suit')}"/>`}
     <ellipse cx="60" cy="132" rx="50" ry="9" fill="${c('board')}" stroke="rgba(0,0,0,.35)"/>
     <path d="M92 124.6 A50 9 0 0 1 110 132 A50 9 0 0 1 92 139.4 Q97 132 92 124.6 z" fill="${c('nose')}"/>`;
 }
 function drawStyle() {
   const rows = $('style-rows'); rows.innerHTML = '';
+  // Which surfer: free for everyone, saved straight away (profiles.surfer).
+  const br = document.createElement('div'); br.className = 'style-row body-row';
+  br.innerHTML = '<b>Surfer</b><div class="row"></div>';
+  for (const [id, label] of BODIES) {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = `pattern-btn${body === id ? ' on' : ''}`; b.textContent = label; b.dataset.body = id;
+    b.addEventListener('click', async () => {
+      if (!profile) { hint('style-msg', 'Make your profile first (above).', 'bad'); return; }
+      body = id; drawStyle();
+      try { profile = await saveProfile({ surfer: id }); hint('style-msg', `Saved: you surf as ${label.toLowerCase()}.`, 'good'); }
+      catch (err) { hint('style-msg', describeProfileError(err), 'bad'); }
+    });
+    br.querySelector('.row').append(b);
+  }
+  if (!body) br.append(Object.assign(document.createElement('p'), { className: 'hint', textContent: "Until you pick, each wave has its own surfer." }));
+  rows.append(br);
   for (const [k, label] of PARTS) {
     const row = document.createElement('div'); row.className = 'style-row';
     row.innerHTML = `<b>${label}</b><div class="swatches" role="radiogroup" aria-label="${label}"></div>`;
@@ -184,7 +202,7 @@ function drawStyle() {
     rows.append(row);
     if (k === 'shorts') {
       const pr = document.createElement('div'); pr.className = 'style-row pattern-row';
-      pr.innerHTML = '<b>Trunks pattern</b><div class="row"></div>';
+      pr.innerHTML = '<b>Pattern</b><div class="row"></div>';
       for (const p of PATTERNS) {
         const b = document.createElement('button');
         b.type = 'button'; b.className = `pattern-btn${(style.pattern || 'solid') === p ? ' on' : ''}`; b.textContent = p[0].toUpperCase() + p.slice(1); b.dataset.pattern = p;
@@ -192,6 +210,17 @@ function drawStyle() {
         pr.querySelector('.row').append(b);
       }
       rows.append(pr);
+      if (body === 'girl') { // the bikini's cut (Pro)
+        const cr = document.createElement('div'); cr.className = 'style-row pattern-row';
+        cr.innerHTML = '<b>Bikini cut</b><div class="row"></div>';
+        for (const [id, label] of CUTS) {
+          const b = document.createElement('button');
+          b.type = 'button'; b.className = `pattern-btn${(style.cut || 'full') === id ? ' on' : ''}`; b.textContent = label; b.dataset.cut = id;
+          b.addEventListener('click', () => { if (id === 'full') delete style.cut; else style.cut = id; drawStyle(); });
+          cr.querySelector('.row').append(b);
+        }
+        rows.append(cr);
+      }
     }
   }
   drawPreview();
