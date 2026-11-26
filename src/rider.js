@@ -80,6 +80,10 @@ const RIDER_TUNE = {
   // Coming up the face out of a bottom turn, speed can build this much faster than the general limit (maxAccel), so
   // the turn's drive comes through instead of being clipped (2026-11-25, the user: more drive off the bottom turn).
   carveAccel: 0.3,
+  // Whitewater's drag on your speed builds with its age (a wave rule, the user, 2026-11-25: speed dropped off too fast
+  // behind the curl): water that broke under `foamAge[0]` s ago is still moving with the wave and doesn't slow you;
+  // its full drag by `foamAge[1]` s. By time, not distance, so a faster curl leaves a longer stretch of young water.
+  foamAge: [0.2, 1.0],
   turnWindow: 0.08, // steering this recently when you reach the lip = a turn off the top; otherwise an air
   lipExit: 1.2, // moves off the lip point you this far below the line (rad, ~70 deg)
   foamExit: 0.6, // ... but out of the whitewater, shallower (down and forward, ~35 deg) // speed gained per radian of carving up near the top of the pocket (m/s)
@@ -349,6 +353,13 @@ export function faceSteepness(xs) {
   for (let i = 0; i < 14; i++) { const mid = (lo + hi) / 2; if (frameAt(xs, mid).P[1] >= y30) lo = mid; else hi = mid; }
   const M = frameAt(xs, lo).P;
   return Math.atan2(L[1] - M[1], Math.max(1e-3, Math.hypot(L[0] - M[0], L[2] - M[2]))) * 180 / Math.PI;
+}
+// How long ago the water at xs broke (s): its phase, in seconds (bar waves' phase is already time, `phaseTime` s per unit;
+// a peeling wave's is `phase.behind` m per unit, passed at the curl's speed). Ahead of the curl: 0.
+export function brokeAgo(xs) {
+  const s = phaseAt(xs);
+  if (s <= 0) return 0;
+  return WAVE.bar ? s * (WAVE.phaseTime ?? 1) : s * (WAVE.phase?.behind ?? 8) / Math.max(1, PEEL_SPEED);
 }
 // The wave rules' readings where you are (see `driveAccel` in the settings): the curl's speed, smoothed, and the face's
 // steepness at your spot, re-read every 0.2 s (the wave changes as it peels; a scan every step costs too much).
@@ -1211,8 +1222,18 @@ function stepSurf(r, input, dt) {
   const pkSpeed = Math.max(pkReach, wall); // (a steep wall anywhere feeds you too: `wallK`)
   // (in the tube the tube is the pocket: full power and a steep face at any depth, not the pocket's fade behind the curl,
   // where deep in the tube is; TUNE.tubeDeepBoost)
-  const pkT = r.tube ? 1 : pkSpeed, stT = r.tube ? 1 : steepAny;
-  let target = T.vLow + (T.vPocket - T.vLow) * pkT * (r.tube ? 1 : steep) * (T.heightSpeed[0] + T.heightSpeed[1] * height);
+  // Carving a bottom turn up toward the face (a wave rule, the user, 2026-11-25: bottom turns out on the flats were bled
+  // toward the flats' crawl, ~10 mph, while they carved): the cruising speed is the face's you're turning into, its
+  // steepness at the bottom quarter of the face here (and the pocket's power, as anywhere), not the flat water under you.
+  // Going straight across the flats still bogs you down.
+  let stBase = steep, stAnyBase = steepAny;
+  if (!r.tube && r.carvingUp && height < 0.25) { // (any turn carving up from down low: a committed bottom turn or not)
+    const fb = frameAt(r.xs, T.tBottom - 0.25 * (T.tBottom - top));
+    stBase = Math.max(steep, clamp((1 - fb.n[1]) / 0.55, 0, 1));
+    stAnyBase = Math.max(steepAny, sstep(0.01, 0.06, 1 - fb.n[1]));
+  }
+  const pkT = r.tube ? 1 : pkSpeed, stT = r.tube ? 1 : stAnyBase;
+  let target = T.vLow + (T.vPocket - T.vLow) * pkT * (r.tube ? 1 : stBase) * (T.heightSpeed[0] + T.heightSpeed[1] * height);
   if (T.energy) target = T.vLow + ((r.tube && T.tubeHold ? tubeHoldAt(tdep) * PEEL_SPEED : T.pocketHold * holdPeel()) - T.vLow) * pkT * stT * crestFade(r, height); // (energy pocket: 1.0x the peel at any height up to the crest, where it fades; Raglan+'s sections: the wave's own peel, wave.js holdPeel)
   else if (T.physPocket) target = physCruise(T.physPocket, height, pkT, stT);
   r.cruise = target; // (the wave's cruising speed for you here, before feet and foam: tests)
@@ -1229,7 +1250,7 @@ function stepSurf(r, input, dt) {
   if (r.boost > 0 && r.boost < 0.85 && foam < 0.2) r.boost = 0; // cleared the foam you bounced off
   if (r.boost > 0) { /* just rebounded: the foam can't slow you for a moment */ }
   else if (r.floater) target = Math.max(target, r.speed); // floating holds your speed
-  else target += (T.vFoam + ((T.foamPush ?? T.vFoam) - T.vFoam) * mid - target) * foam * (climbingFoam(r) ? T.climbFoamDrag : 1); // climbing up the whitewater drags less; on a longboard from the middle the whitewater pushes you along (`foamPush`)
+  else target += (T.vFoam + ((T.foamPush ?? T.vFoam) - T.vFoam) * mid - target) * foam * sstep(T.foamAge[0], T.foamAge[1], brokeAgo(r.xs)) * (climbingFoam(r) ? T.climbFoamDrag : 1); // climbing up the whitewater drags less; on a longboard from the middle the whitewater pushes you along (`foamPush`)
   // The pocket only feeds you while you're not climbing: point up the face
   // and you slow down for real.
   const climbing = sstep(0.15, 0.6, Math.sin(r.phi));
