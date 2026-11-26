@@ -22,6 +22,9 @@ const COL = {
 // A Pro member's board (task 16; src/styling.js): its deck and nose colours, over every board's own. null: as built.
 let boardStyle = null;
 export const setBoardStyle = (deck, nose) => { boardStyle = deck || nose ? { deck, nose } : null; };
+// Which body is riding ('guy' | 'girl'; the player's pick, else the wave's): a few poses are the girl's own.
+let bodyWhich = null;
+export const setSurferBody = (w) => { bodyWhich = w; };
 // The surfer's body is the skinned one (body.js), posed from the joints worked out here (pose.J); this file
 // draws only the board. (The parts surfer, made of spheres and cylinders, was dropped 2026-11-18, the user's call.)
 const THIGH = 0.46, SHIN = 0.46, UPPER = 0.3, FORE = 0.3;
@@ -199,7 +202,7 @@ export function surferObjects(pose, rider, info, dt) {
   const onNose = sstepS(0.6, 1, nr);
   // Hang ten (rider.js r.ten, 0 hang five -> 1 hang ten): the back foot steps up beside the front one.
   const ten = rider.mode === 'surf' ? sstepS(0, 1, rider.ten || 0) : 0;
-  const girl = WAVE.surfer === 'girl';
+  const girl = (bodyWhich || WAVE.surfer) === 'girl';
   // Faster, further over (the user, 2026-11-25): from ~15 mph up to ~27 mph the board goes higher on its rail and the
   // body lays over further, until in a fast bottom turn the inside hand is almost in the water.
   const fast = rider.mode === 'surf' ? sstepS(6.5, 12, speed0) * (1 - Math.min(1, 2 * (rider.barrelCrouch || 0))) : 0; // (not in the tube)
