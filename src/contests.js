@@ -64,17 +64,21 @@ export async function readContest(id) {
   return { contest, entrants: entrants || [], heat: heats?.[0] || null };
 }
 
-// The live channel. on.change() when someone says the contest changed; on.presence(ids) with the user ids here now.
+// The live channel. on.change() when someone says the contest changed; on.presence(ids) with the user ids here now;
+// in a live heat (task 12) on.score(payload) when someone's wave is scored and on.finished() when someone's done.
 export async function contestChannel(id, on) {
   const c = await initAccount();
   const me = currentUser()?.id;
   const ch = c.channel(`contest:${id}`, { config: { presence: { key: me || 'watcher' }, broadcast: { self: false } } });
   ch.on('broadcast', { event: 'changed' }, () => on.change?.());
+  ch.on('broadcast', { event: 'score' }, ({ payload }) => on.score?.(payload));
+  ch.on('broadcast', { event: 'finished' }, () => on.finished?.());
   ch.on('presence', { event: 'sync' }, () => on.presence?.(Object.keys(ch.presenceState())));
   await new Promise((resolve) => ch.subscribe((status) => { if (status === 'SUBSCRIBED') resolve(); }));
   if (me) await ch.track({ at: Date.now() });
   return {
     changed: () => ch.send({ type: 'broadcast', event: 'changed', payload: {} }),
+    send: (event, payload = {}) => ch.send({ type: 'broadcast', event, payload }),
     close: () => c.removeChannel(ch),
   };
 }
@@ -99,6 +103,10 @@ const WORDS = {
   not_host: 'Only the host can do that.',
   no_entrants: 'Nobody has joined yet.',
   not_host_or_over: 'This contest is already over.',
+  heat_still_on: 'Waiting for the others to finish.',
+  after_horn: 'Caught after the horn: it doesn\'t count.',
+  too_late: 'That wave came in too late to count.',
+  heat_over: 'The heat is over.',
 };
 export function describeContestError(e) {
   const code = e?.hint || e?.message;

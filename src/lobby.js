@@ -183,7 +183,7 @@ function countdown(startsAt) {
     const s = Math.ceil((at - Date.now()) / 1000);
     if (s > 0) { say('lobby-msg', `Starting in ${s}…`); return; }
     clearInterval(me.count);
-    location.href = `${contestLink(me.code)}&go`;
+    location.href = `${contestLink(me.code)}&go${new URLSearchParams(location.search).has('auto') ? '&auto' : ''}`; // (&auto: the tests' autopilot rides along)
   };
   tick(); me.count = setInterval(tick, 250);
 }

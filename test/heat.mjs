@@ -3,7 +3,7 @@
 import * as R from '../src/rider.js';
 import * as W from '../src/wave.js';
 import * as S from '../src/sea.js';
-import { createHeat, stepHeat, canCatch, addWave, checkOver, standings, needFor, compare, parseHeatParam, judgeSeed, clockText, you } from '../src/heat.js';
+import { createHeat, stepHeat, canCatch, addWave, addRivalWave, checkOver, standings, needFor, compare, parseHeatParam, judgeSeed, clockText, you } from '../src/heat.js';
 
 let fails = 0;
 const check = (ok, msg) => { console.log(`${ok ? 'ok  ' : 'FAIL'} ${msg}`); if (!ok) fails++; };
@@ -96,6 +96,18 @@ check(eq(parseHeatParam('10m'), { minutes: 10 }) && eq(parseHeatParam('5w'), { w
   checkOver(h, false);
   const planned = createHeat({ seed: 12, end: { minutes: 10 } }).surfers.reduce((a, s) => a + s.plan.length, 0);
   check(got === planned && horn === 1 && h.done, `10 min heat stepped: ${got} bot scores came in, one horn, over`);
+}
+// A live heat (task 12): rivals instead of bots; their waves come over the network, once each, in their places.
+{
+  const h = createHeat({ seed: 3, end: { waves: 2 }, you: 'Kai', jersey: 'pink', rivals: [{ id: 'e2', name: 'Mara', jersey: 'teal' }, { id: 'e3', name: 'Tuck', jersey: 'pink' }] });
+  check(h.live && eq(h.surfers.map((x) => x.name), ['Kai', 'Mara', 'Tuck']) && h.surfers.every((x) => !x.plan.length) && !h.surfers.some((x) => x.bot), 'live: you and your rivals, no bots, no plans');
+  check(h.surfers[1].jersey.id === 'teal', "a rival wears their drawn jersey");
+  check(addRivalWave(h, 'e2', { n: 2, score: 5.5 }) && addRivalWave(h, 'e2', { n: 1, score: 7.25 }) && !addRivalWave(h, 'e2', { n: 1, score: 7.25 }), 'rival waves: out of order is fine, the same one twice lands once');
+  check(eq(h.surfers[1].waves.map((w) => w.n), [0, 1]) && standings(h)[0].surfer.name === 'Mara' && standings(h)[0].total === 12.75, 'they count: Mara leads on 12.75');
+  check(!addRivalWave(h, 'nobody', { n: 1, score: 9 }), "a wave for someone not in the heat: ignored");
+  addWave(h, { score: 6, at: 10 }); addWave(h, { score: 6.5, at: 50 });
+  checkOver(h, false);
+  check(h.done && h.surfers[2].waves.length === 0, "you've ridden yours: you're done, and nobody's waves are made up for them");
 }
 console.log(fails ? `\n${fails} failed` : '\nheats ok');
 process.exit(fails ? 1 : 0);

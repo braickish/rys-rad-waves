@@ -44,11 +44,18 @@ export function judgeSeed(seed, i) {
 // opts: { seed, end: { minutes } | { waves }, you (your name), bots (how many rivals, 0-7), advance (0: one round, the
 // winner; N: the top N go through), skills (bots' mean wave scores, else drawn), jersey (your colour's id, from your
 // profile: the bots take the others in order; red if none) }
-export function createHeat({ seed = 1, end = { minutes: 10 }, you = 'You', bots = 3, advance = 0, skills = null, jersey = 'red' } = {}) {
+//
+// A live heat (task 12) passes `rivals`: [{ id, name, jersey }], the other surfers, whose waves come over the network
+// (addRivalWave) instead of from a plan; no bots then. Its clock is the server's: main.js sets h.time before stepHeat.
+export function createHeat({ seed = 1, end = { minutes: 10 }, you = 'You', bots = 3, advance = 0, skills = null, jersey = 'red', rivals = null } = {}) {
   const rnd = rng(seed ^ 0x5bd1e995);
-  const h = { seed, end, advance, time: 0, duration: end.minutes ? end.minutes * 60 : Infinity, horn: false, done: false, surfers: [], events: [] };
+  const h = { seed, end, advance, time: 0, duration: end.minutes ? end.minutes * 60 : Infinity, horn: false, done: false, surfers: [], events: [], live: !!rivals };
   const mine = JERSEYS.find((j) => j.id === jersey) || JERSEYS[0], others = JERSEYS.filter((j) => j !== mine);
   h.surfers.push({ id: 'you', name: you, you: true, jersey: mine, waves: [], plan: [] });
+  if (rivals) {
+    for (const r of rivals) h.surfers.push({ id: r.id, name: r.name, rival: true, jersey: JERSEYS.find((j) => j.id === r.jersey) || others[0], waves: [], plan: [] });
+    return h;
+  }
   const nb = Math.max(0, Math.min(7, bots));
   for (let b = 0; b < nb; b++) {
     // (skills: a spread from steady to sharp, shuffled by the seed: mean wave scores ~3.8-6.4)
@@ -84,6 +91,16 @@ export function stepHeat(h, dt) {
   return h.events;
 }
 
+// A rival's scored wave (a live heat), by its number (1-based, as the database counts): true if it's new. Waves can come
+// twice (the broadcast, then a read of the table) or out of order; each lands once, in its place.
+export function addRivalWave(h, id, { n, score, at = 0 }) {
+  const s = h.surfers.find((x) => x.id === id);
+  if (!s || s.waves.some((w) => w.n === n - 1)) return false;
+  s.waves.push({ n: n - 1, score: r2(score), at });
+  s.waves.sort((a, b) => a.n - b.n);
+  return true;
+}
+
 // Can you catch another wave that counts? (a timer: before the horn; a wave count: you haven't ridden them all)
 export function canCatch(h) {
   if (h.done) return false;
@@ -97,11 +114,12 @@ export function addWave(h, { score, at, ride = null }) {
   return counts;
 }
 // Over? (a timer: the horn has gone and you're not on a wave; a wave count: you've ridden yours, and the bots' remaining
-// waves come in at once, as if you'd waited on the beach for them)
+// waves come in at once, as if you'd waited on the beach for them). In a live heat this is only you: the heat itself
+// ends when the server closes it (src/live-heat.js).
 export function checkOver(h, riding) {
   if (h.done) return true;
   if (h.end.minutes ? h.horn && !riding : you(h).waves.length >= h.end.waves && !riding) {
-    if (h.end.waves) for (const s of h.surfers) while (s.plan.length) { const w = s.plan.shift(); s.waves.push({ n: s.waves.length, score: w.score, at: w.at }); }
+    if (h.end.waves && !h.live) for (const s of h.surfers) while (s.plan.length) { const w = s.plan.shift(); s.waves.push({ n: s.waves.length, score: w.score, at: w.at }); }
     h.done = true;
   }
   return h.done;

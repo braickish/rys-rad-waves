@@ -177,6 +177,9 @@
   .acct-ask { flex-basis: 100%; font-weight: 700; margin-bottom: 2px; }
   a.acct-link { display: inline-block; }
   .acct-msg { margin-top: 8px; font-weight: 700; }
+  #results [hidden] { display: none !important; }
+  .claim { margin: 4px 0 16px; } .claim .acct-msg { flex-basis: 100%; }
+  #results.waiting .go { animation: none; background: rgba(11,26,36,.6); font-size: 15px; }
   .walk-btn { position: fixed; right: 16px; width: 96px; height: 96px; border-radius: 48px; border: 3px solid #fff; font-family: Bungee, sans-serif; font-size: 15px; color: #fff; background: rgba(255,170,40,.85); box-shadow: 3px 3px 0 rgba(0,0,0,.3); touch-action: none; cursor: pointer; z-index: 5; padding: 0 10px; line-height: 1.1; }
   #walk-up { bottom: 160px; } #walk-back { bottom: 56px; background: rgba(240,110,160,.85); }
   .tip { font-size: 12px; }
@@ -289,7 +292,13 @@
     <div id="results-rows" class="results-rows"></div>
     <div id="results-note" class="replay-note results-note"></div>
     <div class="replay-btns"><button id="results-watch">▶ Watch your best wave</button></div>
-    <div class="go"><span class="desk">Space for a new heat</span><span class="mob">Tap for a new heat</span></div>
+    <form id="results-claim" class="acct-form claim" hidden>
+      <div class="acct-ask">Keep your scores: add your email</div>
+      <input id="claim-email" type="email" autocomplete="email" placeholder="you@example.com" required aria-label="Email">
+      <button type="submit">Keep them</button>
+      <div id="claim-msg" class="acct-msg"></div>
+    </form>
+    <div class="go" id="results-go"><span class="desk">Space for a new heat</span><span class="mob">Tap for a new heat</span></div>
   </div>
 </div>
 <div class="panel" id="over" hidden>

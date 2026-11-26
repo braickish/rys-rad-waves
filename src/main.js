@@ -7,13 +7,14 @@ import { SEA, nextWave, stepSea, seedSea, goToWave } from './sea.js';
 import { canMakeVideo, createVideo, shareVideo, saveVideo, VIDEO } from './video.js';
 import { createRecording, recordStep, finishRecording, encodeRecording, decodeRecording, createPlayer, playerStep, playerEnd } from './replay.js';
 import { applyBuilt } from './waves/built.js';
-import { parseHeatParam, createHeat, stepHeat, canCatch, addWave, checkOver, standings, judgeSeed, clockText, you as heatYou } from './heat.js';
+import { parseHeatParam, createHeat, stepHeat, canCatch, addWave, addRivalWave, checkOver, standings, judgeSeed, clockText, you as heatYou } from './heat.js';
+import { connectLive } from './live-heat.js';
 import { perspective, lookAt, mul, invert } from './math.js';
 import { createPose, surferObjects } from './surfer.js';
 import { loadSkinnedGLB } from './glb.js';
 import { createBody } from './body.js';
 import { startAccountUI } from './account-ui.js';
-import { cachedProfile, onPlan, waveLocked, onAccount, SALES_OPEN } from './account.js';
+import { cachedProfile, onPlan, waveLocked, onAccount, SALES_OPEN, currentUser, initAccount, describeAuthError } from './account.js';
 import { myBreaks } from './breaks.js';
 import { openPaywall, startPaywall } from './paywall.js';
 import { initLobby, leaveLobby } from './lobby.js';
@@ -27,6 +28,9 @@ const HEAT_END = parseHeatParam(params.get('heat'));
 const JUDGE = params.has('judge') || !!HEAT_END;
 const heat = { scores: [], seen: new Set() }; // (the judges' memory: the session, or the heat in heat mode)
 let H = null, heatCaughtAt = 0, sheetTimer = 0, boardKey = '', popTimer = 0;
+// A live contest heat (accounts plan task 12): boot.js's window.__contestHeat; `live` is its connection (src/live-heat.js).
+const LIVE = window.__contestHeat || null;
+let live = null;
 let rideLog = null;
 // Crumbling wave by default; ?wave=barrel for the barreling one. Must be set
 // before the renderer builds the wave mesh.
@@ -577,6 +581,21 @@ for (const b of document.querySelectorAll('.replay-btns button[data-act]')) { //
 }
 $('results').addEventListener('pointerdown', (e) => { e.preventDefault(); startOrRestart(); });
 $('results-watch').addEventListener('pointerdown', (e) => e.stopPropagation());
+// "Keep your scores" (a guest's live heat, task 12): an email turns the guest session into an account, same id, so the
+// results stay theirs. The link lands on the account page to pick a handle.
+for (const ev of ['pointerdown', 'keydown']) $('results-claim').addEventListener(ev, (e) => e.stopPropagation());
+$('results-claim').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const email = $('claim-email').value.trim(), btn = $('results-claim').querySelector('button');
+  btn.disabled = true;
+  try {
+    const c = await initAccount();
+    const { error } = await c.auth.updateUser({ email }, { emailRedirectTo: new URL('account.html', location.href).href });
+    if (error) throw error;
+    $('claim-msg').textContent = `Check ${email}: the link keeps your scores and signs you in.`;
+  } catch (err) { $('claim-msg').textContent = describeAuthError(err); }
+  btn.disabled = false;
+});
 $('board').addEventListener('pointerdown', (e) => { e.stopPropagation(); $('board').classList.toggle('open'); }); // (a phone: tap for every row)
 if (HEAT_END) {
   $('heat-note').hidden = false;
@@ -596,7 +615,23 @@ const ordinal = (n) => n + (n % 10 === 1 && n % 100 !== 11 ? 'st' : n % 10 === 2
 // A new heat: its seed (?seed=, else random) is the sea's, so its waves come in order from wave 0.
 function startHeat() {
   const seed = params.has('seed') ? Number(params.get('seed')) : 1 + Math.floor(Math.random() * 2 ** 30);
-  H = createHeat({ seed, end: HEAT_END, bots: params.has('bots') ? Number(params.get('bots')) : 3, jersey: params.get('jersey') || cachedProfile()?.jersey });
+  H = LIVE
+    ? createHeat({ seed, end: HEAT_END, you: LIVE.name, jersey: params.get('jersey'), rivals: LIVE.entrants.filter((e) => e.id !== LIVE.entrantId) })
+    : createHeat({ seed, end: HEAT_END, bots: params.has('bots') ? Number(params.get('bots')) : 3, jersey: params.get('jersey') || cachedProfile()?.jersey });
+  if (LIVE && !live) {
+    connectLive(LIVE, {
+      wave: (w) => { // (anyone's scored wave: yours too, after a reload)
+        const mine = w.entrant_id === LIVE.entrantId, s = mine ? heatYou(H) : H.surfers.find((x) => x.id === w.entrant_id);
+        if (addRivalWave(H, mine ? 'you' : w.entrant_id, { n: w.wave_no, score: w.score, at: w.caught_s }) && s && !mine) heatPop(s.name, w.score, s.jersey.color);
+      },
+      closed: ({ rides }) => {
+        for (const r of rides) addRivalWave(H, r.entrant_id === LIVE.entrantId ? 'you' : r.entrant_id, { n: r.wave_no, score: Number(r.score) });
+        H.final = true; H.done = true;
+        if (state === 'results') showResults();
+      },
+      note: (code) => flash(code === 'after_horn' ? 'After the horn' : 'Not counted', "that wave didn't count"),
+    }).then((l) => { live = l; window.__live = l; }).catch((e) => showError(`Live heat: ${e.message}`));
+  }
   window.__heat = H;
   seedSea(H.seed);
   heat.scores = []; heat.seen = new Set();
@@ -610,7 +645,14 @@ function showResults() {
   state = 'results';
   sheetTimer = 0;
   const st = standings(H), me = st.find((r) => r.surfer.you), f2 = (x) => x.toFixed(2);
-  $('results-title').textContent = me.place === 1 ? 'You win!' : `${ordinal(me.place)} place`;
+  const waiting = H.live && !H.final; // (a live heat: until the server closes it, the places aren't final)
+  if (H.live && live) live.finish();
+  $('results-title').textContent = waiting ? 'Waiting…' : me.place === 1 ? 'You win!' : `${ordinal(me.place)} place`;
+  $('results').classList.toggle('waiting', waiting);
+  $('results-go').innerHTML = !H.live ? '<span class="desk">Space for a new heat</span><span class="mob">Tap for a new heat</span>'
+    : waiting ? 'Waiting for the others to finish their waves…' : '<span class="desk">Space to go back to the contest</span><span class="mob">Tap to go back to the contest</span>';
+  const guest = H.live && H.final && currentUser()?.is_anonymous;
+  $('results-claim').hidden = !guest;
   $('results-sub').textContent = `${H.end.minutes ? `${H.end.minutes} min heat` : `${H.end.waves} wave heat`} · ${WAVE.name}`;
   $('results-rows').innerHTML = st.map((r) => `<div class="rr${r.surfer.you ? ' you' : ''}"><span class="pl">${r.place}</span><i style="background:${r.surfer.jersey.color}"></i><span class="nm">${r.surfer.name}</span><span class="bt">${r.top.map(f2).join(' + ') || '-'}</span><b>${f2(r.total)}</b></div>`).join('');
   const best = heatYou(H).waves.filter((w) => w.ride).sort((a, b) => b.score - a.score)[0];
@@ -620,6 +662,7 @@ function showResults() {
   for (const id of ['over', 'judge', 'title']) $(id).hidden = true;
   $('results').hidden = false;
   window.__heatResults = st.map((r) => ({ name: r.surfer.name, place: r.place, total: r.total }));
+  window.__heatFinal = !waiting;
 }
 // The board (top left, while a heat is on): the clock, one row a surfer by place, your row lit, what each needs.
 function drawBoard() {
@@ -648,6 +691,11 @@ function startOrRestart() {
   if (state === 'play') return;
   if (HEAT_END) {
     if (H && !H.done && !canCatch(H)) checkOver(H, false); // (the horn has gone, or you've ridden your waves)
+    if (H?.live && H.done) { // (a live heat: the results, then back to the contest once they're final)
+      if (state !== 'results') showResults();
+      else if (H.final) location.href = `index.html?contest=${encodeURIComponent(LIVE.code)}`;
+      return;
+    }
     if (H && H.done && state !== 'results') { showResults(); return; }
     if (!H || H.done) startHeat();
   }
@@ -1165,12 +1213,15 @@ async function main() {
         $('over-time').textContent = rideTime.toFixed(1);
         $('best').textContent = best;
         const counted = H ? addWave(H, { score: jr.score, at: heatCaughtAt, ride: lastRecording }) : true;
+        if (H?.live && counted) live?.submit({ n: heatYou(H).waves.length, score: jr.score, judges: jr.judges.map((j) => j.score), caughtS: heatCaughtAt,
+          sheet: { sheet: jr.sheet, grade: jr.grade }, recording: encodeRecording(lastRecording) });
         if (H && counted) heatPop(heatYou(H).name, jr.score, heatYou(H).jersey.color);
         if (JUDGE) showScoreSheet(judge, counted); else $('over').hidden = false;
       }
     }
     if (H && !H.done && !player && state !== 'title' && state !== 'results') {
-      for (const e of stepHeat(H, dt)) {
+      if (H.live) H.time = Math.max(0, live ? live.clock() : 0); // (the server's clock)
+      for (const e of stepHeat(H, H.live ? 0 : dt)) {
         if (e.type === 'score') heatPop(e.surfer.name, e.score, e.surfer.jersey.color);
         if (e.type === 'horn') flash('HORN!', state === 'play' ? 'this wave still counts' : 'the heat is over');
       }

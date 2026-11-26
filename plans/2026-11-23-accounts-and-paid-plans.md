@@ -280,9 +280,18 @@ sees it on their profile.
   Stripe). Local: the hook in `config.toml` points at the local function, with emails still landing in Mailpit when
   no key is set (so the browser tests keep reading links there). Tests: the function refuses an unsigned or wrongly
   signed call, builds each email type with the right link, and a sign-in end to end in the browser.
-- [ ] **12. Live heats.** Contests phase 4, uploading each ride's log with its score, plus "Keep your scores" (claiming
-  an anonymous account) on the results card. Test: a two-player heat end to end, then the guest claims and the results
-  move to their profile.
+- [x] **12. Live heats** (2026-11-25). src/live-heat.js: the heat runs on the server's clock (`server_time()`,
+  each screen's offset measured once; the horn together); each scored wave goes up in order (its replay to the private
+  `replays` bucket at <you>/<heat>/<n>.json, then `submit_ride` with the five judges and the sheet, then a "score"
+  ping on the contest's channel) and lands on the others' boards (heat.js `rivals` / `addRivalWave`: live surfers whose
+  waves come over the network, once each); the rides table is read again every 10 s and on load, so a reload rejoins
+  and refills the board (boot.js sets `window.__contestHeat` for `?contest=&go` and for a reload in the heat). Done
+  (the horn and off your wave, or all your waves): `finish_heat`, a "finished" ping, and `close_heat` until it closes:
+  as soon as everyone's finished (new), else after the grace. The results card waits ("Waiting…"), then shows the
+  final places, "back to the contest", and for a guest "Keep your scores": an email (`updateUser`), whose link makes
+  the guest session an account with the same id and lands on the account page to make a profile. Migration
+  `20261125030000_live_heats.sql`. Tests: `npm run test:live-heat-browser` (19, two browsers riding a 1-wave contest
+  on the autopilot, then the guest claims), `supabase/tests/live_heats_test.sql` (11), test/heat.mjs (rivals).
 - [ ] **13. Brackets.** Contests phase 5 as written.
 - [ ] **14. The profile filled in.** Public breaks (surf it) and contest results on the public page. Private contest
   management (draft, open, running, done) and history. A public contest page (`contest.html?c=`) with heats and results.
