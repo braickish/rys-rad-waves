@@ -41,7 +41,10 @@ index.html?wave=built&play#built=eyJ2IjoxLCJtb2RlIjoibG9vcCIsInNpZGUiOiJsZWZ0Iiw
 
 1. **Pocket speeds**: `vPocket`, `vLow`, `vFoam` (Raglan 14 / 4.5 / 3, Queens 5.2 / 2.7 / 2.1). Rule: from the curl's
    speed (the pocket has to carry you at least as fast as the curl; Raglan's pocket runs ~1.7x its curl, Queens ~1.1x:
-   check whether face height explains the difference) and face height.
+   check whether face height explains the difference) and face height. Also the pocket's fade behind the curl, still a
+   per-wave `pocket(xs)` (Raglan full to 1 m behind and gone by 6 m, Queens 1-5 m, Trestles 4-8 m, Pipe 9-13 m in its tube):
+   make it follow the whitewater's age as the foam drag now does (`brokeAgo`, `foamAge`, 669a615), so it scales with
+   the curl's speed. Mind Pipe, where behind the curl is the tube.
 
 2. **Acceleration limits**: `maxAccel`, `maxAccelFast`, `accelTaper` (Raglan 6 / 0.3 / 7-14, Pipe 10, Queens 4.5 / 3.5-6,
    built 0.45 / 9-18). Rule: the limit from steepness (g sin angle), the taper's speeds from the curl's speed (acceleration
