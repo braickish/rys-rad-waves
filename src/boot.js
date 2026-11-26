@@ -41,6 +41,8 @@ if (code && (q.has('go') || q.has('heat'))) {
         code, contestId: r.contest.id, heatId: r.heat.id, entrantId: mine.id, name: mine.name, startsAt: r.heat.starts_at, endsAt: r.heat.ends_at,
         bracket: r.contest.format === 'bracket', round: r.heat.round, heatNo: r.heat.number, final: r.final,
         entrants: entries.map((x) => ({ id: x.entrant_id, jersey: x.jersey, name: r.entrants.find((e) => e.id === x.entrant_id)?.name || '?' })),
+        // your waves already scored in it (a reload mid-heat): you carry on from the next wave of the set, not the first
+        ridden: r.rides.filter((x) => x.heat_id === r.heat.id && x.entrant_id === mine.id).map((x) => ({ n: x.wave_no, score: Number(x.score), at: (Date.parse(x.caught_at) - Date.parse(r.heat.starts_at)) / 1000 })),
       };
     }
   } catch (e) { console.warn('contest', e); }

@@ -833,6 +833,10 @@ function startHeat() {
   boardKey = '';
   // (a built break's loop never ends: a heat rides its full ride, the contests plan)
   if (WAVE.id === 'built' && WAVE.ridges?.loop) { applyBuilt({ ...WAVE.built, mode: 'full' }); useWave('built'); renderer.rebuildWave(); }
+  // back in a live heat after a reload: your scored waves are on the board before you can catch another (so the next one
+  // is numbered after them), and the sea goes on from the next wave of the set, as it would have without the reload
+  const ridden = LIVE?.ridden || [];
+  if (ridden.length) { for (const w of ridden) addRivalWave(H, 'you', w); SEA.n = Math.max(...ridden.map((w) => w.n)) - 1; } // (the drop-in's nextWave() then rides wave n: 0-based, the last you rode + 1)
   $('results').hidden = true;
 }
 // The end of a heat: places, totals, best two; watch your best wave; a new heat.
