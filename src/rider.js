@@ -89,7 +89,11 @@ const RIDER_TUNE = {
   // Whitewater's drag on your speed builds with its age (a wave rule, the user, 2026-11-25: speed dropped off too fast
   // behind the curl): water that broke under `foamAge[0]` s ago is still moving with the wave and doesn't slow you;
   // its full drag by `foamAge[1]` s. By time, not distance, so a faster curl leaves a longer stretch of young water.
-  foamAge: [0.2, 1.0],
+  foamAge: [0.5, 1.3], // (the user, 2026-11-26: no slowing at all until it's 0.5 s old; was 0.2-1.0)
+  // Sitting in the whitewater takes you after `foamLimit` s (floating on it, climbing it or just out of a move doesn't
+  // count; on a longboard from the middle, twice as long). One rule for every wave (the user, 2026-11-26: 4 s; it was
+  // 1 s on Raglan and the waves built on it, 1.4 s on Queens).
+  foamLimit: 4.0,
   // ... and the speed it pulls you toward is the whitewater's own pace, `foamOfCurl` x the curl's speed (the smoothed one,
   // within `overCurlRange` x Raglan's), not a fixed crawl: Raglan ~14 mph, Queens ~11, Pipe ~19 (the user, 2026-11-26:
   // lessen how quickly speed drops off in the whitewater). It only ever slows you (on the flats the cruise is lower and

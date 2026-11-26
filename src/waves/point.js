@@ -99,7 +99,7 @@ export default {
     curlZone: [-0.5, 2.5],
     snapIntoLip: 1.0, // turning at the lip, a snap reaches 1 m further into the breaking lip before it's a floater (the user, 2026-11-18)
     foamContact: 0.25, reboundMinHeight: 0.33, rebound180MinHeight: 0.67,
-    floaterHeight: 0.55, floaterMax: 1.2, climbFoamDrag: 0.35, foamLimit: 1.0,
+    floaterHeight: 0.55, floaterMax: 1.2, climbFoamDrag: 0.35,
     // Free floaters (2026-11-18, the user: the floater grabbed the board and steered it): you keep steering, a little speed
     // (`floaterBoost` m/s, ~2 mph), after `floaterSink` s the foam gives way at `floaterSinkSpeed` m/s, and it ends once
     // you're `floaterDrop` (fraction of the wave height) below where you got on. Airs landing in the whitewater get

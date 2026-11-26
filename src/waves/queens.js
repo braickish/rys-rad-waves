@@ -74,7 +74,7 @@ export default {
     checkTurn: 2.0, checkRate: 7, // the check turn off the top has to bring you back down on a wave this small
     curlZone: [-0.5, 2.0],
     foamContact: 0.25, reboundMinHeight: 0.33, rebound180MinHeight: 0.67,
-    floaterHeight: 0.55, floaterMax: 1.2, climbFoamDrag: 0.35, foamLimit: 1.4,
+    floaterHeight: 0.55, floaterMax: 1.2, climbFoamDrag: 0.35,
     airs: false, floaters: false, softFoam: true, rebounds: true, // (no floaters on the longboard, the user's call; the whitewater is soft: climbing it just slows you, turning off its top is a re-entry, otherwise it knocks you off)
     snapShoulder: 1e9, snapNear: 0, // no snaps on a log: turning off the top is a check turn
     slashLow: -1, // no slashes
