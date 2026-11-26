@@ -305,9 +305,20 @@ sees it on their profile.
   heat. Tests: `supabase/tests/brackets_test.sql` (20: 9, 12, 16 and 5 surfers, snake seeding, the round seed, a tie
   through by the best wave), `npm run test:bracket-browser` (11: the host against four scripted guests, round 1 to
   the final).
-- [ ] **14. The profile filled in.** Public breaks (surf it) and contest results on the public page. Private contest
-  management (draft, open, running, done) and history. A public contest page (`contest.html?c=`) with heats and results.
-  "Watch this wave" from replays.
+- [x] **14. The profile filled in** (2026-11-25). Migration `20261125050000_profile_filled_in.sql`.
+  **Where you surf from** (the user): `profiles.country` (ISO alpha-2), `city` (kept clean), and the town's map spot
+  (`lat`/`lng`, 2 decimals: the geocoder's town, never the player). Account page: a town box suggesting real towns as
+  you type (Open-Meteo's geocoder, src/places.js: free, no key, only the typed name is sent; a pick fills the country
+  and the map spot; a typed town saves off the map) and a country picker (src/countries.js: the 250 codes, names from
+  the browser in your language, flags). The public page says "Surfs from Raglan, New Zealand". `map.html`: a dot per
+  town (bigger for more), every country counted (`player_places()`: counts only); the land from world-atlas 110m with
+  d3-geo. **The public page**: public breaks (thumbnail, Surf it), results in public contests that are over
+  (`profile_results`: won / place in the final / out in round N, total). **`contest.html?c=`**: every round and heat,
+  places, totals, each wave's score with ▶ to watch it (a signed link to its ride log, played in the game); unlisted
+  ones only for their people. **Account page**: Your contests (hosted or surfed: open ones to the lobby, with Cancel
+  for the host; the rest to their page). "Draft" contests weren't needed (a contest is open from creation). Also:
+  the game refuses a replay file that isn't a whole ride with a message instead of breaking part way. Test:
+  `npm run test:profile-filled-browser` (20).
 - [ ] **15. Score checks.** Re-run submitted ride logs (in a headless browser job, or in an Edge Function if the physics runs
   without the GPU) and flag any score that doesn't match. At first it only flags; the host sees the flags.
 - [ ] **16. Surfer styling (Pro).** Wetsuit, trunks and board colours and patterns in `profiles.styling`, chosen on the account

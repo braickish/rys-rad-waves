@@ -1244,3 +1244,9 @@ select private.grant_entitlement('friend@example.com', 'wave_pass');            
 select private.revoke_grant('friend@example.com', 'pro');  -- ends granted Pro now (bought Pro is never touched)
 select private.revoke_grant('friend@example.com');         -- ends every grant they have
 ```
+
+## Pages
+
+`index.html` (the game), `builder.html`, `account.html`, `profile.html?u=<handle>` (a surfer's public page: where they
+surf from, public breaks, public contest results), `contest.html?c=<code>` (a contest's heats and results, ▶ to watch a
+wave), `map.html` (where everyone surfs from), `terms.html`, `privacy.html`.

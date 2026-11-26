@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Contest · Ry's Rad Waves</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bungee&family=Rubik:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/pages.css">
+</head>
+<body>
+<main>
+  <div class="top"><a class="brand" href="./">Ry's Rad Waves</a><a id="lobby-link" hidden>Open the lobby</a></div>
+  <div id="loading" class="sub">Loading…</div>
+  <div id="missing" hidden><h1>No contest here</h1><p class="sub" id="missing-why"></p></div>
+  <div id="contest" hidden>
+    <h1 id="c-name"></h1>
+    <p class="sub" id="c-what"></p>
+    <p class="where" id="c-state"></p>
+    <div id="c-rounds"></div>
+  </div>
+</main>
+<script type="module" src="src/contest-page.js"></script>
+</body>
+</html>

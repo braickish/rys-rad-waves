@@ -26,6 +26,13 @@
       <input id="display" type="text" maxlength="30" autocomplete="nickname">
       <label>Jersey <span class="hint">(what you wear in solo heats; in a contest, each heat draws its colours at random)</span></label>
       <div id="jerseys" class="jerseys" role="radiogroup" aria-label="Jersey colour"></div>
+      <label for="city">Where you surf from <span class="hint">(optional: on your page and the map)</span></label>
+      <div class="place">
+        <input id="city" type="text" maxlength="60" autocomplete="off" spellcheck="false" placeholder="Your town" aria-autocomplete="list" aria-controls="city-list">
+        <div id="city-list" class="suggest" role="listbox" hidden></div>
+      </div>
+      <select id="country" aria-label="Country"><option value="">Country</option></select>
+      <p id="place-hint" class="hint">Pick your town from the list to put it on the map.</p>
       <div class="row" style="margin-top:16px"><button id="save" type="submit">Save</button><span id="save-msg" class="hint"></span></div>
     </form>
 
@@ -34,6 +41,12 @@
       <p id="plan-now" class="sub" style="margin:0">…</p>
       <div class="row" style="margin-top:12px"><button id="buy-pass" type="button" hidden>Get the Wave Pass · $5</button><button id="buy-pro" type="button" hidden>Go Pro · $3/mo</button><button id="billing" type="button" class="quiet" hidden>Manage billing</button></div>
       <p id="plan-msg" class="hint"></p>
+    </section>
+
+    <section class="panel">
+      <h2>Your contests</h2>
+      <div id="my-contests" class="results"></div>
+      <p id="my-contests-none" class="empty" hidden>None yet. Host one (Pro) or join one from Compete live.</p>
     </section>
 
     <form id="email-form" class="panel">

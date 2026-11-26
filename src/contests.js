@@ -74,6 +74,18 @@ export async function readContest(id) {
   return { contest, entrants: entrants || [], heats: all, heat, final: !!heat && inRound(heat.round) === 1, rounds: Math.max(0, ...all.map((h) => h.round)) };
 }
 
+// Contests you host or entered (your account page, task 14), newest first: [{ ...contest, hosting, entered }].
+export async function myContests() {
+  const c = await initAccount(), uid = currentUser()?.id;
+  if (!uid) return [];
+  const { data: mine } = await c.from('entrants').select('contest_id').eq('user_id', uid);
+  const ids = (mine || []).map((e) => e.contest_id);
+  const or = ids.length ? `host.eq.${uid},id.in.(${ids.join(',')})` : `host.eq.${uid}`;
+  const { data, error } = await c.from('contests').select('id, code, name, state, visibility, host, spot, end_minutes, end_waves, created_at, ended_at').or(or).order('created_at', { ascending: false }).limit(100);
+  if (error) throw error;
+  return data.map((k) => ({ ...k, hosting: k.host === uid, entered: ids.includes(k.id) }));
+}
+
 // The live channel. on.change() when someone says the contest changed; on.presence(ids) with the user ids here now;
 // in a live heat (task 12) on.score(payload) when someone's wave is scored and on.finished() when someone's done.
 export async function contestChannel(id, on) {

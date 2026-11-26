@@ -4,6 +4,9 @@
 import { initAccount, onAccount, onPlan, SALES_OPEN, myProfile, saveProfile, handleProblem, changeEmail, deleteAccount, signOut, describeAuthError, describeProfileError } from './account.js';
 import { JERSEYS } from './heat.js';
 import { handleFromEmail } from './account-ui.js';
+import { countriesByName, flag } from './countries.js';
+import { searchTowns } from './places.js';
+import { myContests, cancelContest, spotName, describeContestError } from './contests.js';
 import { openPaywall, startPaywall, goToStripe } from './paywall.js';
 
 const $ = (id) => document.getElementById(id);
@@ -20,10 +23,49 @@ for (const j of JERSEYS) {
 }
 function drawJerseys() { for (const b of $('jerseys').children) { const on = b.dataset.id === jersey; b.classList.toggle('on', on); b.setAttribute('aria-checked', on); } }
 
+// Where you surf from (task 14): a town (picked from the suggestions puts it on the map) and a country.
+let place = { city: null, lat: null, lng: null };
+for (const c of countriesByName()) $('country').add(new Option(`${flag(c.code)} ${c.name}`, c.code));
+const placeHint = () => hint('place-hint', !$('city').value.trim() ? 'Pick your town from the list to put it on the map.'
+  : place.lat != null && place.city === $('city').value.trim() ? 'On the map.' : 'Pick your town from the list to put it on the map (or keep it as typed, off the map).', place.lat != null && place.city === $('city').value.trim() ? 'good' : '');
+let townT = 0, townAsk = null;
+const list = $('city-list');
+const closeList = () => { list.hidden = true; list.innerHTML = ''; };
+$('city').addEventListener('input', () => {
+  clearTimeout(townT); townAsk?.abort(); placeHint();
+  const q = $('city').value.trim();
+  if (q.length < 2) { closeList(); return; }
+  townT = setTimeout(async () => {
+    townAsk = new AbortController();
+    try {
+      const towns = await searchTowns(q, { signal: townAsk.signal });
+      list.innerHTML = '';
+      for (const t of towns) {
+        const b = document.createElement('button');
+        b.type = 'button'; b.setAttribute('role', 'option');
+        b.innerHTML = `${flag(t.country)} <b></b> <small></small>`;
+        b.querySelector('b').textContent = t.name; b.querySelector('small').textContent = [t.region, t.country].filter(Boolean).join(', ');
+        b.addEventListener('click', () => { place = { city: t.name, lat: t.lat, lng: t.lng }; $('city').value = t.name; $('country').value = t.country; closeList(); placeHint(); });
+        list.append(b);
+      }
+      list.hidden = !towns.length;
+    } catch (e) { if (e.name !== 'AbortError') console.warn('towns', e); }
+  }, 250);
+});
+$('city').addEventListener('keydown', (e) => { if (e.key === 'Escape') closeList(); if (e.key === 'ArrowDown' && !list.hidden) { e.preventDefault(); list.querySelector('button')?.focus(); } });
+document.addEventListener('click', (e) => { if (!e.target.closest('.place')) closeList(); });
+$('country').addEventListener('change', () => { if (place.lat != null) { place = { city: place.city, lat: null, lng: null }; placeHint(); } }); // (another country: that town's map spot no longer fits)
+const placeFields = () => {
+  const city = $('city').value.trim() || null, onMap = city && place.lat != null && place.city === city;
+  return { city, country: $('country').value || null, lat: onMap ? place.lat : null, lng: onMap ? place.lng : null };
+};
+
 function fill() {
   $('handle').value = profile?.handle || handleFromEmail(user.email);
   $('display').value = profile?.display_name || '';
   jersey = profile?.jersey || 'red'; drawJerseys();
+  $('city').value = profile?.city || ''; $('country').value = profile?.country || '';
+  place = { city: profile?.city || null, lat: profile?.lat ?? null, lng: profile?.lng ?? null }; placeHint();
   $('email-now').textContent = user.email;
   $('view').hidden = !profile; if (profile) $('view').href = `profile.html?u=${encodeURIComponent(profile.handle)}`;
   $('save').textContent = profile ? 'Save' : 'Make my profile';
@@ -52,7 +94,7 @@ $('profile-form').addEventListener('submit', async (e) => {
     const why = h === profile?.handle ? null : await handleProblem(h);
     if (why) hint('handle-hint', why, 'bad');
     else {
-      profile = await saveProfile({ handle: h, display_name: $('display').value.trim() || null, jersey });
+      profile = await saveProfile({ handle: h, display_name: $('display').value.trim() || null, jersey, ...placeFields() });
       fill(); hint('handle-hint', 'Your handle now.'); hint('save-msg', 'Saved.', 'good');
     }
   } catch (err) { hint('save-msg', describeProfileError(err), 'bad'); }
@@ -107,6 +149,32 @@ onPlan((p) => {
 });
 startPaywall().catch((e) => console.warn('paywall', e));
 
+// Your contests (task 14): hosted or entered, newest first; open ones to their lobby (and the host can cancel), the rest
+// to their page.
+const STATE_WORDS = { lobby: 'In the lobby', running: 'On now', done: 'Over', cancelled: 'Cancelled' };
+async function drawContests() {
+  const list = await myContests().catch((e) => { console.warn('contests', e); return []; });
+  const el = $('my-contests'); el.innerHTML = '';
+  $('my-contests-none').hidden = list.length > 0;
+  for (const k of list) {
+    const open = k.state === 'lobby' || k.state === 'running';
+    const a = document.createElement('a');
+    a.className = 'result'; a.href = open ? `index.html?contest=${k.code}` : `contest.html?c=${k.code}`;
+    a.innerHTML = '<span class="pl"></span><b></b><span class="tot"></span><small></small>';
+    a.querySelector('.pl').textContent = k.state === 'done' ? '✓' : k.state === 'cancelled' ? '✕' : '●';
+    a.querySelector('b').textContent = k.name;
+    a.querySelector('.tot').textContent = k.code;
+    a.querySelector('small').textContent = `${STATE_WORDS[k.state]} · ${k.hosting ? (k.entered ? 'hosting and surfing' : 'hosting') : 'surfed'} · ${spotName(k)} · ${new Date(k.created_at).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}${k.visibility === 'public' ? ' · public' : ''}`;
+    el.append(a);
+    if (k.hosting && open) {
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'quiet'; b.textContent = `Cancel ${k.name}`; b.style.justifySelf = 'start';
+      b.addEventListener('click', async () => { if (!confirm(`Cancel “${k.name}” for everyone?`)) return; try { await cancelContest(k.id); drawContests(); } catch (e) { alert(describeContestError(e)); } });
+      el.append(b);
+    }
+  }
+}
+
 try {
   await initAccount();
   let shownFor;
@@ -119,5 +187,6 @@ try {
     if (shownFor === u.id && u.email === $('email-now').textContent) return;
     shownFor = u.id;
     try { profile = await myProfile(); fill(); } catch (err) { hint('save-msg', describeAuthError(err), 'bad'); }
+    drawContests();
   });
 } catch (err) { $('loading').textContent = describeAuthError(err); }

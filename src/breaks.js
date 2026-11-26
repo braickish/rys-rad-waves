@@ -17,6 +17,14 @@ export async function myBreaks() {
   return data;
 }
 
+// Someone's public breaks, newest first (for their page, task 14).
+export async function publicBreaks(owner) {
+  const c = await initAccount();
+  const { data, error } = await c.from('breaks').select(COLS).eq('owner', owner).eq('visibility', 'public').order('updated_at', { ascending: false }).limit(60);
+  if (error) throw error;
+  return data;
+}
+
 // One break, whole: yours, or anyone's unlisted or public one. null if it's private or gone.
 export async function getBreak(id) {
   const c = await initAccount();

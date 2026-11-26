@@ -1,4 +1,5 @@
--- npm run test:db: contests on accounts (accounts plan task 10). Only Pro hosts (and within limits); the spot is a
+-- npm run test:db: contests on accounts (accounts plan task 10). (Counts are of this test's own contest: the local stack
+-- keeps other tests' public ones.) Only Pro hosts (and within limits); the spot is a
 -- snapshot; guests join by code with a nickname and read the spot (the contest pass); the heat runs on the server's
 -- clock; rides are your own, in order, before the horn; places by best two with the WSL tie-breaks; outsiders see
 -- nothing of an unlisted contest.
@@ -63,7 +64,7 @@ select throws_ok($$ insert into public.contests (code, name, spot, seed, end_wav
 -- 2. Joining (the break contest: 3 places, 3 waves).
 insert into t select 'code', code from public.contests where id = (select v::uuid from t where k = 'break');
 select pg_temp.act_as('d0000000-0000-0000-0000-000000000003', true);
-select is((select count(*)::int from public.contests), 0, 'a guest sees nothing of an unlisted contest before joining');
+select is((select count(*)::int from public.contests where host = 'd0000000-0000-0000-0000-000000000001'), 0, 'a guest sees nothing of an unlisted contest before joining');
 select is((select name || ' · ' || host_handle || ' · ' || spot_name || ' · ' || entrants from public.contest_by_code(lower((select v from t where k = 'code')))),
   'Bombie Bash · big_host · Bombie · 0', 'the code gives a preview (any case)');
 select throws_ok($$ select public.join_contest((select v from t where k = 'code'), '') $$, '22023', 'bad_name', 'a guest needs a nickname');
@@ -113,11 +114,11 @@ select throws_ok($$ insert into public.rides (heat_id, entrant_id, wave_no, scor
   ((select v::uuid from t where k = 'heat'), (select v::uuid from t where k = 'free'), 1, 10, array[10,10,10,10,10], now()) $$, '42501', null, 'no posting a ride directly (or as someone else)');
 select pg_temp.act_as('d0000000-0000-0000-0000-000000000004');
 select throws_ok($$ select public.submit_ride((select v::uuid from t where k = 'heat'), 1, 9, array[9,9,9,9,9], 10) $$, '42501', 'not_in_heat', 'an outsider can''t post');
-select is((select count(*)::int from public.rides), 0, 'an outsider sees no rides');
+select is((select count(*)::int from public.rides where heat_id = (select v::uuid from t where k = 'heat')), 0, 'an outsider sees no rides');
 select pg_temp.act_as('d0000000-0000-0000-0000-000000000002');
 select lives_ok($$ select public.submit_ride((select v::uuid from t where k = 'heat'), 1, 7, array[7,7,7,7,7], 12);
                    select public.submit_ride((select v::uuid from t where k = 'heat'), 2, 5, array[5,5,5,5,5], 22) $$, 'free_rider: 7 and 5');
-select is((select count(*)::int from public.rides), 5, 'entrants see everyone''s rides');
+select is((select count(*)::int from public.rides where heat_id = (select v::uuid from t where k = 'heat')), 5, 'entrants see everyone''s rides');
 select throws_ok($$ select public.close_heat((select v::uuid from t where k = 'heat')) $$, '55000', 'heat_still_on', 'can''t close a heat that''s on');
 -- the horn: a wave caught after it doesn't count
 reset role;

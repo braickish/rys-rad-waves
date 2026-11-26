@@ -49,6 +49,10 @@ export function encodeRecording(rec) {
 export function decodeRecording(text) {
   const rec = JSON.parse(text, (k, v) => (v && typeof v === 'object' && !Array.isArray(v) && typeof v['#'] === 'string' && Object.keys(v).length === 1 ? Number(v['#']) : v));
   if (rec.v !== REPLAY_VERSION) throw new Error(`replay version ${rec.v}, this game reads ${REPLAY_VERSION}`);
+  // (a file that isn't a whole ride: say so, instead of failing part way through playing it)
+  if (!(rec.steps > 0) || !Array.isArray(rec.inputs) || !rec.inputs.length || !Array.isArray(rec.checks) || !rec.checks.length || typeof rec.wave !== 'string') {
+    throw new Error("that isn't a whole ride");
+  }
   return rec;
 }
 
