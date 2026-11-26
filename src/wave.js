@@ -515,6 +515,28 @@ export function phaseAt(xs) {
 
 const smooth = (f) => f * f * (3 - 2 * f);
 
+// The wall ahead of the curl on a built break (the user, 2026-11-26, from inside a barrel: the wall ahead fell away, half as
+// tall 30 m down the line). Ahead of the curl the wave is drawn as earlier stages of its break, and those start from a small
+// generic swell; on a reef the wall ahead is the same swell still coming in along it. So the unbroken wave ahead never stands
+// lower than the incoming swell: the builder's swell against its breaker (swell.H / H, at most 0.95) of the shape's height at
+// the curl. Where a stage is lower it's stretched up from the floor to meet it (a soft max, no corner); eased in over the first
+// 8 m ahead and out between 40 and 100 m, so the sea doesn't become a wall to the horizon. Built breaks only (they have a swell).
+const _crest0 = new WeakMap(), _w0 = new Float64Array(NP * 2);
+function crestAtCurl(KF) { let c = _crest0.get(KF); if (c == null) { kfPoints(KF, 0, _w0, 1, true); c = _w0[I.CREST * 2 + 1] - _w0[I.TROUGH * 2 + 1]; _crest0.set(KF, c); } return c; }
+function wallAhead(p, xs, scale, i, w) {
+  const B = WAVE.built, sw = B.swell?.H;
+  if (!(sw > 0) || !(B.H > 0)) return;
+  const ratio = Math.min(0.95, sw / (B.H / (B.scaleApplied || 1)));
+  const near = smooth(Math.min(1, xs / 8)), far = 1 - smooth(Math.min(1, Math.max(0, (xs - 40) / 60)));
+  const c0 = (crestAtCurl(SHAPES[i]) * (1 - w) + (w > 1e-4 ? crestAtCurl(SHAPES[i + 1]) * w : 0)) * scale;
+  const ty = p[I.TROUGH * 2 + 1], h = p[I.CREST * 2 + 1] - ty, want = ratio * c0 * near * far;
+  if (!(h > 1e-3) || !(want > 0)) return;
+  // (a soft max that leaves the stage alone until it's within `soft` of the floor, and adds at most soft / 4 there: C1, no
+  // corner; a smoother one lifted every stage a little, out to where the floor ends, and left a step there)
+  const soft = 0.05 * c0, g = want - h, hh = g <= -soft ? h : g >= soft ? want : h + (g + soft) * (g + soft) / (4 * soft);
+  const k = hh / h;
+  if (k > 1 + 1e-6) for (let q = 2; q <= I.TROUGH; q++) p[q * 2 + 1] = ty + (p[q * 2 + 1] - ty) * k;
+}
 // Control points for a phase, as a Float64Array [z0, y0, z1, y1, ...], scaled.
 const _cpB = new Float64Array(NP * 2);
 export function controlPoints(s, out = new Float64Array(NP * 2), scale = SCALE, xs) {
@@ -531,6 +553,7 @@ export function controlPoints(s, out = new Float64Array(NP * 2), scale = SCALE, 
     // (everything but the trough's depth: the water in front of the wave is the fixed reference (the user, 2026-11-24): scaled
     // with the rest, a size that halves within 10 m left a step along the base of the wave across the flats)
     if (f !== 1) { const ty = out[I.TROUGH * 2 + 1]; for (let i = 0; i < NP * 2; i++) out[i] *= f; out[I.TROUGH * 2 + 1] = ty; }
+    if (xs > 0 && s < 0 && WAVE.built) wallAhead(out, xs, scale * f, i, w);
     return out;
   }
   if (SHAPES.length === 1) return kfPoints(KF, s, out, scale);
