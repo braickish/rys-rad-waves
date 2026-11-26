@@ -613,6 +613,9 @@ export function crPoint(c, t, out) {
     const B1 = l(A1, A2, t0, t2), B2 = l(A2, A3, t1, t3);
     out[k] = l(B1, B2, t1, t2);
   }
+  // (the floor (onFloor): the curve out to the flats, in front from the face's foot on and behind the back of the crest, never
+  // swings under sea level between its points)
+  if ((t >= I.FACE_LOW || t <= I.CREST_BACK) && out[1] < 0) out[1] = 0;
   return out;
 }
 

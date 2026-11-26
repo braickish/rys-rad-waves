@@ -1,4 +1,5 @@
-// No bump in the flats behind the curl (the user, 2026-11-25: "make sure this can't happen"). Out on the flats in front of a
+// No bump in the flats behind the curl (the user, 2026-11-25: "make sure this can't happen"; the flats are a fixed floor at
+// sea level, wave.js onFloor: no drawdown dipping under it anywhere, which left a ridge where shapes with and without one met). Out on the flats in front of a
 // breaking wave the water only ever fills in: from the drawdown in front of the face up toward sea level as the whitewater
 // arrives. If at any spot it rises and then drops again while the wave breaks (phase 0.8 -> 2.2), that spot stands out as a
 // shelf of water sticking out ahead of the whitewater behind the curl. Checked on every shape set of every wave, built
@@ -45,6 +46,13 @@ for (const def of [...WAVES, ...HIDDEN]) {
         seen.push([s, y]);
       }
     }
+    // (the floor: the flats, in front from the face's foot and behind the back of the crest, never under sea level, at any phase)
+    let low = { y: 0 };
+    for (let s = -14; s <= 14; s += 0.05) {
+      W.withShape(i, () => W.controlPoints(s, cp, 1));
+      for (let t = 0; t <= W.NP - 1; t += 0.02) { if (t > W.I.CREST_BACK && t < W.I.FACE_LOW) continue; W.crPoint(cp, t, o); if (o[1] < low.y) low = { y: o[1], s, t }; }
+    }
+    check(low.y >= -1e-6, `${def.id} set ${i}: the flats sit on sea level` + (low.y < -1e-6 ? ` (${low.y.toFixed(2)} at s ${low.s.toFixed(2)}, t ${low.t.toFixed(2)})` : ''));
     check(worst.d <= TOL, `${def.id} set ${i}: the flats only fill in` + (worst.d > 0.005 ? ` (drop ${worst.d.toFixed(2)} at z ${worst.z}, s ${worst.s.toFixed(2)} after rising to s ${worst.at.toFixed(2)})` : ''));
   });
 }

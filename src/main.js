@@ -156,11 +156,17 @@ function bodyColors(m, which, outfit, jersey = null, style = {}) {
       if (bone.startsWith('calf')) bare = y < m.rest['foot_' + bone.slice(-1)].head[1] + 0.015;
       if (suit && !bare) col = SUIT || (top ? TOPPER : WETSUIT);
     }
-    if (J && (/^(spine_0[123]|clavicle_[lr])$/.test(bone) || (hipBone && y > waistY - 0.05 && !bone.startsWith('calf') && !bone.startsWith('thigh')))
-        && y < neckY - 0.03) {
-      const ax = Math.abs(x), front = z > 0;
-      const neckline = front && ax < 0.07 && y > neckY - 0.03 - 0.06 * (1 - ax / 0.07); // (a scoop at the front of the neck)
-      if (!neckline) col = (y < waistY - 0.035 || (front && ax < 0.08 && y > neckY - 0.11)) ? Jtrim : J;
+    // The jersey's body: everything on the torso below a collar shaped round the neck (2026-11-25, the user: it was
+    // splotchy on the chest). The collar sits at the base of the neck, dips in a scoop at the front, and rises out over
+    // the shoulders (a fixed height cut across the guy's bigger chest and shoulders, leaving a ragged band of skin);
+    // the girl's upper chest follows the neck bone, so that counts too. A thin darker band edges the collar, and a
+    // darker hem at the waist.
+    if (J && (/^(spine_0[123]|clavicle_[lr]|neck_01)$/.test(bone) || (hipBone && y > waistY - 0.05 && !bone.startsWith('calf') && !bone.startsWith('thigh')))) {
+      const nk = m.rest.neck_01.head, ax = Math.abs(x - nk[0]), front = z > nk[2];
+      const r = Math.hypot(x - nk[0], z - nk[2]); // (how far out from the neck)
+      let collar = nk[1] - 0.015 + 0.14 * Math.min(1, Math.max(0, (r - 0.075) / 0.05));
+      if (front && ax < 0.075) collar -= 0.045 * (1 - ax / 0.075); // (the scoop)
+      if (y < collar) col = (y < waistY - 0.035 || y > collar - 0.014) ? Jtrim : J;
     }
     if (J && bone.startsWith('upperarm')) { // short sleeves: a little under half way down the upper arm, a darker cuff
       const a = m.rest['upperarm_' + bone.slice(-1)].head, e = m.rest['lowerarm_' + bone.slice(-1)].head;
@@ -231,6 +237,7 @@ function loadBody(which) {
   if (!b.body && !b.loading) b.loading = loadSkinnedGLB(BODY_FILES[which]).then((m) => { const bc = bodyColors(m, which); Object.assign(b, { body: createBody(m), model: m, colors: bc.colors, outfits: { ':': bc.colors }, head: bc.head, which }); }).catch((e) => console.error('body', e));
   return b;
 }
+window.__bodyColors = bodyColors; // (tests: the paint map, test/jersey.mjs)
 // The look worn now (task 16): a replay wears the recording's (so you see someone else's wave as they rode it); otherwise
 // yours, while you have Pro (as the database lets you save it), and the game's own look without.
 let planPro = false;

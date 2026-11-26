@@ -126,11 +126,30 @@ export function surferObjects(pose, rider, info, dt) {
   if (rider.mode === 'wipe' && !rider.falls && !rider.stepOff && rider.wipeAge > 0.3) return [];
   if (rider.stepOff && rider.stepOff.time > 1.6) return []; // (stepped off: once you've dropped in, you and the board go from view, the user)
   const p = rider.pos;
-  const f = rider.heading;
+  let f = rider.heading;
   const k = 1 - Math.exp(-dt * 12);
+  // Vertical snap (vertical-snap-1..5, the user, 2026-11-25; rider.vSnap: time since it started): vsUp while the board
+  // stands up over the lip and swings round (weight on the back foot, tail sunk in the lip, nose out over it), vsLand as
+  // it comes back down (a hard compress).
+  const vt = rider.mode === 'surf' && rider.vSnap != null ? rider.vSnap : -1;
+  const vsUp = vt >= 0 ? sstepS(0, 0.08, vt) * (1 - sstepS(0.3, 0.45, vt)) : 0;
+  const vsLand = vt >= 0 ? sstepS(0.35, 0.5, vt) * (1 - sstepS(0.7, 0.9, vt)) : 0;
+  // ... and while it's up, the board and surfer stand up vertical (the user, 2026-11-25: up under the lip the crest rounds
+  // over nearly flat, so following the water there laid the board on top of the wave, its whole deck to the sky). The
+  // face's frame tips forward about the line along the wave until the face is vertical: the board stands straight up
+  // with its deck out to sea, tail in the lip and nose over it, and swings round in that vertical plane.
+  let n = info.n;
+  if (vsUp > 0.001) {
+    const ax = v3.norm(v3.cross([0, 1, 0], n)); // (horizontal, along the wave)
+    const a = Math.asin(clamp(n[1], -1, 1)) * vsUp; // (how far from vertical the face is, eased in and out)
+    const s1 = v3.norm(rotateAbout(n, ax, a)), s2 = v3.norm(rotateAbout(n, ax, -a));
+    const sg = Math.abs(s1[1]) < Math.abs(s2[1]) ? 1 : -1; // (whichever way tips the normal down to level)
+    n = sg > 0 ? s1 : s2;
+    f = v3.norm(rotateAbout(f, ax, sg * a));
+  }
 
   // Board orientation follows the surface, smoothed.
-  for (let i = 0; i < 3; i++) pose.boardUp[i] += (info.n[i] - pose.boardUp[i]) * k;
+  for (let i = 0; i < 3; i++) pose.boardUp[i] += (n[i] - pose.boardUp[i]) * k;
   let u = v3.norm(v3.rej(pose.boardUp, f));
   // A longboard sits mostly level on a steep face, its wave-side rail cut into the wave, instead of
   // lying flat along the face (`faceTilt`: how much of the face's slope the board takes).
@@ -214,13 +233,7 @@ export function surferObjects(pose, rider, info, dt) {
   // ahead of the back foot, so the middle rises and the tail goes under.
   // (a little nose lift just standing on the tail; up to ~15 deg swinging round in a pivot away from the wave, ~10 deg
   // toward it. It was up to ~27 deg; 2026-11-18, the user: the board lifted too much, mostly in the away pivot.)
-  // Vertical snap (vertical-snap-1..5, the user, 2026-11-25; rider.vSnap: time since it started): vsUp while the board
-  // stands up over the lip and swings round (weight on the back foot, tail sunk in the lip, nose lifted out over it),
-  // vsLand as it comes back down (a hard compress).
-  const vt = rider.mode === 'surf' && rider.vSnap != null ? rider.vSnap : -1;
-  const vsUp = vt >= 0 ? sstepS(0, 0.08, vt) * (1 - sstepS(0.3, 0.45, vt)) : 0;
-  const vsLand = vt >= 0 ? sstepS(0.35, 0.5, vt) * (1 - sstepS(0.7, 0.9, vt)) : 0;
-  const tipT = 0.08 * tl + 0.2 * pv * clamp(Math.abs(info.turn) / 2.5, 0, 1) + 0.35 * vsUp;
+  const tipT = 0.08 * tl + 0.2 * pv * clamp(Math.abs(info.turn) / 2.5, 0, 1);
   pose.tip = (pose.tip || 0) + (tipT - (pose.tip || 0)) * (1 - Math.exp(-dt * 10));
   const tip = pose.tip;
   if (tip > 0) { bf = v3.norm(rotateAbout(bf, Lb, -tip)); ub = v3.norm(rotateAbout(ub, Lb, -tip)); }
