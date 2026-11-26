@@ -143,6 +143,7 @@ export function withBore(kf, { from, sOf, collapse, ts: tsOver }) {
     const w = base != null ? Math.max(0.6, (base - zc * f) / (H * f)) : 2.6;
     out.push(boreKF(s, { zc: zc * f, H: H * f, w, back: last, ts, apron: base != null ? TUBE_APRON : 1 }));
   }
+  out.boreFrom = from; // (where the whitewater takes over: wave.js runOut eases the scoop off before it)
   return out;
 }
 

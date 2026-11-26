@@ -76,7 +76,7 @@ function withHalfTubes(base) {
   for (let k = 1; k < HALF_STEPS; k++) {
     const w = k / HALF_STEPS;
     halves.push(stops.map((s) => {
-      kfPoints(A, s, a, 1); kfPoints(T, s, t, 1);
+      kfPoints(A, s, a, 1, true); kfPoints(T, s, t, 1, true); // (raw: the rules (run-out, floor) go on when they're drawn, once)
       const throwK = sst(-0.25, 0.25, s) * (1 - sst(1.475, 1.65, s));
       const p = [];
       for (let i = 0; i < NP; i++) p.push([a[i * 2] + (t[i * 2] - a[i * 2]) * w, a[i * 2 + 1] + (t[i * 2 + 1] - a[i * 2 + 1]) * w]);
@@ -87,6 +87,7 @@ function withHalfTubes(base) {
       }
       return { s, p };
     }));
+    halves[halves.length - 1].boreFrom = T.boreFrom ?? A.boreFrom;
   }
   const sets = [...base.slice(0, 3), ...halves, T, ...base.slice(4)], tube = sets.map((_, i) => (i <= 2 ? 0 : Math.min(1, (i - 2) / HALF_STEPS)));
   halfCache.set(base, { sets, tube }); SET_TUBE = tube;
@@ -541,7 +542,7 @@ export function controlPoints(s, out = new Float64Array(NP * 2), scale = SCALE, 
   }
   return out;
 }
-function kfPoints(KF, s, out, scale) {
+function kfPoints(KF, s, out, scale, raw = false) {
   // A smooth curve through the keyframes (cubic Hermite with Catmull-Rom
   // slopes), so the wave has no creases where one keyframe hands over to
   // the next.
@@ -564,7 +565,7 @@ function kfPoints(KF, s, out, scale) {
       out[i * 2 + c] = (h00 * y0 + h10 * m0 + h01 * y1 + h11 * m1) * scale;
     }
   }
-  return onFloor(runOut(out, KF, scale));
+  return raw ? out : onFloor(runOut(out, KF, scale, s));
 }
 // The run out from the face to the flats (the user, 2026-11-26, after a photo of Teahupoo: real waves don't go flat as quickly
 // as ours, the face sweeps out past where the lip lands and eases down). A rule on the swell, for every wave that has a period:
@@ -576,9 +577,45 @@ function kfPoints(KF, s, out, scale) {
 // the same day (2 m breakers, 16 s: ~7 m from the foot to the trough). The lip lands on the ramp, not through it. Waves whose
 // shapes come from a simulation (Pipe, Trestles, Dynamic) have no `period` here: their troughs are the sim's.
 const RUNOUT_K = 0.07, BREAK_DEPTH = 0.78, LAND = 0.03;
+// The blend (the user, 2026-11-26, chosen over the period alone after comparing both): the period sets how long the run-out is,
+// how steeply the face comes down into its foot sets how much of it is ramp (and scoop). A gentle, spilling face covers the
+// distance itself and keeps its own foot; a steep, plunging one drops to its foot and the rest is ramp. None at 25 degrees or
+// less, all of it at 55 or more (overhanging and curled walls too), eased between.
+const STEEP = [Math.sin(25 / 57.2958), Math.sin(55 / 57.2958)];
+// (how steeply the lower face comes down into its foot: the drawn curve's direction at three fixed places on it (points 12.4,
+// 12.7, 13), averaged; for each, how vertical it runs going down (the sine of its angle), 1 once it overhangs or curls under,
+// 0 where it rises (whitewater, not a face). Continuous: an angle between two points flipped as they passed each other)
+const _s0 = [0, 0], _s1 = [0, 0];
+function steepness(p) {
+  let v = 0;
+  for (const t of [12.4, 12.7, 13.0]) {
+    crPoint(p, t - 0.03, _s0); crPoint(p, t + 0.03, _s1);
+    const dz = _s1[0] - _s0[0], dy = _s1[1] - _s0[1], len = Math.hypot(dz, dy);
+    v += len < 1e-9 ? 0 : dz <= 0 ? 1 : dy < 0 ? -dy / len : 0;
+  }
+  const x = Math.min(1, Math.max(0, (v / 3 - STEEP[0]) / (STEEP[1] - STEEP[0])));
+  return x * x * (3 - 2 * x);
+}
+// (a shape's steepness: how it breaks, spilling to plunging, so one number for the shape, the steepest its lower face comes down
+// while it stands (its keyframes up to where the whitewater takes over). Read at each moment instead, it dropped within a few
+// frames as a barrel collapsed, and the ramp's trough jumped back metres)
+const _steep = new WeakMap(), _kp = new Float64Array(NP * 2);
+function shapeSteepness(KF) {
+  let v = _steep.get(KF);
+  if (v == null) {
+    v = 0;
+    for (const k of KF) {
+      if (KF.boreFrom != null && k.s > KF.boreFrom) continue;
+      for (let i = 0; i < NP; i++) { _kp[i * 2] = k.p[i][0]; _kp[i * 2 + 1] = k.p[i][1]; }
+      v = Math.max(v, steepness(_kp));
+    }
+    _steep.set(KF, v);
+  }
+  return v;
+}
 const _crest = new WeakMap(), _ro = [0, 0];
 function crestOf(KF) { let c = _crest.get(KF); if (c == null) { c = Math.max(...KF.map((k) => k.p[I.CREST][1])); _crest.set(KF, c); } return c; }
-// (the curve's height where it crosses z on the way out from the face's foot to the trough, or null)
+// (the curve's height where it crosses z on the way out from the face's foot (13) to the trough, or null)
 function rampAt(p, z) {
   let pz = p[I.FACE_LOW * 2];
   for (let t = I.FACE_LOW + 0.01; t <= I.TROUGH + 1e-9; t += 0.01) {
@@ -588,18 +625,66 @@ function rampAt(p, z) {
   }
   return null;
 }
-function runOut(p, KF, scale) {
+// The bend where the face meets the ramp (the user, 2026-11-26: no elbows): no tighter than SCOOP_K x the face's height (from
+// its middle, point 12, down to the trough: about half the wave's), so a
+// face sweeps round into its run-out in a scoop that grows with the wave. Where it would be tighter, the face's foot (13) slides
+// out along the curve a step at a time: the turn spreads over a longer stretch, the shape otherwise kept.
+const SCOOP_K = 3, SLIDE_K = 0.3, _sc = [0, 0];
+// (the bend at the foot, as a radius in m: the drawn curve's bend at a few fixed places around the foot (just above it, at it,
+// and out along the start of the ramp: points 12.8 - 13.4), combined as a soft minimum (the 4-norm of their curvatures). Fixed
+// places along the curve, so it changes as smoothly as the curve does: the tightest spot anywhere jumped about where a
+// collapsing face is nearly flat; the control points' own angle missed bends the curve packs in right at the foot)
+const _b0 = [0, 0], _b1 = [0, 0], _b2 = [0, 0];
+function footBend(p) {
+  let sum = 0;
+  for (const t of [12.8, 13.0, 13.2, 13.4]) {
+    crPoint(p, t - 0.04, _b0); crPoint(p, t, _b1); crPoint(p, t + 0.04, _b2);
+    const ab = Math.hypot(_b1[0] - _b0[0], _b1[1] - _b0[1]), bc = Math.hypot(_b2[0] - _b1[0], _b2[1] - _b1[1]), ca = Math.hypot(_b0[0] - _b2[0], _b0[1] - _b2[1]);
+    const cross = Math.abs((_b1[0] - _b0[0]) * (_b2[1] - _b0[1]) - (_b1[1] - _b0[1]) * (_b2[0] - _b0[0]));
+    const k = ab * bc * ca > 1e-12 ? (2 * cross) / (ab * bc * ca) : 0;
+    sum += k ** 4;
+  }
+  const k = sum ** 0.25;
+  return k > 1e-6 ? 1 / k : Infinity;
+}
+function runOut(p, KF, scale, s) {
   const T = WAVE.period;
   if (!T) return p;
   const hb = crestOf(KF) * scale / BREAK_DEPTH, R = RUNOUT_K * T * Math.sqrt(9.81 * Math.max(0.1, hb));
-  const want = p[I.FACE_LOW * 2] + R;
-  if (p[I.TROUGH * 2] >= want) return p;
-  p[I.TROUGH * 2] = want;
-  if (p[I.FRONT_FAR * 2] < want + R) p[I.FRONT_FAR * 2] = want + R; // (the far flats stay well out in front of it)
+  const steep = shapeSteepness(KF);
+  const want = p[I.FACE_LOW * 2] + steep * R;
+  // (the trough goes out to `want` where it's short of it, handed over softly (a smooth max, ~1/8 of the run-out wide): a hard
+  // max put a corner in its pace where the ramp first took over)
+  const tz = p[I.TROUGH * 2], soft = Math.max(1e-3, 0.125 * R), out = Math.max(tz, want) + soft * Math.log1p(Math.exp(-Math.abs(tz - want) / soft));
+  if (out > tz + 1e-6) {
+    p[I.TROUGH * 2] = out;
+    if (p[I.FRONT_FAR * 2] < out + R) p[I.FRONT_FAR * 2] = out + R; // (the far flats stay well out in front of it)
+  }
+  // (how far it slides follows smoothly from how much too tight the bend is: a search for the least slide that does it made the
+  // foot twitch where the tightest spot moved along the curve)
+  const minR = SCOOP_K * Math.max(0, p[I.FACE_UP * 2 + 1] - p[I.TROUGH * 2 + 1]), r0 = footBend(p); // (the face it's on: as a face collapses into whitewater, the scoop it needs goes with it)
+  if (r0 < minR) {
+    // (eased off over the 0.4 of the break before the whitewater takes over (shapes.js withBore's `from`): a collapsing face
+    // lets go of its scoop within a few frames otherwise, and the foot snapped back)
+    const bf = KF.boreFrom, e = bf == null ? 1 : Math.min(1, Math.max(0, (bf - s) / 0.4)), ease = e * e * (3 - 2 * e);
+    // (open faces only: where the lip is thrown out over the foot (a barrel), the back wall is the barrel's own shape, and
+    // sliding its foot out laid it down into a ramp under the lip and closed the opening. Eased off as the lip passes the foot)
+    const ahead = (p[I.FACE_LOW * 2] - p[I.TIP * 2]) / Math.max(1e-3, 0.5 * (p[I.CREST * 2 + 1] - p[I.TROUGH * 2 + 1])), o = Math.min(1, Math.max(0, ahead)), open = o * o * (3 - 2 * o); // (full once the lip is half a wave height behind the foot; over that, as the lip throws fast)
+    // (soft at both ends, so the foot never changes pace with a jerk: it starts sliding from rest as the bend first gets too
+    // tight, x^2 / (x + 0.3), and eases into its limit, 0.8 tanh)
+    const x = Math.log(minR / Math.max(1e-3, r0)), raw = SLIDE_K * x * x / (x + 0.3);
+    const u = steep * open * ease * 0.8 * Math.tanh(raw / 0.8);
+    crPoint(p, I.FACE_LOW + u, _sc); p[I.FACE_LOW * 2] = _sc[0]; p[I.FACE_LOW * 2 + 1] = _sc[1];
+  }
   // the lip lands on the ramp: wherever its tip (or the water just inside it) would come down under the face, it lands on it
+  // (only out in front of the foot, on the ramp itself, eased in over a wave height in front of it: behind the foot the lip lands on the
+  // face as the shape draws it. Searching the face for it flipped between crossings, and handing over at the foot jumped)
   for (const j of [I.TIP, I.LIP_IN1]) {
+    const e = Math.min(1, Math.max(0, (p[j * 2] - p[I.FACE_LOW * 2]) / Math.max(1e-3, p[I.CREST * 2 + 1] - p[I.TROUGH * 2 + 1]))); // (over a wave height: the lip throws fast)
+    if (!(e > 0)) continue;
     const y = rampAt(p, p[j * 2]);
-    if (y != null && p[j * 2 + 1] < y + LAND * scale) p[j * 2 + 1] = y + LAND * scale;
+    // (softly: lifted by a smooth max of 0 and how far under it is, so the lift doesn't start with a corner)
+    if (y != null) { const g = y + LAND * scale - p[j * 2 + 1], soft = 0.05 * scale, lift = soft * Math.log1p(Math.exp(g / soft)); if (lift > 1e-6) p[j * 2 + 1] += lift * e * e * (3 - 2 * e); }
   }
   return p;
 }
