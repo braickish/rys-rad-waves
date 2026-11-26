@@ -514,7 +514,9 @@ export function surferObjects(pose, rider, info, dt) {
   // for the water, no swing back toward the heels; the chest stays open and the knees bend (above). (Not in the barrel.)
   if (fs < 0 && windup > 0.01) {
     const w = windup * (1 - deep);
-    handBack = lerp3(handBack, handBack0, w); handFront = lerp3(handFront, handFront0, w);
+    // (... except the front hand, which leads the turn: a little further toward the nose and slightly to the heel side, the
+    // inside of the turn; the user, 2026-11-26)
+    handBack = lerp3(handBack, handBack0, w); handFront = lerp3(handFront, add(handFront0, v3.mul(f, 0.15), v3.mul(W, 0.1)), w);
   }
   // Snap: like a spring unloading, both arms swing across the body (at about
   // chest height) toward the tail and the open side, turning the shoulders,
