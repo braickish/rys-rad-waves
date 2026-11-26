@@ -187,7 +187,7 @@ function render() {
     const name = win && d.entrants.find((e) => e.id === win.entrant_id)?.name;
     say('lobby-msg', name ? `Won by ${name}${win.entrant_id === mine?.id ? ' (you!)' : ''}.` : 'This contest is over.');
   } else if (state === 'cancelled') say('lobby-msg', 'The host cancelled this contest.');
-  else if (lobby && !me.msgKept) say('lobby-msg', mine ? (isHost ? (count < 2 ? 'Share the link. You can start once someone else joins.' : 'Share the link. Start when everyone\'s in.') : 'You\'re in. Waiting for the host to start.') : '');
+  else if (lobby && !me.msgKept) say('lobby-msg', mine ? (isHost ? (count < 2 ? 'Share the link. You can start once someone else joins. Wait until everyone\'s in: once it starts, nobody else can join.' : 'Wait until everyone\'s in before you start: once it starts, nobody else can join.') : 'You\'re in. Waiting for the host to start.') : '');
 }
 
 // The heats, round by round: who's in each (by place once it's done), their totals, who went through.
