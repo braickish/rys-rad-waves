@@ -99,6 +99,13 @@ behind the curl on every barrel, half-barrel and ledge (Pipe too). The trough no
 the wall's toe. The GPU water now uses the same size as the CPU shape (wave.js `sizeFor`: eased to 1 behind the curl, and the
 trough's height not scaled; it had scaled every slice by its raw local size). `node test/flats.mjs`: on every wave's every shape
 set, out on the flats ahead of the whitewater the water only fills in (no drop over 3 cm within 0.4 of phase).
+Then (same day, the user: still a ridge; the flats are a fixed 0 floor, anything that would go negative shifts the rest of
+the wave instead): wave.js `onFloor`, on every wave and shape set (kfPoints, so the GPU table, physics and blends all get it):
+a trough under 0 is set on 0 and the wave above lifts by as much (fading out under 0.3 of the crest's height, so a lip landing
+on the water stays there), and `crPoint` keeps the curve out to the flats (t >= 13, t <= 3) from swinging under 0. The ridge
+was the drawdown in front of the curl (Raglan ~0.25 m, built barrels ~0.3 m, Pipe deeper) against whitewater at 0 behind it.
+flats.mjs also checks no flats under sea level at any phase. Riding tests unchanged (sections/shuffle/stripe/wallspeed failed
+before it too).
 The look (shaders.js water, every wave): whitewater behind the curl (phase 0.2+, with foam) is lumpy (vertex bumps along
 the normal, rolling toward shore, 0.3 x scale), lit mostly by the sky with lumpy normals (the sun is usually behind the
 wave, so sunlight alone left it one flat white), thins across the bore's apron (t 12.5-15) instead of ending in a line,
