@@ -13,7 +13,7 @@ import { initAccount, onAccount, currentUser, myProfile, SALES_OPEN } from './ac
 import { openPaywall } from './paywall.js';
 import { JERSEYS } from './heat.js';
 import { myBreaks } from './breaks.js';
-import { WAVE_NAMES, LENGTHS, SIZES, contestLink, spotName, lengthName, savedNickname, createContest, contestByCode, joinContest,
+import { WAVE_NAMES, CONTEST_WAVES, LENGTHS, SIZES, contestLink, spotName, lengthName, savedNickname, createContest, contestByCode, joinContest,
   leaveContest, startContest, cancelContest, readContest, contestChannel, describeContestError } from './contests.js';
 
 const $ = (id) => document.getElementById(id);
@@ -59,7 +59,7 @@ async function openHost(breakId) {
   const spot = $('host-spot');
   spot.innerHTML = '';
   const waves = h('optgroup', { label: 'Waves' });
-  for (const [id, name] of Object.entries(WAVE_NAMES)) waves.append(new Option(name, `wave:${id}`));
+  for (const id of CONTEST_WAVES) waves.append(new Option(WAVE_NAMES[id], `wave:${id}`));
   spot.append(waves);
   const len = $('host-len');
   if (!len.options.length) for (const [v, label] of LENGTHS) len.add(new Option(label, v));
