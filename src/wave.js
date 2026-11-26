@@ -252,6 +252,12 @@ export function sizeAt(xs) {
   if (!WAVE.ridges || !WAVE.ridges.profile || !WAVE.built || !(WAVE.built.H > 0) || WAVE.ridges.profile[0].H == null) return 1;
   return Math.max(0.05, profileAt('H', RIDGE.c + xs) / WAVE.built.H); // (no cap: the user, 2026-11-22)
 }
+// The size the cross-section at xs is drawn at, at phase s: sizeAt, eased to the ride's own (1) as the whitewater behind the
+// curl ages (phase 1.3 -> 3; controlPoints). The GPU's water gets this too (mesh.js slicePhases), so what you see matches.
+export function sizeFor(xs, s) {
+  const sm = Math.min(1, Math.max(0, (s - 1.3) / 1.7));
+  return 1 + (sizeAt(xs) - 1) * (1 - sm * sm * (3 - 2 * sm));
+}
 export function ridgeAt(xs) {
   if (!WAVE.ridges) return 0;
   if (WAVE.ridges.profile) return profileAt('k', RIDGE.c + xs);
@@ -520,7 +526,7 @@ export function controlPoints(s, out = new Float64Array(NP * 2), scale = SCALE, 
     // (a built wave's size along its stretch. Behind the curl, as the whitewater ages (phase 1.3 -> 3), it eases to the ride's own
     // size (1): at the curl the wave stands up at its local size, but further back the local size kept reshaping the bore's foam
     // apron over the flats, a bump along the broken part where the wave that broke there was bigger; the user, 2026-11-24)
-    const sm = Math.min(1, Math.max(0, (s - 1.3) / 1.7)), f = 1 + (sizeAt(xs) - 1) * (1 - sm * sm * (3 - 2 * sm));
+    const f = sizeFor(xs, s);
     // (everything but the trough's depth: the water in front of the wave is the fixed reference (the user, 2026-11-24): scaled
     // with the rest, a size that halves within 10 m left a step along the base of the wave across the flats)
     if (f !== 1) { const ty = out[I.TROUGH * 2 + 1]; for (let i = 0; i < NP * 2; i++) out[i] *= f; out[I.TROUGH * 2 + 1] = ty; }

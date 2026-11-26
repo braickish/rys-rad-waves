@@ -119,8 +119,12 @@ fn surfacePoint(i: u32, j: u32) -> vec3f {
   let sl = slices[i];
   let e = tableAt(sl.y, j, sl.z);
   if (j == 0u || j == W.cols - 1u) { return vec3f(sl.x, 0.0, e.x); }
-  let sz = select(1.0, sl.w, sl.w > 0.0); // (a built wave's size along its stretch, wave.js sizeAt)
-  return vec3f(sl.x, e.y * W.scale * sz, e.x * W.scale * sz);
+  let sz = select(1.0, sl.w, sl.w > 0.0); // (a built wave's size along its stretch, eased behind the curl: wave.js sizeFor)
+  // (the trough's depth isn't scaled: the flats in front are the fixed reference, as wave.js controlPoints keeps point 14's
+  // height; eased in from the face's foot (t 13) to the trough (t 14), and the flats beyond (t 14-15) stay unscaled)
+  let tc = f32(j - 1u) / f32((W.cols - 3u) / 15u);
+  let szy = mix(sz, 1.0, smoothstep(13.0, 14.0, tc));
+  return vec3f(sl.x, e.y * W.scale * szy, e.x * W.scale * sz);
 }
 
 @vertex fn vs(@builtin(vertex_index) vi: u32) -> VO {

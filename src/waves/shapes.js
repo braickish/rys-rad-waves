@@ -115,11 +115,16 @@ export function withBore(kf, { from, sOf, collapse, ts: tsOver }) {
     // bottom back to the trough: hidden behind the curtain in a full barrel, but on a half-barrel (a built wave between the
     // section and tube shapes, blended point by point) the curtain is half thrown and that fold showed as an edge jutting
     // out behind the curl; the user, 2026-11-23)
+    // (the trough (14) is not part of the tube's inside: it's the water drawn down in front, and it fills in half way from the
+    // closing tube's to the wall's toe, ahead of the tip. Closed onto the tip with the rest, it lifted the flats from the
+    // drawdown (~-0.5) to above sea level for a moment and back down to the toe: a shelf of water out in front of the
+    // whitewater behind the curl; the user, 2026-11-25)
     const tip = [last.p[8][0], Math.max(last.p[8][1], 0.04 * H)];
     const mid = { s: (from + collapse) / 2, p: last.p.map((q, i) => {
       if (i < 2 || i === 15) return q;
       if (i <= 7) return [(q[0] + wall.p[i][0]) / 2, (q[1] + wall.p[i][1]) / 2];
       if (i === 8) return tip;
+      if (i === 14) return [Math.max(tip[0] + 0.25 * H, (q[0] + wall.p[i][0]) / 2), (q[1] + wall.p[i][1]) / 2];
       const f = 0.12 * (i - 8) / 6; return [tip[0] + (wall.p[i][0] - tip[0]) * f, tip[1] + (wall.p[i][1] - tip[1]) * f];
     }) };
     out.push(mid, wall);

@@ -92,6 +92,13 @@ Barrels (Pipe's sim and classic shapes, the built tube) first collapse: the cavi
 `collapse`), then a steep foam wall stands where the lip landed (`collapse` 1.65; the tip, point 8, stays at its base,
 so the lip never pulls back up). Raglan, Raglan+ and built waves get the lasting whitewater; Queens and Trestles are
 unchanged. Far behind, the bore holds ~2/3 height (the GPU table ends at phase 15). Riding tests unchanged.
+**No shelf on the flats** (2026-11-25, the user: a bump in the flats sticking out from behind the broken curl; make sure it
+can't happen): the half-way collapse keyframe used to close the trough (point 14) onto the landed tip with the tube's inside,
+which lifted the flats in front from the drawdown (~-0.5) to above sea level and back down to the toe: a raised shelf ~11 m
+behind the curl on every barrel, half-barrel and ledge (Pipe too). The trough now fills in half way from the closing tube's to
+the wall's toe. The GPU water now uses the same size as the CPU shape (wave.js `sizeFor`: eased to 1 behind the curl, and the
+trough's height not scaled; it had scaled every slice by its raw local size). `node test/flats.mjs`: on every wave's every shape
+set, out on the flats ahead of the whitewater the water only fills in (no drop over 3 cm within 0.4 of phase).
 The look (shaders.js water, every wave): whitewater behind the curl (phase 0.2+, with foam) is lumpy (vertex bumps along
 the normal, rolling toward shore, 0.3 x scale), lit mostly by the sky with lumpy normals (the sun is usually behind the
 wave, so sunlight alone left it one flat white), thins across the bore's apron (t 12.5-15) instead of ending in a line,
