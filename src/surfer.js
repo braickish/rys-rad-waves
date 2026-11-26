@@ -466,6 +466,7 @@ export function surferObjects(pose, rider, info, dt) {
   // chest height, back arm low and behind, reaching toward the water.
   let handBack = add(shBack, v3.mul(across, -0.36), v3.mul(bodyUp, -0.48), v3.mul(chest, 0.14));
   let handFront = add(shFront, v3.mul(across, 0.26), v3.mul(bodyUp, -0.08), v3.mul(chest, 0.34));
+  const handBack0 = handBack, handFront0 = handFront; // (the usual spots, relative to the shoulders: a backside bottom turn keeps them)
   // Longboard, standing in the middle (stance for longboard.jpg in braickish/reference-images, 2026-11-18): relaxed
   // and upright, the front arm hanging nearly straight down by her side, the back arm bent at the elbow with the
   // hand out a little to the side at about hip height. Turns still move the arms from here (below); walking to the
@@ -489,19 +490,11 @@ export function surferObjects(pose, rider, info, dt) {
     handFront = lerp3(handFront, add(B, v3.mul(f, mid + 0.2), v3.mul(T, -0.6), v3.mul(u, 0.08)), reach);
     handBack = lerp3(handBack, add(shBack, v3.mul(f, -0.35), v3.mul(bodyUp, 0.25), v3.mul(chest, 0.1)), reach);
   }
-  let bsReach = 0, bsTouch = null; // (backside bottom turn's front-hand reach, below)
   // Bottom turn: front arm low and across the body toward the inside of the
-  // turn (the wave side), leading the turn; back arm low behind.
+  // turn (the wave side), leading the turn; back arm low behind. (Frontside; backside keeps the hands put, below.)
   if (windup > 0.01 && fs > 0) {
     handFront = lerp3(handFront, add(B, v3.mul(f, mid + 0.3), v3.mul(W, 0.42), v3.mul(u, 0.32 + 0.3 * (1 - knee))), windup);
     handBack = lerp3(handBack, add(B, v3.mul(f, mid - 0.45), v3.mul(W, 0.25), v3.mul(u, 0.35)), windup * 0.8);
-  } else if (windup > 0.01) {
-    // Backside bottom turn (backside-1, -2): the front hand reaches down to the water on the heel side (the inside, toward
-    // the wave), beside the front foot, leading the turn; the back arm back behind, toward the whitewater, at about the waist.
-    bsReach = windup * (1 - 0.5 * bsLate);
-    bsTouch = add(B, v3.mul(f, mid + 0.35), v3.mul(W, 0.5), v3.mul(u, 0.06));
-    handFront = lerp3(handFront, bsTouch, bsReach);
-    handBack = lerp3(handBack, add(hip, v3.mul(bodyUp, -0.15), v3.mul(f, -0.45), v3.mul(W, 0.2)), windup * 0.85); // (back and out, about mid-waist, no higher: the user, 2026-11-26)
   }
   // Fast and laid right over (the user, 2026-11-25): the inside hand reaches down until it's almost touching the water,
   // just outside the inside rail (on the water's surface, `info.n`, a few cm above it).
@@ -512,6 +505,12 @@ export function surferObjects(pose, rider, info, dt) {
     const water = add(p, v3.mul(inside, 0.55), v3.mul(info.n, 0.06));
     if (lean * ss > 0) handBack = lerp3(handBack, add(water, v3.mul(f, mid - 0.15)), 0.9 * skim);
     else handFront = lerp3(handFront, add(water, v3.mul(f, mid + 0.15)), 0.9 * skim);
+  }
+  // Backside bottom turn (the user, 2026-11-26): both hands stay in their usual spots relative to the shoulders, no reach
+  // for the water, no swing back toward the heels; the chest stays open and the knees bend (above). (Not in the barrel.)
+  if (fs < 0 && windup > 0.01) {
+    const w = windup * (1 - deep);
+    handBack = lerp3(handBack, handBack0, w); handFront = lerp3(handFront, handFront0, w);
   }
   // Snap: like a spring unloading, both arms swing across the body (at about
   // chest height) toward the tail and the open side, turning the shoulders,
@@ -614,10 +613,7 @@ export function surferObjects(pose, rider, info, dt) {
   let shBackArm = shBack;
   if (hd > 0.01 && pose.handTouch) { const toT = v3.sub(pose.handTouch, shBack), dT = v3.len(toT); if (dT > 0.57) shBackArm = add(shBack, v3.mul(toT, Math.min(0.35, dT - 0.57) * hd / dT)); }
   const armB = ik(shBackArm, handBack, UPPER, FORE, elbowPole);
-  // (backside bottom turn: the front shoulder drops toward the water too, up to 0.35 m, so the hand gets there: backside-2)
-  let shFrontArm = shFront;
-  if (bsReach > 0.01 && bsTouch) { const toT = v3.sub(bsTouch, shFront), dT = v3.len(toT); if (dT > 0.57) shFrontArm = add(shFront, v3.mul(toT, Math.min(0.35, dT - 0.57) * bsReach / dT)); }
-  const armF = ik(shFrontArm, handFront, UPPER, FORE, elbowPole);
+  const armF = ik(shFront, handFront, UPPER, FORE, elbowPole);
   // (the skinned body's elbows, body.js: each points back, out to its own side and a little down. The shared
   // elbowPole above points mostly down, so an arm hanging down lined up with it and its elbow flipped about.)
   const elbowOut = (s) => v3.norm(add(v3.mul(across, 0.55 * s), v3.mul(chest, -0.6), v3.mul(bodyUp, -0.25)));
@@ -625,7 +621,7 @@ export function surferObjects(pose, rider, info, dt) {
   // The joints, for the skinned body (body.js), which is posed from them.
   pose.J = { ss, ten, bodyUp, torsoDir, chest, hip, headDir, hChest, ub, f, T,
     legF: { root: hipFront, ...legF }, legB: { root: hipBack, ...legB }, frontFoot, backFoot,
-    armF, armB, shFront: shFrontArm, shBack: shBackArm, poleF: elbowOut(1), poleB: elbowOut(-1), dt, tumble: null,
+    armF, armB, shFront, shBack: shBackArm, poleF: elbowOut(1), poleB: elbowOut(-1), dt, tumble: null,
     lookDown: WAVE.noseride && rider.mode === 'surf' ? 0.55 : 0 }; // (the longboarder watches her feet and the nose: the references)
 
   // --- meshes ---

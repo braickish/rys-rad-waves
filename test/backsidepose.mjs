@@ -29,7 +29,7 @@ for (const stance of ['regular', 'goofy']) { // (Raglan is a left: goofy is fron
       const hipAx = v3.norm(v3.sub(J.legF.root, J.legB.root)), hipFacing = v3.norm(v3.cross(J.bodyUp, hipAx));
       const hipN = v3.dot(hipFacing, J.chest) < 0 ? v3.mul(hipFacing, -1) : hipFacing; // (the hips' front, the chest's side)
       const hipUp = (J.hip[1] - J.backFoot[1]).toFixed(2);
-      const hand = (a) => `${v3.dot(v3.sub(a.end, J.hip), J.f).toFixed(2)} fwd ${v3.dot(v3.sub(a.end, J.hip), side).toFixed(2)} waveward ${(a.end[1] - J.backFoot[1]).toFixed(2)} up`;
+      const hand = (a) => `${v3.dot(v3.sub(a.end, J.hip), J.f).toFixed(2)} fwd ${v3.dot(v3.sub(a.end, J.hip), side).toFixed(2)} waveward ${(a.end[1] - J.backFoot[1]).toFixed(2)} up ${v3.dot(v3.sub(a.end, J.hip), J.chest).toFixed(2)} in front`;
       shots.push({ J, label: `${stance === 'regular' ? 'BACKSIDE' : 'frontside'}: ${marks[mi][1]} (nose ${deg(r.phi)}°)` });
       rows.push(`${stance === 'regular' ? 'backside ' : 'frontside'} ${marks[mi][1].padEnd(18)} nose ${String(deg(r.phi)).padStart(4)}°  chest ${String(facing(J.chest)).padStart(4)}°  hips ${String(facing(hipN)).padStart(4)}° toward the wave | front hand ${hand(J.armF)} | back hand ${hand(J.armB)} (hip ${hipUp} up)`);
       mi++;
