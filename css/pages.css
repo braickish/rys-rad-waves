@@ -79,3 +79,5 @@ main.wide { max-width: 980px; }
 .countries { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 6px 16px; }
 .country { display: flex; justify-content: space-between; gap: 10px; padding: 4px 0; border-bottom: 1px solid var(--line); }
 .country b { color: var(--yellow); }
+.wave-btn.flagged { background: #ffb4b4; color: #5a0d0d; }
+.checks-line { margin: 8px 0 0; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }

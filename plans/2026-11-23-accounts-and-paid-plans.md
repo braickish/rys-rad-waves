@@ -319,8 +319,21 @@ sees it on their profile.
   for the host; the rest to their page). "Draft" contests weren't needed (a contest is open from creation). Also:
   the game refuses a replay file that isn't a whole ride with a message instead of breaking part way. Test:
   `npm run test:profile-filled-browser` (20).
-- [ ] **15. Score checks.** Re-run submitted ride logs (in a headless browser job, or in an Edge Function if the physics runs
-  without the GPU) and flag any score that doesn't match. At first it only flags; the host sees the flags.
+- [x] **15. Score checks** (2026-11-25). The physics runs without the GPU, so it's an Edge Function, `check-rides`,
+  importing the game's own modules (src/ride-check.js, shared with the tests; a 78 s ride re-runs in ~60 ms). Every
+  submitted wave gets a `ride_checks` row (migration `20261125060000_score_checks.sql`; pending, or no_log without a
+  ride log); the game asks for checks after each wave it submits, and the host's contest page has Check now. A check
+  rides the log again (snapping to its checkpoints, as a replay does) and flags: a submitted score the log doesn't ride
+  to (±0.05), the log's own score differing, another wave / break / sea / judges, unusual settings, a log that isn't a
+  ride, or one that jumps absurdly far (drift > 25: spliced together). Only flags; only the host sees them (✓ / ⚑ with
+  why on each wave, a summary line). **What it can't do:** re-run a ride exactly without its checkpoints. Engines round
+  the maths functions differently (Chrome vs Node/Deno, both V8: sin, cos, exp, log, atan2 and most others differ in
+  the last bit; only pow, sqrt, hypot agree), and honest Chrome rides re-run on the server drift up to ~4 between
+  checkpoints (same score). So a modified client that writes self-consistent logs isn't caught. Follow-ups: (a) the
+  game's own maths functions (deterministic everywhere), so a ride re-runs from its inputs alone; (b) an intermittent
+  fresh-page replay drift seen once in ~10 runs of replay-browser (drift 1.03, judged 4.60 vs 4.63): some state
+  outside the recording. Tests: `npm run test:ride-check` (14), live-heat-browser (both real waves check ok on the
+  server), profile-filled-browser (the host's flags, Check now, hidden from others).
 - [ ] **16. Surfer styling (Pro).** Wetsuit, trunks and board colours and patterns in `profiles.styling`, chosen on the account
   page, worn in your rides and shown to others in contests and recaps.
 - [ ] **17. Recap video.** A recap page from a heat's rides and timeline, with broadcast cameras, a lower-third scoreboard,

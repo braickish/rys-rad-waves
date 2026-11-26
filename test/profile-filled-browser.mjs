@@ -110,4 +110,17 @@ await go(`${b.base}account.html`);
 const mine = await waitFor(`document.querySelectorAll('#my-contests .result').length && document.getElementById('my-contests').innerText.replace(/\\n/g, ' ')`, 20000);
 check(/Raglan Open/.test(mine || '') && /Over · hosting and surfing/.test(mine || ''), `Your contests: ${mine}`);
 
+// 6. The host's contest page: score checks (task 15). These waves were posted straight to the database, so they're
+// waiting; Check now rides them: the member's stand-in log isn't a ride (flagged), Kai's wave had no log.
+await go(`${b.base}contest.html?c=${k.code}`);
+check(/0 ✓, 0 ⚑ flagged, 1 waiting, 1 with no log/.test(await waitFor(`document.getElementById('checks-line') && document.getElementById('checks-line').textContent`, 20000) || ''), `the host sees the checks: ${await evaluate(`document.getElementById('checks-line')?.textContent`)}`);
+await evaluate(`[...document.querySelectorAll('#checks-line button')].find((x) => /Check now/.test(x.textContent)).click()`);
+check(/1 ⚑ flagged, 0 waiting/.test(await waitFor(`/0 waiting/.test(document.getElementById('checks-line')?.textContent || '') && document.getElementById('checks-line').textContent`, 30000) || ''), 'Check now: the stand-in log is flagged');
+check(await evaluate(`[...document.querySelectorAll('.wave-btn.flagged')].some((x) => /8\.25 ⚑/.test(x.textContent) && /isn't a ride the game can play/.test(x.title))`), "... ⚑ on the wave, saying why");
+await shot('5-checks');
+await evaluate(`localStorage.removeItem('rys-rad-waves-auth')`);
+await go(`${b.base}contest.html?c=${k.code}`);
+await waitFor(`!document.getElementById('contest').hidden`, 20000); await sleep(800);
+check(await evaluate(`!document.getElementById('checks-line') && !document.querySelector('.wave-btn.flagged')`), 'signed out: no checks, no flags (only the host sees them)');
+
 await b.done();

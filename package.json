@@ -18,6 +18,7 @@
     "test:live-heat-browser": "node test/live-heat-browser.mjs",
     "test:bracket-browser": "node test/bracket-browser.mjs",
     "test:profile-filled-browser": "node test/profile-filled-browser.mjs",
+    "test:ride-check": "node test/ride-check.mjs",
     "functions:serve": "supabase functions serve --env-file supabase/functions/.env",
     "test:stripe": "node test/stripe.mjs"
   },

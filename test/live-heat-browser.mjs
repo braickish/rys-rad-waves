@@ -69,6 +69,10 @@ const rides = await get(`rides?heat_id=eq.${heat.id}&select=entrant_id,wave_no,s
 check(rides.length === 2 && rides.every((r) => r.wave_no === 1 && r.replay_path), `one wave each, with a replay path (${rides.map((r) => `${r.score} ${r.replay_path ? 'log' : 'no log'}`).join(', ')})`);
 const log = rides[0] && await fetch(`${API}/storage/v1/object/replays/${rides[0].replay_path}`, { headers: { apikey: SECRET, authorization: `Bearer ${SECRET}` } });
 check(log?.ok && /"wave":"point"/.test(await log.text()), 'the replay is in Storage');
+// The score checks (task 15): the game asked the server to ride each wave again from its log; both pass.
+let checks = [];
+for (let i = 0; i < 40; i++) { checks = await get(`ride_checks?select=status,reasons,drift,score,rides!inner(heat_id)&rides.heat_id=eq.${heat.id}`); if (checks.length === 2 && checks.every((x) => x.status !== 'pending')) break; await sleep(500); }
+check(checks.length === 2 && checks.every((x) => x.status === 'ok'), `score checks: both waves ride to the same score on the server (${checks.map((x) => `${x.status} ${x.score} drift ${Number(x.drift).toFixed(3)}`).join('; ')})`);
 const hostScore = rides.find((r) => ents.find((e) => e.id === r.entrant_id).name === handle)?.score;
 check(Number(await B.evaluate(`window.__heat.surfers.find((s) => s.rival).waves[0]?.score`)) === Number(hostScore), `the host's wave reached the guest's board (${hostScore})`);
 check(/back to the contest/.test(await B.evaluate(`document.getElementById('results-go').textContent`)), 'the card says: back to the contest');

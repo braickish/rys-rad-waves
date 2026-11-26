@@ -74,6 +74,8 @@ export async function connectLive(info, hooks) {
         await sleep(1000 * (tries + 1)); // (the network: try again)
       }
       live?.send('score', { heat_id: info.heatId, entrant_id: info.entrantId, wave_no: n, score, caught_s: caughtS });
+      // (the server rides it again from its log: a score check, task 15; nothing waits on it)
+      if (path) c.functions.invoke('check-rides', { body: { heat_id: info.heatId } }).catch((e) => console.warn('check', e));
     }).catch((e) => console.warn('submit', e));
     return queue;
   }
