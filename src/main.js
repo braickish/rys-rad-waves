@@ -421,7 +421,7 @@ let score = 0, best = 0;
 try { best = Number(localStorage.getItem('rys-rad-waves-best')) || 0; } catch {}
 let burst = 0, msgTimer = 0, rideTime = 0;
 let prevHeading = rider.heading.slice();
-let turnSigned = 0, snapSpray = 0, lastMove = '', lastMoveTime = -9;
+let turnSigned = 0, snapSpray = 0, vSnapSpray = 0, lastMove = '', lastMoveTime = -9;
 const pose = createPose();
 let lastInput = {};
 // Replays (src/replay.js; accounts plan task 2): every ride is recorded (its wave's address, the inputs each step,
@@ -787,6 +787,7 @@ function handleEvents() {
         bottomTurn: ['Bottom turn', 100, 0],
         topTurn: ['Top turn', 150, 0.15],
         snap: ['SNAP!', 500, 0.35],
+        verticalSnap: ['VERTICAL SNAP!', 800, 0.5],
         hang5: ['HANG FIVE!', 250, 0],
         hang10: ['HANG TEN!', 500, 0],
         check: ['CHECK TURN', 200, 0.25],
@@ -811,6 +812,7 @@ function handleEvents() {
       const pts = Math.round(base * (e.combo ? 1.5 : 1) * (repeat ? 0.4 : 1));
       score += pts;
       snapSpray = Math.max(snapSpray, spray);
+      if (e.move === 'verticalSnap') vSnapSpray = 0.4; // (the big fan off the tail as it comes round: vertical-snap-4)
       if (!quiet) flash(e.combo ? `${name}` : name, `${e.combo ? 'bottom turn combo  ' : ''}+${pts}`);
     }
     if (e.type === 'fallsLand') burst = 0.3; // the lip lands with you in it
@@ -1255,8 +1257,9 @@ async function main() {
 
     const surfing = rider.mode === 'surf';
     const speed = v3.len(rider.vel);
-    snapSpray = Math.max(0, snapSpray - dt);
-    const sprayAmt = (surfing ? Math.min(1, Math.abs(turnSigned) * 0.3 * Math.min(1, speed / 6) + (rider.pumping ? 0.15 : 0) + (snapSpray > 0 ? 0.5 : 0)) : 0) * Math.min(1, WAVE.scale / 1.25); // (less on small waves)
+    snapSpray = Math.max(0, snapSpray - dt); vSnapSpray = Math.max(0, vSnapSpray - dt);
+    // (a vertical snap's fan goes past 1: the shader throws the extra higher and harder)
+    const sprayAmt = (surfing ? Math.min(1, Math.abs(turnSigned) * 0.3 * Math.min(1, speed / 6) + (rider.pumping ? 0.15 : 0) + (snapSpray > 0 ? 0.5 : 0)) + (vSnapSpray > 0 ? 1.5 : 0) : 0) * Math.min(1, WAVE.scale / 1.25); // (less on small waves)
     const side = v3.norm(v3.cross(n, rider.heading));
     const sprayDir = v3.norm(v3.add(v3.mul(side, turnSigned > 0 ? -1 : 1), v3.mul(rider.heading, -0.4)));
     burst = Math.max(0, burst - dt);

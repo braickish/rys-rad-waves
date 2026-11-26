@@ -135,6 +135,18 @@ const RIDER_TUNE = {
   snapLine: 2.6, // the snap holds you at least this far below the top (t), where the face is steep (~45 deg on the point), so the board stands up with its deck showing
   snapStandRate: 20, // first the board comes round to point straight up the face (rad/s), then it spins down to the right
   lipSnapDrag: 1.4, // speed scrubbed while it swings and grips (1/s)
+  // Vertical snap (vertical-snap-1..5 in braickish/reference-images; the user, 2026-11-25): coming up nearly straight up
+  // the face, the board goes up over the lip (tail in it, nose out over it), swings round ~180 deg and comes back down
+  // pointing at the beach, throwing a big fan of spray. A wave rule, read live where you are: on a really steep face
+  // (faceSteepness at least `vertSnapSteep` deg: Pipe) anywhere outside the tube; on a gentler wave only right at the
+  // curl (up to `vertSnapNearCurl` m ahead of it) or a little into the whitewater (`vertSnapIntoFoam` m behind it).
+  // Never from inside the barrel, and not on a longboard. Otherwise it's the ordinary snap.
+  vertSnapUp: 0.9, // climbing at least this steeply (sin of the heading up the face: ~64 deg)
+  vertSnapSteep: 48, vertSnapNearCurl: 3, vertSnapIntoFoam: 1.5,
+  vertSnapLine: 0.9, // held this far below the top (t): higher than a snap (`snapLine`), right up under the lip
+  vertSnapExit: 1.5, // ends pointing this far down (rad, ~86 deg: at the beach), not ~70 deg down the line as a snap
+  vertSnapSwing: 10, // swings round a little slower than a snap (rad/s): ~0.3 s from straight up to the beach
+  vertSnapDrag: 1.3, // scrubs this many times a snap's `lipSnapDrag` while it swings and grips
   // Roundhouse: out on the shoulder, turn back toward the whitewater; the
   // further round you come the deeper you lean and the lower you crouch, and
   // the turn tightens. Scores once you're heading back toward the whitewater.
@@ -455,7 +467,7 @@ export function createRider() {
     airSpin: 0, airTime: 0, spinArmed: false,
     moveCooldown: 0, lastBottomTurn: -9, bottomArmed: false,
     tube: null, fakie: null, driveBank: 0, lastTurnTime: -9, lastTurnDir: 0, overTheBack: false,
-    rideDir: 1, lock: null, inDir: 0, lipSnap: null, snapGrip: false, roundhouse: null, crouchDepth: 0, barrelCrouch: 0, frontLean: 0, tubeDamp: 0, pivot: 0, foot: 0, footGoal: 0, shuf: 0, shufGoal: 0, walkDir: 1, pivotHeld: false, pivotUp: false, pivotDir: 0, nose: 0, noseTime: 0, noseRisk: 0, onNose: false, ten: 0, tenGoal: 0, tenWait: 0, tenTime: 0, tenDone: false, slash: null, slide: 0, rightHeld: 0, turnDir: 0, turnDirAge: 9, turnHeld: 0, hard: 0, assist: null, bottomCarve: false, floater: null,
+    rideDir: 1, lock: null, inDir: 0, lipSnap: null, snapGrip: false, gripVertical: false, vSnap: null, roundhouse: null, crouchDepth: 0, barrelCrouch: 0, frontLean: 0, tubeDamp: 0, pivot: 0, foot: 0, footGoal: 0, shuf: 0, shufGoal: 0, walkDir: 1, pivotHeld: false, pivotUp: false, pivotDir: 0, nose: 0, noseTime: 0, noseRisk: 0, onNose: false, ten: 0, tenGoal: 0, tenWait: 0, tenTime: 0, tenDone: false, slash: null, slide: 0, rightHeld: 0, turnDir: 0, turnDirAge: 9, turnHeld: 0, hard: 0, assist: null, bottomCarve: false, floater: null,
     wipeReason: '', wipeTimer: 0, wipeAge: 0, washing: false, falls: null, fallsBoard: null, stepOff: null,
     events: [],
     time: 0,
@@ -695,7 +707,9 @@ export function stepRider(r, input, dt) {
   }
   // A turn off the lip springs the body open (for the surfer's pose).
   r.unload = Math.max(0, (r.unload || 0) - dt);
-  if (r.events.some((e) => e.type === 'move' && ['snap', 'reentry', 'topTurn', 'lip180', 'slash'].includes(e.move))) r.unload = 0.45;
+  if (r.events.some((e) => e.type === 'move' && ['snap', 'verticalSnap', 'reentry', 'topTurn', 'lip180', 'slash'].includes(e.move))) r.unload = 0.45;
+  // (a vertical snap's pose plays out over ~0.9 s: up over the lip, round, and the compress coming back down)
+  if (r.vSnap != null) { r.vSnap += dt; if (r.vSnap > 0.9 || r.mode !== 'surf') r.vSnap = null; }
 }
 
 // Snap / off the lip / re-entry: the board swings round on the face just
@@ -708,6 +722,22 @@ function snapAllowed(r, top) {
   const T = TUNE;
   if (T.snapShoulder == null) return true;
   return r.xs >= T.snapShoulder && r.t <= top + T.snapNear;
+}
+// A vertical snap here? (see `vertSnapUp` in the settings) Not in the tube, not on a longboard, climbing nearly straight
+// up; then on a really steep face anywhere, or else right at the curl or a little into its whitewater.
+function vertSnapOk(r, sinp) {
+  const T = TUNE;
+  if (r.tube || r.rideDir < 0 || WAVE.noseride || sinp < T.vertSnapUp) return false;
+  if (r.xs < T.curlZone[0] - T.vertSnapIntoFoam) return false; // (only a little into the whitewater, on any wave: deeper it's a re-entry)
+  return faceSteepness(r.xs) >= T.vertSnapSteep || r.xs <= T.curlZone[0] + T.vertSnapNearCurl;
+}
+function startVertSnap(r, top, combo) {
+  const T = TUNE;
+  startLipSnap(r, top, -T.vertSnapExit);
+  r.lipSnap.t = Math.max(r.t, top + T.vertSnapLine);
+  r.lipSnap.vertical = true;
+  r.vSnap = 0; // (time since it started: for the surfer's pose)
+  r.events.push({ type: 'move', move: 'verticalSnap', speed: r.speed, combo, xs: r.xs });
 }
 // Check turn: a quick, modest turn back down (about as much as a slash:
 // `checkTurn` rad at most, ending no steeper than `checkExit` down), at
@@ -935,9 +965,9 @@ function stepSurf(r, input, dt) {
       // the board comes round to point straight up the face ...
       head = Math.min(Math.PI / 2, head + T.snapStandRate * dt);
       if (head >= Math.PI / 2 - 1e-4) ls.standing = false;
-    } else head = Math.max(ls.target, head - T.lipSnapSwing * dt); // ... then spins down to the right
+    } else head = Math.max(ls.target, head - (ls.vertical ? T.vertSnapSwing : T.lipSnapSwing) * dt); // ... then spins down to the right
     r.slide = r.phi - head;
-    if (head <= ls.target + 1e-4 || ls.time > 0.5) { r.lipSnap = null; r.snapGrip = true; }
+    if (head <= ls.target + 1e-4 || ls.time > (ls.vertical ? 0.6 : 0.5)) { r.lipSnap = null; r.snapGrip = true; r.gripVertical = !!ls.vertical; }
   }
   if (r.slash) {
     const sl = r.slash;
@@ -1286,7 +1316,7 @@ function stepSurf(r, input, dt) {
   }
   // The snap scrubs speed on the lip while the board swings and grips.
   // (not while the board first stands up: just while it spins round and grips)
-  if ((r.lipSnap && !r.lipSnap.standing) || r.snapGrip) r.speed = Math.min(r.speed, speedAtStart) * (1 - T.lipSnapDrag * dt);
+  if ((r.lipSnap && !r.lipSnap.standing) || r.snapGrip) r.speed = Math.min(r.speed, speedAtStart) * (1 - T.lipSnapDrag * ((r.lipSnap ? r.lipSnap.vertical : r.gripVertical) ? T.vertSnapDrag : 1) * dt);
   // Sliding sideways in a slash scrubs speed, and nothing builds it meanwhile.
   else if (r.slide > 0) r.speed = Math.min(r.speed, speedAtStart) * (1 - (r.tube ? T.slashTube.slashDrag : T.slashDrag) * Math.sin(Math.min(r.slide, Math.PI / 2)) * dt);
   if (sBack > 0) r.speed *= 1 - T.backScrub * sBack * r.turnRate * dt; // (back foot: turning scrubs a little speed)
@@ -1409,7 +1439,8 @@ function stepSurf(r, input, dt) {
     && (r.xs >= T.curlZone[0] && foamAt(r.xs, r.t + 0.6) <= 0.3
       || T.snapIntoLip > 0 && r.xs >= T.curlZone[0] - T.snapIntoLip && foamAt(r.xs, r.t + 0.6) <= 0.65)) { // (snapIntoLip: a bit further into the breaking lip)
     const combo = r.time - (r.lastBottomTurn ?? -9) < T.comboWindow;
-    if (snapAllowed(r, top)) {
+    if (vertSnapOk(r, sinp)) startVertSnap(r, top, combo);
+    else if (snapAllowed(r, top)) {
       startLipSnap(r, top, -T.lipExit);
       r.events.push({ type: 'move', move: 'snap', speed: r.speed, combo, xs: r.xs });
     } else startCheckTurn(r, combo);
@@ -1455,7 +1486,7 @@ function stepSurf(r, input, dt) {
       //  - Turning toward the whitewater: only a quick 180, carrying on round
       //    to point straight back down the wave.
       const towardWhitewater = !autoSnap && (r.lastTurnDir || -1) > 0;
-      let checkTurned = false;
+      let checkTurned = false, vertDone = false;
       // The 180 off the top only comes up out of a bottom turn, right by the
       // curl, or straight out of a roundhouse (then it's a rebound). Anywhere
       // else turning toward the whitewater at the top is just your own turn
@@ -1468,6 +1499,12 @@ function stepSurf(r, input, dt) {
       } else if (towardWhitewater) {
         r.assist = { dir: 1, target: -Math.PI / 2, rate: T.lip180Rate };
         lockInput(r);
+      } else if (ready && vertSnapOk(r, sinp)) {
+        // (vertical snap: right at the curl or a little into its whitewater, or anywhere on a really steep face)
+        startVertSnap(r, top, combo);
+        if (inWhitewater) r.boost = 1.0; // (coming down into the foam: carried out of it, as a re-entry is)
+        r.moveCooldown = T.moveGap;
+        vertDone = true;
       } else if (r.rideDir >= 0 && !inWhitewater && !snapAllowed(r, top)) {
         // (waves with `snapShoulder`: in the pocket near the curl it's a check turn, not a snap)
         checkTurned = true;
@@ -1482,7 +1519,7 @@ function stepSurf(r, input, dt) {
         lockInput(r);
         if (inWhitewater) r.boost = 1.0;
       }
-      if (ready && !checkTurned && !(towardWhitewater && !can180)) {
+      if (ready && !checkTurned && !vertDone && !(towardWhitewater && !can180)) {
         const inCurl = !inWhitewater && r.xs <= T.curlZone[1];
         let move;
         if (towardWhitewater) move = fromRoundhouse ? 'rebound' : 'lip180';

@@ -51,12 +51,12 @@ export function logStep(log, r, dt, curl) {
 // Base values in raw points (a maneuver's worth done well in the pocket): airs above snaps, snaps above cutbacks, cutbacks above
 // bottom turns.
 export const MOVE_VALUES = {
-  bottomTurn: 0.4, topTurn: 1.0, check: 0.8, revert: 1.6, floater: 2.0, lip180: 2.2, roundhouse: 2.6, slash: 3.0, snap: 3.0,
+  bottomTurn: 0.4, topTurn: 1.0, check: 0.8, revert: 1.6, floater: 2.0, lip180: 2.2, roundhouse: 2.6, slash: 3.0, snap: 3.0, verticalSnap: 3.8,
   reentry: 3.6, rebound: 3.2, rebound180: 4.2, hang5: 1.6, hang10: 3.0,
 };
 const AIR_VALUES = { 0: 4.0, 180: 6.5, 360: 9, 540: 11, 720: 13 };
 const RARE = new Set(['rebound180', 'air360', 'air540', 'air720', 'barrelSlash']);
-const CATEGORY = (m) => (m.kind === 'air' ? 'air' : m.kind === 'barrel' ? 'barrel' : ['snap', 'reentry', 'slash', 'roundhouse', 'rebound', 'rebound180', 'lip180'].includes(m.kind) ? 'power' : 'other');
+const CATEGORY = (m) => (m.kind === 'air' ? 'air' : m.kind === 'barrel' ? 'barrel' : ['snap', 'verticalSnap', 'reentry', 'slash', 'roundhouse', 'rebound', 'rebound180', 'lip180'].includes(m.kind) ? 'power' : 'other');
 const keyOf = (m) => (m.kind === 'air' ? `air${Math.min(720, m.spins)}` : m.kind === 'slash' && m.tube ? 'barrelSlash' : m.kind);
 function baseValue(m) {
   if (m.kind === 'air') return AIR_VALUES[Math.min(720, m.spins)] * (m.big ? 1.25 : 1);
@@ -132,7 +132,7 @@ export function scoreRide(log, { size = 1, seed = 1, seen = new Set() } = {}) {
 }
 
 // The judge's shorthand for the sheet: "BT - snap - cutback - air rev - out"
-const SHORT = { bottomTurn: 'BT', topTurn: 'top turn', check: 'check', revert: 'revert', floater: 'float', lip180: '180', roundhouse: 'cutback', slash: 'slash', snap: 'snap', reentry: 're-entry', rebound: 'rebound', rebound180: 'rebound 180', hang5: 'hang 5', hang10: 'hang 10' };
+const SHORT = { bottomTurn: 'BT', topTurn: 'top turn', check: 'check', revert: 'revert', floater: 'float', lip180: '180', roundhouse: 'cutback', slash: 'slash', snap: 'snap', verticalSnap: 'vert snap', reentry: 're-entry', rebound: 'rebound', rebound180: 'rebound 180', hang5: 'hang 5', hang10: 'hang 10' };
 export function shorthand(items, end) {
   const out = [];
   for (const it of items) {

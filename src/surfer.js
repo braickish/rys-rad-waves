@@ -211,7 +211,13 @@ export function surferObjects(pose, rider, info, dt) {
   // ahead of the back foot, so the middle rises and the tail goes under.
   // (a little nose lift just standing on the tail; up to ~15 deg swinging round in a pivot away from the wave, ~10 deg
   // toward it. It was up to ~27 deg; 2026-11-18, the user: the board lifted too much, mostly in the away pivot.)
-  const tipT = 0.08 * tl + 0.2 * pv * clamp(Math.abs(info.turn) / 2.5, 0, 1);
+  // Vertical snap (vertical-snap-1..5, the user, 2026-11-25; rider.vSnap: time since it started): vsUp while the board
+  // stands up over the lip and swings round (weight on the back foot, tail sunk in the lip, nose lifted out over it),
+  // vsLand as it comes back down (a hard compress).
+  const vt = rider.mode === 'surf' && rider.vSnap != null ? rider.vSnap : -1;
+  const vsUp = vt >= 0 ? sstepS(0, 0.08, vt) * (1 - sstepS(0.3, 0.45, vt)) : 0;
+  const vsLand = vt >= 0 ? sstepS(0.35, 0.5, vt) * (1 - sstepS(0.7, 0.9, vt)) : 0;
+  const tipT = 0.08 * tl + 0.2 * pv * clamp(Math.abs(info.turn) / 2.5, 0, 1) + 0.35 * vsUp;
   pose.tip = (pose.tip || 0) + (tipT - (pose.tip || 0)) * (1 - Math.exp(-dt * 10));
   const tip = pose.tip;
   if (tip > 0) { bf = v3.norm(rotateAbout(bf, Lb, -tip)); ub = v3.norm(rotateAbout(ub, Lb, -tip)); }
@@ -254,6 +260,8 @@ export function surferObjects(pose, rider, info, dt) {
     kneeT += (0.22 - kneeT) * aStretch;
   }
   if (aLand > 0.01) kneeT += (0.95 - kneeT) * aLand;
+  if (vsUp > 0.01) kneeT = Math.max(kneeT, 0.6 * vsUp); // (low, weight on the back foot: vertical-snap-3)
+  if (vsLand > 0.01) kneeT = Math.max(kneeT, 0.9 * vsLand); // (compressed coming back down: vertical-snap-5)
   // Going over the falls (off the board): curled up in a ball, knees to chest.
   const tuck = rider.falls ? clamp(rider.falls.time / 0.3, 0, 1) : 0;
   if (tuck > 0) kneeT = 1;
@@ -463,6 +471,8 @@ export function surferObjects(pose, rider, info, dt) {
     handFront = lerp3(handFront, add(neck, v3.mul(across, -0.12), v3.mul(chest, 0.32), v3.mul(bodyUp, -0.12)), unload);
     handBack = lerp3(handBack, add(shBack, v3.mul(across, -0.38), v3.mul(chest, -0.12), v3.mul(bodyUp, -0.1)), unload);
   }
+  // Vertical snap: the back arm thrown high overhead as the shoulders lead round (vertical-snap-2..4).
+  if (vsUp > 0.01) handBack = lerp3(handBack, add(shBack, v3.mul(bodyUp, 0.6), v3.mul(across, -0.15), v3.mul(chest, -0.05)), 0.9 * vsUp);
   // Arms swing a little with the pump.
   if (info.pump) {
     const swing = vUp > 0.3 ? -0.12 : 0.12;

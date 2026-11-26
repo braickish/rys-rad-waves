@@ -439,8 +439,9 @@ fn respawn(id: u32) -> P {
     // Spray off the rider's rail (or a wipeout splash).
     let b = burst;
     p.pos = vec4f(F.rider.xyz + vec3f(rs(), rs() * 0.3, rs()) * (0.25 + b * 0.6), 0.45 + rnd() * 0.5 + b * 0.5);
-    let v = F.spray.xyz * (3.0 + rnd() * 4.0) * (1.0 - b) + vec3f(rs(), 0.0, rs()) * (1.2 + b * 4.0)
-          + vec3f(0.0, 1.8 + rnd() * 3.5 + b * 4.0, 0.0) + F.riderVel.xyz * 0.35;
+    let big = max(0.0, sprayAmt - 1.0); // (over 1: a vertical snap's fan, thrown out and well up, taller than the surfer)
+    let v = F.spray.xyz * (3.0 + rnd() * 4.0) * (1.0 - b) * (1.0 + 0.5 * big) + vec3f(rs(), 0.0, rs()) * (1.2 + b * 4.0)
+          + vec3f(0.0, 1.8 + rnd() * 3.5 + b * 4.0 + big * (2.0 + rnd() * 3.0), 0.0) + F.riderVel.xyz * 0.35;
     p.vel = vec4f(v, 2.0);
     p.extra = vec4f(p.pos.w, 0.06 + rnd() * 0.07 + b * 0.15, 0.0, 0.0);
     return p;
