@@ -655,7 +655,7 @@ function showResults() {
     : waiting ? 'Waiting for the others to finish their waves…' : '<span class="desk">Space to go back to the contest</span><span class="mob">Tap to go back to the contest</span>';
   const guest = H.live && H.final && currentUser()?.is_anonymous;
   $('results-claim').hidden = !guest;
-  $('results-sub').textContent = `${LIVE?.bracket ? (LIVE.final ? 'Final · ' : `Round ${LIVE.round} · Heat ${LIVE.heatNo} · `) : ''}${H.end.minutes ? `${H.end.minutes} min heat` : `${H.end.waves} wave heat`} · ${WAVE.name}`;
+  $('results-sub').textContent = `${LIVE?.bracket && LIVE.round > 1 && LIVE.final ? 'Final · ' : LIVE?.bracket && !LIVE.final ? `Round ${LIVE.round} · Heat ${LIVE.heatNo} · ` : ''}${H.end.minutes ? `${H.end.minutes} min heat` : `${H.end.waves} wave heat`} · ${WAVE.name}`;
   $('results-rows').innerHTML = st.map((r) => `<div class="rr${r.surfer.you ? ' you' : ''}"><span class="pl">${r.place}</span><i style="background:${r.surfer.jersey.color}"></i><span class="nm">${r.surfer.name}</span><span class="bt">${r.top.map(f2).join(' + ') || '-'}</span><b>${f2(r.total)}</b></div>`).join('');
   const best = heatYou(H).waves.filter((w) => w.ride).sort((a, b) => b.score - a.score)[0];
   $('results-watch').hidden = !best;

@@ -1,10 +1,11 @@
 // A bracket in the browser (accounts plan task 13; headless Chrome, the local stack with Realtime). A Pro host and four
 // guests (the guests are scripted through the database's own functions, as their game would call them):
 //   1. 5 surfers in a contest of up to 16: round 1 is two heats (seeds 1, 4, 5 and 2, 3), shown as a bracket in the lobby
+//      (every heat 2 to 4; the top 2 of a heat of 3 through, only the winner of a heat of 2)
 //   2. the host rides their round-1 heat (the autopilot); the guests post their waves and finish
 //   3. the last heat closes: "You're through!", and back in the lobby the bracket has the final, with who went through
 //      and who's out
-//   4. the host counts down and drops into the final, with the three others who went through
+//   4. the host counts down and drops into the final (of 3), with the two others who went through
 // npm run db:start first, then: npm run test:bracket-browser [shotPrefix]
 import { execSync } from 'node:child_process';
 import { openBrowser, signInOnTitle, sleep, root } from './browser-lib.mjs';
@@ -66,15 +67,15 @@ check(/Round 1 · Heat 1/.test(await A.evaluate(`document.getElementById('result
 await A.shot('2-through');
 const final = await get(`heats?contest_id=eq.${contest.id}&round=eq.2&select=id,starts_at,heat_entries(entrant_id)`);
 const finalNames = final[0]?.heat_entries.map((x) => ents.find((e) => e.id === x.entrant_id).name).sort().join(',');
-check(final.length === 1 && finalNames === [handle, 'Mara', 'Noa', 'Tuck'].sort().join(','), `the final: ${finalNames}`);
+check(final.length === 1 && finalNames === [handle, 'Mara', 'Noa'].sort().join(','), `the final (Mara alone from the heat of 2): ${finalNames}`);
 await A.evaluate(`document.getElementById('results').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))`);
 const br = await A.waitFor(`${shown('bracket')} && /Final/.test(${bracketText}) && ${bracketText}`, 20000);
-check(!!br && /Noa ✓/.test(br) && /Juno/.test(br) && !/Juno ✓/.test(br), `back in the lobby: the bracket with the final, who went through and who's out: ${br}`);
+check(!!br && /Noa ✓/.test(br) && /Mara ✓/.test(br) && /Tuck/.test(br) && !/Tuck ✓/.test(br) && !/Juno ✓/.test(br), `back in the lobby: the bracket with the final, who went through and who's out: ${br}`);
 check(await A.evaluate(`[...document.querySelectorAll('#bracket .row.out')].some((r) => /Juno/.test(r.textContent))`), '... Juno greyed out');
 await A.shot('3-bracket');
 
 // 4. Into the final.
 check(/Your heat starts in/.test(await A.waitFor(`/starts in/.test(document.getElementById('lobby-msg').textContent) && document.getElementById('lobby-msg').textContent`, 15000) || ''), 'the host counts down to the final');
-check(!!(await A.waitFor(`window.__contestHeat && window.__contestHeat.final && window.__contestHeat.round === 2 && window.__heat && window.__heat.surfers.length === 4`, 60000)), 'and drops into the final with the other three');
+check(!!(await A.waitFor(`window.__contestHeat && window.__contestHeat.final && window.__contestHeat.round === 2 && window.__heat && window.__heat.surfers.length === 3`, 60000)), 'and drops into the final with the other two');
 
 await A.done();

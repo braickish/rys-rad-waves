@@ -7,7 +7,8 @@
 import { initAccount, currentUser } from './account.js';
 
 export const WAVE_NAMES = { point: 'Raglan', raglanPlus: 'Raglan+', reef: 'Pipe', queens: 'Queens', trestles: 'Trestles', dynamic: 'Dynamic' };
-export const SIZES = [['8', 'Up to 8: one heat'], ['16', 'Up to 16: heats and a final'], ['32', 'Up to 32: heats and a final']];
+// (every heat has 2 to 4 surfers: over 4 runs in heats and a final)
+export const SIZES = [['4', 'Up to 4: one heat'], ['8', 'Up to 8: heats and a final'], ['16', 'Up to 16: heats and a final'], ['32', 'Up to 32: heats and a final']];
 export const LENGTHS = [['10m', '10 minutes'], ['15m', '15 minutes'], ['20m', '20 minutes'], ['5w', '5 waves'], ['8w', '8 waves'], ['10w', '10 waves']];
 const NICK_KEY = 'rys-rad-waves-nickname';
 export const savedNickname = () => { try { return localStorage.getItem(NICK_KEY) || ''; } catch { return ''; } };

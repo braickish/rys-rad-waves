@@ -64,7 +64,7 @@ async function openHost(breakId) {
   const len = $('host-len');
   if (!len.options.length) for (const [v, label] of LENGTHS) len.add(new Option(label, v));
   const size = $('host-size');
-  if (!size.options.length) for (const [v, label] of SIZES) size.add(new Option(label, v));
+  if (!size.options.length) { for (const [v, label] of SIZES) size.add(new Option(label, v)); size.value = '8'; }
   {
     const u = new URL(location.href); u.searchParams.delete('host'); history.replaceState(null, '', u);
   }

@@ -1,14 +1,19 @@
--- npm run test:db: brackets (accounts plan task 13). 9, 12 and 16 surfers make sensible rounds (heats of 3-4, the top 2
--- through) and a final of 4; round 1 is seeded in snake order; every heat of a round has the round's seed; the next
+-- npm run test:db: brackets (accounts plan task 13). Every heat has 2 to 4 surfers (the user); 4 or fewer is one heat;
+-- 5 to 16 surfers make sensible rounds (the top 2 through, 1 from a heat of 2) and a final of 4 or fewer; round 1 is seeded in snake order; every heat of a round has the round's seed; the next
 -- round is built when the last heat of one closes; ties go through by the best wave; the final ends the contest.
 begin;
-select plan(20);
+select plan(27);
 
 -- A host and 16 surfers (members without profiles: they join by nickname).
 insert into auth.users (id, email, aud, role, is_anonymous)
 select ('b2000000-0000-0000-0000-' || lpad(i::text, 12, '0'))::uuid, 'bsurfer' || i || '@example.com', 'authenticated', 'authenticated', false
 from generate_series(0, 16) i;
-select private.grant_entitlement('bsurfer0@example.com', 'pro', interval '30 days');
+-- (a host per contest: each can only have 3 open at once)
+insert into auth.users (id, email, aud, role, is_anonymous)
+select ('b2000000-0000-0000-0001-' || lpad(i::text, 12, '0'))::uuid, 'bhost' || i || '@example.com', 'authenticated', 'authenticated', false
+from generate_series(1, 12) i;
+select private.grant_entitlement('bhost' || i || '@example.com', 'pro', interval '30 days') from generate_series(1, 12) i;
+create sequence pg_temp.hosts;
 create function pg_temp.as_user(i int) returns void language sql as $$
   select set_config('request.jwt.claims', json_build_object('sub', 'b2000000-0000-0000-0000-' || lpad(i::text, 12, '0'), 'role', 'authenticated')::text, true)
 $$;
@@ -18,10 +23,12 @@ create function pg_temp.uid(i int) returns uuid language sql as $$ select ('b200
 create function pg_temp.contest(n int, label text) returns uuid language plpgsql as $$
 declare c public.contests;
 begin
-  perform pg_temp.as_user(0);
+  perform set_config('test.host', ('b2000000-0000-0000-0001-' || lpad(nextval('pg_temp.hosts')::text, 12, '0')), true);
+  perform set_config('request.jwt.claims', json_build_object('sub', current_setting('test.host'), 'role', 'authenticated')::text, true);
   c := public.create_contest(label, wave => 'point', end_waves => 2, max_entrants => 32);
   for i in 1..n loop perform pg_temp.as_user(i); perform public.join_contest(c.code, 'S' || i); end loop;
-  perform pg_temp.as_user(0); perform public.start_contest(c.id);
+  perform set_config('request.jwt.claims', json_build_object('sub', c.host, 'role', 'authenticated')::text, true);
+  perform public.start_contest(c.id);
   return c.id;
 end $$;
 
@@ -41,7 +48,7 @@ begin
       end loop;
       perform public.finish_heat(hh.id);
     end loop;
-    perform pg_temp.as_user(0);
+    perform set_config('request.jwt.claims', json_build_object('sub', (select host from public.contests where id = cid), 'role', 'authenticated')::text, true);
     perform public.close_heat(hh.id);
   end loop;
   return rnd;
@@ -58,7 +65,7 @@ create temp table t (k text primary key, v text);
 
 -- 9 surfers.
 insert into t select 'c9', pg_temp.contest(9, 'Nine');
-select is((select format || '/' || heat_size from public.contests where id = (select v::uuid from t where k = 'c9')), 'bracket/4', 'over 8 is a bracket of heats of 4');
+select is((select format || '/' || heat_size from public.contests where id = (select v::uuid from t where k = 'c9')), 'bracket/4', 'contests run in heats of up to 4');
 select is(pg_temp.shape((select v::uuid from t where k = 'c9')), '3,3,3', '9: round 1 is three heats of 3');
 select is((select string_agg(e.seed_rank::text, ',' order by e.seed_rank) from public.heat_entries he join public.heats h on h.id = he.heat_id join public.entrants e on e.id = he.entrant_id
            where h.contest_id = (select v::uuid from t where k = 'c9') and h.number = 1), '1,6,7', 'snake seeding: heat 1 has seeds 1, 6, 7');
@@ -97,10 +104,30 @@ select is(pg_temp.shape((select v::uuid from t where k = 'c16')), '4,4,4,4 | 4,4
 insert into t select 'c5', pg_temp.contest(5, 'Five');
 select is(pg_temp.shape((select v::uuid from t where k = 'c5')), '3,2', '5: heats of 3 and 2');
 select pg_temp.ride_round((select v::uuid from t where k = 'c5'),
-  'case $r when 1 then 9 when 4 then (case $w when 1 then 8 else 4 end) when 5 then 6 else 5 end');
+  'case $r when 1 then 9 when 4 then (case $w when 1 then 8 else 4 end) when 5 then 6 when 2 then 7 else 5 end');
 select is((select string_agg(e.seed_rank || ':' || he.place || ':' || he.advanced, ' ' order by e.seed_rank) from public.heat_entries he join public.heats h on h.id = he.heat_id join public.entrants e on e.id = he.entrant_id
            where h.contest_id = (select v::uuid from t where k = 'c5') and h.round = 1 and h.number = 1), '1:1:true 4:2:true 5:3:false', 'tied on 12: the better best wave goes through');
-select is(pg_temp.shape((select v::uuid from t where k = 'c5')), '3,2 | 4', '... into a final of 4');
+select is((select string_agg(e.seed_rank || ':' || he.place || ':' || he.advanced, ' ' order by e.seed_rank) from public.heat_entries he join public.heats h on h.id = he.heat_id join public.entrants e on e.id = he.entrant_id
+           where h.contest_id = (select v::uuid from t where k = 'c5') and h.round = 1 and h.number = 2), '2:1:true 3:2:false', 'a heat of 2: only its winner goes through');
+select is(pg_temp.shape((select v::uuid from t where k = 'c5')), '3,2 | 3', '... into a final of 3');
+
+-- 2 to 4 a heat, always: 4 is one heat (a final, nobody marked through); 6, 7 and 8.
+insert into t select 'c4', pg_temp.contest(4, 'Four');
+select is(pg_temp.shape((select v::uuid from t where k = 'c4')), '4', '4: one heat');
+select pg_temp.ride_round((select v::uuid from t where k = 'c4'), '10 - $r * 0.1 - $w * 0.4');
+select is((select c.state || '/' || count(*) filter (where he.advanced is not null) from public.contests c join public.heats h on h.contest_id = c.id join public.heat_entries he on he.heat_id = h.id
+           where c.id = (select v::uuid from t where k = 'c4') group by c.state), 'done/0', '... it''s the final: done, nobody "through"');
+insert into t select 'c6', pg_temp.contest(6, 'Six');
+insert into t select 'c7', pg_temp.contest(7, 'Seven');
+insert into t select 'c8', pg_temp.contest(8, 'Eight');
+select is(pg_temp.shape((select v::uuid from t where k = 'c6')) || ' / ' || pg_temp.shape((select v::uuid from t where k = 'c7')) || ' / ' || pg_temp.shape((select v::uuid from t where k = 'c8')),
+  '3,3 / 3,4 / 4,4', '6, 7, 8: two heats each (7: snake order puts the 7th seed in heat 2)');
+select pg_temp.ride_round((select v::uuid from t where k = 'c8'), '10 - $r * 0.1 - $w * 0.4');
+select is(pg_temp.shape((select v::uuid from t where k = 'c8')), '4,4 | 4', '8: a final of 4');
+select is((select max(n)::int from (select count(*) n from public.heat_entries he join public.heats h on h.id = he.heat_id
+           where h.contest_id in (select v::uuid from t where k like 'c%') group by he.heat_id) x), 4, 'no heat anywhere has more than 4');
+select is((select min(n)::int from (select count(*) n from public.heat_entries he join public.heats h on h.id = he.heat_id
+           where h.contest_id in (select v::uuid from t where k like 'c%') group by he.heat_id) x), 2, '... or fewer than 2');
 
 select * from finish();
 rollback;

@@ -292,9 +292,10 @@ sees it on their profile.
   the guest session an account with the same id and lands on the account page to make a profile. Migration
   `20261125030000_live_heats.sql`. Tests: `npm run test:live-heat-browser` (19, two browsers riding a 1-wave contest
   on the autopilot, then the guest claims), `supabase/tests/live_heats_test.sql` (11), test/heat.mjs (rivals).
-- [x] **13. Brackets** (2026-11-25). Host picks how many: up to 8 (one heat, `single`) or 16 / 32 (`bracket`).
-  Migration `20261125040000_brackets.sql`: `private.build_round` makes a round's heats (one when 4 or fewer, else
-  ceil(n/4): heats of 3-4 as even as the numbers allow), seeds them in snake order, draws jerseys per heat from the
+- [x] **13. Brackets** (2026-11-25). **Every heat has 2 to 4 surfers** (the user): host picks up to 4 (one heat), 8,
+  16 or 32 (heats and a final). Migration `20261125040000_brackets.sql`: `private.build_round` makes a round's heats
+  (one when 4 or fewer, else ceil(n/4): 2 to 4 each, as even as the numbers allow; the top 2 of a heat through, only
+  the winner of a heat of 2, nobody marked through in the final), seeds them in snake order, draws jerseys per heat from the
   round's seed (`round_seed`: every heat of a round has the same waves); `start_contest` builds round 1 (by who joined
   first); `close_heat` locks the contest (two heats closing at once can't both miss the end of the round) and, when
   the last heat of a round closes, builds the next one from who went through (top 2 of each heat; by place, then total,

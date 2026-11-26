@@ -1,9 +1,10 @@
 -- Brackets (accounts plan task 13; the live contests plan's phase 5).
 --
--- A contest of up to 8 is one heat (format 'single'). Bigger (16 or 32: format 'bracket') runs in rounds: heats of 3 or
--- 4 (as even as the numbers allow), the top `advance` (2) of each heat through, until a final of 4 or fewer. Every heat
--- of a round runs at the same time with the round's own seed (the same waves). The database builds each round when the
--- last heat of the one before closes, with a short break to look at the bracket, so nothing depends on who's still online.
+-- Every heat has 2 to 4 surfers (the user, 2026-11-25). A contest of 4 or fewer is one heat; more run in rounds: heats of
+-- 2 to 4 (as even as the numbers allow), the top `advance` (2) of each heat through (1 from a heat of 2, so every heat
+-- has someone go out), until a final of 4 or fewer. Every heat of a round runs at the same time with the round's own seed
+-- (the same waves). The database builds each round when the last heat of the one before closes, with a short break to
+-- look at the bracket, so nothing depends on who's still online.
 -- Seeding: round 1 by who joined first; later rounds by place in their heat, then total, then the first round's seed;
 -- either way spread across the heats in snake order (1st, 2nd, 3rd... down the heats and back), so the best don't meet
 -- early. Someone who leaves scores nothing more; their heat still closes after the grace.
@@ -39,7 +40,7 @@ declare
 begin
   select * into c from public.contests x where x.id = cid;
   if n = 0 then return; end if;
-  k := case when c.format = 'single' or n <= 4 then 1 else ceil(n / 4.0)::int end;
+  k := case when n <= 4 then 1 else ceil(n / 4.0)::int end; -- (2 to 4 a heat)
   s := private.round_seed(c.seed, rnd);
   for i in 1..k loop
     insert into public.heats (contest_id, round, number, seed, starts_at, ends_at)
@@ -59,7 +60,7 @@ end;
 $$;
 revoke all on function private.round_seed(int, int), private.round_break(), private.build_round(uuid, int, uuid[], timestamptz) from public;
 
--- ---- create_contest: up to 32; over 8 is a bracket ----
+-- ---- create_contest: up to 32, always in heats of 2 to 4 ----
 create or replace function public.create_contest(
   name text, wave text default null, break_id uuid default null,
   end_minutes numeric default null, end_waves int default null,
@@ -97,8 +98,7 @@ begin
   insert into public.contests (code, host, name, spot, seed, end_minutes, end_waves, max_entrants, visibility, format, heat_size, advance)
   values (private.contest_code(), uid, name, s, floor(random() * 2147483647)::int, create_contest.end_minutes,
           create_contest.end_waves, create_contest.max_entrants, create_contest.visibility,
-          case when create_contest.max_entrants > 8 then 'bracket' else 'single' end,
-          case when create_contest.max_entrants > 8 then 4 else 8 end, 2)
+          'bracket', 4, 2)
   returning * into c;
   return c;
 end;
@@ -144,6 +144,7 @@ declare
   c public.contests;
   everyone_done boolean;
   heats_in_round int;
+  through int;
 begin
   select x.contest_id into c.id from public.heats x where x.id = close_heat.heat_id;
   if c.id is null then perform private.fail('no_heat', 'P0002'); end if;
@@ -160,6 +161,10 @@ begin
         and (c.end_waves is null
              or (select count(*) from public.rides r where r.heat_id = h.id and r.entrant_id = he.entrant_id) < c.end_waves));
     if not everyone_done and now() <= h.ends_at + private.ride_grace() then perform private.fail('heat_still_on', '55000'); end if;
+    -- who goes through: the top `advance`, but never everyone (1 from a heat of 2); nobody from the final
+    select count(*) into heats_in_round from public.heats x where x.contest_id = c.id and x.round = h.round;
+    through := case when heats_in_round = 1 then 0
+                    else least(c.advance, (select count(*) from public.heat_entries he where he.heat_id = h.id)::int - 1) end;
     with best as (
       select he.entrant_id,
              (array_agg(r.score order by r.score desc) filter (where r.score is not null)) as s
@@ -173,13 +178,12 @@ begin
       from best
     )
     update public.heat_entries he set total = scored.total, place = scored.place,
-           advanced = case when c.format = 'bracket' then scored.place <= c.advance end
+           advanced = case when heats_in_round > 1 then scored.place <= through end
       from scored where he.heat_id = h.id and he.entrant_id = scored.entrant_id;
     update public.heats x set state = 'done', closed_at = now() where x.id = h.id;
 
     if not exists (select 1 from public.heats x where x.contest_id = c.id and x.round = h.round and x.state = 'live') then
-      select count(*) into heats_in_round from public.heats x where x.contest_id = c.id and x.round = h.round;
-      if c.format = 'bracket' and heats_in_round > 1
+      if heats_in_round > 1
          and not exists (select 1 from public.heats x where x.contest_id = c.id and x.round = h.round + 1) then
         -- the next round: who went through, by place, then total, then their first seed
         perform private.build_round(c.id, h.round + 1,
@@ -188,7 +192,7 @@ begin
                  where x.contest_id = c.id and x.round = h.round and he.advanced
                  order by he.place, he.total desc, e.seed_rank),
           now() + private.round_break());
-      else
+      elsif heats_in_round = 1 then -- (the final)
         update public.contests x set state = 'done', ended_at = now() where x.id = c.id and x.state = 'running';
       end if;
     end if;
