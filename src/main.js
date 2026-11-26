@@ -122,15 +122,20 @@ function bodyColors(m, which, outfit, jersey = null, style = {}) {
         if (f > 0.5) col = topLilac; else if (f < -0.62) col = topWhite;
         col = cloth(x, y, z) || col;
       }
-      // the bottoms; cheeky (a Pro cut, task 16): at the back, cut high toward the sides and narrowing to the middle, so
-      // more of the butt shows (the front as full)
-      const pv = m.rest.pelvis.head, back = z < pv[2] - 0.03, cheeky = style.cut === 'cheeky';
-      const ax2 = Math.abs(x - pv[0]); // (a strip down the middle stays covered; out from it the cut climbs to high on the hips)
-      const backEdge = cheeky && back && ax2 > 0.012 ? -0.03 + 0.11 * Math.min(1, (ax2 - 0.012) / 0.07) ** 0.7 : -0.05;
-      // cheeky is a little bikini all round: a lower rise, a thin string round the hips, and at the front a small
-      // triangle narrowing to the crotch (the hips bare)
-      const rise = cheeky ? 0.085 : 0.12, string = cheeky && y > rise - 0.012;
-      const frontCut = cheeky && !back && !string && ax2 > 0.034 + 0.105 * Math.min(1, Math.max(0, (y + 0.05) / 0.135)); // (the mesh is ~2 cm a vertex here: narrower and it breaks up)
+      // the bottoms, by the cut (a Pro choice, task 16): full (the boy-short), classic (a standard bikini: a regular rise,
+      // a thin band at the sides, a fuller triangle at the front, the back mostly covered with the leg line a little high
+      // at the outer cheeks), or cheeky (a little bikini: a lower rise, a thin string round the hips, a small triangle at
+      // the front, and at the back cut high toward the sides, narrowing to a strip down the middle)
+      const pv = m.rest.pelvis.head, hipFront = z > pv[2] + 0.01, back = !hipFront, cut = style.cut || 'full', bikini = cut !== 'full'; // ("back": the back and the curve under the cheeks)
+      const ax2 = Math.abs(x - pv[0]);
+      const backEdge = !back ? -0.05
+        : cut === 'cheeky' && ax2 > 0.012 ? -0.03 + 0.11 * Math.min(1, (ax2 - 0.012) / 0.07) ** 0.7
+        : cut === 'classic' ? -0.05 + 0.065 * ((u) => u * u * (3 - 2 * u))(Math.min(1, Math.max(0, (ax2 - 0.055) / 0.065))) // (the cheeks covered; the leg line rises only toward the outer edge)
+        : -0.05;
+      const rise = { full: 0.12, classic: 0.1, cheeky: 0.085 }[cut] ?? 0.12, string = bikini && y > rise - 0.012;
+      const t = Math.min(1, Math.max(0, (y + 0.05) / (rise + 0.05)));
+      const half = cut === 'cheeky' ? 0.034 + 0.105 * t : 0.05 + 0.12 * t; // (the mesh is ~2 cm a vertex here: narrower and it breaks up)
+      const frontCut = bikini && hipFront && !string && ax2 > half;
       if (hipBone && y < rise && (y > backEdge || string) && !frontCut) {
         col = sage;
         const f = Math.sin(x * 120 + 0.4) * Math.sin(y * 135 + 1.1) * Math.sin(z * 110);

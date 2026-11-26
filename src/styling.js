@@ -10,8 +10,9 @@ export const PALETTE = {
 };
 export const PATTERNS = ['solid', 'stripes', 'floral'];
 export const PARTS = [['suit', 'Wetsuit'], ['shorts', 'Trunks / Bikini'], ['board', 'Board'], ['nose', 'Nose']];
-// The bikini's cut (a female surfer): full, or cheeky (higher at the back, more of the butt showing).
-export const CUTS = [['full', 'Full'], ['cheeky', 'Cheeky']];
+// The bikini's cut (a female surfer): full (the boy-short), classic (a standard bikini), or cheeky (higher at the back,
+// more of the butt showing).
+export const CUTS = [['full', 'Full'], ['classic', 'Classic'], ['cheeky', 'Cheeky']];
 // Which surfer (free for everyone: profiles.surfer, not styling): null is each wave's own.
 export const BODIES = [['guy', 'Male'], ['girl', 'Female']];
 export const cleanBody = (b) => (b === 'guy' || b === 'girl' ? b : null);
@@ -23,7 +24,7 @@ export function cleanStyling(s) {
   if (!s || typeof s !== 'object') return out;
   for (const [k] of PARTS) if (PALETTE[s[k]]) out[k] = s[k];
   if (PATTERNS.includes(s.pattern) && s.pattern !== 'solid') out.pattern = s.pattern;
-  if (s.cut === 'cheeky') out.cut = 'cheeky';
+  if (s.cut === 'classic' || s.cut === 'cheeky') out.cut = s.cut;
   return out;
 }
 export const stylingKey = (s) => JSON.stringify(cleanStyling(s));

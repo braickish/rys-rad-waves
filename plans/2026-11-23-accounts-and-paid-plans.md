@@ -344,8 +344,10 @@ sees it on their profile.
   replay (a contest's ▶, a recap) shows the rider's look to anyone; unknown values are dropped (`cleanStyling`).
   Also (the user): **Male / Female** (`profiles.surfer`, free for everyone, saved at once; null: each wave's own; worn in
   your rides, carried in recordings as `surfer`, and the girl's own poses follow it), "Trunks / Bikini", and a **bikini
-  cut**, Full or Cheeky (Pro styling `cut`: at the back the cut climbs high on the hips, a strip down the middle, more
-  of the butt showing). Migration `20261125080000_surfer_body.sql`.
+  cut**, Full (the boy-short), Classic (a standard bikini: the cheeks covered, the leg line rising toward the outside)
+  or Cheeky (a little bikini: a low rise and a string, a small front triangle, at the back cut high on the hips to a
+  strip down the middle) (Pro styling `cut`). The female body's buttocks are rounder and fuller (main.js `shapeGirl`,
+  the rest pose reshaped at load). Migrations `20261125080000_surfer_body.sql`, `20261125090000_classic_cut.sql`.
   Tests: `supabase/tests/styling_test.sql` (13), `npm run test:styling-browser` (15).
 - [ ] **17. Recap video.** A recap page from a heat's rides and timeline, with broadcast cameras, a lower-third scoreboard,
   commentary written by Claude in an Edge Function and voiced by text-to-speech, `MediaRecorder` export, kept in Storage,

@@ -2,7 +2,7 @@
 -- without Pro it can't be set; when Pro lapses it stays, can be cleared, and can't be changed. Which surfer (male or
 -- female) is free for everyone.
 begin;
-select plan(13);
+select plan(14);
 
 insert into auth.users (id, email, aud, role, is_anonymous) values
   ('a2000000-0000-0000-0000-000000000001', 'stylepro@example.com', 'authenticated', 'authenticated', false),
@@ -24,6 +24,7 @@ select throws_ok($$ update public.profiles set styling = '{"hat":"red"}' where i
 select throws_ok($$ update public.profiles set styling = '{"pattern":"plaid"}' where id = 'a2000000-0000-0000-0000-000000000001' $$, '23514', null, 'only the known patterns');
 
 select lives_ok($$ update public.profiles set styling = '{"shorts":"pink","cut":"cheeky"}' where id = 'a2000000-0000-0000-0000-000000000001' $$, 'a cheeky bikini cut (Pro)');
+select lives_ok($$ update public.profiles set styling = '{"shorts":"pink","cut":"classic"}' where id = 'a2000000-0000-0000-0000-000000000001' $$, 'a classic bikini cut (Pro)');
 select throws_ok($$ update public.profiles set styling = '{"cut":"thong"}' where id = 'a2000000-0000-0000-0000-000000000001' $$, '23514', null, 'only the known cuts');
 
 -- Which surfer: free for everyone.
