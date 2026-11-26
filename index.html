@@ -191,6 +191,13 @@
   a.acct-link { display: inline-block; }
   .acct-msg { margin-top: 8px; font-weight: 700; }
   #results [hidden] { display: none !important; }
+  /* A recap (task 17): the broadcast graphics over the game; the game's own HUD and panels step aside */
+  .recap-overlay { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 3; }
+  body.recap .hud, body.recap #hint, body.recap #replay-badge, body.recap #board, body.recap .touchbtns, body.recap .walk-btn, body.recap #balance { display: none !important; }
+  .recap-bar { position: fixed; top: 10px; right: 10px; z-index: 6; display: flex; gap: 8px; align-items: center; background: rgba(11,26,36,.7); border-radius: 18px; padding: 6px 8px 6px 14px; font-size: 13px; }
+  .recap-bar[hidden] { display: none; }
+  .recap-bar button, .recap-bar a { font: 700 12px Rubik, sans-serif; color: #fff; background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.35); border-radius: 14px; padding: 4px 10px; cursor: pointer; text-decoration: none; }
+  .recap-bar button[hidden] { display: none; }
   .claim { margin: 4px 0 16px; } .claim .acct-msg { flex-basis: 100%; }
   #results.waiting .go { animation: none; background: rgba(11,26,36,.6); font-size: 15px; }
   .walk-btn { position: fixed; right: 16px; width: 96px; height: 96px; border-radius: 48px; border: 3px solid #fff; font-family: Bungee, sans-serif; font-size: 15px; color: #fff; background: rgba(255,170,40,.85); box-shadow: 3px 3px 0 rgba(0,0,0,.3); touch-action: none; cursor: pointer; z-index: 5; padding: 0 10px; line-height: 1.1; }
@@ -297,6 +304,7 @@
   </div>
 </div>
 
+<div id="recap-bar" class="recap-bar" hidden><b id="recap-name"></b><button id="recap-again" hidden>↻ Watch again</button><button id="recap-video">⬇ Make video</button><a id="recap-exit" href="./">✕</a></div>
 <button id="replay-badge" hidden>▶ REPLAY <span id="replay-exit">✕ Stop</span></button>
 <div id="board" class="board" hidden><div class="bh"><span id="board-clock">10:00</span><small>Heat</small></div><div id="board-rows"></div></div>
 <div id="board-pop" class="board-pop"></div>

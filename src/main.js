@@ -7,8 +7,9 @@ import { SEA, nextWave, stepSea, seedSea, goToWave } from './sea.js';
 import { canMakeVideo, createVideo, shareVideo, saveVideo, VIDEO } from './video.js';
 import { createRecording, recordStep, finishRecording, encodeRecording, decodeRecording, createPlayer, playerStep, playerEnd } from './replay.js';
 import { applyBuilt } from './waves/built.js';
-import { parseHeatParam, createHeat, stepHeat, canCatch, addWave, addRivalWave, checkOver, standings, judgeSeed, clockText, you as heatYou } from './heat.js';
+import { JERSEYS, parseHeatParam, createHeat, stepHeat, canCatch, addWave, addRivalWave, checkOver, standings, judgeSeed, clockText, you as heatYou } from './heat.js';
 import { connectLive } from './live-heat.js';
+import { loadRecap, createRecapPlayer } from './recap-player.js';
 import { perspective, lookAt, mul, invert } from './math.js';
 import { createPose, surferObjects, setBoardStyle, setSurferBody, setSurferStance, currentStanceOf } from './surfer.js';
 import { PALETTE, cleanStyling, stylingKey, cleanBody, cleanStance } from './styling.js';
@@ -315,7 +316,7 @@ function wantBody() {
   const b = loadBody(which);
   // (the wave's outfit, e.g. Raglan's wetsuit, painted once per body and outfit)
   // (?outfit=topper|shortsleeve|wetsuit|hood: try a look on any wave, for testing)
-  const outfit = params.get('outfit') ?? (WAVE.outfit || ''), jersey = H ? heatYou(H).jersey.color : null;
+  const outfit = params.get('outfit') ?? (WAVE.outfit || ''), jersey = H ? heatYou(H).jersey.color : recap ? recapJersey : null; // (a recap: the heat's jersey on each wave)
   const style = currentStyle(), sk = stylingKey(style) + ':' + currentStanceOf(), key = which + ':' + outfit + ':' + (jersey || '') + ':' + sk; // (the stance moves the leash)
   if (b.body && renderer.bodyShown !== key) {
     b.colors = b.outfits[outfit + ':' + (jersey || '') + ':' + sk] ||= bodyColors(b.model, which, outfit, jersey, style).colors;
@@ -547,10 +548,11 @@ function startReplay(rec) {
   for (const id of ['title', 'over', 'judge', 'results']) $(id).hidden = true;
   $('replay-badge').hidden = false;
   $('replay-exit').textContent = replayFrom === 'results' ? '✕ Back to results' : '✕ Stop';
-  flash('Replay', `${WAVE.name} · ${(rec.steps * rec.step).toFixed(1)}s`);
+  if (!recap) flash('Replay', `${WAVE.name} · ${(rec.steps * rec.step).toFixed(1)}s`); // (a recap has its own graphics)
 }
 // After a replay: did it ride the same as the recording?
 function showReplayEnd(s) {
+  if (recap) { player = null; recap.rideEnded(); return; } // (a recap: on to its next wave; a recap's video goes on too)
   if (vid) { player = null; $('replay-badge').hidden = true; vid.ending = true; return; } // (making a video: this frame is its last, tick finishes it)
   const rec = player.rec, e = playerEnd(player, rider), j = rec.result?.judge || { seed: 1, seen: [] };
   const judged = scoreRide(rideLog, { size: (WAVE.sizeK || 1) * SIZE, seed: j.seed, seen: new Set(j.seen) }).score;
@@ -617,6 +619,60 @@ const videoPanel = (title, { bar = 0, note = '', ready = false, cancel = '✕ Ca
   $('video-share').hidden = !ready; $('video-save').hidden = !ready;
   $('video-close').textContent = cancel;
 };
+// A contest's recap (accounts plan task 17; src/recap-player.js): index.html?recap=<code> rides the final's best waves
+// again with broadcast graphics, and makes it a video. The game's own panels and HUD step aside (body.recap).
+let recap = null, recapData = null, recapJersey = null;
+const RECAP_AFTER = 2.4, RECAP_END = 6;
+async function startRecap(code) {
+  document.body.classList.add('recap');
+  for (const id of ['title', 'over', 'judge', 'results']) $(id).hidden = true;
+  $('recap-bar').hidden = false; $('recap-name').textContent = 'Loading the recap…';
+  recapData = await loadRecap(code.toUpperCase());
+  $('recap-name').textContent = `${recapData.contest.name} · ${recapData.heat.final && recapData.heat.rounds > 1 ? 'the final' : 'the heat'}`;
+  $('recap-exit').href = `contest.html?c=${encodeURIComponent(recapData.contest.code)}`;
+  recap = createRecapPlayer(recapData, {
+    startReplay: (rec) => startReplay(rec),
+    setCam: (m) => { camMode = m; },
+    setJersey: (id) => { recapJersey = JERSEYS.find((j) => j.id === id)?.color || null; },
+    progress: () => (player ? player.step / Math.max(1, player.rec.steps) : 1),
+    canvas,
+    onDone: () => {
+      if (vid?.recap) vid.ending = true;
+      $('recap-again').hidden = false;
+    },
+  });
+  window.__recap = recapData; // (tests)
+  recap.start();
+}
+$('recap-again').addEventListener('click', (e) => { e.stopPropagation(); if (recap && !vid) recap.start(); });
+$('recap-video').addEventListener('click', (e) => { e.stopPropagation(); startRecapVideo(); });
+// The host's recap video goes up with the contest (the recaps bucket, save_recap), for its page and everyone's profile.
+async function keepRecap(blob, seconds) {
+  const note = $('video-note'), was = note.textContent;
+  note.textContent = `${was} · keeping it with the contest…`;
+  try {
+    const c = await initAccount(), path = `${recapData.contest.id}/recap.mp4`;
+    const up = await c.storage.from('recaps').upload(path, blob, { upsert: true, contentType: 'video/mp4' });
+    if (up.error) throw up.error;
+    const { error } = await c.rpc('save_recap', { contest_id: recapData.contest.id, video_path: path, seconds: +seconds.toFixed(1) });
+    if (error) throw error;
+    note.textContent = `${was} · kept on the contest page ✓`;
+    window.__recapKept = true; // (tests)
+  } catch (err) { console.warn('keep recap', err); note.textContent = `${was} · couldn't keep it with the contest (${err.message})`; }
+}
+// The recap as an MP4 (the share video's encoder, src/video.js): from the top, one frame at a time, graphics and all.
+async function startRecapVideo() {
+  if (!recap || vid) return;
+  videoPanel('Making the recap video…', { note: 'getting the encoder ready' });
+  let enc;
+  try { enc = await createVideo(canvas, { bitrate: 3.5e6 }); } catch (err) { videoPanel("Couldn't make a video", { note: err.message, cancel: 'Close' }); return; } // (a lower bitrate than a ride's share video: recaps run a minute or more, and are kept)
+  if ($('video').hidden) { enc.cancel(); return; }
+  const total = recapData.shown.reduce((a, s) => a + s.rec.steps * s.rec.step + RECAP_AFTER, 0) + RECAP_END;
+  vid = { enc, rec: null, back: null, ending: false, p: null, total, recap: true };
+  recap.start();
+  videoPanel('Making the recap video…', { note: `${enc.w}×${enc.h}` });
+}
+
 async function startVideo() {
   if (vid || !lastRecording || player) return;
   const back = ['over', 'judge'].find((id) => !$(id).hidden) || 'over';
@@ -634,8 +690,8 @@ async function startVideo() {
 // Called each frame while making one, right after the frame is drawn (the canvas is only readable in this task).
 function videoFrame() {
   const v = vid;
-  if (v.enc.seconds >= VIDEO.maxSeconds) v.ending = true; // (a long ride: the video stops here)
-  v.p = v.enc.capture();
+  if (!v.recap && v.enc.seconds >= VIDEO.maxSeconds) v.ending = true; // (a long ride: the video stops here)
+  v.p = v.enc.capture(v.recap ? recap.overlay : null);
   $('video-bar').style.width = `${Math.min(100, Math.round(100 * v.enc.seconds / v.total))}%`;
   if (v.ending) v.p = v.p.then(() => finishVideo(v));
   return v.p.catch((err) => videoFailed(v, err));
@@ -645,11 +701,12 @@ async function finishVideo(v) {
   videoPanel('Finishing…', { bar: 1 });
   const blob = await v.enc.finish();
   vid = null; player = null; state = 'over';
-  const name = `rys-rad-waves-${v.rec.wave}-${new Date().toISOString().slice(0, 16).replace(/[:T-]/g, '')}.mp4`;
-  madeVideo = { blob, name, title: `My ride at ${WAVE.name} · Ry's Rad Waves` };
+  const name = v.recap ? `rys-rad-waves-recap-${params.get('recap')}.mp4` : `rys-rad-waves-${v.rec.wave}-${new Date().toISOString().slice(0, 16).replace(/[:T-]/g, '')}.mp4`;
+  madeVideo = { blob, name, title: v.recap ? `${recapData.contest.name} · Ry's Rad Waves` : `My ride at ${WAVE.name} · Ry's Rad Waves` };
   window.__video = { size: blob.size, frames: v.enc.frames, w: v.enc.w, h: v.enc.h, seconds: v.enc.seconds, blob }; // (test/video.mjs)
   $('video').dataset.back = v.back;
   videoPanel('Your video is ready', { ready: true, note: `${v.enc.seconds.toFixed(1)} s · ${(blob.size / 1e6).toFixed(1)} MB`, cancel: '✕ Close' });
+  if (v.recap && currentUser()?.id === recapData.contest.host) keepRecap(blob, v.enc.seconds); // (the host's: kept with the contest)
 }
 function videoFailed(v, err) {
   if (vid !== v) return;
@@ -801,7 +858,7 @@ function heatPop(name, sc, color) {
 }
 
 function startOrRestart() {
-  if (state === 'play') return;
+  if (state === 'play' || recap) return; // (a recap plays itself: taps and keys don't start a ride)
   if (HEAT_END) {
     if (H && !H.done && !canCatch(H)) checkOver(H, false); // (the horn has gone, or you've ridden your waves)
     if (H?.live && H.done) { // (a live heat: the results, then back to the contest once they're final)
@@ -1283,6 +1340,7 @@ async function main() {
     } catch (err) { showError(`Replay: ${err.message}`); }
   }
   if (params.has('cam')) camMode = Number(params.get('cam')) || 0;
+  if (params.has('recap')) startRecap(params.get('recap')).catch((err) => showError(`Recap: ${err.message}`));
   let last = performance.now(), acc = 0, frame = 0, time = 0, flow = 0;
   function tick(now) {
     const dt = vid ? 1 / VIDEO.fps : Math.min(0.05, (now - last) / 1000); // (making a video: one video frame of ride per frame drawn)
@@ -1423,6 +1481,7 @@ async function main() {
       $('balance-needle').style.top = `${94 - h * 88}%`; // up = higher on the face
       bm.classList.toggle('danger', d > 0.85 || h > 0.85);
     }
+    if (recap) { recap.step(dt); recap.draw(); } // (the recap's director and graphics, on the game's own time)
     if (vid && !vid.p) videoFrame().then(() => { if (vid) vid.p = null; requestAnimationFrame(tick); }); // (the next frame once the encoder's ready for it)
     else requestAnimationFrame(tick);
   }

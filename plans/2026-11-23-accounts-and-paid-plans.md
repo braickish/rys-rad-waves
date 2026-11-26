@@ -354,7 +354,17 @@ sees it on their profile.
   `?stance=` tries one. Migrations `20261125080000_surfer_body.sql`, `20261125090000_classic_cut.sql`,
   `20261125100000_stance.sql`.
   Tests: `supabase/tests/styling_test.sql` (13), `npm run test:styling-browser` (15).
-- [ ] **17. Recap video.** A recap page from a heat's rides and timeline, with broadcast cameras, a lower-third scoreboard,
+- [ ] **17. Recap video.** *Step 1 built (2026-11-26, no commentary, the user's call: no LLM yet): src/recap.js (the
+  final's story: waves in the order caught, standings after each, lead changes; shown: everyone's best, each lead change,
+  the winner's last, at most 6), src/recap-overlay.js (broadcast graphics on a 2D canvas: title card, standings, lower
+  third with the score and "takes the lead!", the result), src/recap-player.js (`index.html?recap=<code>`: the shown
+  waves ridden again from their logs, each surfer in their heat jersey, the camera from the channel with a front-on cut
+  through the middle of longer rides; the game's HUD and panels step aside). Make video: the share-video encoder with
+  the graphics drawn into each frame (3.5 Mb/s: ~31 MB a minute). The host's video is kept (migration
+  `20261126000000_recaps.sql`: `recaps`, the public `recaps` bucket at <contest id>/recap.mp4, `save_recap`), played on
+  the contest page, linked from the results on profiles. Also: check-rides now checks one ride a call (it hit the
+  Edge Function CPU limit with several) and callers ask again. Tests: test/recap.mjs, `npm run test:recap-browser` (13).
+  Step 2: commentary (Claude, in an Edge Function) and a voice.* Originally: A recap page from a heat's rides and timeline, with broadcast cameras, a lower-third scoreboard,
   commentary written by Claude in an Edge Function and voiced by text-to-speech, `MediaRecorder` export, kept in Storage,
   and shown on the profiles of everyone in it.
 - [ ] **18. App store (optional).** A wrapper app, entitlements with `source = 'apple'` (IAP or link-out, per the rules at the

@@ -17,18 +17,18 @@ export const canMakeVideo = () => typeof VideoEncoder === 'function' && typeof V
 
 // Start a video of what's drawn on `src` (the game's canvas, WebGPU). capture() must be called in the same task the frame was
 // drawn in (a WebGPU canvas's picture is only readable until it's shown); it resolves when the encoder is ready for the next.
-export async function createVideo(src) {
+export async function createVideo(src, { bitrate = VIDEO.bitrate } = {}) {
   if (!canMakeVideo()) throw new Error("this browser can't encode video (no WebCodecs)");
   const mb = await import(MEDIABUNNY);
   const k = Math.min(1, VIDEO.maxSide / Math.max(src.width, src.height));
   const w = Math.max(2, Math.round(src.width * k / 2) * 2), h = Math.max(2, Math.round(src.height * k / 2) * 2); // (H.264: even sizes)
-  if (!(await mb.canEncodeVideo('avc', { width: w, height: h, bitrate: VIDEO.bitrate }))) throw new Error(`this browser can't encode H.264 video at ${w}x${h}`);
+  if (!(await mb.canEncodeVideo('avc', { width: w, height: h, bitrate }))) throw new Error(`this browser can't encode H.264 video at ${w}x${h}`);
   // (a 2D copy at the video's size: scaled, and still there while the encoder takes its time)
   const cv = typeof OffscreenCanvas === 'function' ? new OffscreenCanvas(w, h) : Object.assign(document.createElement('canvas'), { width: w, height: h });
   const ctx = cv.getContext('2d', { alpha: false });
   const logo = await makeLogo(Math.round(0.06 * Math.min(w, h))), pad = Math.round(0.03 * Math.min(w, h));
   const output = new mb.Output({ format: new mb.Mp4OutputFormat({ fastStart: 'in-memory' }), target: new mb.BufferTarget() });
-  const source = new mb.CanvasSource(cv, { codec: 'avc', bitrate: VIDEO.bitrate, keyFrameInterval: 2 });
+  const source = new mb.CanvasSource(cv, { codec: 'avc', bitrate, keyFrameInterval: 2 });
   output.addVideoTrack(source, { frameRate: VIDEO.fps });
   await output.start();
   let n = 0;
@@ -36,7 +36,8 @@ export async function createVideo(src) {
     w, h,
     get frames() { return n; },
     get seconds() { return n / VIDEO.fps; },
-    capture() { ctx.drawImage(src, 0, 0, w, h); ctx.drawImage(logo, pad, pad); const p = source.add(n / VIDEO.fps, 1 / VIDEO.fps); n++; return p; },
+    // (over: a canvas of graphics drawn on top, the recap's: src/recap-overlay.js)
+    capture(over) { ctx.drawImage(src, 0, 0, w, h); if (over) ctx.drawImage(over, 0, 0, w, h); ctx.drawImage(logo, pad, pad); const p = source.add(n / VIDEO.fps, 1 / VIDEO.fps); n++; return p; },
     async finish() { await output.finalize(); return new Blob([output.target.buffer], { type: 'video/mp4' }); },
     cancel() { output.cancel().catch(() => {}); },
   };

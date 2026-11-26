@@ -93,3 +93,4 @@ main.wide { max-width: 980px; }
 .pattern-btn { font-size: 12px; padding: 4px 12px; background: rgba(255,255,255,.07); color: var(--text); border-color: var(--line); }
 .pattern-btn.on { background: var(--teal); color: var(--ink); border-color: #fff; }
 #style-form.locked .swatches, #style-form.locked .pattern-row { opacity: .45; pointer-events: none; }
+.recap video { display: block; width: 100%; border-radius: 12px; background: #000; margin-bottom: 10px; }

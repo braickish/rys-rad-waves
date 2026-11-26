@@ -1,7 +1,7 @@
 // POST /functions/v1/check-rides  { heat_id? }  (accounts plan task 15)
 // Rides waiting for their check (a heat's, or any) are ridden again from their logs with the game's own physics
 // (src/ride-check.js, shared with the browser and the tests) and marked ok or flagged in ride_checks. Anyone signed in
-// can ask (the game asks after each wave it submits); it only ever checks what's waiting, a few at a time.
+// can ask (the game asks after each wave it submits); it checks one waiting ride a call and says how many are left.
 import { createClient } from 'npm:@supabase/supabase-js@2.117.3';
 import { checkRide } from '../../../src/ride-check.js';
 import { decodeRecording } from '../../../src/replay.js';
@@ -38,17 +38,20 @@ Deno.serve(async (req) => {
   if (req.method !== 'POST') return answer(405, { error: 'POST only' });
   try {
     const body = await req.json().catch(() => ({}));
-    let q = db.from('ride_checks').select('ride_id, rides!inner(wave_no, score, replay_path, heat_id, heats!inner(seed, contests!inner(spot)))').eq('status', 'pending').limit(5);
-    if (body.heat_id) q = q.eq('rides.heat_id', body.heat_id);
-    const { data, error } = await q;
+    // One ride a call: an Edge Function has about 2 s of CPU, and a long ride re-run (plus starting the function) can
+    // take most of it. The answer says how many are still waiting, so the caller asks again (the game after each wave it
+    // submits; the contest page's Check now until none are left).
+    const pending = () => {
+      let q = db.from('ride_checks').select('ride_id, rides!inner(wave_no, score, replay_path, heat_id, heats!inner(seed, contests!inner(spot)))', { count: 'exact' }).eq('status', 'pending');
+      if (body.heat_id) q = q.eq('rides.heat_id', body.heat_id);
+      return q;
+    };
+    const { data, error } = await pending().limit(1);
     if (error) throw error;
     const done = [];
-    const t0 = Date.now();
-    for (const row of data ?? []) {
-      done.push(await checkOne(row as never));
-      if (Date.now() - t0 > 1500) break; // (stay well inside the function's time; the rest wait for the next ask)
-    }
-    return answer(200, { checked: done });
+    for (const row of data ?? []) done.push(await checkOne(row as never));
+    const { count } = await pending().limit(1);
+    return answer(200, { checked: done, remaining: count ?? 0 });
   } catch (e) {
     console.error('check-rides', e);
     return answer(500, { error: 'check failed' });

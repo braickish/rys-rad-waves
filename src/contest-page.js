@@ -45,6 +45,17 @@ try {
     $('c-state').textContent = k.state === 'done' ? `${win ? `🏆 Won by ${name(win.entrant_id)} · ` : ''}${day(k.ended_at || k.created_at)}`
       : k.state === 'running' ? 'On now.' : k.state === 'lobby' ? 'In the lobby, waiting to start.' : 'Cancelled.';
     if (k.state === 'lobby' || k.state === 'running') { $('lobby-link').hidden = false; $('lobby-link').href = `index.html?contest=${k.code}`; }
+    // the recap (task 17): its video when the host kept one; anyone can watch it played in the game
+    if (k.state === 'done') {
+      const { data: rc } = await c.from('recaps').select('video_path, seconds, made_at').eq('contest_id', k.id).maybeSingle();
+      const box = h('section', { className: 'panel recap', id: 'recap' }, h('h2', { textContent: 'The recap' }));
+      if (rc) {
+        const url = c.storage.from('recaps').getPublicUrl(rc.video_path).data.publicUrl + `?v=${Date.parse(rc.made_at)}`;
+        box.append(h('video', { src: url, controls: true, playsInline: true, preload: 'metadata', id: 'recap-video' }));
+      } else box.append(h('p', { className: 'empty', textContent: currentUser()?.id === k.host ? 'No video yet: watch it in the game and Make video to keep one here.' : 'No video yet.' }));
+      box.append(h('p', {}, h('a', { href: `index.html?recap=${encodeURIComponent(k.code)}`, textContent: '▶ Watch the recap in the game', id: 'recap-play' })));
+      $('c-rounds').before(box);
+    }
     // who's a member (their page) and every wave
     const users = d.entrants.map((e) => e.user_id).filter(Boolean);
     const { data: profiles } = users.length ? await c.from('profiles').select('id, handle').in('id', users) : { data: [] };
@@ -60,7 +71,15 @@ try {
       const line = h('p', { className: 'hint checks-line', id: 'checks-line' }, `Score checks (only you see these): ${n('ok')} ✓, ${n('flagged')} ⚑ flagged, ${n('pending')} waiting${n('no_log') ? `, ${n('no_log')} with no log` : ''}.`);
       if (n('pending')) {
         const again = h('button', { type: 'button', className: 'quiet wave-btn', textContent: 'Check now' });
-        again.addEventListener('click', async () => { again.disabled = true; await c.functions.invoke('check-rides', { body: {} }).catch(() => {}); location.reload(); });
+        again.addEventListener('click', async () => {
+          again.disabled = true;
+          for (const hh of d.heats) for (let k = 0; k < 40; k++) { // (one ride a call, until this contest's are done)
+            const { data } = await c.functions.invoke('check-rides', { body: { heat_id: hh.id } }).catch(() => ({}));
+            again.textContent = `Checking… ${data?.remaining ?? ''}`;
+            if (!data?.remaining) break;
+          }
+          location.reload();
+        });
         line.append(' ', again);
       }
       $('c-state').after(line);

@@ -40,11 +40,12 @@ try {
     for (const r of results || []) {
       const how = r.final ? (r.place === 1 ? 'Won' : `${ordinal(r.place)} in the final`) : `Out in round ${r.round}`;
       const when = r.ended_at ? new Date(r.ended_at).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : '';
-      $('p-results').append(h('a', { className: 'result', href: `contest.html?c=${encodeURIComponent(r.code)}` },
+      const how2 = r.recap_path ? ' · ▶ recap' : '';
+      $('p-results').append(h('a', { className: 'result', href: `contest.html?c=${encodeURIComponent(r.code)}${r.recap_path ? '#recap' : ''}` },
         h('span', { className: 'pl', textContent: r.final ? (r.place === 1 ? '🏆' : ordinal(r.place)) : `R${r.round}` }),
         h('b', { textContent: r.name }),
         h('span', { className: 'tot', textContent: Number(r.total).toFixed(2) }),
-        h('small', { textContent: `${how} · ${r.spot_name || WAVE_NAMES[r.spot_wave] || ''} · ${r.entrants} surfers · ${when}` })));
+        h('small', { textContent: `${how} · ${r.spot_name || WAVE_NAMES[r.spot_wave] || ''} · ${r.entrants} surfers · ${when}${how2}` })));
     }
   }
 } catch (err) {

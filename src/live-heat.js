@@ -75,7 +75,12 @@ export async function connectLive(info, hooks) {
       }
       live?.send('score', { heat_id: info.heatId, entrant_id: info.entrantId, wave_no: n, score, caught_s: caughtS });
       // (the server rides it again from its log: a score check, task 15; nothing waits on it)
-      if (path) c.functions.invoke('check-rides', { body: { heat_id: info.heatId } }).catch((e) => console.warn('check', e));
+      if (path) (async () => { // (one ride a call: ask again while this heat has more waiting, a few times at most)
+        for (let k = 0; k < 4; k++) {
+          const { data } = await c.functions.invoke('check-rides', { body: { heat_id: info.heatId } });
+          if (!data?.remaining) break;
+        }
+      })().catch((e) => console.warn('check', e));
     }).catch((e) => console.warn('submit', e));
     return queue;
   }
