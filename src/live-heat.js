@@ -44,6 +44,7 @@ export async function connectLive(info, hooks) {
     if (error) { if ((error.hint || error.message) !== 'heat_still_on') console.warn('close', error); return false; }
     const rides = await refill().catch(() => []);
     closed = true;
+    live?.send('changed'); // (lobbies and bracket views read the contest again: a round may just have been built)
     hooks.closed({ entries: data, rides });
     return true;
   }

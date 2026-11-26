@@ -57,7 +57,8 @@ await sleep(2000); await B.shot('1-riding');
 const final = (b) => b.waitFor(`window.__heatFinal === true && window.__heatResults`, 180000);
 const [fa, fb] = await Promise.all([final(A), final(B)]);
 check(!!fa && !!fb, 'both results cards are final');
-const ja = JSON.stringify(fa), jb = JSON.stringify(fb);
+const byName = (l) => JSON.stringify([...(l || [])].sort((a, b) => a.place - b.place || a.name.localeCompare(b.name))); // (tied surfers: each screen lists itself first)
+const ja = byName(fa), jb = byName(fb);
 check(ja === jb, `both screens agree: ${jb}`);
 const [heat] = await get(`heats?contest_id=eq.${contest.id}&select=id,state,heat_entries(entrant_id,place,total)`);
 const ents = await get(`entrants?contest_id=eq.${contest.id}&select=id,name,user_id`);

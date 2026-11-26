@@ -39,6 +39,7 @@ if (code && (q.has('go') || q.has('heat'))) {
       live = true;
       window.__contestHeat = {
         code, contestId: r.contest.id, heatId: r.heat.id, entrantId: mine.id, name: mine.name, startsAt: r.heat.starts_at, endsAt: r.heat.ends_at,
+        bracket: r.contest.format === 'bracket', round: r.heat.round, heatNo: r.heat.number, final: r.final,
         entrants: entries.map((x) => ({ id: x.entrant_id, jersey: x.jersey, name: r.entrants.find((e) => e.id === x.entrant_id)?.name || '?' })),
       };
     }

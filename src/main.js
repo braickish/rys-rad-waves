@@ -624,8 +624,9 @@ function startHeat() {
         const mine = w.entrant_id === LIVE.entrantId, s = mine ? heatYou(H) : H.surfers.find((x) => x.id === w.entrant_id);
         if (addRivalWave(H, mine ? 'you' : w.entrant_id, { n: w.wave_no, score: w.score, at: w.caught_s }) && s && !mine) heatPop(s.name, w.score, s.jersey.color);
       },
-      closed: ({ rides }) => {
+      closed: ({ entries, rides }) => {
         for (const r of rides) addRivalWave(H, r.entrant_id === LIVE.entrantId ? 'you' : r.entrant_id, { n: r.wave_no, score: Number(r.score) });
+        H.mine = (entries || []).find((x) => x.entrant_id === LIVE.entrantId) || null; // (the server's place, and in a bracket whether you went through)
         H.final = true; H.done = true;
         if (state === 'results') showResults();
       },
@@ -647,13 +648,14 @@ function showResults() {
   const st = standings(H), me = st.find((r) => r.surfer.you), f2 = (x) => x.toFixed(2);
   const waiting = H.live && !H.final; // (a live heat: until the server closes it, the places aren't final)
   if (H.live && live) live.finish();
-  $('results-title').textContent = waiting ? 'Waiting…' : me.place === 1 ? 'You win!' : `${ordinal(me.place)} place`;
+  const place = H.mine?.place || me.place, round = LIVE?.bracket && !LIVE.final; // (a bracket round before the final)
+  $('results-title').textContent = waiting ? 'Waiting…' : round ? (H.mine?.advanced ? "You're through!" : 'Knocked out') : place === 1 ? 'You win!' : `${ordinal(place)} place`;
   $('results').classList.toggle('waiting', waiting);
   $('results-go').innerHTML = !H.live ? '<span class="desk">Space for a new heat</span><span class="mob">Tap for a new heat</span>'
     : waiting ? 'Waiting for the others to finish their waves…' : '<span class="desk">Space to go back to the contest</span><span class="mob">Tap to go back to the contest</span>';
   const guest = H.live && H.final && currentUser()?.is_anonymous;
   $('results-claim').hidden = !guest;
-  $('results-sub').textContent = `${H.end.minutes ? `${H.end.minutes} min heat` : `${H.end.waves} wave heat`} · ${WAVE.name}`;
+  $('results-sub').textContent = `${LIVE?.bracket ? (LIVE.final ? 'Final · ' : `Round ${LIVE.round} · Heat ${LIVE.heatNo} · `) : ''}${H.end.minutes ? `${H.end.minutes} min heat` : `${H.end.waves} wave heat`} · ${WAVE.name}`;
   $('results-rows').innerHTML = st.map((r) => `<div class="rr${r.surfer.you ? ' you' : ''}"><span class="pl">${r.place}</span><i style="background:${r.surfer.jersey.color}"></i><span class="nm">${r.surfer.name}</span><span class="bt">${r.top.map(f2).join(' + ') || '-'}</span><b>${f2(r.total)}</b></div>`).join('');
   const best = heatYou(H).waves.filter((w) => w.ride).sort((a, b) => b.score - a.score)[0];
   $('results-watch').hidden = !best;

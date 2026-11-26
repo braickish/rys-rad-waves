@@ -11,8 +11,9 @@
 // contest's waves, length and your jersey.
 import { initAccount, onAccount, currentUser, myProfile, SALES_OPEN } from './account.js';
 import { openPaywall } from './paywall.js';
+import { JERSEYS } from './heat.js';
 import { myBreaks } from './breaks.js';
-import { WAVE_NAMES, LENGTHS, contestLink, spotName, lengthName, savedNickname, createContest, contestByCode, joinContest,
+import { WAVE_NAMES, LENGTHS, SIZES, contestLink, spotName, lengthName, savedNickname, createContest, contestByCode, joinContest,
   leaveContest, startContest, cancelContest, readContest, contestChannel, describeContestError } from './contests.js';
 
 const $ = (id) => document.getElementById(id);
@@ -62,6 +63,8 @@ async function openHost(breakId) {
   spot.append(waves);
   const len = $('host-len');
   if (!len.options.length) for (const [v, label] of LENGTHS) len.add(new Option(label, v));
+  const size = $('host-size');
+  if (!size.options.length) for (const [v, label] of SIZES) size.add(new Option(label, v));
   {
     const u = new URL(location.href); u.searchParams.delete('host'); history.replaceState(null, '', u);
   }
@@ -86,7 +89,7 @@ async function create() {
   $('host-create').disabled = true; say('host-msg', '');
   try {
     const c = await createContest({ name: $('host-name').value.trim(), wave: kind === 'wave' ? id : null, breakId: kind === 'break' ? id : null,
-      length: $('host-len').value, visibility: $('host-public').checked ? 'public' : 'unlisted' });
+      length: $('host-len').value, size: $('host-size').value, visibility: $('host-public').checked ? 'public' : 'unlisted' });
     const p = await myProfile().catch(() => null);
     await joinContest(c.code, p ? null : savedNickname() || 'Host'); // (the host surfs too, as their handle; Leave to just run it)
     await openLobby(c.code);
@@ -168,12 +171,48 @@ function render() {
   $('lobby-leave').hidden = !(lobby && mine);
   $('lobby-cancel').hidden = !(isHost && (lobby || state === 'running'));
   clearInterval(me.count); me.count = null;
+  // once it's started: the heats (a bracket: every round), instead of the list of who's in
+  const heats = d?.heats || [];
+  list.hidden = heats.length > 0;
+  drawBracket(d, mine);
   if (state === 'running') {
-    if (mine && d.heat && !inHeat) countdown(d.heat.starts_at);
+    const my = d?.heat, entry = my?.heat_entries.find((x) => x.entrant_id === mine?.id);
+    if (mine && my?.state === 'live' && !inHeat) countdown(my.starts_at);
+    else if (mine && my?.state === 'done' && entry?.advanced) say('lobby-msg', "You're through! The next round starts once every heat of this one is done.");
+    else if (mine && my?.state === 'done') say('lobby-msg', "You're out. The rest is on: watch the bracket here.");
     else if (!mine) say('lobby-msg', 'This contest has started.');
-  } else if (state === 'done') say('lobby-msg', 'This contest is over. Results come with live heats.');
-  else if (state === 'cancelled') say('lobby-msg', 'The host cancelled this contest.');
+  } else if (state === 'done') {
+    const last = heats[heats.length - 1], win = last?.heat_entries.find((x) => x.place === 1);
+    const name = win && d.entrants.find((e) => e.id === win.entrant_id)?.name;
+    say('lobby-msg', name ? `Won by ${name}${win.entrant_id === mine?.id ? ' (you!)' : ''}.` : 'This contest is over.');
+  } else if (state === 'cancelled') say('lobby-msg', 'The host cancelled this contest.');
   else if (lobby && !me.msgKept) say('lobby-msg', mine ? (isHost ? 'Share the code. Start when everyone\'s in.' : 'You\'re in. Waiting for the host to start.') : '');
+}
+
+// The heats, round by round: who's in each (by place once it's done), their totals, who went through.
+function drawBracket(d, mine) {
+  const el = $('bracket'), heats = d?.heats || [];
+  el.innerHTML = ''; el.hidden = !heats.length;
+  if (!heats.length) return;
+  const name = (id) => d.entrants.find((e) => e.id === id)?.name || '?';
+  const rounds = [...new Set(heats.map((x) => x.round))];
+  for (const r of rounds) {
+    const inRound = heats.filter((x) => x.round === r), final = inRound.length === 1;
+    const box = h('div', { className: 'heats' });
+    for (const ht of inRound) {
+      const rows = [...ht.heat_entries].sort((a, b) => (a.place ?? 99) - (b.place ?? 99) || a.jersey.localeCompare(b.jersey));
+      const when = ht.state === 'done' ? 'done' : Date.parse(ht.starts_at) > Date.now() ? 'starting soon' : 'on now';
+      const card = h('div', { className: `heat${rows.some((x) => x.entrant_id === mine?.id) ? ' yours' : ''}` }, h('small', { textContent: final ? when : `Heat ${ht.number} · ${when}` }));
+      for (const x of rows) {
+        const color = JERSEYS.find((j) => j.id === x.jersey)?.color || '#888';
+        card.append(h('div', { className: `row${x.advanced === false ? ' out' : ''}${x.entrant_id === mine?.id ? ' me' : ''}` },
+          h('i', { style: `background:${color}` }), h('span', { textContent: `${x.place ? `${x.place}. ` : ''}${name(x.entrant_id)}${x.advanced ? ' ✓' : ''}` }),
+          x.total != null ? h('b', { textContent: Number(x.total).toFixed(2) }) : null));
+      }
+      box.append(card);
+    }
+    el.append(h('div', {}, h('h3', { textContent: final ? (rounds.length > 1 ? 'Final' : 'The heat') : `Round ${r}` }), box));
+  }
 }
 
 // Everyone in it drops in together at the heat's start.
@@ -181,7 +220,7 @@ function countdown(startsAt) {
   const me = L, at = Date.parse(startsAt);
   const tick = () => {
     const s = Math.ceil((at - Date.now()) / 1000);
-    if (s > 0) { say('lobby-msg', `Starting in ${s}…`); return; }
+    if (s > 0) { say('lobby-msg', `Your heat starts in ${s}…`); return; }
     clearInterval(me.count);
     location.href = `${contestLink(me.code)}&go${new URLSearchParams(location.search).has('auto') ? '&auto' : ''}`; // (&auto: the tests' autopilot rides along)
   };

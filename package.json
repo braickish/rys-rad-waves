@@ -16,6 +16,7 @@
     "test:lobby-browser": "node test/lobby-browser.mjs",
     "test:email-hook": "node test/email-hook.mjs",
     "test:live-heat-browser": "node test/live-heat-browser.mjs",
+    "test:bracket-browser": "node test/bracket-browser.mjs",
     "functions:serve": "supabase functions serve --env-file supabase/functions/.env",
     "test:stripe": "node test/stripe.mjs"
   },

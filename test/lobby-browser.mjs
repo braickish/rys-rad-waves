@@ -77,7 +77,7 @@ await B.shot('2-joined');
 
 // 4. Start.
 await A.evaluate(`document.getElementById('lobby-start').click()`);
-check(!!(await B.waitFor(`/Starting in/.test(${msg('lobby-msg')})`, 20000)), 'the guest counts down');
+check(!!(await B.waitFor(`/starts in/.test(${msg('lobby-msg')})`, 20000)), 'the guest counts down');
 const inHeat = (b) => b.waitFor(`window.__heat && document.getElementById('title').hidden && location.search.includes('heat=5w') && location.search`, 40000);
 const [qa, qb] = await Promise.all([inHeat(A), inHeat(B)]);
 check(!!qa && !!qb, `both drop into the heat (${qb})`);

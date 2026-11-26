@@ -43,7 +43,7 @@ select throws_ok($$ select public.create_contest('Comp', break_id => 'e0000000-0
 select throws_ok($$ select public.create_contest('Comp', break_id => 'e0000000-0000-0000-0000-000000000003', end_waves => 5) $$,
   '22023', 'no_such_break', 'someone else''s private break: no');
 select throws_ok($$ select public.create_contest('shit comp', wave => 'reef', end_minutes => 10) $$, '23514', 'contest_name_blocked', 'names stay clean');
-select throws_ok($$ select public.create_contest('Big One', wave => 'reef', end_minutes => 10, max_entrants => 16) $$, '22023', 'brackets_later', 'one heat of up to 8 for now');
+select throws_ok($$ select public.create_contest('Huge One', wave => 'reef', end_minutes => 10, max_entrants => 64) $$, '23514', null, 'up to 32 surfers');
 
 insert into t select 'wave', (public.create_contest('  Pipe Masters ', wave => 'reef', end_minutes => 10)).id;
 insert into t select 'break', (public.create_contest('Bombie Bash', break_id => 'e0000000-0000-0000-0000-000000000001', end_waves => 3, max_entrants => 3)).id;

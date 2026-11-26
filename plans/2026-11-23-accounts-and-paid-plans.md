@@ -292,7 +292,18 @@ sees it on their profile.
   the guest session an account with the same id and lands on the account page to make a profile. Migration
   `20261125030000_live_heats.sql`. Tests: `npm run test:live-heat-browser` (19, two browsers riding a 1-wave contest
   on the autopilot, then the guest claims), `supabase/tests/live_heats_test.sql` (11), test/heat.mjs (rivals).
-- [ ] **13. Brackets.** Contests phase 5 as written.
+- [x] **13. Brackets** (2026-11-25). Host picks how many: up to 8 (one heat, `single`) or 16 / 32 (`bracket`).
+  Migration `20261125040000_brackets.sql`: `private.build_round` makes a round's heats (one when 4 or fewer, else
+  ceil(n/4): heats of 3-4 as even as the numbers allow), seeds them in snake order, draws jerseys per heat from the
+  round's seed (`round_seed`: every heat of a round has the same waves); `start_contest` builds round 1 (by who joined
+  first); `close_heat` locks the contest (two heats closing at once can't both miss the end of the round) and, when
+  the last heat of a round closes, builds the next one from who went through (top 2 of each heat; by place, then total,
+  then first seed) 30 s later (`round_break`), or ends the contest after the final. The lobby shows the bracket (rounds,
+  heats, places, totals, ✓ through, greyed out), counts you down to your next heat, says when you're through or out,
+  and names the winner once it's done; the results card says "You're through!" / "Knocked out" with the round and
+  heat. Tests: `supabase/tests/brackets_test.sql` (20: 9, 12, 16 and 5 surfers, snake seeding, the round seed, a tie
+  through by the best wave), `npm run test:bracket-browser` (11: the host against four scripted guests, round 1 to
+  the final).
 - [ ] **14. The profile filled in.** Public breaks (surf it) and contest results on the public page. Private contest
   management (draft, open, running, done) and history. A public contest page (`contest.html?c=`) with heats and results.
   "Watch this wave" from replays.

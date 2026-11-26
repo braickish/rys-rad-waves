@@ -156,6 +156,19 @@
   .lobby-list li .here { font-weight: 500; font-size: 12px; opacity: .75; }
   .lobby-list li.away .here { opacity: .45; }
   .lobby-more { display: flex; gap: 14px; }
+  /* The bracket (task 13): rounds of heats, who went through */
+  .bracket { width: 100%; display: grid; gap: 12px; text-align: left; }
+  .bracket h3 { margin: 0 0 6px; font: 400 14px Bungee, sans-serif; color: var(--yellow); text-shadow: 2px 2px 0 var(--ink); }
+  .bracket .heats { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+  .bracket .heat { background: rgba(11,26,36,.6); border-radius: 10px; padding: 6px 8px; font-size: 13px; }
+  .bracket .heat.yours { outline: 2px solid var(--teal); }
+  .bracket .heat small { display: block; font-size: 11px; opacity: .75; margin-bottom: 3px; }
+  .bracket .row { display: flex; align-items: center; gap: 6px; padding: 2px 0; }
+  .bracket .row i { width: 8px; height: 14px; border-radius: 2px; flex: none; }
+  .bracket .row span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
+  .bracket .row.out span { opacity: .55; font-weight: 500; }
+  .bracket .row.me span { color: var(--yellow); }
+  .bracket .row b { font-size: 12px; }
   /* Solo: Start heat, and its length beside it */
   .heat-start { display: flex; flex-direction: column; align-items: center; gap: 6px; }
   .heat-start select { appearance: none; -webkit-appearance: none; font: 700 13px Rubik, sans-serif; color: #fff; background: none; border: 0; padding: 2px 4px; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; text-shadow: 0 1px 0 rgba(0,0,0,.4); text-align: center; text-align-last: center; }
@@ -239,7 +252,8 @@
       </div>
       <form id="host-form" class="cform" hidden>
         <label for="host-spot">Where</label><select id="host-spot"></select>
-        <label for="host-len">How long</label><select id="host-len"></select>
+        <label for="host-len">How long (each heat)</label><select id="host-len"></select>
+        <label for="host-size">How many</label><select id="host-size"></select>
         <label for="host-name">Name</label><input id="host-name" maxlength="40" autocomplete="off" required>
         <label class="check"><input id="host-public" type="checkbox"> Public: results show on profiles</label>
         <button id="host-create" type="submit" class="start">Create contest</button>
@@ -250,6 +264,7 @@
         <div id="lobby-what" class="lobby-what"></div>
         <div class="lobby-code"><small>Code</small><b id="lobby-code"></b><button id="lobby-share" type="button" class="acct-link">Share link</button></div>
         <ol id="lobby-list" class="lobby-list"></ol>
+        <div id="bracket" class="bracket" hidden></div>
         <form id="lobby-join" class="join-form" hidden><input id="lobby-nick" maxlength="20" autocomplete="nickname" placeholder="Your nickname" aria-label="Nickname"><button type="submit">Join</button></form>
         <button id="lobby-start" type="button" class="start" hidden>Start</button>
         <div id="lobby-msg" class="heat-note" hidden></div>
