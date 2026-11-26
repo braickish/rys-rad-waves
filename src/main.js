@@ -426,7 +426,7 @@ const SWIPE_PX = 45; // full turn at this far from where the swipe started
 $('over').addEventListener('pointerdown', (e) => { e.preventDefault(); startOrRestart(); });
 $('judge').addEventListener('pointerdown', (e) => { e.preventDefault(); startOrRestart(); });
 $('start').addEventListener('click', (e) => { e.preventDefault(); startOrRestart(); });
-// The landing: three ways in. Free surf lists every break (and yours, signed in) with DROP IN; Build a reef is a link to
+// The landing: three ways in. Free surf lists every break (and yours, signed in) with DROP IN; Build a break is a link to
 // the builder; Compete live offers Solo (a heat against bots: the waves, then Start heat with its length), and live heats with
 // friends later (task 11). A heat is set up as the page loads, so a heat link (?heat=) opens straight on Solo, and Free
 // surf from there reloads without it (?menu=surf opens Free surf). A link that lands on a locked wave, or on a saved
@@ -450,10 +450,10 @@ function showStep(which) {
   if (which !== 'surf') $('lock-note').hidden = true;
 }
 const leaveHeat = () => { const u = new URL(location.href); for (const k of ['heat', 'seed', 'play']) u.searchParams.delete(k); u.searchParams.set('menu', 'surf'); location.href = u; };
-// Build a reef and Compete live come with Pro (the user, 2026-11-25): without it they show greyed with a lock, and a
+// Build a break and Compete live come with Pro (the user, 2026-11-25): without it they show greyed with a lock, and a
 // tap opens the Go Pro sheet. Only once sales are open (SALES_OPEN), like the wave locks. Joining a contest stays
 // free (the user, 2026-11-25): its link goes straight to the lobby, and "Have a contest code?" opens the code box.
-const PRO_DOORS = { 'go-build': ['Build a reef', 'Building reefs comes with Pro.'], 'go-compete': ['Compete live', 'Competing live comes with Pro.'] };
+const PRO_DOORS = { 'go-build': ['Build a break', 'Building breaks comes with Pro.'], 'go-compete': ['Compete live', 'Competing live comes with Pro.'] };
 let doorsLocked = false;
 onPlan((p) => {
   doorsLocked = SALES_OPEN && !p.pro;

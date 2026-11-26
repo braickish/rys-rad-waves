@@ -45,8 +45,8 @@ const H = (expr) => evaluate(`(() => { const h = window.__heat; return h && (${e
 // surf goes back out of the heat.
 await send('Page.navigate', { url: `${base}?wave=${WAVE}` });
 const shown = (id) => `(() => { const e = document.getElementById('${id}'); return !!e && e.offsetParent !== null; })()`;
-check(!!(await waitFor(`${shown('go-surf')} && ${shown('go-build')} && ${shown('go-compete')} && !${shown('start')} && document.querySelectorAll('#waves button').length > 0`, 20000)), 'landing: Free surf, Build a reef, Compete live; no DROP IN yet');
-check((await evaluate(`document.getElementById('go-build').getAttribute('href')`)) === 'builder.html', 'Build a reef goes to the builder');
+check(!!(await waitFor(`${shown('go-surf')} && ${shown('go-build')} && ${shown('go-compete')} && !${shown('start')} && document.querySelectorAll('#waves button').length > 0`, 20000)), 'landing: Free surf, Build a break, Compete live; no DROP IN yet');
+check((await evaluate(`document.getElementById('go-build').getAttribute('href')`)) === 'builder.html', 'Build a break goes to the builder');
 await shot('0-landing');
 await evaluate(`document.getElementById('go-surf').click()`);
 check(await evaluate(`${shown('waves')} && ${shown('start')} && !${shown('heat-start')} && !${shown('go-surf')}`), 'Free surf: the waves and DROP IN');
