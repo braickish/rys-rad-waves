@@ -125,8 +125,11 @@ function bodyColors(m, which, outfit, jersey = null, style = {}) {
       // the bottoms; cheeky (a Pro cut, task 16): at the back, cut high toward the sides and narrowing to the middle, so
       // more of the butt shows (the front as full)
       const pv = m.rest.pelvis.head, back = z < pv[2] - 0.03, cheeky = style.cut === 'cheeky';
-      const ax2 = Math.abs(x - pv[0]); // (a strip down the middle stays covered; out from it the cut climbs to high on the hips)
-      const backEdge = cheeky && back && ax2 > 0.012 ? -0.03 + 0.11 * Math.min(1, (ax2 - 0.012) / 0.07) ** 0.7 : -0.05;
+      const ax2 = Math.abs(x - pv[0]); // (a strip down the middle stays covered)
+      // at the back, each cheek bare in a rounded half-moon (the user, 2026-11-25: more curved, a bit bigger): an ellipse
+      // standing on the leg crease, centred on the cheek, rising to about its middle
+      const bareCheek = cheeky && back && ax2 > 0.012 && ((ax2 - 0.07) / 0.085) ** 2 + ((y + 0.055) / 0.125) ** 2 < 1;
+      const backEdge = bareCheek ? Infinity : -0.05;
       // cheeky is a little bikini all round: a lower rise, a thin string round the hips, and at the front a small
       // triangle narrowing to the crotch (the hips bare)
       const rise = cheeky ? 0.085 : 0.12, string = cheeky && y > rise - 0.012;
