@@ -72,7 +72,7 @@ export default {
 
   // Settings that belong to this wave (merged over the rider's settings).
   tune: {
-    vPocket: 14, vLow: 4.5, vFoam: 3,
+    vPocket: 14, vLow: 4.5,
     // Smoother pocket speed (2026-11-19, the user: the speed boost high in the pocket felt unrealistic): the cruising
     // speed depends less on height (was 0.45 + 0.75 x height: ~21 mph low, ~26 at 60% up), the pocket pulls you up to
     // it more gently (feed 2.0 -> 1.0), and speed builds at most ~13 mph/s instead of ~22 (maxAccel 10 -> 6).

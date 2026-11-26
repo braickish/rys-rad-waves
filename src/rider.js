@@ -90,6 +90,11 @@ const RIDER_TUNE = {
   // behind the curl): water that broke under `foamAge[0]` s ago is still moving with the wave and doesn't slow you;
   // its full drag by `foamAge[1]` s. By time, not distance, so a faster curl leaves a longer stretch of young water.
   foamAge: [0.2, 1.0],
+  // ... and the speed it pulls you toward is the whitewater's own pace, `foamOfCurl` x the curl's speed (the smoothed one,
+  // within `overCurlRange` x Raglan's), not a fixed crawl: Raglan ~14 mph, Queens ~11, Pipe ~19 (the user, 2026-11-26:
+  // lessen how quickly speed drops off in the whitewater). It only ever slows you (on the flats the cruise is lower and
+  // stays). And it pulls more gently than the rest of the wave bleeds: `foamBleedK` x `bleed`. Replaces per-wave `vFoam`.
+  foamOfCurl: 0.75, foamBleedK: 0.5,
   turnWindow: 0.08, // steering this recently when you reach the lip = a turn off the top; otherwise an air
   lipExit: 1.2, // moves off the lip point you this far below the line (rad, ~70 deg)
   foamExit: 0.6, // ... but out of the whitewater, shallower (down and forward, ~35 deg) // speed gained per radian of carving up near the top of the pocket (m/s)
@@ -1274,14 +1279,21 @@ function stepSurf(r, input, dt) {
   const feedK = (1 + ((T.middleFeed || 1) - 1) * mid) * (1 + (T.fwdFeed - 1) * sFwd); // (front foot: picks up speed quicker)
   r.boost = Math.max(0, (r.boost || 0) - dt);
   if (r.boost > 0 && r.boost < 0.85 && foam < 0.2) r.boost = 0; // cleared the foam you bounced off
+  let foamW = 0; // (how much the whitewater has you: its speed, and its gentler pull, `foamBleedK`)
   if (r.boost > 0) { /* just rebounded: the foam can't slow you for a moment */ }
   else if (r.floater) target = Math.max(target, r.speed); // floating holds your speed
-  else target += (T.vFoam + ((T.foamPush ?? T.vFoam) - T.vFoam) * mid - target) * foam * sstep(T.foamAge[0], T.foamAge[1], brokeAgo(r.xs)) * (climbingFoam(r) ? T.climbFoamDrag : 1); // climbing up the whitewater drags less; on a longboard from the middle the whitewater pushes you along (`foamPush`)
+  else {
+    // (the whitewater's pace, from the curl's; on a longboard from the middle it pushes you along: `foamPush`, a board's)
+    const vF = T.foamOfCurl * clamp(r.curlS ?? PEEL_SPEED, T.overCurlRange[0] * T.curlRef, T.overCurlRange[1] * T.curlRef);
+    const vFm = vF + (Math.max(T.foamPush ?? vF, vF) - vF) * mid;
+    foamW = foam * sstep(T.foamAge[0], T.foamAge[1], brokeAgo(r.xs)) * (climbingFoam(r) ? T.climbFoamDrag : 1); // climbing up the whitewater drags less
+    target += (Math.min(vFm, target) - target) * foamW;
+  }
   // The pocket only feeds you while you're not climbing: point up the face
   // and you slow down for real.
   const climbing = sstep(0.15, 0.6, Math.sin(r.phi));
   const foamFeed = 1 + ((T.foamPushFeed || 1) - 1) * mid * foam; // (and it picks you up quickly)
-  r.speed += (target - r.speed) * (r.speed < target ? (idleNow ? 0 : T.feed * feedK * foamFeed * (1 - climbing)) : T.bleed) * dt; // (idle: no top-up)
+  r.speed += (target - r.speed) * (r.speed < target ? (idleNow ? 0 : T.feed * feedK * foamFeed * (1 - climbing)) : T.bleed * (1 - (1 - T.foamBleedK) * foamW)) * dt; // (idle: no top-up)
   const sinp = Math.sin(r.phi);
   // Pointing down pays, and pays most from the top third of the wave: that's
   // where the drop has the most height to turn into speed.

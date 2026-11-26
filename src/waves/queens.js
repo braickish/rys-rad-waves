@@ -53,7 +53,7 @@ export default {
 
   // A longboard: slower, wider turns and it glides, carrying its speed.
   tune: {
-    vPocket: 5.2, vLow: 2.7, vFoam: 2.1, // ~12 mph in the pocket. (It was cut to 4.0 when she outran the curl on the old 3.0 m/s peel; the peel was the real problem.)
+    vPocket: 5.2, vLow: 2.7, // ~12 mph in the pocket. (It was cut to 4.0 when she outran the curl on the old 3.0 m/s peel; the peel was the real problem.)
     drop: 3.2, topDropBoost: 1.0, highDropAccel: 0.8, highDropSoftMax: 0.4,
     softMax: 10.0, maxSpeed: 12.0, minSpeed: 1.5, // (raised with middleSpeed so the middle's trim isn't capped)
     bleed: 0.55, // glides: extra speed fades slower than a shortboard (rider default 0.9)
