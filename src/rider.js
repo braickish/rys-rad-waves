@@ -142,11 +142,16 @@ const RIDER_TUNE = {
   // Vertical snap (vertical-snap-1..5 in braickish/reference-images; the user, 2026-11-25): coming up nearly straight up
   // the face, the board goes up over the lip (tail in it, nose out over it), swings round ~180 deg and comes back down
   // pointing at the beach, throwing a big fan of spray. A wave rule, read live where you are: on a really steep face
-  // (faceSteepness at least `vertSnapSteep` deg: Pipe) anywhere outside the tube; on a gentler wave only right at the
-  // curl (up to `vertSnapNearCurl` m ahead of it) or a little into the whitewater (`vertSnapIntoFoam` m behind it).
-  // Never from inside the barrel, and not on a longboard. Otherwise it's the ordinary snap.
-  vertSnapUp: 0.9, // climbing at least this steeply (sin of the heading up the face: ~64 deg)
-  vertSnapSteep: 48, vertSnapNearCurl: 3, vertSnapIntoFoam: 1.5,
+  // (faceSteepness at least `vertSnapSteep` deg: Pipe) anywhere outside the tube; on a gentler wave only at the curl
+  // (`curlAhead` / `curlBehind`, below). Never into older whitewater, from inside the barrel, or on a longboard; any
+  // snap from there instead of a check turn (Pipe's pocket). Otherwise it's the ordinary snap.
+  vertSnapUp: 0.9, // climbing at least this steeply (sin of the heading up the face: ~64 deg) at some point in the last 0.35 s
+  vertSnapSteep: 48,
+  // At the curl, by time (a wave rule, the user, 2026-11-25): from `curlAhead` s before the water there breaks to
+  // `curlBehind` s after (young whitewater still moving with the wave: `foamAge`'s start). By time, so it scales with the
+  // curl's speed: Raglan ~2.5 m ahead to ~1.7 m behind. Vertical snaps on gentler waves, and how far into the breaking
+  // lip any snap reaches (waves with `snapIntoLip`), go by it.
+  curlAhead: 0.3, curlBehind: 0.2,
   vertSnapLine: 0.9, // held this far below the top (t): higher than a snap (`snapLine`), right up under the lip
   vertSnapExit: 1.5, // ends pointing this far down (rad, ~86 deg: at the beach), not ~70 deg down the line as a snap
   vertSnapSwing: 10, // swings round a little slower than a snap (rad/s): ~0.3 s from straight up to the beach
@@ -356,11 +361,15 @@ export function faceSteepness(xs) {
 }
 // How long ago the water at xs broke (s): its phase, in seconds (bar waves' phase is already time, `phaseTime` s per unit;
 // a peeling wave's is `phase.behind` m per unit, passed at the curl's speed). Ahead of the curl: 0.
-export function brokeAgo(xs) {
+export function brokeAgo(xs) { return Math.max(0, curlTime(xs)); }
+// ... and signed: how long until it breaks, negative (a peeling wave's phase ahead of the curl is `phase.ahead` m per unit).
+export function curlTime(xs) {
   const s = phaseAt(xs);
-  if (s <= 0) return 0;
-  return WAVE.bar ? s * (WAVE.phaseTime ?? 1) : s * (WAVE.phase?.behind ?? 8) / Math.max(1, PEEL_SPEED);
+  if (WAVE.bar) return s * (WAVE.phaseTime ?? 1);
+  return s * (s > 0 ? WAVE.phase?.behind ?? 8 : WAVE.phase?.ahead ?? 10) / Math.max(1, PEEL_SPEED);
 }
+// Within the curl's young whitewater (at most `curlBehind` s since it broke): a snap there still snaps off the lip.
+const youngLip = (xs) => curlTime(xs) <= TUNE.curlBehind;
 // The wave rules' readings where you are (see `driveAccel` in the settings): the curl's speed, smoothed, and the face's
 // steepness at your spot, re-read every 0.2 s (the wave changes as it peels; a scan every step costs too much).
 function waveRules(r, dt) {
@@ -478,7 +487,7 @@ export function createRider() {
     airSpin: 0, airTime: 0, spinArmed: false,
     moveCooldown: 0, lastBottomTurn: -9, bottomArmed: false,
     tube: null, fakie: null, driveBank: 0, lastTurnTime: -9, lastTurnDir: 0, overTheBack: false,
-    rideDir: 1, lock: null, inDir: 0, lipSnap: null, snapGrip: false, gripVertical: false, vSnap: null, roundhouse: null, crouchDepth: 0, barrelCrouch: 0, frontLean: 0, tubeDamp: 0, pivot: 0, foot: 0, footGoal: 0, shuf: 0, shufGoal: 0, walkDir: 1, pivotHeld: false, pivotUp: false, pivotDir: 0, nose: 0, noseTime: 0, noseRisk: 0, onNose: false, ten: 0, tenGoal: 0, tenWait: 0, tenTime: 0, tenDone: false, slash: null, slide: 0, rightHeld: 0, turnDir: 0, turnDirAge: 9, turnHeld: 0, hard: 0, assist: null, bottomCarve: false, floater: null,
+    rideDir: 1, lock: null, inDir: 0, lipSnap: null, snapGrip: false, gripVertical: false, vSnap: null, climbPeak: -1, climbPeakT: -9, roundhouse: null, crouchDepth: 0, barrelCrouch: 0, frontLean: 0, tubeDamp: 0, pivot: 0, foot: 0, footGoal: 0, shuf: 0, shufGoal: 0, walkDir: 1, pivotHeld: false, pivotUp: false, pivotDir: 0, nose: 0, noseTime: 0, noseRisk: 0, onNose: false, ten: 0, tenGoal: 0, tenWait: 0, tenTime: 0, tenDone: false, slash: null, slide: 0, rightHeld: 0, turnDir: 0, turnDirAge: 9, turnHeld: 0, hard: 0, assist: null, bottomCarve: false, floater: null,
     wipeReason: '', wipeTimer: 0, wipeAge: 0, washing: false, falls: null, fallsBoard: null, stepOff: null,
     events: [],
     time: 0,
@@ -738,9 +747,10 @@ function snapAllowed(r, top) {
 // up; then on a really steep face anywhere, or else right at the curl or a little into its whitewater.
 function vertSnapOk(r, sinp) {
   const T = TUNE;
-  if (r.tube || r.rideDir < 0 || WAVE.noseride || sinp < T.vertSnapUp) return false;
-  if (r.xs < T.curlZone[0] - T.vertSnapIntoFoam) return false; // (only a little into the whitewater, on any wave: deeper it's a re-entry)
-  return faceSteepness(r.xs) >= T.vertSnapSteep || r.xs <= T.curlZone[0] + T.vertSnapNearCurl;
+  if (r.tube || r.rideDir < 0 || WAVE.noseride || Math.max(sinp, r.climbPeak ?? -1) < T.vertSnapUp) return false;
+  const ct = curlTime(r.xs);
+  if (ct > T.curlBehind) return false; // (older whitewater, on any wave: there it's a re-entry)
+  return ct >= -T.curlAhead || faceSteepness(r.xs) >= T.vertSnapSteep;
 }
 function startVertSnap(r, top, combo) {
   const T = TUNE;
@@ -799,6 +809,11 @@ function stepSurf(r, input, dt) {
     }
   }
   holdHeight(r);
+  { // (the steepest you've climbed in the last 0.35 s: a vertical snap counts the climb, not where the nose is by the time
+    // the snap starts, after the Right turn has begun to bring it round; the user, 2026-11-25)
+    const sp = Math.sin(r.phi);
+    if (sp >= r.climbPeak || r.time - r.climbPeakT > 0.35) { r.climbPeak = sp; r.climbPeakT = r.time; }
+  }
   let f = frameAt(r.xs, r.t);
   // For airs (the user, 2026-11-22): how fast you're actually rising (m/s, smoothed over ~0.1 s; not where the nose
   // points: on a floater the nose can point up while the foam holds you level), and when you were last in a move.
@@ -1436,7 +1451,7 @@ function stepSurf(r, input, dt) {
   const highOnFoam = !r.floater && !r.assist && !r.lipSnap && !(r.floatCool > 0) && r.t > top && sinp > 0.2 && cosp > -0.15
     && (r.xs < T.curlZone[0] || foamAt(r.xs, r.t) > 0.3) && waveHeightFrac(r.pos[1]) > T.floaterHeight
     && !(turningNow && sinp > 0.55)
-    && !(T.snapIntoLip > 0 && r.xs >= T.curlZone[0] - T.snapIntoLip && foamAt(r.xs, r.t) <= 0.65); // (on the lip's edge wait for the top: a turn there snaps)
+    && !(T.snapIntoLip > 0 && youngLip(r.xs) && foamAt(r.xs, r.t) <= 0.65); // (on the lip's edge wait for the top: a turn there snaps)
   if (highOnFoam && !T.floaters && !T.softFoam) return wipe(r, 'Over the falls! (too heavy to float)');
   if (highOnFoam && T.floaters) { // (softFoam waves without floaters: you just climb the foam, which slows you)
     r.floater = { time: 0, t: r.t };
@@ -1458,7 +1473,8 @@ function stepSurf(r, input, dt) {
     && r.t > top && r.t <= snapZoneT(r.xs, top) && sinp > T.snapUp
     && r.time - (r.lastTurnTime ?? -9) < T.turnWindow && r.lastTurnDir < 0
     && (r.xs >= T.curlZone[0] && foamAt(r.xs, r.t + 0.6) <= 0.3
-      || T.snapIntoLip > 0 && r.xs >= T.curlZone[0] - T.snapIntoLip && foamAt(r.xs, r.t + 0.6) <= 0.65)) { // (snapIntoLip: a bit further into the breaking lip)
+      || T.snapIntoLip > 0 && youngLip(r.xs) && foamAt(r.xs, r.t + 0.6) <= 0.65 // (snapIntoLip: a bit into the breaking lip, while it's young)
+      || vertSnapOk(r, sinp))) {
     const combo = r.time - (r.lastBottomTurn ?? -9) < T.comboWindow;
     if (vertSnapOk(r, sinp)) startVertSnap(r, top, combo);
     else if (snapAllowed(r, top)) {
@@ -1473,7 +1489,7 @@ function stepSurf(r, input, dt) {
     const turning = r.time - (r.lastTurnTime ?? -9) < T.turnWindow;
     // Turning as you meet the lip right where it's breaking is still a snap (Raglan `snapIntoLip`, the user,
     // 2026-11-18: those turns were giving floaters): up to that far behind the curl's edge, with a little more foam.
-    const onLip = T.snapIntoLip > 0 && r.rideDir >= 0 && r.xs >= T.curlZone[0] - T.snapIntoLip && r.xs <= T.curlZone[0] + 0.5 && foamAt(r.xs, r.t + 0.6) <= 0.65;
+    const onLip = T.snapIntoLip > 0 && r.rideDir >= 0 && youngLip(r.xs) && r.xs <= T.curlZone[0] + 0.5 && foamAt(r.xs, r.t + 0.6) <= 0.65;
     // ... and barely onto the breaking lip, pointing straight up or angled toward the shoulder at all, it's a snap
     // even without a turn (the user's rule, 2026-11-18); angled back toward the whitewater it's the usual moves; right
     // at the curl (not yet on the lip) not turning is still an air.
@@ -1490,7 +1506,7 @@ function stepSurf(r, input, dt) {
     if (inWhitewater && !T.floaters && !T.softFoam) return wipe(r, 'Over the falls!');
     // (soft whitewater without floaters, the longboard: turn off it for a re-entry, or it knocks you off)
     if (inWhitewater && !T.floaters && T.softFoam && !turning) return wipe(r, 'Knocked off by the whitewater! (turn off the top of it)');
-    if (inWhitewater && T.floaters && cosp > -0.15 && !(turning && sinp > 0.55)) {
+    if (inWhitewater && T.floaters && cosp > -0.15 && !(turning && sinp > 0.55) && !(turning && ready && vertSnapOk(r, sinp))) { // (a vertical snap in the curl's young whitewater beats a floater)
       // Into the whitewater heading down the line: ride along the top of it.
       r.floater = { time: 0, t: r.t };
       if (ready) {
