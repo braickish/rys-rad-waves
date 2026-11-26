@@ -52,7 +52,7 @@ select is((select count(*)::int from public.profiles where id in ('11111111-1111
 select throws_ok($$ insert into public.profiles (id, handle) values ('11111111-1111-1111-1111-111111111111', 'visitor_x') $$, '42501', null, 'a visitor can''t make one');
 select pg_temp.act_as('22222222-2222-2222-2222-222222222222');
 select lives_ok($$ update public.profiles set display_name = 'Bo', jersey = 'yellow', handle = 'bo_charges' where id = '22222222-2222-2222-2222-222222222222' $$, 'Bo changes his name, jersey and handle');
-select throws_ok($$ update public.profiles set styling = '{"x":1}' where id = '22222222-2222-2222-2222-222222222222' $$, '42501', null, 'styling isn''t yours to write (yet)');
+select throws_ok($$ update public.profiles set styling = '{"x":1}' where id = '22222222-2222-2222-2222-222222222222' $$, '23514', null, 'styling: only known parts, and only with Pro (task 16; styling_test.sql)');
 
 -- An anonymous guest gets no profile.
 select pg_temp.act_as('33333333-3333-3333-3333-333333333333', true);

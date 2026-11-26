@@ -334,8 +334,15 @@ sees it on their profile.
   fresh-page replay drift seen once in ~10 runs of replay-browser (drift 1.03, judged 4.60 vs 4.63): some state
   outside the recording. Tests: `npm run test:ride-check` (14), live-heat-browser (both real waves check ok on the
   server), profile-filled-browser (the host's flags, Check now, hidden from others).
-- [ ] **16. Surfer styling (Pro).** Wetsuit, trunks and board colours and patterns in `profiles.styling`, chosen on the account
-  page, worn in your rides and shown to others in contests and recaps.
+- [x] **16. Surfer styling (Pro)** (2026-11-25). src/styling.js: a 14-colour palette for the wetsuit (any suit or top), the
+  trunks (the guy's boardshorts; the girl's top and bottoms) with a pattern (solid, stripes, floral), and the board's
+  deck and nose. Kept in `profiles.styling` as ids; migration `20261125070000_surfer_styling.sql` checks the keys and
+  values and that you have Pro (lapsed: kept, can be cleared, not changed). The account page's Your surfer: swatches
+  (and "the game's own"), pattern buttons, a flat preview, locked without Pro (the Go Pro sheet once sales are open),
+  "See it on the wave" (the demo surfer behind the title wears it). The game wears it while you have Pro (main.js
+  `currentStyle`, `bodyColors(.., style)`, surfer.js `setBoardStyle`), and every recording carries it (`styling`), so a
+  replay (a contest's ▶, a recap) shows the rider's look to anyone; unknown values are dropped (`cleanStyling`).
+  Tests: `supabase/tests/styling_test.sql` (8), `npm run test:styling-browser` (10).
 - [ ] **17. Recap video.** A recap page from a heat's rides and timeline, with broadcast cameras, a lower-third scoreboard,
   commentary written by Claude in an Edge Function and voiced by text-to-speech, `MediaRecorder` export, kept in Storage,
   and shown on the profiles of everyone in it.

@@ -10,7 +10,8 @@ import { applyBuilt } from './waves/built.js';
 import { parseHeatParam, createHeat, stepHeat, canCatch, addWave, addRivalWave, checkOver, standings, judgeSeed, clockText, you as heatYou } from './heat.js';
 import { connectLive } from './live-heat.js';
 import { perspective, lookAt, mul, invert } from './math.js';
-import { createPose, surferObjects } from './surfer.js';
+import { createPose, surferObjects, setBoardStyle } from './surfer.js';
+import { PALETTE, cleanStyling, stylingKey } from './styling.js';
 import { loadSkinnedGLB } from './glb.js';
 import { createBody } from './body.js';
 import { startAccountUI } from './account-ui.js';
@@ -77,7 +78,16 @@ const TOPPER = [0.06, 0.3, 0.32, 0.3]; // (a dark teal neoprene long-sleeve top:
 // a vest: the user), over whatever the water calls for (trunks, top, short-sleeve, full suit or hood), from the shoulders
 // to just over the waistband, with a darker hem, cuffs and neckline. jersey: '#rrggbb' or null.
 const hexRgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255);
-function bodyColors(m, which, outfit, jersey = null) {
+// style (task 16, a Pro member's: src/styling.js ids): the suit's colour (any wetsuit or top), and the trunks' (the guy's
+// boardshorts; the girl's top and bottoms) colour and pattern.
+function bodyColors(m, which, outfit, jersey = null, style = {}) {
+  const shade = (rgb, k) => rgb.map((v) => Math.min(1, v * k));
+  const SUIT = style.suit ? [...PALETTE[style.suit], 0.4] : null;
+  const S0 = style.shorts && PALETTE[style.shorts], S = S0 && [...S0, 0.1];
+  const S2 = S0 && [...(S0[0] + S0[1] + S0[2] < 1.2 ? shade(S0.map((v) => v + 0.35), 1) : shade(S0, 0.55)), 0.1], SW = [0.95, 0.95, 0.95, 0.1];
+  // (the pattern on a piece of cloth at a point: stripes up and down, or a floral speckle)
+  const cloth = (x, y, z) => !S ? null : style.pattern === 'stripes' ? (Math.sin(x * 90 + z * 40) > 0.35 ? S2 : S)
+    : style.pattern === 'floral' ? ((f) => (f > 0.45 ? SW : f < -0.55 ? S2 : S))(Math.sin(x * 120 + 0.4) * Math.sin(y * 135 + 1.1) * Math.sin(z * 110)) : S;
   // (a black jersey vanished on a black wetsuit: dark ones go charcoal with light trim)
   const rgb = jersey && hexRgb(jersey), dark = rgb && rgb[0] + rgb[1] + rgb[2] < 0.45;
   const J = rgb && [...(dark ? [0.2, 0.2, 0.22] : rgb), 0.18], Jtrim = J && [...(dark ? [0.72, 0.72, 0.74] : J.slice(0, 3).map((v) => v * 0.55)), 0.18];
@@ -95,7 +105,7 @@ function bodyColors(m, which, outfit, jersey = null) {
     let col = L.skin;
     const hipBone = /^(pelvis|spine_01|thigh_[lr]|Root)$/.test(bone) || (bone.startsWith('calf') && y > kneeY + 0.06);
     if (which === 'guy') {
-      if (hipBone && y < waistY && y > kneeY + 0.07) col = y > waistY - 0.035 ? band : shorts;
+      if (hipBone && y < waistY && y > kneeY + 0.07) col = y > waistY - 0.035 ? band : (cloth(x, y, z) || shorts);
     } else {
       // After the user's reference (hana-likeness.jpg, 2026-11-18): a light-blue floral bralette top with thin
       // straps and a scoop neck, a bare midriff, floral boy-short bottoms (sage, cream and brown), bare arms with a
@@ -110,11 +120,13 @@ function bodyColors(m, which, outfit, jersey = null) {
         col = topBlue;
         const f = Math.sin(x * 170 + 1.3) * Math.sin(y * 190) * Math.sin(z * 150 + 0.7);
         if (f > 0.5) col = topLilac; else if (f < -0.62) col = topWhite;
+        col = cloth(x, y, z) || col;
       }
       if (hipBone && y < 0.12 && y > -0.05) {
         col = sage;
         const f = Math.sin(x * 120 + 0.4) * Math.sin(y * 135 + 1.1) * Math.sin(z * 110);
         if (f > 0.45) col = cream; else if (f < -0.55) col = brown;
+        col = cloth(x, y, z) || col;
       }
       if (bone.startsWith('lowerarm')) { // bracelets
         const hand = m.rest['hand_' + bone.slice(-1)].head, d = Math.hypot(x - hand[0], y - hand[1], z - hand[2]);
@@ -142,7 +154,7 @@ function bodyColors(m, which, outfit, jersey = null) {
         bare = ((x - a[0]) * ex + (y - a[1]) * ey + (z - a[2]) * ez) / (ex * ex + ey * ey + ez * ez) > 0.5;
       }
       if (bone.startsWith('calf')) bare = y < m.rest['foot_' + bone.slice(-1)].head[1] + 0.015;
-      if (suit && !bare) col = top ? TOPPER : WETSUIT;
+      if (suit && !bare) col = SUIT || (top ? TOPPER : WETSUIT);
     }
     if (J && (/^(spine_0[123]|clavicle_[lr])$/.test(bone) || (hipBone && y > waistY - 0.05 && !bone.startsWith('calf') && !bone.startsWith('thigh')))
         && y < neckY - 0.03) {
@@ -161,7 +173,7 @@ function bodyColors(m, which, outfit, jersey = null) {
       // (the hood: all of the head and neck but an oval for the face, from the brow to the chin)
       const zf = z - (hs.front - 0.177), t = hs.top - 0.98;
       const face = zf > 0.1 && y > t + 0.755 && y < t + 0.9 && Math.abs(x) < 0.068 * Math.sqrt(Math.max(0, 1 - ((y - (t + 0.83)) / 0.085) ** 2)) + 0.012;
-      if (!face) col = WETSUIT;
+      if (!face) col = SUIT || WETSUIT;
     } else if (bone === 'head' || bone === 'neck_01') {
       const zf = z - (hs.front - 0.177); // (positions relative to the measured face, like the guy's head it was tuned on)
       const t = hs.top - 0.98;
@@ -219,6 +231,14 @@ function loadBody(which) {
   if (!b.body && !b.loading) b.loading = loadSkinnedGLB(BODY_FILES[which]).then((m) => { const bc = bodyColors(m, which); Object.assign(b, { body: createBody(m), model: m, colors: bc.colors, outfits: { ':': bc.colors }, head: bc.head, which }); }).catch((e) => console.error('body', e));
   return b;
 }
+// The look worn now (task 16): a replay wears the recording's (so you see someone else's wave as they rode it); otherwise
+// yours, while you have Pro (as the database lets you save it), and the game's own look without.
+let planPro = false;
+onPlan((p) => { planPro = !!p.pro; });
+function currentStyle() {
+  if (player) return cleanStyling(player.rec.styling);
+  return planPro ? cleanStyling(cachedProfile()?.styling) : {};
+}
 function wantBody() {
   if (!renderer) return null;
   const which = WAVE.surfer === 'girl' ? 'girl' : 'guy';
@@ -226,10 +246,13 @@ function wantBody() {
   const b = loadBody(which);
   // (the wave's outfit, e.g. Raglan's wetsuit, painted once per body and outfit)
   // (?outfit=topper|shortsleeve|wetsuit|hood: try a look on any wave, for testing)
-  const outfit = params.get('outfit') ?? (WAVE.outfit || ''), jersey = H ? heatYou(H).jersey.color : null, key = which + ':' + outfit + ':' + (jersey || '');
+  const outfit = params.get('outfit') ?? (WAVE.outfit || ''), jersey = H ? heatYou(H).jersey.color : null;
+  const style = currentStyle(), sk = stylingKey(style), key = which + ':' + outfit + ':' + (jersey || '') + ':' + sk;
   if (b.body && renderer.bodyShown !== key) {
-    b.colors = b.outfits[outfit + ':' + (jersey || '')] ||= bodyColors(b.model, which, outfit, jersey).colors;
+    b.colors = b.outfits[outfit + ':' + (jersey || '') + ':' + sk] ||= bodyColors(b.model, which, outfit, jersey, style).colors;
     renderer.setBody(b.body.model, b.colors); renderer.bodyShown = key;
+    setBoardStyle(style.board && PALETTE[style.board], style.nose && PALETTE[style.nose]);
+    window.__styleKey = sk; // (tests: the look being worn)
   }
   return b.body ? b : null;
 }
@@ -713,7 +736,7 @@ function startOrRestart() {
   score = 0; rideTime = 0; lastMove = ''; lastMoveTime = -9; // (each ride: its clock starts at 0, so the last ride's move would count as a repeat)
   rideLog = createRideLog(); // (always: the recording keeps the judged score; the sheet shows with ?judge)
   player = null;
-  recording = createRecording({ wave: WAVE.id, built: WAVE.id === 'built' ? WAVE.built : null, seed: SEA.seed, n: SEA.n, params: physicsParams() });
+  recording = createRecording({ wave: WAVE.id, built: WAVE.id === 'built' ? WAVE.built : null, seed: SEA.seed, n: SEA.n, params: physicsParams(), styling: currentStyle() });
   $('replay-badge').hidden = true;
   $('title').hidden = true;
   $('over').hidden = true;

@@ -1,12 +1,13 @@
 // account.html: your handle, name and jersey; your email; sign out; delete your account (accounts plan task 5).
 // The plan panel buys the Wave Pass or Pro, and opens Stripe's billing page (task 9). Your breaks and contests join it
 // later (task 14).
-import { initAccount, onAccount, onPlan, SALES_OPEN, myProfile, saveProfile, handleProblem, changeEmail, deleteAccount, signOut, describeAuthError, describeProfileError } from './account.js';
+import { initAccount, onAccount, onPlan, SALES_OPEN, currentPlan, myProfile, saveProfile, handleProblem, changeEmail, deleteAccount, signOut, describeAuthError, describeProfileError } from './account.js';
 import { JERSEYS } from './heat.js';
 import { handleFromEmail } from './account-ui.js';
 import { countriesByName, flag } from './countries.js';
 import { searchTowns } from './places.js';
 import { myContests, cancelContest, spotName, describeContestError } from './contests.js';
+import { PALETTE, PATTERNS, PARTS, hex, cleanStyling } from './styling.js';
 import { openPaywall, startPaywall, goToStripe } from './paywall.js';
 
 const $ = (id) => document.getElementById(id);
@@ -64,6 +65,7 @@ function fill() {
   $('handle').value = profile?.handle || handleFromEmail(user.email);
   $('display').value = profile?.display_name || '';
   jersey = profile?.jersey || 'red'; drawJerseys();
+  style = cleanStyling(profile?.styling); drawStyle(); lockStyle();
   $('city').value = profile?.city || ''; $('country').value = profile?.country || '';
   place = { city: profile?.city || null, lat: profile?.lat ?? null, lng: profile?.lng ?? null }; placeHint();
   $('email-now').textContent = user.email;
@@ -148,6 +150,69 @@ onPlan((p) => {
   $('billing').hidden = !(p.wave_pass || p.pro);
 });
 startPaywall().catch((e) => console.warn('paywall', e));
+
+// Your surfer (task 16, Pro): swatches for the wetsuit, trunks, board and nose (a striped swatch: the game's own), the
+// trunks' pattern, and a flat little preview. Saved to profiles.styling; worn in your rides while you have Pro.
+const DEFAULTS = { suit: [0.045, 0.047, 0.055], shorts: [0.22, 0.33, 0.5], board: [0.95, 0.93, 0.86], nose: [0.55, 0.84, 0.8] };
+let style = {};
+function drawPreview() {
+  const c = (k) => hex(style[k] ? PALETTE[style[k]] : DEFAULTS[k]);
+  const stripes = style.pattern === 'stripes', floral = style.pattern === 'floral';
+  $('style-preview').innerHTML = `
+    <defs><pattern id="pp" width="8" height="8" patternUnits="userSpaceOnUse">${stripes ? `<rect width="4" height="8" fill="rgba(255,255,255,.45)"/>` : floral ? `<circle cx="2" cy="2" r="1.6" fill="#fff"/><circle cx="6" cy="6" r="1.2" fill="rgba(0,0,0,.35)"/>` : ''}</pattern></defs>
+    <circle cx="60" cy="24" r="11" fill="#d9915e"/>
+    <path d="M44 40 h32 l6 34 h-44 z" fill="${c('suit')}"/>
+    <path d="M38 74 h44 l-4 22 h-36 z" fill="${c('shorts')}"/><path d="M38 74 h44 l-4 22 h-36 z" fill="url(#pp)"/>
+    <path d="M44 96 h12 v22 h-12 z M64 96 h12 v22 h-12 z" fill="${c('suit')}"/>
+    <ellipse cx="60" cy="132" rx="50" ry="9" fill="${c('board')}" stroke="rgba(0,0,0,.35)"/>
+    <path d="M92 124.6 A50 9 0 0 1 110 132 A50 9 0 0 1 92 139.4 Q97 132 92 124.6 z" fill="${c('nose')}"/>`;
+}
+function drawStyle() {
+  const rows = $('style-rows'); rows.innerHTML = '';
+  for (const [k, label] of PARTS) {
+    const row = document.createElement('div'); row.className = 'style-row';
+    row.innerHTML = `<b>${label}</b><div class="swatches" role="radiogroup" aria-label="${label}"></div>`;
+    const box = row.querySelector('.swatches');
+    for (const id of [null, ...Object.keys(PALETTE)]) {
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = `swatch${id ? '' : ' default'}${(style[k] || null) === id ? ' on' : ''}`; b.dataset.part = k; b.dataset.id = id || '';
+      if (id) b.style.background = hex(PALETTE[id]);
+      b.setAttribute('role', 'radio'); b.setAttribute('aria-label', id || 'the game\'s own'); b.title = id || 'the game\'s own';
+      b.addEventListener('click', () => { if (id) style[k] = id; else delete style[k]; drawStyle(); });
+      box.append(b);
+    }
+    rows.append(row);
+    if (k === 'shorts') {
+      const pr = document.createElement('div'); pr.className = 'style-row pattern-row';
+      pr.innerHTML = '<b>Trunks pattern</b><div class="row"></div>';
+      for (const p of PATTERNS) {
+        const b = document.createElement('button');
+        b.type = 'button'; b.className = `pattern-btn${(style.pattern || 'solid') === p ? ' on' : ''}`; b.textContent = p[0].toUpperCase() + p.slice(1); b.dataset.pattern = p;
+        b.addEventListener('click', () => { if (p === 'solid') delete style.pattern; else style.pattern = p; drawStyle(); });
+        pr.querySelector('.row').append(b);
+      }
+      rows.append(pr);
+    }
+  }
+  drawPreview();
+}
+const styleLocked = () => !currentPlan().pro;
+function lockStyle() {
+  const locked = styleLocked();
+  $('style-form').classList.toggle('locked', locked);
+  $('style-save').textContent = locked ? (SALES_OPEN ? 'Go Pro to style your surfer' : 'Styling comes with Pro') : 'Save';
+  $('style-save').disabled = locked && !SALES_OPEN;
+}
+onPlan(lockStyle);
+$('style-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  if (styleLocked()) { openPaywall({ want: 'pro', why: 'Styling your surfer comes with Pro.' }); return; }
+  if (!profile) { hint('style-msg', 'Make your profile first (above).', 'bad'); return; }
+  $('style-save').disabled = true;
+  try { profile = await saveProfile({ styling: cleanStyling(style) }); hint('style-msg', 'Saved. Your surfer wears it from your next ride.', 'good'); }
+  catch (err) { hint('style-msg', describeProfileError(err), 'bad'); }
+  $('style-save').disabled = false;
+});
 
 // Your contests (task 14): hosted or entered, newest first; open ones to their lobby (and the host can cancel), the rest
 // to their page.

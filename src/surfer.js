@@ -19,6 +19,9 @@ const COL = {
   board: [0.95, 0.93, 0.86], nose: [0.55, 0.84, 0.8], stringer: [0.72, 0.7, 0.66], fin: [0.15, 0.16, 0.2],
   logo: [0.85, 0.2, 0.25],
 };
+// A Pro member's board (task 16; src/styling.js): its deck and nose colours, over every board's own. null: as built.
+let boardStyle = null;
+export const setBoardStyle = (deck, nose) => { boardStyle = deck || nose ? { deck, nose } : null; };
 // The surfer's body is the skinned one (body.js), posed from the joints worked out here (pose.J); this file
 // draws only the board. (The parts surfer, made of spheres and cylinders, was dropped 2026-11-18, the user's call.)
 const THIGH = 0.46, SHIN = 0.46, UPPER = 0.3, FORE = 0.3;
@@ -79,8 +82,8 @@ function ball(p, r, color, x = [1, 0, 0], y = [0, 1, 0], z = [0, 0, 1], sy = 1) 
 export function boardObjects(f, ub, Lb, bc) {
   const B = boardShape(), name = WAVE.board && BOARDS[WAVE.board] ? WAVE.board : 'fish';
   const objs = [];
-  objs.push({ mesh: `board-${name}`, model: basis(f, ub, Lb, 1, 1, 1, bc), color: B.colors ? B.colors.deck : COL.board });
-  objs.push({ mesh: `boardNose-${name}`, model: basis(f, ub, Lb, 1, 1, 1, bc), color: B.colors ? B.colors.nose : COL.nose });
+  objs.push({ mesh: `board-${name}`, model: basis(f, ub, Lb, 1, 1, 1, bc), color: boardStyle?.deck || (B.colors ? B.colors.deck : COL.board) });
+  objs.push({ mesh: `boardNose-${name}`, model: basis(f, ub, Lb, 1, 1, 1, bc), color: boardStyle?.nose || (B.colors ? B.colors.nose : COL.nose) });
   if (B.colors && B.colors.rail) objs.push({ mesh: `boardRail-${name}`, model: basis(f, ub, Lb, 1, 1, 1, bc), color: B.colors.rail });
   // (stringer in short pieces so it follows the rocker)
   const rk = (x) => B.rocker(x / B.half);

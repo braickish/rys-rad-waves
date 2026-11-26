@@ -81,3 +81,15 @@ main.wide { max-width: 980px; }
 .country b { color: var(--yellow); }
 .wave-btn.flagged { background: #ffb4b4; color: #5a0d0d; }
 .checks-line { margin: 8px 0 0; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+/* Your surfer (task 16) */
+.style-grid { display: grid; grid-template-columns: 120px 1fr; gap: 16px; align-items: start; }
+@media (max-width: 480px) { .style-grid { grid-template-columns: 1fr; } #style-preview { width: 110px; } }
+#style-preview { width: 120px; height: auto; background: linear-gradient(#174a66, #0d3047); border-radius: 12px; }
+.style-row { margin-bottom: 10px; } .style-row > b { display: block; font-size: 13px; margin-bottom: 5px; }
+.swatches { display: flex; flex-wrap: wrap; gap: 6px; }
+.swatch { width: 26px; height: 26px; border-radius: 50%; border: 3px solid transparent; padding: 0; box-shadow: inset 0 0 0 2px rgba(0,0,0,.25); }
+.swatch.on { border-color: #fff; outline: 2px solid var(--yellow); }
+.swatch.default { background: repeating-linear-gradient(45deg, #dfe8ec 0 4px, #9fb4bf 4px 8px); }
+.pattern-btn { font-size: 12px; padding: 4px 12px; background: rgba(255,255,255,.07); color: var(--text); border-color: var(--line); }
+.pattern-btn.on { background: var(--teal); color: var(--ink); border-color: #fff; }
+#style-form.locked .swatches, #style-form.locked .pattern-row { opacity: .45; pointer-events: none; }

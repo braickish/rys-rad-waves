@@ -1257,3 +1257,10 @@ select private.revoke_grant('friend@example.com');         -- ends every grant t
 `index.html` (the game), `builder.html`, `account.html`, `profile.html?u=<handle>` (a surfer's public page: where they
 surf from, public breaks, public contest results), `contest.html?c=<code>` (a contest's heats and results, ▶ to watch a
 wave), `map.html` (where everyone surfs from), `terms.html`, `privacy.html`.
+
+## Local stack quirk: check-rides and the game's modules
+
+The `check-rides` Edge Function imports the game's own modules from `src/` (task 15). Locally, the stack mounts those
+files when it starts; after editing them (or a tool rewriting them), the local function can fail with "Module not
+found ... src/rider.js": restart the stack (`npx supabase stop && npx supabase start`). The cloud bundles them at deploy
+(`npx supabase functions deploy check-rides`), so redeploy it after physics or judging changes.

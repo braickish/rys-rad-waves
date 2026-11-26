@@ -564,7 +564,21 @@ function kfPoints(KF, s, out, scale) {
       out[i * 2 + c] = (h00 * y0 + h10 * m0 + h01 * y1 + h11 * m1) * scale;
     }
   }
-  return out;
+  return onFloor(out);
+}
+// The flats are a fixed floor at sea level (0), on every wave and every shape (the user, 2026-11-25): no drawdown in front of
+// the face. A shape whose trough (14) dips below 0 is lifted instead: the trough sits on 0 and the wave above it rises by the
+// same amount, so it keeps its height over the water (as the ledge jacks up). The lift fades out toward the waterline (under
+// 0.3 of the crest's height), so a lip that lands on the water stays on it. Where one shape dipped and the next didn't, the
+// flats stepped along the wave: a ridge out on the flats behind the curl, where the broken water sits at 0 and the drawdown
+// in front of the curl below it.
+function onFloor(p) {
+  const d = -p[I.TROUGH * 2 + 1]; if (!(d > 0)) return p;
+  let top = 0; for (let i = I.CREST_BACK; i <= I.TIP; i++) top = Math.max(top, p[i * 2 + 1]);
+  const h0 = Math.max(1e-6, 0.3 * top);
+  for (let i = I.CREST_BACK; i < I.TROUGH; i++) { const y = p[i * 2 + 1]; p[i * 2 + 1] = y + d * Math.min(1, Math.max(0, y / h0)); }
+  p[I.TROUGH * 2 + 1] = 0;
+  return p;
 }
 
 // Centripetal Catmull-Rom between p1 and p2 (avoids loops and cusps when
