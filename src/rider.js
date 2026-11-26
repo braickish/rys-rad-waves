@@ -1206,6 +1206,9 @@ function stepSurf(r, input, dt) {
   // spent, not saved, so it doesn't carry on pushing after the turn)
   waveRules(r, dt);
   r.speed += Math.min(release, r.driveCap * dt); r.driveBank -= release;
+  // (the turn's over: what's left of its drive is spent, on every wave. Paid out up the face after the turn it was a
+  // slingshot out of the end of it; the user, 2026-11-25)
+  if (!playerD) r.driveBank = 0;
   if (playerD) { r.lastTurnTime = r.time; r.lastTurnDir = Math.sign(playerD); }
 
   // Track bottom turns (for moves and combos): down low heading down, then up.
