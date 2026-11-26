@@ -94,6 +94,11 @@ const RIDER_TUNE = {
   // count; on a longboard from the middle, twice as long). One rule for every wave (the user, 2026-11-26: 4 s; it was
   // 1 s on Raglan and the waves built on it, 1.4 s on Queens).
   foamLimit: 4.0,
+  // A free floater's speed (a wave rule, the user, 2026-11-26: the floater should get the bottom turn's speed model):
+  // `floaterGain` x what the drop from where you got onto the foam is worth, sqrt(2 g height above the trough), eased in;
+  // paid within the turn drive's limit (`driveCap`) and fading past the curl's speed (`driveOverCurl`), as a turn's
+  // drive is. A floater high on a big wave pays more. (Raglan ~0.9 m/s, ~2 mph, as the per-wave `floaterBoost` was.)
+  floaterGain: 0.13,
   // ... and the speed it pulls you toward is the whitewater's own pace, `foamOfCurl` x the curl's speed (the smoothed one,
   // within `overCurlRange` x Raglan's), not a fixed crawl: Raglan ~14 mph, Queens ~11, Pipe ~19 (the user, 2026-11-26:
   // lessen how quickly speed drops off in the whitewater). It only ever slows you (on the flats the cruise is lower and
@@ -279,7 +284,13 @@ function rotate(a, k, ang) {
 // How much power the wave has at xs: full in the pocket, fading quickly out
 // on the shoulder and behind the curl.
 export function pocketPower(xs) {
-  return WAVE.pocket(xs);
+  const own = WAVE.pocket(xs);
+  if (xs >= 0) return own;
+  // Behind the curl (a wave rule, the user, 2026-11-26: bottom turns on the flats behind the curl, where the whitewater
+  // hadn't got to yet, lost their drive): the pocket's power lasts as long as the water there is young, the same as the
+  // whitewater's drag (`foamAge`): full until it broke 0.5 s ago, none by 1.3 s, so it scales with the curl's speed
+  // (Raglan: full to ~4 m behind, some to ~11 m). Never less than the wave's own (Pipe's tube, Trestles' long pocket).
+  return Math.max(own, 1 - sstep(TUNE.foamAge[0], TUNE.foamAge[1], brokeAgo(xs)));
 }
 
 // How much a steep wall is worth at xs, wherever it is along the wave (waves with `wallK`: Trestles, 2026-11-19, the
@@ -1434,15 +1445,18 @@ function stepSurf(r, input, dt) {
     : { dir: 1, target: -(Math.PI - exit), rate });
   if (r.floater && T.floaterSteer) {
     // Free floater (`floaterSteer`, Raglan; 2026-11-18, the user: the old one grabbed the board and steered it): you
-    // keep steering the whole time and get a little speed (`floaterBoost`, eased in), with no foam drag while you
+    // keep steering the whole time and get a little speed (`floaterGain`, eased in), with no foam drag while you
     // float. You can't climb above where you got on, but steer down and you come down off the foam straight away;
     // after `floaterSink` s the foam gives way and you sink gently (the board isn't turned for you). It ends once
     // you're clear of the foam, down off it, or turned back toward it; then the usual rules (a moment's grace).
     const fl = r.floater;
     fl.time += dt;
-    if (fl.bank === undefined) { fl.bank = T.floaterBoost || 0; fl.h0 = waveHeightFrac(r.pos[1]); }
+    if (fl.bank === undefined) {
+      const hOn = Math.max(0, r.pos[1] - surface(r.xs, T.tBottom)[1]); // (how high on the face you got onto the foam, m)
+      fl.bank = T.floaterGain * Math.sqrt(2 * 9.8 * hOn); fl.h0 = waveHeightFrac(r.pos[1]);
+    }
     const add = fl.bank * (1 - Math.exp(-dt / 0.25));
-    r.speed += add; fl.bank -= add;
+    r.speed += Math.min(add, r.driveCap * dt) * overK; fl.bank -= add; // (within the turn drive's limits: `floaterGain`)
     if (r.t < fl.t) r.t = fl.t; // (no higher than where you got onto the foam)
     if (fl.time > T.floaterSink) {
       const fs = frameAt(r.xs, r.t);

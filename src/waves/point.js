@@ -104,7 +104,7 @@ export default {
     // (`floaterBoost` m/s, ~2 mph), after `floaterSink` s the foam gives way at `floaterSinkSpeed` m/s, and it ends once
     // you're `floaterDrop` (fraction of the wave height) below where you got on. Airs landing in the whitewater get
     // `airLandFoamGrace` s before the foam can slow or catch you.
-    floaterSteer: true, floaterBoost: 0.9, floaterSink: 0.6, floaterSinkSpeed: 1.2, floaterDrop: 0.15, airLandFoamGrace: 1.5,
+    floaterSteer: true, floaterSink: 0.6, floaterSinkSpeed: 1.2, floaterDrop: 0.15, airLandFoamGrace: 1.5,
     airLandSpin: 1.1, // airs land up to ~63 deg off a whole half-turn (rider default 0.9, ~52 deg; the user, 2026-11-18: slightly easier to land)
     airs: true, floaters: true, rebounds: true, airSpeed: 9.39, airSpeedCurl: 8.49, // (airs from 19 mph at the curl's edge, easing up to 21 mph by airCurlZone out; was
     // 24 on the open face and ~13 near the curl. The user, 2026-11-18; see airSpeedAt in rider.js for the physics.)
