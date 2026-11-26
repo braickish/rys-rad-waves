@@ -105,7 +105,7 @@ async function openLobby(code) {
   leaveLobby();
   show('lobby'); say('lobby-msg', ''); say('compete-msg', '');
   $('lobby-name').textContent = '…'; $('lobby-what').textContent = ''; $('lobby-code').textContent = code; $('lobby-list').innerHTML = '';
-  for (const id of ['lobby-join', 'lobby-start', 'lobby-leave', 'lobby-cancel']) $(id).hidden = true;
+  for (const id of ['lobby-join', 'lobby-start', 'lobby-leave', 'lobby-cancel', 'lobby-recap']) $(id).hidden = true;
   const u = new URL(location.href); u.searchParams.set('contest', code); history.replaceState(null, '', u);
   const me = (L = { code, present: [] });
   try {
@@ -176,6 +176,7 @@ function render() {
   $('lobby-start').disabled = count < 2; // (a heat is 2 to 4 surfers: the host can't start alone, the user 2026-11-26)
   $('lobby-leave').hidden = !(lobby && mine);
   $('lobby-cancel').hidden = !(isHost && (lobby || state === 'running'));
+  $('lobby-recap').hidden = state !== 'done';
   clearInterval(me.count); me.count = null;
   // once it's started: the heats (a bracket: every round), instead of the list of who's in
   const heats = d?.heats || [];
@@ -188,6 +189,11 @@ function render() {
     else if (mine && my?.state === 'done') say('lobby-msg', "You're out. The rest is on: watch the bracket here.");
     else if (!mine) say('lobby-msg', "This contest has already started, so it's too late to join. You're watching: the scores fill in as they come.");
   } else if (state === 'done') {
+    // the recap (task 17): watch it in the game, the host makes its video, and the contest's page with every wave
+    const enc = encodeURIComponent(me.code);
+    $('lobby-recap-play').href = `index.html?recap=${enc}`;
+    $('lobby-recap-make').href = `index.html?recap=${enc}&make`; $('lobby-recap-make').hidden = !isHost;
+    $('lobby-results').href = `contest.html?c=${enc}`;
     const last = heats[heats.length - 1], win = last?.heat_entries.find((x) => x.place === 1);
     const name = win && d.entrants.find((e) => e.id === win.entrant_id)?.name;
     say('lobby-msg', name ? `Won by ${name}${win.entrant_id === mine?.id ? ' (you!)' : ''}.` : 'This contest is over.');

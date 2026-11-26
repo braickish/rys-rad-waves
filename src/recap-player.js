@@ -7,7 +7,7 @@
 //   wave   each shown wave: the standings before it, the lower third, the score when it's over (and the new standings)
 //   end    the result, after the last wave
 import { initAccount } from './account.js';
-import { contestByCode, readContest, WAVE_NAMES } from './contests.js';
+import { contestByCode, contestFor, WAVE_NAMES } from './contests.js';
 import { decodeRecording } from './replay.js';
 import { buildRecap } from './recap.js';
 import { drawOverlay } from './recap-overlay.js';
@@ -19,12 +19,10 @@ export async function loadRecap(code) {
   const c = await initAccount();
   const p = await contestByCode(code);
   if (!p) throw new Error('No contest has that code.');
-  const d = await readContest(p.id);
-  if (!d) throw new Error('This contest is only for the people in it.');
+  const d = await contestFor(p); // (anyone with the code: the people in it, or watching)
+  if (!d) throw new Error("Couldn't load that contest.");
   if (d.contest.state !== 'done') throw new Error("This contest isn't over yet.");
-  const { data: rides, error } = await c.from('rides').select('heat_id, entrant_id, wave_no, score, caught_at, replay_path').in('heat_id', d.heats.map((h) => h.id));
-  if (error) throw error;
-  const recap = buildRecap({ contest: d.contest, entrants: d.entrants, heats: d.heats, rides });
+  const recap = buildRecap({ contest: d.contest, entrants: d.entrants, heats: d.heats, rides: d.rides });
   if (!recap?.shown.length) throw new Error('This contest has no ride logs to show.');
   recap.contest.place = d.contest.spot?.name || WAVE_NAMES[d.contest.spot?.wave] || '';
   recap.contest.id = d.contest.id; recap.contest.host = d.contest.host; // (the host keeps the recap's video with the contest)

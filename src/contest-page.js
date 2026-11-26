@@ -1,9 +1,9 @@
 // contest.html?c=<code>: a contest's page (accounts plan task 14): every round and heat, places, totals and each wave's
-// score, with ▶ to watch the wave (its ride log from Storage, played in the game). Public contests are open to everyone;
-// an unlisted one only to its host and the people in it. The host also sees each wave's score check (task 15): ✓ when
+// score, with ▶ to watch the wave (its ride log from Storage, played in the game; anyone's, once the contest is over).
+// Anyone with the code can open it (src/contests.js contestFor). The host also sees each wave's score check (task 15): ✓ when
 // its log rides to the same score, ⚑ with why when it doesn't.
 import { initAccount, describeAuthError, currentUser } from './account.js';
-import { contestByCode, readContest, spotName, lengthName } from './contests.js';
+import { contestByCode, contestFor, spotName, lengthName } from './contests.js';
 import { JERSEYS } from './heat.js';
 
 const $ = (id) => document.getElementById(id);
@@ -29,11 +29,11 @@ async function watch(c, path) {
 try {
   const c = await initAccount();
   const preview = code ? await contestByCode(code) : null;
-  const d = preview ? await readContest(preview.id) : null;
+  const d = preview ? await contestFor(preview) : null; // (anyone with the code)
   $('loading').hidden = true;
   if (!d) {
     $('missing').hidden = false;
-    $('missing-why').textContent = !preview ? `There's no contest with the code ${code || 'given'}.` : 'Its results are only for the people in it. Ask the host to make it public.';
+    $('missing-why').textContent = !preview ? `There's no contest with the code ${code || 'given'}.` : "Couldn't load it. Check your connection and try again.";
   } else {
     const k = d.contest;
     $('contest').hidden = false;
@@ -47,12 +47,12 @@ try {
     if (k.state === 'lobby' || k.state === 'running') { $('lobby-link').hidden = false; $('lobby-link').href = `index.html?contest=${k.code}`; }
     // the recap (task 17): its video when the host kept one; anyone can watch it played in the game
     if (k.state === 'done') {
-      const { data: rc } = await c.from('recaps').select('video_path, seconds, made_at').eq('contest_id', k.id).maybeSingle();
+      const rc = d.watching ? d.recap : (await c.from('recaps').select('video_path, seconds, made_at').eq('contest_id', k.id).maybeSingle()).data;
       const box = h('section', { className: 'panel recap', id: 'recap' }, h('h2', { textContent: 'The recap' }));
       if (rc) {
         const url = c.storage.from('recaps').getPublicUrl(rc.video_path).data.publicUrl + `?v=${Date.parse(rc.made_at)}`;
         box.append(h('video', { src: url, controls: true, playsInline: true, preload: 'metadata', id: 'recap-video' }));
-      } else box.append(h('p', { className: 'empty', textContent: currentUser()?.id === k.host ? 'No video yet: watch it in the game and Make video to keep one here.' : 'No video yet.' }));
+      } else box.append(h('p', { className: 'empty', textContent: !!k.host && currentUser()?.id === k.host ? 'No video yet: watch it in the game and Make video to keep one here.' : 'No video yet.' }));
       box.append(h('p', {}, h('a', { href: `index.html?recap=${encodeURIComponent(k.code)}`, textContent: '▶ Watch the recap in the game', id: 'recap-play' })));
       $('c-rounds').before(box);
     }
@@ -60,9 +60,9 @@ try {
     const users = d.entrants.map((e) => e.user_id).filter(Boolean);
     const { data: profiles } = users.length ? await c.from('profiles').select('id, handle').in('id', users) : { data: [] };
     const handleOf = (entrantId) => profiles?.find((p) => p.id === d.entrants.find((e) => e.id === entrantId)?.user_id)?.handle;
-    const { data: rides } = d.heats.length ? await c.from('rides').select('heat_id, entrant_id, wave_no, score, replay_path').in('heat_id', d.heats.map((x) => x.id)).order('wave_no') : { data: [] };
+    const rides = [...(d.rides || [])].sort((a, b) => a.wave_no - b.wave_no);
     // the host: score checks
-    const host = currentUser()?.id === k.host;
+    const host = !!k.host && currentUser()?.id === k.host; // (a watcher's view has no host id)
     const checks = new Map();
     if (host && rides?.length) {
       const { data } = await c.from('ride_checks').select('ride_id, status, reasons, score, rides!inner(heat_id, entrant_id, wave_no)').in('rides.heat_id', d.heats.map((x) => x.id));

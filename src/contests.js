@@ -75,7 +75,7 @@ export async function readContest(id) {
   const heat = mine[mine.length - 1] || null;
   const inRound = (r) => all.filter((h) => h.round === r).length;
   // the scored waves, so a live heat's totals show before it closes (heat_entries.total is written at the close)
-  const { data: rides } = all.length ? await c.from('rides').select('heat_id, entrant_id, wave_no, score, caught_at').in('heat_id', all.map((h) => h.id)) : { data: [] };
+  const { data: rides } = all.length ? await c.from('rides').select('heat_id, entrant_id, wave_no, score, caught_at, replay_path').in('heat_id', all.map((h) => h.id)) : { data: [] };
   return { contest, entrants: entrants || [], heats: all, rides: rides || [], heat, final: !!heat && inRound(heat.round) === 1, rounds: Math.max(0, ...all.map((h) => h.round)) };
 }
 
@@ -87,6 +87,15 @@ export async function watchContest(code) {
   if (error) throw error;
   if (!data) return null;
   return { ...data, watching: true, heat: null, final: false, rounds: Math.max(0, ...data.heats.map((h) => h.round)) };
+}
+
+// A contest for whoever's looking (its page, its recap): the full read for its host and the people in it, else watching
+// it by its code (anyone with the link). null: no such contest, or nothing to show.
+export async function contestFor(preview) {
+  const uid = currentUser()?.id;
+  const r = uid ? await readContest(preview.id).catch(() => null) : null;
+  if (r && (r.contest.host === uid || r.entrants.some((e) => e.user_id === uid))) return r;
+  return (await watchContest(preview.code).catch(() => null)) || r;
 }
 
 // A heat's standings as they stand: the closed totals and places once it's done, else worked out from its scored waves

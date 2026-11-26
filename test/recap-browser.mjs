@@ -1,7 +1,7 @@
 // A contest's recap in the browser (accounts plan task 17, step 1), against the local stack:
 //   1. a public contest on Raglan, three surfers, two waves each, ridden for real: each wave is a genuine ride log made
 //      with the game's physics here in Node (as the game records it), uploaded to Storage and submitted as that surfer
-//   2. signed out, index.html?recap=<code> loads it: the final's story, the waves worth showing, their logs
+//   2. signed out, index.html?recap=<code> loads it (an unlisted contest: anyone with the link): the final's story, the waves worth showing, their logs
 //   3. it plays: the title card over the first wave, each shown wave with its lower third and the standings, the
 //      score when it's over, then the result; the game's own HUD and panels stay out of the way
 //   4. Make video: an MP4 of the whole recap, graphics and all
@@ -53,7 +53,7 @@ const stamp = Date.now();
 const host = await session(`recaphost-${stamp}@example.com`);
 await post('profiles', { id: host.id, handle: `rh${stamp % 1e7}` });
 await post('entitlements', { user_id: host.id, kind: 'pro', source: 'grant', expires_at: new Date(Date.now() + 30 * 864e5).toISOString(), note: 'test' });
-const k = await rpcAs(host.token, 'create_contest', { name: 'Recap Classic', wave: 'point', end_waves: 2, max_entrants: 4, visibility: 'public' });
+const k = await rpcAs(host.token, 'create_contest', { name: 'Recap Classic', wave: 'point', end_waves: 2, max_entrants: 4, visibility: 'unlisted' }); // (unlisted: the recap is for anyone with the link)
 const people = [{ ...host, name: null, style: { hi: 2.6, lo: 1.0 } }];
 await rpcAs(host.token, 'join_contest', { code: k.code });
 for (const [n, style] of [['Mara', { hi: 2.2, lo: 0.8 }], ['Tuck', { hi: 3.0, lo: 1.3 }]]) {
@@ -73,7 +73,13 @@ for (const wave of [1, 2]) for (const p of people) {
 }
 for (const p of people) await rpcAs(p.token, 'finish_heat', { heat_id: heat.id });
 await rpcAs(host.token, 'close_heat', { heat_id: heat.id });
-check(true, `a public contest, three surfers, two real waves each: ${k.code}`);
+check(true, `an unlisted contest, three surfers, two real waves each: ${k.code}`);
+
+// The lobby, signed out, once it's over: the recap links (no Make video: that's the host's).
+await go(`${b.base}index.html?contest=${k.code}`);
+check(!!(await waitFor(`!document.getElementById('lobby-recap').hidden && /recap=${k.code}$/.test(document.getElementById('lobby-recap-play').href) && document.getElementById('lobby-recap-make').hidden && /contest\\.html\\?c=${k.code}/.test(document.getElementById('lobby-results').href)`, 20000)),
+  'the lobby, signed out, after the final: "▶ Watch the recap" and "All the results", no "Make the recap video"');
+await shot('0-lobby');
 
 // 2-3. The recap, signed out.
 await go(`${b.base}index.html?recap=${k.code}`);
@@ -90,11 +96,11 @@ check(!!(await waitFor(`!document.getElementById('recap-again').hidden`, 180000)
 await shot('4-result');
 check(await evaluate(`document.getElementById('over').hidden && document.getElementById('judge').hidden`), 'no end-of-ride cards along the way');
 
-// 4. The host makes the video, and it's kept with the contest.
+// 4. The host makes the video, and it's kept with the contest: the lobby offers it.
 await evaluate(`localStorage.setItem('rys-rad-waves-auth', ${JSON.stringify(JSON.stringify(host.raw))})`);
-await go(`${b.base}index.html?recap=${k.code}`);
-await waitFor(`window.__recap && window.__dbg && window.__dbg.state === 'play'`, 40000);
-await evaluate(`document.getElementById('recap-video').click()`);
+await go(`${b.base}index.html?contest=${k.code}`);
+check(!!(await waitFor(`!document.getElementById('lobby-recap-make').hidden && /recap=${k.code}&make$/.test(document.getElementById('lobby-recap-make').href)`, 20000)), 'the host\'s lobby: "Make the recap video"');
+await evaluate(`document.getElementById('lobby-recap-make').click()`); // (&make: the video starts by itself)
 const v = await waitFor(`window.__video && JSON.stringify({ seconds: window.__video.seconds, frames: window.__video.frames, size: window.__video.size })`, 400000);
 const vv = v && JSON.parse(v);
 check(vv && vv.seconds > 15 && vv.size > 100000, `Make video: ${vv?.seconds?.toFixed(1)} s, ${vv?.frames} frames, ${(vv?.size / 1e6).toFixed(1)} MB`);
@@ -109,6 +115,7 @@ await go(`${b.base}contest.html?c=${k.code}`);
 check(!!(await waitFor(`!!document.getElementById('recap-video') && /recap\\.mp4/.test(document.getElementById('recap-video').src) && !!document.getElementById('recap-play')`, 20000)), 'the contest page: the recap video, and "Watch the recap in the game"');
 check(!!(await waitFor(`document.getElementById('recap-video').readyState >= 1 && document.getElementById('recap-video').duration > 15`, 20000)), `... which loads (${await evaluate(`document.getElementById('recap-video').duration`)} s)`);
 await shot('5-contest');
+await fetch(`${API}/rest/v1/contests?id=eq.${k.id}`, { method: 'PATCH', headers: H, body: JSON.stringify({ visibility: 'public' }) }); // (profiles list public contests)
 const handle = (await (await fetch(`${API}/rest/v1/profiles?id=eq.${host.id}&select=handle`, { headers: H })).json())[0].handle;
 await go(`${b.base}profile.html?u=${handle}`);
 check(/▶ recap/.test(await waitFor(`document.getElementById('p-results').innerText.length > 0 && document.getElementById('p-results').innerText`, 20000) || ''), "the host's profile: the result, with its recap");

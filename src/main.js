@@ -669,6 +669,7 @@ async function startRecap(code) {
   });
   window.__recap = recapData; // (tests)
   recap.start();
+  if (params.has('make')) startRecapVideo(); // (&make: the lobby's "Make the recap video", for the host)
 }
 $('recap-again').addEventListener('click', (e) => { e.stopPropagation(); if (recap && !vid) recap.start(); });
 $('recap-video').addEventListener('click', (e) => { e.stopPropagation(); startRecapVideo(); });
@@ -732,7 +733,7 @@ async function finishVideo(v) {
   window.__video = { size: blob.size, frames: v.enc.frames, w: v.enc.w, h: v.enc.h, seconds: v.enc.seconds, blob }; // (test/video.mjs)
   $('video').dataset.back = v.back;
   videoPanel('Your video is ready', { ready: true, note: `${v.enc.seconds.toFixed(1)} s · ${(blob.size / 1e6).toFixed(1)} MB`, cancel: '✕ Close' });
-  if (v.recap && currentUser()?.id === recapData.contest.host) keepRecap(blob, v.enc.seconds); // (the host's: kept with the contest)
+  if (v.recap && recapData.contest.host && currentUser()?.id === recapData.contest.host) keepRecap(blob, v.enc.seconds); // (the host's: kept with the contest)
 }
 function videoFailed(v, err) {
   if (vid !== v) return;
@@ -850,7 +851,9 @@ function showResults() {
   $('results-title').textContent = waiting ? 'Waiting…' : round ? (H.mine?.advanced ? "You're through!" : 'Knocked out') : place === 1 ? 'You win!' : `${ordinal(place)} place`;
   $('results').classList.toggle('waiting', waiting);
   $('results-go').innerHTML = !H.live ? '<span class="desk">Space for a new heat</span><span class="mob">Tap for a new heat</span>'
-    : waiting ? 'Waiting for the others to finish their waves…' : '<span class="desk">Space to go back to the contest</span><span class="mob">Tap to go back to the contest</span>';
+    : waiting ? 'Waiting for the others to finish their waves…'
+    : LIVE?.final ? '<span class="desk">Space for the results and the recap</span><span class="mob">Tap for the results and the recap</span>' // (the last heat: the lobby offers the recap)
+    : '<span class="desk">Space to go back to the contest</span><span class="mob">Tap to go back to the contest</span>';
   const guest = H.live && H.final && currentUser()?.is_anonymous;
   $('results-claim').hidden = !guest;
   $('results-sub').textContent = `${LIVE?.bracket && LIVE.round > 1 && LIVE.final ? 'Final · ' : LIVE?.bracket && !LIVE.final ? `Round ${LIVE.round} · Heat ${LIVE.heatNo} · ` : ''}${H.end.minutes ? `${H.end.minutes} min heat` : `${H.end.waves} wave heat`} · ${WAVE.name}`;

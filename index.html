@@ -156,6 +156,9 @@
   .lobby-list li .here { font-weight: 500; font-size: 12px; opacity: .75; }
   .lobby-list li.away .here { opacity: .45; }
   .lobby-more { display: flex; gap: 14px; }
+  .lobby-recap { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+  .lobby-recap a.start { text-decoration: none; font-size: 18px; }
+  .lobby-recap .lobby-more a { color: #fff; }
   /* The bracket (task 13): rounds of heats, who went through */
   .bracket { width: 100%; display: grid; gap: 12px; text-align: left; }
   .bracket h3 { margin: 0 0 6px; font: 400 14px Bungee, sans-serif; color: var(--yellow); text-shadow: 2px 2px 0 var(--ink); }
@@ -275,6 +278,7 @@
         <form id="lobby-join" class="join-form" hidden><input id="lobby-nick" maxlength="20" autocomplete="nickname" placeholder="Your nickname" aria-label="Nickname"><button type="submit">Join</button></form>
         <button id="lobby-start" type="button" class="start" hidden>Start</button>
         <div id="lobby-msg" class="heat-note" hidden></div>
+        <div id="lobby-recap" class="lobby-recap" hidden><a id="lobby-recap-play" class="start" href="./">▶ Watch the recap</a><div class="lobby-more"><a id="lobby-recap-make" class="acct-link" href="./" hidden>Make the recap video</a><a id="lobby-results" class="acct-link" href="./">All the results</a></div></div>
         <div class="lobby-more"><button id="lobby-leave" type="button" class="acct-link" hidden>Leave</button><button id="lobby-cancel" type="button" class="acct-link" hidden>Cancel contest</button></div>
       </div>
       <div id="waves" class="waves"></div>
