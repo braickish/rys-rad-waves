@@ -27,7 +27,7 @@ const items = `document.querySelectorAll('#breaks .bitem').length`;
 
 // 1. Signed out.
 await go(`${b.base}builder.html`);
-check(/Sign in on the/.test(await waitFor(`/Sign in/.test(${panel}) && ${panel}`, 15000) || ''), 'signed out: sign in to keep your breaks');
+check(/Log in or sign up on the/.test(await waitFor(`/Log in/.test(${panel}) && ${panel}`, 15000) || ''), 'signed out: sign in to keep your breaks');
 
 // 2. Signed in, free.
 const email = `breaks-${Date.now()}@example.com`;

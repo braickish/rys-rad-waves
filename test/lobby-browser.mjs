@@ -27,7 +27,7 @@ const msg = (id) => `document.getElementById('${id}').textContent`;
 // 1. A guest can't host; a wrong code.
 await B.go(`${B.base}?wave=point`); await ready(B);
 await B.evaluate(`document.getElementById('go-compete').click(); document.getElementById('go-host').click()`);
-check(/Sign in below/.test(await B.waitFor(`/Sign in/.test(${msg('host-msg')}) && ${msg('host-msg')}`, 15000) || ''), 'signed out: hosting asks you to sign in');
+check(/Log in or sign up below/.test(await B.waitFor(`/Log in/.test(${msg('host-msg')}) && ${msg('host-msg')}`, 15000) || ''), 'signed out: hosting asks you to sign in');
 await B.evaluate(`document.getElementById('step-back').click(); document.getElementById('join-code').value = 'ZZZZZZ'; document.getElementById('join-form').requestSubmit()`);
 check(/No contest has that code/.test(await B.waitFor(`!document.getElementById('compete-msg').hidden && ${msg('compete-msg')}`, 15000) || ''), 'a wrong code says so');
 

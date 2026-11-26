@@ -71,7 +71,7 @@ async function openHost(breakId) {
   try {
     await initAccount();
     const user = currentUser();
-    if (!user || user.is_anonymous) { say('host-msg', 'Sign in below with your email to host a contest.'); return; }
+    if (!user || user.is_anonymous) { say('host-msg', 'Log in or sign up below to host a contest.'); return; }
     const p = await myProfile().catch(() => null);
     if (!$('host-name').value) $('host-name').value = p ? `${p.handle}'s contest`.slice(0, 40) : 'My contest';
     const mine = await myBreaks().catch(() => []);

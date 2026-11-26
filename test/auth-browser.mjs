@@ -14,7 +14,7 @@ const signedIn = `(${vis('acct-who')} || ${vis('acct-handle-form')})`;
 
 // 1. Sign in, ask for a link.
 await go(base);
-check(!!(await waitFor(vis('acct-open'), 20000)), '"Sign in" shows on the title screen');
+check(!!(await waitFor(vis('acct-open'), 20000)) && (await evaluate(`document.getElementById('acct-open').textContent`)) === 'Log in / Sign up', '"Log in / Sign up" shows on the title screen');
 await shot('1-title');
 await evaluate(`document.getElementById('acct-open').click()`);
 check(!!(await waitFor(vis('acct-email'), 3000)), 'the email box opens');

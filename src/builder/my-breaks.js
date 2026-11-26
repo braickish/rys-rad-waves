@@ -73,7 +73,7 @@ export function startMyBreaks(B) {
     el.innerHTML = '';
     const u = currentUser();
     if (!u || u.is_anonymous) {
-      el.append(h('div', { className: 'note' }, 'Sign in on the ', h('a', { href: 'index.html', textContent: 'title screen' }), ' to keep your breaks in your account.'));
+      el.append(h('div', { className: 'note' }, 'Log in or sign up on the ', h('a', { href: 'index.html', textContent: 'title screen' }), ' to keep your breaks in your account.'));
       if (SALES_OPEN) el.append(h('div', { className: 'row', style: 'margin-top:6px' }, button('Go Pro · $3/mo', () => openPaywall({ want: 'pro', why: 'Saving your breaks comes with Pro.' }))));
       return;
     }
