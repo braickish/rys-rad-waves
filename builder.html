@@ -18,11 +18,13 @@
   html, body, button, input, label, .panel { touch-action: manipulation; }
   .app { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 20px; padding: 20px; min-height: 100vh; }
   h1 { font-family: Bungee, sans-serif; font-weight: 400; color: var(--yellow); font-size: 34px; margin: 0; line-height: 1; }
+  /* ← Back to the title screen: the same link as the free surf and contest steps' back (index.html .acct-link) */
+  .acct-link { display: inline-block; font: 700 13px Rubik, sans-serif; color: #fff; padding: 4px 6px; margin: -4px 0 6px -6px; text-decoration: underline; text-underline-offset: 3px; }
   .sub { color: var(--dim); margin: 6px 0 14px; font-size: 15px; }
   .mapwrap { position: relative; }
   .mapctl { position: absolute; bottom: 6px; right: 12px; /* (in the row under the map, beside the scale bar: at the top it covered the swell label on phones, over the map the coastline's handles) */ background: rgba(11,26,36,.6); border-radius: 22px; padding: 4px; }
   .mapctl button { padding: 5px 11px; font-size: 12px; }
-  #map { width: 100%; height: calc(100vh - 140px); min-height: 420px; display: block; border-radius: 16px; background: var(--panel); touch-action: none; cursor: default; }
+  #map { width: 100%; height: calc(100vh - 168px); min-height: 420px; display: block; border-radius: 16px; background: var(--panel); touch-action: none; cursor: default; }
   .panel { background: var(--panel); border-radius: 16px; padding: 16px; display: flex; flex-direction: column; gap: 16px; align-self: start; }
   h2 { font-family: Bungee, sans-serif; font-weight: 400; font-size: 15px; margin: 0 0 8px; letter-spacing: .02em; }
   .row { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -69,6 +71,7 @@
 <body>
 <div class="app">
   <div>
+    <a href="./" class="acct-link">← Back</a>
     <h1>Build a Break</h1>
     <p class="sub">Drag the reef blocks (the round handles) around the bay and watch how the wave breaks. Scroll or pinch to zoom, drag the water to pan. Prototype: the curl comes from a fast wave-ray model and a refraction-diffraction height model, checked against FUNWAVE on the Dynamic reef.</p>
     <div class="mapwrap"><canvas id="map"></canvas><div class="row mapctl" id="colorby"></div></div>
