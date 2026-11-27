@@ -339,10 +339,10 @@ function handle(b) {
   return { x: b.x + Math.sin(a) * L, y: b.y + b.side * Math.cos(a) * L };
 }
 // The coastline's handles (plan step 5): round, on the waterline; you drag them in and out. Its name shows on hover.
-// (the user, 2026-11-27: drag a handle down past the map's edge, up to 500 m in from the beach line it starts on, so the beach
+// (the user, 2026-11-27: drag a handle down past the map's edge, up to 1000 m in from the beach line it starts on, so the beach
 // can run diagonally out across the bottom. COAST_X: how far a handle can go, m cross-shore; the map ends at VIEW.x1 (1262), the
 // beach past that is off it. A handle off the map is drawn at its edge, with an arrow, to grab it there.)
-const COAST_X = [700, BAY.shoreX + 500];
+const COAST_X = [700, BAY.shoreX + 1000]; // (1000 m: the user, same day, for more of a diagonal coast)
 function coastSpot(k) {
   const [x, y] = state.coast.pts[k], X = px(y), Y = py(x), top = view.top, bot = view.top + view.mh;
   const off = Y > bot ? 1 : Y < top ? -1 : 0; // (only when it's really off the map: the beach line starts just inside its bottom edge)
