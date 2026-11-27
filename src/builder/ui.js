@@ -339,12 +339,25 @@ function handle(b) {
   return { x: b.x + Math.sin(a) * L, y: b.y + b.side * Math.cos(a) * L };
 }
 // The coastline's handles (plan step 5): round, on the waterline; you drag them in and out. Its name shows on hover.
+// (the user, 2026-11-27: tap a handle to select it, then move it toward the sea or the land with buttons, past the map's edge
+// if need be, so the beach can run diagonally out across the bottom. COAST_X: how far a handle can go, m cross-shore; the
+// map ends at VIEW.x1 (1262), the beach past that is off it. A handle off the map is drawn at its edge, with an arrow.)
+const COAST_X = [700, 1450];
+function coastSpot(k) {
+  const [x, y] = state.coast.pts[k], X = px(y), Y = py(x), top = view.top, bot = view.top + view.mh;
+  const off = Y > bot ? 1 : Y < top ? -1 : 0; // (only when it's really off the map: the beach line starts just inside its bottom edge)
+  return { X, Y: off > 0 ? bot - 16 : off < 0 ? top + 16 : Y, off }; // (off it: drawn just inside the edge, room for the arrow)
+}
 function drawCoast() {
   const on = state.hover === 'coast' || (drag && drag.coast != null);
-  for (const [x, y] of state.coast.pts) dot(px(y), py(x), on ? 7 : 6, '#efe2bd', '#0b1a24', 2);
+  state.coast.pts.forEach((_, k) => {
+    const c = coastSpot(k), sel = state.selCoast === k;
+    if (c.off) { ctx.fillStyle = '#efe2bd'; ctx.beginPath(); const d = c.off; ctx.moveTo(c.X - 5, c.Y + 5 * d); ctx.lineTo(c.X + 5, c.Y + 5 * d); ctx.lineTo(c.X, c.Y + 11 * d); ctx.closePath(); ctx.fill(); } // (off the map: an arrow toward it)
+    dot(c.X, c.Y, sel ? 8 : on ? 7 : 6, '#efe2bd', sel ? '#ffd426' : '#0b1a24', sel ? 3 : 2);
+  });
   if (on) { const [x, y] = state.coast.pts[state.coast.pts.length >> 1]; ctx.font = '400 12px Bungee'; ctx.textAlign = 'center'; ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(11,26,36,.8)'; ctx.fillStyle = '#efe2bd'; ctx.strokeText('COASTLINE', px(y), py(x) - 14); ctx.fillText('COASTLINE', px(y), py(x) - 14); }
 }
-function hitCoast(cx, cy) { let best = -1, bd = 14; state.coast.pts.forEach(([x, y], k) => { const d = Math.hypot(px(y) - cx, py(x) - cy); if (d < bd) { bd = d; best = k; } }); return best; }
+function hitCoast(cx, cy) { let best = -1, bd = 14; state.coast.pts.forEach((_, k) => { const c = coastSpot(k), d = Math.hypot(c.X - cx, c.Y - cy); if (d < bd) { bd = d; best = k; } }); return best; }
 function drawBlock(b) {
   const X = px(b.y), Y = py(b.x), on = state.sel === b, hov = state.hover === b, show = on || hov;
   // its shape and name only when selected or under the pointer (the user: they covered the curl's colours)
@@ -399,9 +412,9 @@ canvas.addEventListener('pointerdown', (e) => {
   }
   const r0 = canvas.getBoundingClientRect(), lh = hitLoop(e.clientX - r0.left, e.clientY - r0.top);
   if (lh) { drag = { loop: lh }; canvas.setPointerCapture(e.pointerId); return; }
-  { const r1 = canvas.getBoundingClientRect(), ck = hitCoast(e.clientX - r1.left, e.clientY - r1.top); if (ck >= 0 && !hit(e.clientX - r1.left, e.clientY - r1.top)) { drag = { coast: ck }; state.sel = null; showSel(); canvas.setPointerCapture(e.pointerId); return; } }
+  { const r1 = canvas.getBoundingClientRect(), ck = hitCoast(e.clientX - r1.left, e.clientY - r1.top); if (ck >= 0 && !hit(e.clientX - r1.left, e.clientY - r1.top)) { drag = { coast: ck, sx: e.clientX, sy: e.clientY, moved: false }; canvas.setPointerCapture(e.pointerId); return; } }
   const r = canvas.getBoundingClientRect(), cx = e.clientX - r.left, cy = e.clientY - r.top, b = hit(cx, cy);
-  state.sel = b; showSel();
+  state.sel = b; state.selCoast = null; showSel();
   if (b) {
     const p = toReef(cx, cy);
     // a peak drags the arms attached to it
@@ -418,8 +431,10 @@ canvas.addEventListener('pointermove', (e) => {
     const [a, b] = [...pointers.values()], d = Math.hypot(a.x - b.x, a.y - b.y);
     zoomAt((a.x + b.x) / 2, (a.y + b.y) / 2, d / Math.max(1, pinch.d)); pinch.d = d; return;
   }
-  if (drag && drag.coast != null) { // (a coastline handle: in and out only, 10 m snap, kept inside the bay)
-    const p = toReef(cx, cy), nx = Math.min(1240, Math.max(700, snap(p.x)));
+  if (drag && drag.coast != null) { // (a coastline handle: in and out only, 10 m snap, within COAST_X; a tap that doesn't move selects it)
+    if (!drag.moved && Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) < 5) return;
+    drag.moved = true;
+    const p = toReef(cx, cy), nx = Math.min(COAST_X[1], Math.max(COAST_X[0], snap(p.x)));
     if (nx !== state.coast.pts[drag.coast][0]) { state.coast.pts[drag.coast][0] = nx; state.dirty = true; schedule(); }
     return;
   }
@@ -452,7 +467,7 @@ canvas.addEventListener('pointermove', (e) => {
     b.x = nx; b.y = ny; state.dirty = true; schedule();
   }
 });
-const endDrag = (e) => { pointers.delete(e.pointerId); if (pointers.size < 2) pinch = null; drag = null; };
+const endDrag = (e) => { pointers.delete(e.pointerId); if (pointers.size < 2) pinch = null; if (drag && drag.coast != null && !drag.moved) { state.selCoast = drag.coast; state.sel = null; showSel(); draw(); } else if (drag && drag.coast != null && state.selCoast === drag.coast) showSel(); drag = null; };
 canvas.addEventListener('pointerleave', () => { if (state.hover) { state.hover = null; draw(); } });
 canvas.addEventListener('pointerup', endDrag); canvas.addEventListener('pointercancel', endDrag);
 
@@ -520,6 +535,7 @@ function depthSlider(b) {
 }
 function showSel() {
   const el = $('sel'); el.innerHTML = '';
+  if (!state.sel && state.selCoast != null && state.coast.pts[state.selCoast]) return showCoastPoint(el, state.selCoast);
   const b = state.sel; if (!b) { el.innerHTML = '<div class="note">Tap a block on the map to move or change it.</div>'; return; }
   const h = document.createElement('h2'); h.textContent = blockLabel(b); el.appendChild(h);
   const p = document.createElement('div'); p.className = 'blurb'; p.textContent = BLOCKS[b.type].blurb; el.appendChild(p);
@@ -540,6 +556,27 @@ function showSel() {
   const del = document.createElement('button'); del.className = 'danger'; del.textContent = 'Remove'; del.style.marginTop = '8px';
   del.onclick = () => { state.blocks = state.blocks.filter((q) => q !== b); state.sel = null; state.dirty = true; showSel(); schedule(); };
   el.appendChild(del);
+}
+// A selected coastline point: move it toward the sea or the land, past the map's bottom edge if you like (the beach then runs
+// out across the bottom, diagonally, instead of along it).
+function showCoastPoint(el, k) {
+  const pt = state.coast.pts[k], off = pt[0] - BAY.shoreX; // (+: toward the land, from the beach line it started on)
+  const h = document.createElement('h2'); h.textContent = 'Coastline point'; el.appendChild(h);
+  const p = document.createElement('div'); p.className = 'blurb';
+  p.textContent = `Move this bit of the beach toward the sea or the land. Past the bottom of the map it sits off the screen (an arrow marks it there), so the beach can run diagonally out across the bottom. Now: ${off === 0 ? 'on the beach line it started on' : `${ft(Math.abs(off))} ft toward the ${off > 0 ? 'land' : 'sea'}${pt[0] > VIEW.x1 ? ', off the map' : ''}`}.`;
+  el.appendChild(p);
+  const wrap = document.createElement('div'); wrap.className = 'row'; wrap.style.alignItems = 'center';
+  const l = document.createElement('span'); l.textContent = 'Move'; l.style.cssText = 'font-size:13px;color:var(--dim);width:70px'; wrap.appendChild(l);
+  for (const [label, d] of [['Sea ×5', -50], ['Sea', -10], ['Land', 10], ['Land ×5', 50]]) {
+    const b = document.createElement('button'); b.textContent = label; b.title = `${ft(Math.abs(d))} ft toward the ${d < 0 ? 'sea' : 'land'}`;
+    const nx = Math.min(COAST_X[1], Math.max(COAST_X[0], pt[0] + d)); b.disabled = nx === pt[0];
+    b.onclick = () => { pt[0] = nx; state.dirty = true; showSel(); schedule(); };
+    wrap.appendChild(b);
+  }
+  el.appendChild(wrap);
+  const back = document.createElement('button'); back.textContent = 'Back on the line'; back.style.marginTop = '8px'; back.disabled = off === 0;
+  back.onclick = () => { pt[0] = BAY.shoreX; state.dirty = true; showSel(); schedule(); };
+  el.appendChild(back);
 }
 const mph = (v) => (v * 2.237).toFixed(0);
 function rideStretch() { // (what DROP IN rides: the loop, or the whole ride from just past the peak)
@@ -733,4 +770,4 @@ const thumb = () => new Promise((ok, no) => {
 });
 breaks = startMyBreaks({ design: () => JSON.parse(JSON.stringify(designOf())), ride: ridePayload, thumb,
   apply: (j) => { if (!applyDesign(JSON.parse(JSON.stringify(j)))) throw new Error('bad design'); state.sel = null; syncSwell(); showCoast(); showSel(); recompute(); showRide(); draw(); } });
-window.__builder = state; // (tests)
+window.__builder = state; window.__coastSpot = (k) => coastSpot(k); // (tests)
