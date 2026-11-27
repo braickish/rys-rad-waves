@@ -422,6 +422,9 @@ function readInput() {
 // Touch: swipe anywhere to steer.
 let stickId = null, stickStart = [0, 0];
 const SWIPE_PX = 45; // full turn at this far from where the swipe started
+// An up/down swipe has to be near vertical (within ~30 deg of straight up or down: |dy| > VERTICAL x |dx|); anything flatter
+// steers (the user, 2026-11-27: steering can wander, up/down should be deliberate; at 45 deg a turn drifting down walked back)
+const VERTICAL = 1.7;
 // The title and game-over panels cover the canvas, so taps land on them.
 $('over').addEventListener('pointerdown', (e) => { e.preventDefault(); startOrRestart(); });
 $('judge').addEventListener('pointerdown', (e) => { e.preventDefault(); startOrRestart(); });
@@ -519,10 +522,10 @@ addEventListener('pointermove', (e) => {
     stickStart = [e.clientX - (dx / l) * SWIPE_PX, e.clientY - (dy / l) * SWIPE_PX];
     dx /= l; dy /= l;
   }
-  // Same as the keys: a sideways swipe is Left/Right, an up/down swipe is
-  // Up/Down (whichever way you swiped most).
+  // Same as the keys: a sideways swipe is Left/Right, an up/down swipe is Up/Down: only a near-vertical one (VERTICAL); the rest
+  // steers.
   const dz = (x) => (Math.abs(x) < 0.2 ? 0 : Math.sign(x) * Math.min(1, Math.abs(x)));
-  if (Math.abs(dx) > Math.abs(dy)) { touch.turn = dz(-dx); touch.tilt = 0; }
+  if (Math.abs(dy) <= VERTICAL * Math.abs(dx)) { touch.turn = dz(-dx); touch.tilt = 0; }
   else if (WAVE.walkKeys) { touch.turn = 0; touch.tilt = 0; if (!swipeWalked && Math.abs(dy) > 0.5 && state === 'play') { walkPress = dy < 0 ? 1 : -1; swipeWalked = true; } } // (a swipe up / down walks one step)
   else { touch.tilt = dz(-dy); touch.turn = 0; }
 });
