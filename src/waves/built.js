@@ -8,7 +8,7 @@
 import raglanPlus, { KF_SECTION, KF_CRUMBLY } from './raglan-plus.js';
 import point from './point.js';
 import reef from './reef.js';
-import { KF_PIPE_HEAD, KF_ALMOND_HEAD, KF_LEDGE_HEAD, sstep, withBore, matchTs } from './shapes.js';
+import { KF_PIPE_HEAD, KF_ALMOND_HEAD, sstep, withBore, matchTs } from './shapes.js';
 import { funPayload } from '../builder/fun.js';
 // (the wave model's shape state and tubeAt, handed over by wave.js once it has them: importing wave.js here would loop,
 // since it loads the wave list, which loads this)
@@ -22,12 +22,8 @@ const kTube = peak(KF_SECTION, -0.25) / peak(KF_PIPE_HEAD, -0.25);
 // bore laid out as the section set's, which it blends with point by point on a half-barrel)
 export const KF_TUBE = withBore(KF_ALMOND_HEAD.map(({ s, p }) => ({ s, p: p.map(([z, y]) => [z * kTube, y * kTube]) })), // (the almond barrel, shapes.js)
   { from: 1.3, collapse: 1.65, sOf: (t) => t * 7.6 / 8.5, ts: matchTs(KF_SECTION.filter((k) => k.s <= 1.2).pop()) });
-// The ledge (shapes.js KF_LEDGE_HEAD, Teahupoo): the heaviest end of the scale, past the barrel (u 3 -> 4), where the reef is a
-// wall up from deep water (rays.js `step`). Scaled as the barrel is (same units), so on the same swell it stands taller: it jacks
-// up on the ledge (the user, 2026-11-24).
-const kLedge = kTube;
-export const KF_LEDGE = withBore(KF_LEDGE_HEAD.map(({ s, p }) => ({ s, p: p.map(([z, y]) => [z * kLedge, y * kLedge]) })),
-  { from: 1.3, collapse: 1.65, sOf: (t) => t * 7.6 / 8.5, ts: matchTs(KF_SECTION.filter((k) => k.s <= 1.2).pop()) });
+// (the ledge shape, past the barrel, is gone (the user, 2026-11-26): the almond is the heaviest; a ledge reef's u, up to 4, stops
+// at the almond, wave.js shapeU)
 const pipeFaceTop = (s) => 5.3 + (11.9 - 5.3) * sstep(-0.3, 0.2, s); // (Pipe's classic: the rideable face tops out under the roof once the lip throws)
 
 const FALLBACK = { v: 1, mode: 'loop', side: 'left', length: 200, base: 7.6, H: 2.1, profile: [{ s: 0, peel: 7.6, k: 0, H: 2.1 }, { s: 200, peel: 7.6, k: 0, H: 2.1 }] };
@@ -55,7 +51,7 @@ export const encodeBuilt = (data) => encodeURIComponent(btoa(unescape(encodeURIC
 // wall (a mild plunge), Raglan+'s section shape (pitching); the profile's `u` (0-2) places each spot on it.
 const wave = {
   ...raglanPlus, id: 'built', name: 'Your break', hidden: true,
-  shapes: [KF_CRUMBLY, point.keyframes, KF_SECTION, KF_TUBE, KF_LEDGE], // (4: the ledge, the user, 2026-11-24)
+  shapes: [KF_CRUMBLY, point.keyframes, KF_SECTION, KF_TUBE], // (the almond barrel the heaviest: the ledge dropped, the user, 2026-11-26)
   // Barrel sections (plan step 7): tube riding is on, but only where the shape under you has a tube (wave.js tubeAt; rider.js
   // checkHazards), and only if it's tall enough to fit in (Trestles' rule: otherwise the lip clips you; go around it).
   tube: true, tubeScale: true, tubeMinHeight: 1.3,

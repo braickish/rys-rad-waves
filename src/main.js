@@ -1109,6 +1109,14 @@ function updateCamera(dt) {
     want = [8 * sc, 2.0 * sc, 34 * sc];
     look = [0, 3.0 * sc, 3];
     shot = 'photo';
+  } else if (camMode === 4) {
+    // Barrel view (testing): in the middle of the tube `?camx=` m behind the curl (default 7, where the barrel camera sits
+    // with the surfer a couple of metres in), looking out along the wave, as the barrel camera does; no surfer needed.
+    const back = params.has('camx') ? Number(params.get('camx')) : 7;
+    const c = tubeCenter(-back, 1.5 * (WAVE.sizeK || 1));
+    want = c ? [-back, params.has('camy') ? Number(params.get('camy')) : c.y, c.z] : [-back, 2, 2];
+    look = [want[0] + 12, want[1] - 0.3, want[2]];
+    shot = 'photo';
   } else if (tubeView && camMode !== 2) {
     // The barrel view: right behind the surfer, looking out along the wave.
     // In the tube it rises into the middle of the tube (the most open spot

@@ -67,7 +67,7 @@ export let SET_TUBE = [0];
 const halfCache = new WeakMap();
 function withHalfTubes(base) {
   if (halfCache.has(base)) { SET_TUBE = halfCache.get(base).tube; return halfCache.get(base).sets; }
-  // (between the section shape, set 2, and the barrel, set 3; anything after the barrel (the ledge, 4) follows, blended with the
+  // (between the section shape, set 2, and the barrel, set 3; anything after the barrel follows, blended with the
   // barrel point by point: both are tubes)
   const n = base.length, A = base[2], T = base[3], a = new Float64Array(NP * 2), t = new Float64Array(NP * 2);
   const stops = [...new Set([...A.map((k) => k.s), ...T.map((k) => k.s)])].sort((x, y) => x - y);
@@ -98,7 +98,7 @@ export function shapeSet(u) {
   if (!(WAVE.tubeScale && WAVE.shapes) || SHAPES.length === WAVE.shapes.length) return u;
   if (u <= 2) return u;
   if (u <= 3) return 2 + (u - 2) * HALF_STEPS; // (the half-barrels)
-  return 2 + HALF_STEPS + (u - 3); // (past the barrel: the ledge)
+  return 2 + HALF_STEPS + (u - 3); // (past the barrel: a shape after it, if a wave has one)
 }
 export const SHAPE = { a: 0, b: 0, w: 0, ver: 0 };
 // Run fn with the wave's shape forced to set i (to build per-set tables: the GPU water table, the rider's lines).
@@ -748,8 +748,13 @@ function slopeY(c, j) {
   const n = NP - 1, P = (q, k) => (q < 0 ? 2 * c[k] - c[2 + k] : q > n ? 2 * c[n * 2 + k] - c[(n - 1) * 2 + k] : c[q * 2 + k]);
   const dA = knot(P(j - 1, 0), P(j - 1, 1), P(j, 0), P(j, 1)), dB = knot(P(j, 0), P(j, 1), P(j + 1, 0), P(j + 1, 1));
   const y0 = P(j - 1, 1), y1 = P(j, 1), y2 = P(j + 1, 1);
-  let m = (y1 - y0) / dA - (y2 - y0) / (dA + dB) + (y2 - y1) / dB;
+  let m = (y1 - y0) / dA - (y2 - y0) / (dB + dA) + (y2 - y1) / dB;
   if (j === 2) { const r = (y1 - y0) / dA; m = r * m <= 0 ? 0 : Math.sign(m) * Math.min(Math.abs(m), 3 * Math.abs(r)); }
+  // (the face's foot (13): the run out to the trough only goes down, never dips under it and comes back up (Fritsch-Carlson's
+  // 3x on its own fall, as at 2 behind). A steep wall into a low foot and a far trough (the run-out) dipped ~0.3 under the flats
+  // partway out; the floor rule then lifted the wave by that, and the water rose again toward the trough: a bump out in front,
+  // and a barrel floor standing up. The user, 2026-11-26, from inside a barrel: smooth and gradual)
+  if (j === I.FACE_LOW) { const r = (y2 - y1) / dB; m = r * m <= 0 ? 0 : Math.sign(m) * Math.min(Math.abs(m), 3 * Math.abs(r)); }
   return m;
 }
 export function crPoint(c, t, out) {
@@ -785,7 +790,7 @@ export function crPoint(c, t, out) {
   // (Yuksel et al.: equal to the Barry-Goldman form above) with its height's slopes, per unit of the knot parameter so the curve
   // stays smooth across points: level at the trough and where the far flats behind begin (1), and at the back of the wave (2) no
   // steeper than its rise from the flats allows without dipping (Fritsch-Carlson's 3x). Nothing else moves.
-  if (i <= 2 || i >= I.TROUGH - 1) {
+  if (i <= 2 || i >= I.FACE_UP) { // (from the middle of the face (12) on: its foot's slope is limited, and the face above meets it smoothly)
     const f2 = f * f, f3 = f2 * f, h = t2 - t1;
     out[1] = (2 * f3 - 3 * f2 + 1) * p1y + (f3 - 2 * f2 + f) * h * slopeY(c, i) + (-2 * f3 + 3 * f2) * p2y + (f3 - f2) * h * slopeY(c, i + 1);
   }
