@@ -169,10 +169,39 @@ function coastDist(pts, x, y) {
   return x <= lineX ? best : -best;
 }
 
+// The distance offshore that sets the depth, smoothed more the farther out (the user, 2026-11-27: a diagonal beach meeting a
+// straight one turned every deeper band hard at the corner): the nearest distance to a bent line has a sharp corner on the
+// water side of every bend at any distance, but a real bottom's contours straighten out offshore. So the distance is blurred,
+// over ~COAST_SMOOTH x itself (a band 400 m out over ~160 m): the bands next to the beach follow it, the deep ones round off
+// and ease from one run of beach to the next. A straight beach's distance is linear, which a blur leaves as it is: unchanged.
+const COAST_SMOOTH = 0.4, SM_CELL = 20, SM_SIG = [0, 25, 50, 100, 200, 400];
+function smoothCoastDist(pts, grid) {
+  const pad = 4 * SM_SIG[SM_SIG.length - 1], X0 = grid.x0 - pad, Y0 = grid.y0 - pad;
+  const W = Math.ceil((grid.M * grid.dx + 2 * pad) / SM_CELL) + 1, H = Math.ceil((grid.N * grid.dx + 2 * pad) / SM_CELL) + 1;
+  const raw = new Float32Array(W * H);
+  for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) raw[j * W + i] = coastDist(pts, X0 + i * SM_CELL, Y0 + j * SM_CELL);
+  const levels = SM_SIG.map((s) => (s ? blur(raw, W, H, s / SM_CELL) : raw));
+  const sample = (L, x, y) => {
+    const fi = (x - X0) / SM_CELL, fj = (y - Y0) / SM_CELL, i = Math.min(W - 2, Math.max(0, Math.floor(fi))), j = Math.min(H - 2, Math.max(0, Math.floor(fj)));
+    const a = fi - i, b = fj - j, k = j * W + i;
+    return (L[k] * (1 - a) + L[k + 1] * a) * (1 - b) + (L[k + W] * (1 - a) + L[k + W + 1] * a) * b;
+  };
+  return (x, y) => {
+    const n = coastDist(pts, x, y);
+    if (n <= 0) return n; // (up the beach: as it is)
+    const s = Math.min(SM_SIG[SM_SIG.length - 1], COAST_SMOOTH * n);
+    let l = 0; while (l + 2 < SM_SIG.length && s > SM_SIG[l + 1]) l++;
+    const t = (s - SM_SIG[l]) / (SM_SIG[l + 1] - SM_SIG[l]);
+    const lo = l ? sample(levels[l], x, y) : n, hi = sample(levels[l + 1], x, y);
+    return Math.max(0, lo + (hi - lo) * t); // (still offshore: the waterline stays where it's drawn)
+  };
+}
+
 export function buildDepth(components, grid = makeGrid(), coast = null) {
   const { M, N, dx, x0, y0, offDepth, flatTo, shoreX } = grid;
   const baseSlope = offDepth / (shoreX - flatTo);
-  const baseAt = coast ? (x, y) => Math.min(offDepth, coastDepth(coastDist(coast.pts, x, y), coast.face, !!coast.deep)) : (x) => offDepth - baseSlope * Math.max(0, x - flatTo);
+  const cd = coast && smoothCoastDist(coast.pts, grid);
+  const baseAt = coast ? (x, y) => Math.min(offDepth, coastDepth(cd(x, y), coast.face, !!coast.deep)) : (x) => offDepth - baseSlope * Math.max(0, x - flatTo);
   const baseGrid = new Float32Array(M * N);
   let depth = new Float32Array(M * N);
   const shallow = components.filter((c) => c.type !== 'channel'), chans = components.filter((c) => c.type === 'channel');
