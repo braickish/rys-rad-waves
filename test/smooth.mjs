@@ -49,6 +49,11 @@ for (const [id, sets] of [['point', [0]], ['queens', [0]], ['raglanPlus', [0, 1]
     W.WAVE.period = 0; const a = run(set);
     W.WAVE.period = per; const b = run(set);
     const name = `${id} set ${set}`;
+    // the wave drawn (built at scale 1, multiplied up: the GPU's tables) and the wave ridden (built at its scale) are the same
+    // curve (the user, 2026-11-26: the board sank into the drawn water when the run-out didn't scale in proportion)
+    { const S = W.WAVE.scale, a = new Float64Array(W.NP * 2), c = new Float64Array(W.NP * 2); let gap = 0;
+      for (const s of [-0.5, 0, 0.5, 1, 1.5]) { W.withShape(set, () => W.controlPoints(s, a, 1)); W.withShape(set, () => W.controlPoints(s, c, S)); for (let q = 0; q < W.NP * 2; q++) gap = Math.max(gap, Math.abs(a[q] * S - c[q])); }
+      check(gap < 0.01, `${name}: the wave drawn and the wave ridden agree (within ${(gap * 100).toFixed(1)} cm)`); }
     check(b.kink <= Math.max(20, a.kink + 5), `${name}: no kink (biggest ${b.kink.toFixed(1)}°, ${a.kink.toFixed(1)}° without the rules)`);
     if (a.standR < Infinity) check(b.standR >= 0.8 * a.standR || b.standR >= b.faceH, `${name}: the face's foot no tighter while it stands open, or a scoop as wide as the face is tall (radius ${b.standR.toFixed(2)} m, ${a.standR.toFixed(2)} m without; face ${b.faceH.toFixed(2)} m)`);
     for (const k of ['foot', 'tip', 'trough']) {

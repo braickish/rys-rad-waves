@@ -684,7 +684,10 @@ function footBend(p) {
 function runOut(p, KF, scale, s) {
   const T = WAVE.period;
   if (!T) return p;
-  const hb = crestOf(KF) * scale / BREAK_DEPTH, R = RUNOUT_K * T * Math.sqrt(9.81 * Math.max(0.1, hb));
+  // (worked out at the wave's own scale, then in proportion to `scale`: the wave drawn is built at scale 1 and multiplied up (the
+  // GPU's tables), the wave ridden at its scale, and they must agree. Worked out at `scale` itself, the drawn ramp ran 3 m longer
+  // than the ridden one on a big wave, the drawn water ~10 cm over the surface the board rides: the board sank, the user, 2026-11-26)
+  const S0 = WAVE.scale || scale, hb = crestOf(KF) * S0 / BREAK_DEPTH, R = RUNOUT_K * T * Math.sqrt(9.81 * Math.max(0.1, hb)) * scale / S0;
   const steep = shapeSteepness(KF);
   const want = p[I.FACE_LOW * 2] + steep * R;
   // (the trough goes out to `want` where it's short of it, handed over softly (a smooth max, ~1/8 of the run-out wide): a hard
