@@ -127,13 +127,22 @@ const toReef = (cx, cy) => {
   const ux = (cx + view.panX - view.left - view.mw / 2) / view.z + view.mw / 2, uy = (cy + view.panY - view.top - view.mh / 2) / view.z + view.mh / 2;
   return { x: VIEW.x0 + uy / view.S, y: view.Y0 + ux / view.S };
 };
-function clampPan() { // (the zoomed map always covers its frame)
-  const mx = view.mw * (view.z - 1) / 2, my = view.mh * (view.z - 1) / 2;
-  view.panX = Math.min(mx, Math.max(-mx, view.panX)); view.panY = Math.min(my, Math.max(-my, view.panY));
+// The water you can see and build on (the user, 2026-11-26: zoom out further when needed): the map opens on VIEW (zoom 1), and
+// zooming out (or panning) shows more of the bay the model already covers, short of its edges (where it fades out) and of the
+// flat deep water far out.
+const outer = () => { const g = state.grid || makeGrid(); return { x0: g.x0 + 50, x1: VIEW.x1, y0: g.y0 + g.edge, y1: g.y1 - g.edge }; };
+const zMin = () => { const O = outer(); return Math.max((view.Y1 - view.Y0) / (O.y1 - O.y0), (VIEW.x1 - VIEW.x0) / (O.x1 - O.x0)); };
+function clampPan() { // (the map always covers its frame: what's in view stays within the water there is)
+  const O = outer(), z = view.z, S = view.S;
+  const fit = (pan, a0, a1, b0, size) => { // (pan keeps the centre of view within [a0 + half, a1 - half] of the reef, b0 the frame's start)
+    const half = size / (2 * z * S), lo = z * ((a0 + half - b0) * S - size / 2), hi = z * ((a1 - half - b0) * S - size / 2);
+    return lo > hi ? (lo + hi) / 2 : Math.min(hi, Math.max(lo, pan));
+  };
+  view.panX = fit(view.panX, O.y0, O.y1, view.Y0, view.mw); view.panY = fit(view.panY, O.x0, O.x1, VIEW.x0, view.mh);
 }
 function zoomAt(cx, cy, factor) { // (keep the reef spot under (cx, cy) where it is)
   const before = toReef(cx, cy);
-  view.z = Math.min(6, Math.max(1, view.z * factor));
+  view.z = Math.min(6, Math.max(zMin(), view.z * factor));
   const ax = px(before.y), ay = py(before.x);
   view.panX += ax - cx; view.panY += ay - cy; clampPan(); draw();
 }
@@ -155,16 +164,17 @@ function draw() {
   const mw = (view.Y1 - view.Y0) * S, mh = (VIEW.x1 - VIEW.x0) * S;
   ctx.save();
   roundRect(view.left, view.top, mw, mh, 12); ctx.clip();
-  // depth bands (the grid image, cropped to the view)
-  const i0 = (VIEW.x0 - g.x0) / g.dx, iN = (VIEW.x1 - VIEW.x0) / g.dx;
+  // depth bands (the grid image, cropped to the water you can see: outer)
+  const O = outer();
   ctx.imageSmoothingEnabled = true;
-  ctx.drawImage(depthImg, (view.Y0 - g.y0) / g.dx * 2, i0 * 2, (view.Y1 - view.Y0) / g.dx * 2, iN * 2, px(view.Y0), py(VIEW.x0), mw * view.z, mh * view.z);
+  ctx.drawImage(depthImg, (O.y0 - g.y0) / g.dx * 2, (O.x0 - g.x0) / g.dx * 2, (O.y1 - O.y0) / g.dx * 2, (O.x1 - O.x0) / g.dx * 2,
+    px(O.y0), py(O.x0), (O.y1 - O.y0) * S * view.z, (O.x1 - O.x0) * S * view.z);
   // crest lines every 5 s (only the bit still unbroken)
   ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 1.2;
   for (const c of state.rays.crests) {
     ctx.beginPath(); let pen = false;
     for (let r = 0; r < c.x.length; r++) {
-      if (!c.alive[r] || c.x[r] < VIEW.x0) { pen = false; continue; }
+      if (!c.alive[r] || c.x[r] < O.x0) { pen = false; continue; }
       const X = px(c.y[r]), Y = py(c.x[r]);
       if (pen) ctx.lineTo(X, Y); else ctx.moveTo(X, Y); pen = true;
     }
@@ -172,7 +182,7 @@ function draw() {
     if (c.re) { // (waves that reformed after breaking: their crests again, fainter)
       ctx.strokeStyle = 'rgba(255,255,255,.22)'; ctx.beginPath(); pen = false;
       for (let r = 0; r < c.rx.length; r++) {
-        if (!c.re[r] || c.rx[r] < VIEW.x0 || (r && Math.hypot(c.rx[r] - c.rx[r - 1], c.ry[r] - c.ry[r - 1]) > 12)) { pen = false; if (!c.re[r]) continue; }
+        if (!c.re[r] || c.rx[r] < O.x0 || (r && Math.hypot(c.rx[r] - c.rx[r - 1], c.ry[r] - c.ry[r - 1]) > 12)) { pen = false; if (!c.re[r]) continue; }
         const X = px(c.ry[r]), Y = py(c.rx[r]);
         if (pen) ctx.lineTo(X, Y); else ctx.moveTo(X, Y); pen = true;
       }
@@ -425,7 +435,7 @@ canvas.addEventListener('pointermove', (e) => {
   }
   const p = toReef(cx, cy), b = drag.b;
   let nx = snap(p.x + drag.dx), ny = snap(p.y + drag.dy);
-  nx = Math.min(VIEW.x1 - 40, Math.max(VIEW.x0 + 20, nx)); ny = Math.min(view.Y1 - 20, Math.max(view.Y0 + 20, ny));
+  { const O = outer(); nx = Math.min(VIEW.x1 - 40, Math.max(O.x0 + 20, nx)); ny = Math.min(O.y1 - 20, Math.max(O.y0 + 20, ny)); } // (anywhere in the water you can see, zoomed out)
   // arms and ledges snap onto a nearby peak, on the side you're dragging toward
   if (b.type === 'arm') {
     const pk = state.blocks.find((q) => q.type === 'peak' && Math.hypot(q.x - nx, q.y - ny) < 40);
