@@ -1526,9 +1526,24 @@ async function main() {
       bm.classList.toggle('danger', d > 0.85 || h > 0.85);
     }
     if (recap) { recap.step(dt); recap.draw(); } // (the recap's director and graphics, on the game's own time)
+    arriving(now);
     if (vid && !vid.p) videoFrame().then(() => { if (vid) vid.p = null; requestAnimationFrame(tick); }); // (the next frame once the encoder's ready for it)
     else requestAnimationFrame(tick);
   }
   requestAnimationFrame(tick);
+}
+// The veil over a link straight into a ride (index.html: the landing screen kept out of sight while the game loads): lifted on
+// the ride's first frame, or, if the link lands on the title after all (a locked wave, an error), after a
+// moment there, so the title's never left hidden.
+let arriveFrames = 0, arriveAt = null;
+function arriving(now) {
+  const h = document.documentElement;
+  if (!h.classList.contains('arriving') || h.classList.contains('arrived')) return;
+  if (arriveAt == null) arriveAt = now;
+  if (state !== 'title' || recap) arriveFrames++;
+  if (arriveFrames >= 1 || now - arriveAt > 1500) { // (the ride's first frame: your wave fades in through the sky's colour)
+    h.classList.add('arrived');
+    setTimeout(() => h.classList.remove('arriving', 'arrived'), 700);
+  }
 }
 main();

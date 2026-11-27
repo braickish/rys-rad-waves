@@ -14,3 +14,6 @@ supabase/.env
 
 # The logo the auth emails show (supabase/functions/send-email/emails.js links to it on Pages)
 !assets/email/logo.png
+!assets/logo.png
+!assets/logo@2x.png
+!assets/logo@3x.png

@@ -75,7 +75,7 @@ for (let i = 0; i < 40; i++) { checks = await get(`ride_checks?select=status,rea
 check(checks.length === 2 && checks.every((x) => x.status === 'ok'), `score checks: both waves ride to the same score on the server (${checks.map((x) => `${x.status} ${x.score} drift ${Number(x.drift).toFixed(3)}`).join('; ')})`);
 const hostScore = rides.find((r) => ents.find((e) => e.id === r.entrant_id).name === handle)?.score;
 check(Number(await B.evaluate(`window.__heat.surfers.find((s) => s.rival).waves[0]?.score`)) === Number(hostScore), `the host's wave reached the guest's board (${hostScore})`);
-check(/back to the contest/.test(await B.evaluate(`document.getElementById('results-go').textContent`)), 'the card says: back to the contest');
+check(/the results and the recap/.test(await B.evaluate(`document.getElementById('results-go').textContent`)), 'the card says: the results and the recap (the final: the lobby offers the recap)');
 await B.shot('2-results');
 
 // 5. The guest keeps their scores; the host isn't asked.
