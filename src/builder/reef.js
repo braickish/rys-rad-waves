@@ -128,7 +128,23 @@ export function blur(src, M, N, sigma) {
 // own slope) beyond. The bay's floor is then the coast's profile by distance from that line (offshore +). The default, a
 // straight line at x' 1250 with face 66.7, is exactly the old floor (15 m at x' 250 shoaling 1:66.7 to the beach at 1250).
 export const COAST = { face: 66.7, faceDepth: 5, outer: 66.7, dune: 2.5 };
-export const defaultCoast = (bay = BAY) => ({ face: 66.7, pts: [0.08, 0.31, 0.54, 0.77, 0.92].map((f) => [bay.shoreX, bay.view.y0 + (bay.view.y1 - bay.view.y0) * f]) }); // (handles inside the bay, the line running on past them)
+// (the coastline's handles: five across the bay as first shown, and two more toward each end of the water the zoomed-out map shows
+// (the user, 2026-11-27: control the coast the whole length); the line runs on straight past the last ones)
+const COAST_F = [0.08, 0.31, 0.54, 0.77, 0.92];
+const coastEnds = (bay = BAY) => [bay.y0 + bay.edge + 30, bay.y0 + bay.edge + 160, bay.y1 - bay.edge - 160, bay.y1 - bay.edge - 30]; // (-90, 40 ... 1000, 1130 on BAY)
+export const defaultCoast = (bay = BAY) => {
+  const [a, b, c, d] = coastEnds(bay), mid = COAST_F.map((f) => bay.view.y0 + (bay.view.y1 - bay.view.y0) * f);
+  return { face: 66.7, pts: [a, b, ...mid, c, d].map((y) => [bay.shoreX, y]) };
+};
+// (a coast saved before the extra handles (five, all inside the first view): the extra ones added on the line as it already ran,
+// straight on past its end handles, so its shape doesn't change)
+export function extendCoast(coast, bay = BAY) {
+  if (!coast || !Array.isArray(coast.pts) || coast.pts.length < 2) return coast;
+  const P = coast.pts.slice().sort((p, q) => p[1] - q[1]), n = P.length, lo = P[0][1], hi = P[n - 1][1];
+  const on = (y) => { const [A, B] = y < lo ? [P[0], P[1]] : [P[n - 2], P[n - 1]]; return A[0] + (B[0] - A[0]) * (y - A[1]) / ((B[1] - A[1]) || 1e-9); };
+  const add = coastEnds(bay).filter((y) => y < lo - 60 || y > hi + 60).map((y) => [on(y), y]);
+  return add.length ? { ...coast, pts: [...add, ...P].sort((p, q) => p[1] - q[1]) } : coast;
+}
 // (deep offshore water: past the beach face the bottom drops away 1:25 instead of 1:66.7, deep water close in, as at
 // Pipeline, where the reef rises out of ~15-20 m a couple of hundred metres out; on the gentle slope a big swell broke all
 // the way across the bay on the straight contours)

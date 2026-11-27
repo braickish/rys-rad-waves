@@ -4,7 +4,7 @@
 // onto peaks), the swell, crest lines every 5 s, and the curl from the fast break model (rays.js) coloured by time with
 // ticks every 5 s, marked where it sections, backs off or closes out. Circles mean "you can drag this": only the blocks'
 // handles are circles (the user, 2026-11-22); the curl's time ticks and the break's peak (a diamond) aren't.
-import { buildDepth, makeGrid, defaultCoast, BAY, BAY_DEEP_OFF } from './reef.js';
+import { buildDepth, makeGrid, defaultCoast, extendCoast, BAY, BAY_DEEP_OFF } from './reef.js';
 import { traceRays, analyse, tooSlow, isRide } from './rays.js';
 import { runPE } from './pewave.js';
 import { LOOP, curlAt, defaultLoop, clampLoop, loopInfo, snapEnd, bestLoop, wavePayload, takeoffStart, ledgeK } from './loop.js';
@@ -73,7 +73,7 @@ function save() {
 // (a design as save() keeps it, from this browser or a cloud break: accounts plan task 7)
 function applyDesign(j) {
   if (!j || !Array.isArray(j.blocks)) return false;
-  state.blocks = j.blocks; if (j.coast && Array.isArray(j.coast.pts)) state.coast = j.coast; if (j.board) state.board = j.board; if (Number.isFinite(j.water)) state.water = j.water; if (typeof j.fun === 'boolean') state.fun = j.fun; if (Number.isFinite(j.scale)) state.scale = j.scale; if (j.edges === 'soft' || j.edges === 'sharp') state.edges = j.edges; if (j.pick) state.pick = j.pick; if (j.pickKey) state.pickKey = j.pickKey; Object.assign(state.swell, j.swell || {}); Object.assign(state.loop, j.loop || {});
+  state.blocks = j.blocks; if (j.coast && Array.isArray(j.coast.pts)) state.coast = extendCoast(j.coast); if (j.board) state.board = j.board; if (Number.isFinite(j.water)) state.water = j.water; if (typeof j.fun === 'boolean') state.fun = j.fun; if (Number.isFinite(j.scale)) state.scale = j.scale; if (j.edges === 'soft' || j.edges === 'sharp') state.edges = j.edges; if (j.pick) state.pick = j.pick; if (j.pickKey) state.pickKey = j.pickKey; Object.assign(state.swell, j.swell || {}); Object.assign(state.loop, j.loop || {});
   return true;
 }
 function restore() {
@@ -219,7 +219,7 @@ function draw() {
   // labels: beach, swell
   ctx.restore();
   ctx.font = '700 13px Rubik'; ctx.textAlign = 'center'; ctx.fillStyle = '#8a6a2a';
-  { const yb = (state.coast.pts[2][1] + state.coast.pts[3][1]) / 2, xb = (state.coast.pts[2][0] + state.coast.pts[3][0]) / 2 + 9, bxp = px(yb), byp = py(xb); if (byp < view.top + mh - 2 && bxp > view.left && bxp < view.left + mw) ctx.fillText('BEACH', bxp, byp); } // (on the sand, between two coastline handles; moves with the zoom)
+  { const P = state.coast.pts, m = P.length >> 1, yb = (P[m - 1][1] + P[m][1]) / 2, xb = (P[m - 1][0] + P[m][0]) / 2 + 9, bxp = px(yb), byp = py(xb); if (byp < view.top + mh - 2 && bxp > view.left && bxp < view.left + mw) ctx.fillText('BEACH', bxp, byp); } // (on the sand, between two coastline handles; moves with the zoom)
   drawSwell(view.left + mw / 2, view.top - 14);
   // scale bar
   ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; const sx = view.left + 6, sy = view.top + mh + 24;
@@ -342,7 +342,7 @@ function handle(b) {
 function drawCoast() {
   const on = state.hover === 'coast' || (drag && drag.coast != null);
   for (const [x, y] of state.coast.pts) dot(px(y), py(x), on ? 7 : 6, '#efe2bd', '#0b1a24', 2);
-  if (on) { const [x, y] = state.coast.pts[2]; ctx.font = '400 12px Bungee'; ctx.textAlign = 'center'; ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(11,26,36,.8)'; ctx.fillStyle = '#efe2bd'; ctx.strokeText('COASTLINE', px(y), py(x) - 14); ctx.fillText('COASTLINE', px(y), py(x) - 14); }
+  if (on) { const [x, y] = state.coast.pts[state.coast.pts.length >> 1]; ctx.font = '400 12px Bungee'; ctx.textAlign = 'center'; ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(11,26,36,.8)'; ctx.fillStyle = '#efe2bd'; ctx.strokeText('COASTLINE', px(y), py(x) - 14); ctx.fillText('COASTLINE', px(y), py(x) - 14); }
 }
 function hitCoast(cx, cy) { let best = -1, bd = 14; state.coast.pts.forEach(([x, y], k) => { const d = Math.hypot(px(y) - cx, py(x) - cy); if (d < bd) { bd = d; best = k; } }); return best; }
 function drawBlock(b) {
