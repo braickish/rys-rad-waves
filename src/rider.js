@@ -508,7 +508,7 @@ export function createRider() {
     mode: 'surf', // 'surf' | 'air' | 'wipe'
     xs: 4, t: 9.5, speed: 9, phi: -0.85, // drop in angled well down the face
     held: null, // (your real height, kept as the wave slides past: holdHeight)
-    pos: [0, 0, 0], vel: [0, 0, 0], heading: [1, 0, 0],
+    pos: [0, 0, 0], vel: [0, 0, 0], heading: [1, 0, 0], curtainSide: null, // (which side of a barrel's lip curtain you're on: checkHazards)
     crouch: false, pumping: false, turnRate: 0,
     inBarrel: false, clearance: 99, barrelTime: 0,
     foam: 0, foamTime: 0, pocket: 0,
@@ -1807,6 +1807,10 @@ function checkHazards(r, dt) {
     }
     if (!r.tube && here < 0.5) { r.inBarrel = false; return; }
   }
+  // (through the lip's curtain: crossing it, either way, is a wipeout; above)
+  const side = curtainSide(r), was = r.curtainSide;
+  r.curtainSide = side;
+  if (side && was && side !== was && r.mode === 'surf') { const why = side === 'out' ? 'Hit by the lip! (you rode out through the curtain)' : 'Hit by the lip! (you rode in through the curtain)'; r.tube = null; return wipe(r, why); }
   // The barrel: once the curl has passed you, you're in the tube, surfing
   // the face inside it as normal. Too deep = pinched; up into the lip = over
   // the falls; way down past the bottom = the lip lands on you; forward out
@@ -1823,12 +1827,6 @@ function checkHazards(r, dt) {
     return;
   }
   if (!r.tube) {
-    // (in through the curtain: from out in front of a barrel, riding in under the lip where it's already come down past you)
-    const was = r.outsideCurtain, c = curtainNow(r);
-    r.outsideCurtain = c ? r.pos[2] > c.z + CURTAIN_MARGIN * (WAVE.sizeK || 1) : null;
-    if (c && was === true && r.outsideCurtain === false && c.down && ph > T.tubeEnter + 0.2 && ph < T.tubeCollapse) {
-      return wipe(r, 'Hit by the lip! (you rode in through the curtain)');
-    }
     // Only once you're up on the face (at or above its base), not out on the flats.
     // ... and only once you've come round to face along or up the face, not
     // while you're still pointing down mid bottom turn.
@@ -1855,9 +1853,6 @@ function checkHazards(r, dt) {
   const tooHigh = WAVE.tubeReal ? r.t < tubeLineT(ph, WAVE.tubeReal.fall) : r.height > T.tubeFallHeight;
   if (tooHigh) { wipe(r, 'Over the falls! (too high in the barrel)'); r.tube = null; return; }
   if (r.t > T.tBottom + T.tubeLow) { wipe(r, 'The lip landed on you! (too low)'); r.tube = null; return; }
-  // (out through the curtain: past where the lip comes down, once it's down about your height: it hits you. Coming out the
-  // front of the barrel (along the wave) is the way out; so is staying under the lip until it opens)
-  if (curtainHits(r)) { wipe(r, 'Hit by the lip! (you rode out through the curtain)'); r.tube = null; return; }
   // (`tubeFloor` waves, Trestles: the lip lands half way down the face, so once it has, below where it lands it lands on you)
   if (WAVE.tubeFloor && ph > WAVE.tubeFloor.from && r.t > WAVE.tubeFloor.t) { wipe(r, 'The lip landed on you! (too low)'); r.tube = null; return; }
   // (`tubeReal` waves: near the opening, you're out once you're less than `exitIn` m in under the
@@ -1870,21 +1865,26 @@ function checkHazards(r, dt) {
   }
 }
 
-// (the curtain where you are: its reach and whether it's down about your height (its tip lower than ~1.6 m above your feet,
-// at the wave's size), or null where the wave isn't barrelling)
-const CURTAIN_MARGIN = 0.3, CURTAIN_HEAD = 1.6;
-function curtainNow(r) {
+// The lip's curtain (the user, 2026-11-26: in a barrelling wave you can't pass through the broken lip without a wipeout). Which
+// side of it you're on at your own height (about your middle): in (between the face and the falling sheet) or out (past it),
+// or null where it isn't there at your height (the lip hasn't come down that far yet: you can duck out under its tip, or there's
+// no barrel here). Crossing it, either way, while it's there both before and after, is a wipeout, in the barrel or not. (The lip's
+// furthest reach alone missed riding out through it higher up, where the sheet hangs much closer to the face.)
+const CURTAIN_MID = 0.8, _cc = new Float64Array(NP * 2), _co = [0, 0];
+function curtainSide(r) {
   if (WAVE.tubeScale && tubeAt(r.xs) < 0.5) return null;
-  // (only while it's barrelling here, between the tube opening and the pinch: before the lip throws, its points lie on the
-  // face, and their reach could be behind a rider low on it)
   const ph = phaseAt(r.xs);
   if (!(ph > TUNE.tubeEnter && ph < TUNE.tubeCollapse)) return null;
-  const c = lipCurtain(r.xs);
-  return { z: c.z, down: c.y < r.pos[1] + CURTAIN_HEAD * (WAVE.sizeK || 1) };
-}
-function curtainHits(r) {
-  const c = curtainNow(r);
-  return !!c && c.down && r.pos[2] > c.z + CURTAIN_MARGIN * (WAVE.sizeK || 1);
+  controlPoints(ph, _cc, undefined, r.xs);
+  const y = r.pos[1] + CURTAIN_MID * (WAVE.sizeK || 1);
+  // (the sheet at height y: the outside of the lip coming down from the crest to its tip (4 -> 8), and its inside going back
+  // up from the tip to the roof (8 -> 11); the last crossing on the way down and the first on the way back)
+  let out = null, inn = null, pz = null, py = null;
+  for (let t = 4; t <= 8 + 1e-9; t += 0.04) { crPoint(_cc, t, _co); if (py != null && (py - y) * (_co[1] - y) <= 0 && py !== _co[1]) out = pz + (_co[0] - pz) * (y - py) / (_co[1] - py); pz = _co[0]; py = _co[1]; }
+  pz = null; py = null;
+  for (let t = 8; t <= 11 + 1e-9; t += 0.04) { crPoint(_cc, t, _co); if (py != null && (py - y) * (_co[1] - y) <= 0 && py !== _co[1]) { inn = pz + (_co[0] - pz) * (y - py) / (_co[1] - py); break; } pz = _co[0]; py = _co[1]; }
+  if (out == null || inn == null) return null;
+  return r.pos[2] > (out + inn) / 2 ? 'out' : 'in';
 }
 
 function enterTube(r) {
@@ -1910,14 +1910,6 @@ export function tubeHeight(xs) {
 
 // How far toward the beach the lip reaches at xs (world z of its tip).
 const _lipCp = new Float64Array(NP * 2), _lipO = [0, 0];
-// The lip's curtain at xs (the user, 2026-11-26: in a barrelling wave you can't pass through the broken lip without a wipeout):
-// how far toward the beach the lip comes down (z of its reach) and how low its tip hangs (y), or null where there's no barrel.
-function lipCurtain(xs) {
-  controlPoints(phaseAt(xs), _lipCp, undefined, xs);
-  let z = -1e9;
-  for (let t = 6; t <= 10.5; t += 0.05) z = Math.max(z, crPoint(_lipCp, t, _lipO)[0]);
-  return { z, y: _lipCp[8 * 2 + 1] };
-}
 function lipTipZ(xs) {
   controlPoints(phaseAt(xs), _lipCp, undefined, xs);
   let z = -1e9;
