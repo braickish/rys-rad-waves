@@ -412,7 +412,8 @@ canvas.addEventListener('pointerdown', (e) => {
   }
   const r0 = canvas.getBoundingClientRect(), lh = hitLoop(e.clientX - r0.left, e.clientY - r0.top);
   if (lh) { drag = { loop: lh }; canvas.setPointerCapture(e.pointerId); return; }
-  { const r1 = canvas.getBoundingClientRect(), ck = hitCoast(e.clientX - r1.left, e.clientY - r1.top); if (ck >= 0 && !hit(e.clientX - r1.left, e.clientY - r1.top)) { drag = { coast: ck }; state.sel = null; showSel(); canvas.setPointerCapture(e.pointerId); return; } }
+  { const r1 = canvas.getBoundingClientRect(), ck = hitCoast(e.clientX - r1.left, e.clientY - r1.top); if (ck >= 0 && !hit(e.clientX - r1.left, e.clientY - r1.top)) { drag = { coast: ck, dx: state.coast.pts[ck][0] - toReef(e.clientX - r1.left, e.clientY - r1.top).x }; // (moved by how far it's dragged: one off the map is grabbed at the edge, not where it is)
+      state.sel = null; showSel(); canvas.setPointerCapture(e.pointerId); return; } }
   const r = canvas.getBoundingClientRect(), cx = e.clientX - r.left, cy = e.clientY - r.top, b = hit(cx, cy);
   state.sel = b; showSel();
   if (b) {
@@ -432,7 +433,7 @@ canvas.addEventListener('pointermove', (e) => {
     zoomAt((a.x + b.x) / 2, (a.y + b.y) / 2, d / Math.max(1, pinch.d)); pinch.d = d; return;
   }
   if (drag && drag.coast != null) { // (a coastline handle: in and out only, 10 m snap, within COAST_X)
-    const p = toReef(cx, cy), nx = Math.min(COAST_X[1], Math.max(COAST_X[0], snap(p.x)));
+    const p = toReef(cx, cy), nx = Math.min(COAST_X[1], Math.max(COAST_X[0], snap(p.x + (drag.dx || 0))));
     if (nx !== state.coast.pts[drag.coast][0]) { state.coast.pts[drag.coast][0] = nx; state.dirty = true; schedule(); }
     return;
   }

@@ -23,11 +23,11 @@ export const BLOCKS = {
   channel: { label: 'Channel', blurb: 'Deep water: the wave stops breaking. Ends a ride, or splits a reef in two.' },
 };
 
-// The bay floor under everything: a ramp from 13 m to 8.5 m (as Dynamic's).
-export const FLOOR = [{ type: 'ramp', start_depth_m: 13, end_depth_m: 8.5, x0_m: 300, length_m: 420 }];
+// The bay floor under everything: a ramp from 13 m to 8.5 m (as Dynamic's). (`floor`: with a coastline, measured from it, reef.js)
+export const FLOOR = [{ type: 'ramp', floor: true, start_depth_m: 13, end_depth_m: 8.5, x0_m: 300, length_m: 420 }];
 // Deep offshore water (the user, 2026-11-22: big swells, Pipe-like waves): the bay 25 m deep offshore and its shelf down at
 // 24 -> 16 m, so a big swell reaches the reef instead of breaking out on the shelf (a 4.5 m swell's set waves break ~10 m deep).
-export const FLOOR_DEEP = [{ type: 'ramp', start_depth_m: 24, end_depth_m: 16, x0_m: 300, length_m: 420 }];
+export const FLOOR_DEEP = [{ type: 'ramp', floor: true, start_depth_m: 24, end_depth_m: 16, x0_m: 300, length_m: 420 }];
 // A block's Depth (same day): its depths x 0.7 / 1 / 1.8, so a reef can sit deep enough for a big swell to break on it.
 // (2026-11-23, the user: Pipe's three reefs, the outer ones far deeper: a slider from DEPTH_RANGE[0] to [1] x, shown as the
 // water over the block's top, TOP_DEPTH m at 1x; the three old steps are its marks)

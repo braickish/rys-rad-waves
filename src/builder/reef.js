@@ -33,7 +33,11 @@ function compDepth(c, x, y, base, bay) {
       const dxp = x - c.x0_m, dyp = y - cy, u = dxp * Math.cos(h) + dyp * Math.sin(h), v = -dxp * Math.sin(h) + dyp * Math.cos(h);
       const L = c.length_m, a = Math.min(1, Math.max(0, u / L));
       d = c.start_depth_m + (c.end_depth_m - c.start_depth_m) * a;
-      if (u > L) d = c.end_depth_m - (u - L) * bay.offDepth / (bay.shoreX - bay.flatTo);
+      // (past its end it shoals on to the beach at shoreX; the bay floor with a coastline holds its depth there instead and
+      // the coast's own profile takes it in (the user, 2026-11-27: the slope options did nothing: this ramp, 1:66.7 on in,
+      // was shallower than a steeper beach face everywhere but the waterline); the default 1:66.7 beach is shallower than
+      // either, so it's the same floor)
+      if (u > L) d = c.floor && bay.coastFloor ? c.end_depth_m : c.end_depth_m - (u - L) * bay.offDepth / (bay.shoreX - bay.flatTo);
       const w = c.width_m ?? 1e9;
       m = band(u, 0, 1e9, fade) * band(v, -w / 2, w / 2, fade);
       break;
@@ -200,8 +204,8 @@ function smoothCoastDist(pts, grid) {
 export function buildDepth(components, grid = makeGrid(), coast = null) {
   const { M, N, dx, x0, y0, offDepth, flatTo, shoreX } = grid;
   const baseSlope = offDepth / (shoreX - flatTo);
-  const cd = coast && smoothCoastDist(coast.pts, grid);
-  const baseAt = coast ? (x, y) => Math.min(offDepth, coastDepth(cd(x, y), coast.face, !!coast.deep)) : (x) => offDepth - baseSlope * Math.max(0, x - flatTo);
+  const cd = coast && smoothCoastDist(coast.pts, grid), fgrid = coast ? { ...grid, coastFloor: true } : grid;
+  const baseAt = coast ? (x, y, n) => Math.min(offDepth, coastDepth(n, coast.face, !!coast.deep)) : (x) => offDepth - baseSlope * Math.max(0, x - flatTo);
   const baseGrid = new Float32Array(M * N);
   let depth = new Float32Array(M * N);
   const shallow = components.filter((c) => c.type !== 'channel'), chans = components.filter((c) => c.type === 'channel');
@@ -209,9 +213,13 @@ export function buildDepth(components, grid = makeGrid(), coast = null) {
     const y = y0 + (j + 0.5) * dx;
     for (let i = 0; i < M; i++) {
       const x = x0 + (i + 0.5) * dx;
-      const base = baseAt(x, y); baseGrid[j * M + i] = base;
+      const n = cd ? cd(x, y) : 0, base = baseAt(x, y, n); baseGrid[j * M + i] = base;
+      // (the bay floor's ramp, with a coastline: by distance from it, as if the beach were at shoreX (the user, 2026-11-27:
+      // moving the beach left the floor's bands straight across the bay where it had been, turning hard into the coast's);
+      // the default beach is at shoreX, so it's the same there)
+      const fx = cd ? shoreX - n : x;
       let d = base;
-      for (const c of shallow) d = Math.min(d, compDepth(c, x, y, base, grid));
+      for (const c of shallow) d = Math.min(d, compDepth(c, c.floor ? fx : x, y, base, fgrid));
       for (const c of chans) { // (channels deepen: along a polyline, `depth_m` across `width_m`, easing out over `fade_m`)
         const mm = 1 - smooth01((polyDist(c.points, x, y) - c.width_m / 2) / (c.fade_m ?? 20));
         d = Math.max(d, d + mm * Math.max(0, c.depth_m - d));
