@@ -706,7 +706,7 @@ function showCoast() {
 }
 function showZoom() { // (the map's corner: zoom out / in / fit)
   const el = $('colorby'); el.innerHTML = '';
-  for (const [label, fn] of [['−', () => zoomAt(view.left + view.mw / 2, view.top + view.mh / 2, 1 / 1.5)], ['+', () => zoomAt(view.left + view.mw / 2, view.top + view.mh / 2, 1.5)], ['Fit', () => { view.z = 1; view.panX = view.panY = 0; draw(); }]]) {
+  for (const [label, fn] of [['−', () => zoomAt(view.left + view.mw / 2, view.top + view.mh / 2, 1 / 1.5)], ['+', () => zoomAt(view.left + view.mw / 2, view.top + view.mh / 2, 1.5)], ['Fit', () => { zoomOut(); draw(); }]]) {
     const b = document.createElement('button'); b.textContent = label; b.onclick = fn; el.appendChild(b);
   }
 }
@@ -735,7 +735,9 @@ if (new URLSearchParams(location.search).get('preset') === 'beach') { state.coas
 { const q = new URLSearchParams(location.search).get('loop'); if (q) { state.loop.on = true; state.loop.side = q === 'left' ? 'left' : 'right'; } } // (?loop=right|left: start looped, for testing)
 syncSwell();
 recompute(); layout(); showSel(); showZoom(); showCoast();
-{ const zq = Number(new URLSearchParams(location.search).get('zoom')); if (zq > 1 && cur()) zoomAt(px(cur().peak.y), py(cur().peak.x), zq); } // (?zoom=2.5: open zoomed on the peak, for testing)
+// The map opens fully zoomed out (the user, 2026-11-27), showing all the water you can build on; Fit goes back there.
+const zoomOut = () => { view.z = zMin(); view.panX = view.panY = 0; clampPan(); };
+{ const zq = Number(new URLSearchParams(location.search).get('zoom')); if (zq > 1 && cur()) zoomAt(px(cur().peak.y), py(cur().peak.x), zq); else zoomOut(); } // (?zoom=2.5: open zoomed on the peak from zoom 1, for testing)
 draw();
 document.fonts?.ready.then(() => draw());
 // My Breaks (accounts plan task 7): the map as a thumbnail, and opening a saved design.
