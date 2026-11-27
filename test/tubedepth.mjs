@@ -33,7 +33,8 @@ const prof = []; for (let s0 = 0; s0 <= 300; s0 += 10) { const inS = s0 >= 40 &&
 const cases = [
   { wave: 'reef', H: 0.45, depths: [0.1, 0.3, 0.5, 0.7, 0.9] },
   { wave: 'reef', H: 0.25, depths: [0.3, 0.5, 0.7, 0.9] },
-  { wave: 'dynamic', H: 0.4, depths: [0.4, 0.5] }, // (deeper, the pinned probe sits where the lip lands: the speed target is checked below)
+  // (not Dynamic: its small tube's lip lands about 1.6 m out, and the pinned probe sat out in front of it, where riding now
+  // wipes you out (rider.js, the curtain: the user, 2026-11-26). Its speed target is checked below, without a probe)
   { wave: 'built', H: 0.45, depths: [0.1, 0.3, 0.5, 0.7, 0.9], built: { v: 1, mode: 'full', side: 'left', length: 300, base: 8, H: 2.5, c: 5.5, profile: prof } },
 ];
 for (const c of cases) {
