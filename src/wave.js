@@ -257,7 +257,7 @@ export function sizeAt(xs) {
 // curl ages (phase 1.3 -> 3; controlPoints). The GPU's water gets this too (mesh.js slicePhases), so what you see matches.
 export function sizeFor(xs, s) {
   const sm = Math.min(1, Math.max(0, (s - 1.3) / 1.7));
-  return (1 + (sizeAt(xs) - 1) * (1 - sm * sm * (3 - 2 * sm))) * (WAVE.built ? wallAhead(xs, s) : 1); // (the wall ahead: below)
+  return 1 + (sizeAt(xs) - 1) * (1 - sm * sm * (3 - 2 * sm));
 }
 export function ridgeAt(xs) {
   if (!WAVE.ridges) return 0;
@@ -510,35 +510,44 @@ export function phaseAt(xs) {
     const k = profile * ramp;
     if (k > 1e-3 && sec.target > s) s += (sec.target - s) * k;
   }
-  return s;
+  return WAVE.built ? wallAheadPhase(xs, s) : s; // (a built break's wall ahead holds the swell's stage: below)
 }
 
 const smooth = (f) => f * f * (3 - 2 * f);
 
 // The wall ahead of the curl on a built break (the user, 2026-11-26, from inside a barrel: the wall ahead fell away, half as
-// tall 30 m down the line). Ahead of the curl the wave is drawn as earlier stages of its break, and those start from a small
-// generic swell; on a reef the wall ahead is the same swell still coming in along it. So the unbroken wave ahead never stands
-// lower than the incoming swell: the builder's swell against its breaker (swell.H / H, at most 0.95) of the shape's height at
-// the curl. Where a stage is lower it's scaled up as a whole to meet it, a bigger swell of the same shape (a soft max, no corner),
-// as part of the slice's size (sizeFor): the same for the wave drawn (the GPU's tables) and the wave ridden. Eased in over the first
-// 8 m ahead and out between 40 and 100 m, so the sea doesn't become a wall to the horizon. Built breaks only (they have a swell).
-const _crest0 = new WeakMap(), _w0 = new Float64Array(NP * 2);
+// tall 30 m down the line). Ahead of the curl the wave is drawn as earlier stages of its break, and those go back to a small
+// generic swell; on a reef the wall ahead is the same swell still coming in along it. So ahead of the curl a built break is never
+// drawn at a stage earlier than the one where it first stands as tall as the incoming swell (the builder's swell against its
+// breaker, swell.H / H, at most 0.95, of its height at the curl): it holds that stage, its own shape, unstretched (scaling the
+// earlier stages up to it blew a gentle swell up nearly 5x, tall and wide, an odd shoulder on the horizon, the user, same day).
+// Held with a soft max (no corner), and let go between 60 and 120 m ahead, back to the far swell. In phaseAt, so the wave drawn
+// and the wave ridden agree. Built breaks only (they have a swell).
+const _crest0 = new WeakMap(), _w0 = new Float64Array(NP * 2), _hold = new WeakMap();
 function crestAtCurl(KF) { let c = _crest0.get(KF); if (c == null) { kfPoints(KF, 0, _w0, 1, true); c = _w0[I.CREST * 2 + 1] - _w0[I.TROUGH * 2 + 1]; _crest0.set(KF, c); } return c; }
 const _ws = new Float64Array(NP * 2);
 function stageHeight(KF, s) { kfPoints(KF, s, _ws, 1, true); return _ws[I.CREST * 2 + 1] - _ws[I.TROUGH * 2 + 1]; }
-function wallAhead(xs, s) {
+// (the earliest stage, going back from the curl, at which a shape still stands `ratio` of its height at the curl)
+function holdStage(KF, ratio) {
+  let m = _hold.get(KF); if (!m) _hold.set(KF, (m = new Map()));
+  const key = Math.round(ratio * 1000); if (m.has(key)) return m.get(key);
+  const want = ratio * crestAtCurl(KF); let sh = 0, prev = stageHeight(KF, 0);
+  for (let q = -0.02; q >= -9; q -= 0.02) {
+    const h = stageHeight(KF, q);
+    if (h < want) { sh = q + 0.02 * (want - h) / Math.max(1e-6, prev - h); break; }
+    prev = h; sh = q;
+  }
+  m.set(key, sh); return sh;
+}
+function wallAheadPhase(xs, s) {
   const B = WAVE.built, sw = B?.swell?.H;
-  if (!(xs > 0) || !(s < 0) || !(sw > 0) || !(B.H > 0) || !WAVE.shapes) return 1;
+  if (!(xs > 0) || !(s < 0) || !(sw > 0) || !(B.H > 0) || !WAVE.shapes) return s;
   const ratio = Math.min(0.95, sw / (B.H / (B.scaleApplied || 1)));
-  const near = smooth(Math.min(1, xs / 8)), far = 1 - smooth(Math.min(1, Math.max(0, (xs - 40) / 60)));
   const u = shapeSet(shapeU(xs)), i = Math.min(SHAPES.length - 2, Math.floor(u)), w = u - i;
-  const at = (q) => (w > 1e-4 ? q(SHAPES[i]) * (1 - w) + q(SHAPES[i + 1]) * w : q(SHAPES[i]));
-  const c0 = at(crestAtCurl), h = at((K) => stageHeight(K, s)), want = ratio * c0 * near * far;
-  if (!(h > 1e-3) || !(want > 0)) return 1;
-  // (a soft max that leaves the stage alone until it's within `soft` of the floor, and adds at most soft / 4 there: C1, no
-  // corner; a smoother one lifted every stage a little, out to where the floor ends, and left a step there)
-  const soft = 0.05 * c0, g = want - h, hh = g <= -soft ? h : g >= soft ? want : h + (g + soft) * (g + soft) / (4 * soft);
-  return hh / h;
+  const sh = w > 1e-4 ? holdStage(SHAPES[i], ratio) * (1 - w) + holdStage(SHAPES[i + 1], ratio) * w : holdStage(SHAPES[i], ratio);
+  const soft = 0.15, g = sh - s, held = g <= -soft ? s : g >= soft ? sh : s + (g + soft) * (g + soft) / (4 * soft);
+  const far = 1 - smooth(Math.min(1, Math.max(0, (xs - 60) / 60)));
+  return s + (held - s) * far;
 }
 // Control points for a phase, as a Float64Array [z0, y0, z1, y1, ...], scaled.
 const _cpB = new Float64Array(NP * 2);
