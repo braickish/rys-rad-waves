@@ -19,6 +19,9 @@ export function startMyBreaks(B) {
   let list = null, busy = false, msg = null, renaming = null, uid;
   const setCur = (c) => { cur = c; write(CUR_KEY, cur); };
   const changed = () => !cur.saved || JSON.stringify(B.design()) !== cur.saved;
+  // (the open break's name as saved: the user, 2026-11-28: the name box went blank while editing a saved break; it shows
+  // the break's name, period: from the list when what this browser remembers has gone blank)
+  const savedName = () => (cur.id && list?.find((b) => b.id === cur.id)?.name) || '';
   const say = (text, bad = false) => { msg = { text, bad }; render(); };
   const pro = () => !!currentPlan().pro;
   const h = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); for (const k of kids) if (k != null) e.append(k); return e; };
@@ -32,6 +35,7 @@ export function startMyBreaks(B) {
     const u = currentUser();
     list = u && !u.is_anonymous ? await myBreaks().catch((e) => { console.warn('breaks', e); return []; }) : null;
     if (cur.id && list && !list.some((b) => b.id === cur.id)) setCur({ ...cur, id: null }); // (deleted elsewhere: keep the design, unsaved)
+    if (cur.id && !cur.name?.trim() && savedName()) setCur({ ...cur, name: savedName() }); // (the open break keeps its name)
     render(); offerImport();
   }
 
@@ -79,9 +83,11 @@ export function startMyBreaks(B) {
     }
     const canSave = pro();
     // this break
-    const name = h('input', { id: 'break-name', type: 'text', maxLength: 40, placeholder: 'Name your break', value: cur.name || '', autocomplete: 'off' });
+    const name = h('input', { id: 'break-name', type: 'text', maxLength: 40, placeholder: 'Name your break', autocomplete: 'off' });
     name.oninput = () => { cur.name = name.value; write(CUR_KEY, cur); };
+    name.onblur = () => { if (cur.id && !name.value.trim()) { cur.name = savedName() || cur.name; write(CUR_KEY, cur); name.value = cur.name; } }; // (cleared and left: its name again)
     el.append(h('div', { className: 'row' }, name));
+    name.value = cur.name?.trim() ? cur.name : savedName(); // (set once it's in the page: a browser restoring form fields can't blank it)
     el.append(h('div', { className: 'row', style: 'margin-top:6px' },
       button(cur.id ? 'Save' : 'Save to my breaks', () => save(!cur.id), 'on', !canSave),
       cur.id ? button('Save as new', () => save(true), '', !canSave) : null));
