@@ -52,7 +52,7 @@ select throws_ok($$ insert into storage.objects (bucket_id, name, owner_id) valu
 select pg_temp.act_as('a1000000-0000-0000-0000-000000000001');
 select is((select count(*)::int from storage.objects where bucket_id = 'replays' and name like '%' || (select v from t where k = 'h') || '%'), 1, 'others in the contest can read it');
 select pg_temp.act_as('a1000000-0000-0000-0000-000000000003');
-select is((select count(*)::int from storage.objects where bucket_id = 'replays' and name like '%' || (select v from t where k = 'h') || '%'), 0, 'an outsider can''t');
+select is((select count(*)::int from storage.objects where bucket_id = 'replays' and name like '%' || (select v from t where k = 'h') || '%'), 1, 'an outsider can too, once the contest is over (the recap, 20261126020000)');
 
 select * from finish();
 rollback;
