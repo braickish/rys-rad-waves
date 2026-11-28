@@ -436,7 +436,7 @@ $('start').addEventListener('click', (e) => { e.preventDefault(); startOrRestart
 // surf from there reloads without it (?menu=surf opens Free surf). A link that lands on a locked wave, or on a saved
 // break, opens Free surf.
 let step = null;
-const STEPS = { surf: 'Free surf', compete: 'Compete', solo: 'Solo heat', host: 'Host a contest', lobby: 'Contest', join: 'Join a contest' };
+const STEPS = { surf: 'Free surf', compete: 'Compete', solo: 'Practice heat', host: 'Host a contest', lobby: 'Contest', join: 'Join a contest' };
 function showStep(which) {
   if (step === 'lobby' && which !== 'lobby') leaveLobby();
   step = which;
@@ -444,7 +444,7 @@ function showStep(which) {
   if (!which) return;
   $('step-title').textContent = STEPS[which];
   $('compete-menu').hidden = which !== 'compete' && which !== 'join';
-  $('go-solo').hidden = $('go-host').hidden = $('open-soon').hidden = which === 'join'; // (Compete: Solo, Live (go-host: straight to hosting), Open, and the code box for live and open contests; Join: just the code box, for anyone)
+  $('go-solo').hidden = $('go-host').hidden = $('open-soon').hidden = which === 'join'; // (Compete: Practice (go-solo), Live Format (go-host: straight to hosting), Open Format, and the code box for live and open contests; Join: just the code box, for anyone)
   $('host-form').hidden = which !== 'host';
   $('lobby').hidden = which !== 'lobby';
   $('waves').hidden = which !== 'surf' && which !== 'solo';
