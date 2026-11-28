@@ -9,13 +9,16 @@ export const ARM_ANGLES = [30, 45, 60]; // between the arm's depth contours and 
 export const ARM_LENGTHS = [150, 212, 280];
 // The reef line's slope (plan step 3): the hollowness dial, leaving the peel alone (research/reef-generator's sweep):
 // gentle breaks softer, steep pitches. (1:16 and gentler broke into pieces in the ray model.)
-export const ARM_SLOPES = [['1:18', 'Gentle'], ['1:10', 'Medium'], ['1:6', 'Steep']];
+// (2026-11-28, the user: Steep even sharper, "essentially a sharp ledge": 1:1, was 1:6; a reef saved at 1:6 is Steep, so
+// it's 1:1 now too, slopeName. With Sharp edges the seabed isn't smoothed either (ui.js), so the face is a wall.)
+export const ARM_SLOPES = [['1:18', 'Gentle'], ['1:10', 'Medium'], ['1:1', 'Steep']];
+export const slopeName = (s) => (s === '1:6' ? '1:1' : s || '1:10');
 export const ROTATIONS = [0, 30, 45, 60, 90, 120, 135, 150]; // ridge / channel / sandbar direction, degrees from straight in
 export const BAR_CRESTS = [[1.0, 'Shallow'], [1.5, 'Medium'], [2.0, 'Deep']]; // a sandbar's crest depth (m)
 
 export const BLOCKS = {
   peak: { label: 'Peak', blurb: 'A rounded point of reef: focuses the swell into a takeoff peak. Its slope sets how hard the set waves break on it.' },
-  arm: { label: 'Arm', blurb: 'A sloping reef line off a peak: its angle sets the peel (30 deg fast, 60 deg mellow), its slope how hollow it breaks (gentle crumbles, steep pitches).' },
+  arm: { label: 'Arm', blurb: 'A sloping reef line off a peak: its angle sets the peel (30 deg fast, 60 deg mellow), its slope how hollow it breaks (gentle crumbles; steep is a wall, like a ledge, and pitches).' },
   ridge: { label: 'Ridge', blurb: 'A bar laid along an arm: the arm stands up steeper there, a fast section you pump through. Turned across the wave it closes out.' },
   pinnacle: { label: 'Pinnacle', blurb: 'A round bommie: the wave wraps and stands up over it.' },
   ledge: { label: 'Ledge', blurb: 'A sudden wall up from deep water, like Teahupoo: the heaviest wave there is, a thick lip and a round tube breaking below sea level (the fast model over-reads its size).' },
@@ -58,8 +61,8 @@ export function blockComponents(b) {
   switch (b.type) {
     // (Slope: the hollowness dial, as the arms'. A lagoon behind: the reef's top runs 20 m behind its edge (an arm's: the width
     // of its slope up to the top, plus 10 m), then falls to the floor over its 40 m fade)
-    case 'peak': return [{ type: 'focus', apex: [b.x, b.y], width_m: 220 * z, tip_radius_m: 20 * z, fade_m: 40 * z, convexity: 0.667, depth_m: 3.0 * f, gradient: b.slope || '1:10', ...(b.back === 'lagoon' ? { back_m: 20 * z } : {}) }];
-    case 'arm': return [{ type: 'wedge', start: [b.x, b.y], side: b.side, length_m: b.length * z, width_m: 200 * z, back_m: b.back === 'lagoon' ? 2 * f / slopeOf(b.slope || '1:10') + 10 * z : 150 * z, fade_m: 40 * z, gradient: b.slope || '1:10', angle_to_swell_deg: b.angle, depth_m: 3.0 * f, top_depth_m: 1.0 * f }];
+    case 'peak': return [{ type: 'focus', apex: [b.x, b.y], width_m: 220 * z, tip_radius_m: 20 * z, fade_m: 40 * z, convexity: 0.667, depth_m: 3.0 * f, gradient: slopeName(b.slope), ...(b.back === 'lagoon' ? { back_m: 20 * z } : {}) }];
+    case 'arm': return [{ type: 'wedge', start: [b.x, b.y], side: b.side, length_m: b.length * z, width_m: 200 * z, back_m: b.back === 'lagoon' ? 2 * f / slopeOf(slopeName(b.slope)) + 10 * z : 150 * z, fade_m: 40 * z, gradient: slopeName(b.slope), angle_to_swell_deg: b.angle, depth_m: 3.0 * f, top_depth_m: 1.0 * f }];
     case 'ridge': {
       const ux = Math.cos(rad(b.rot)), uy = Math.sin(rad(b.rot)), h = b.length * z / 2;
       return [{ type: 'ridge', points: [[b.x - ux * h, b.y - uy * h], [b.x + ux * h, b.y + uy * h]], depth_m: 2.6 * f, width_m: 35 * z }]; // (2.6 m crest, a little shallower than the arm's 3 m toe: a section the curl still makes; 1.8 m closed out)

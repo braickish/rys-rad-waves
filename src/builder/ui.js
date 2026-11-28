@@ -12,7 +12,7 @@ import { encodeBuilt, BUILT_KEY, outfitFor } from '../waves/built.js';
 import { funPayload } from './fun.js';
 import { startMyBreaks } from './my-breaks.js';
 let breaks = null;
-import { BLOCKS, SNAP, ARM_ANGLES, ARM_LENGTHS, ARM_SLOPES, BAR_CRESTS, DEPTHS, DEPTH_RANGE, TOP_DEPTH, depthMin, depthForSize, SIZES, BACKS, blockLength, ROTATIONS, reefComponents, newBlock, dynamicPreset, beachPreset, stackedPreset, pipelinePreset, PIPELINE, armRot, nearestArm } from './blocks.js';
+import { BLOCKS, SNAP, ARM_ANGLES, ARM_LENGTHS, ARM_SLOPES, BAR_CRESTS, DEPTHS, DEPTH_RANGE, TOP_DEPTH, depthMin, depthForSize, SIZES, BACKS, slopeName, blockLength, ROTATIONS, reefComponents, newBlock, dynamicPreset, beachPreset, stackedPreset, pipelinePreset, PIPELINE, armRot, nearestArm } from './blocks.js';
 
 const canvas = document.getElementById('map'), ctx = canvas.getContext('2d');
 // Heights and lengths are shown in feet (the user, 2026-11-22); the model works in metres underneath.
@@ -51,7 +51,7 @@ const depthImg = document.createElement('canvas');
 function recompute() {
   const t0 = performance.now();
   state.grid = buildDepth(reefComponents(state.blocks, !!state.coast.deep, state.edges), // (reef edges: sharp unless set soft)
-    makeGrid(state.coast.deep ? { ...BAY, offDepth: BAY_DEEP_OFF } : BAY), state.coast); // (deep offshore water: a deeper bay and shelf)
+    makeGrid({ ...(state.coast.deep ? { ...BAY, offDepth: BAY_DEEP_OFF } : BAY), ...(state.edges === 'sharp' ? { blend: 0 } : {}) }), state.coast); // (deep offshore water: a deeper bay and shelf; sharp edges: no smoothing, so a steep face stays a wall, the user, 2026-11-28)
   state.rays = traceRays(state.grid, state.swell);
   state.wave = analyse(state.rays, state.grid, { sharp: state.edges === 'sharp' }); repick();
   state.ms = performance.now() - t0;
@@ -542,7 +542,7 @@ function showSel() {
     el.appendChild(opt('Angle', ARM_ANGLES, b.angle, (v) => `${v}°`, (v) => { b.angle = v; }));
   }
   if (b.type === 'arm') el.appendChild(opt('Length', ARM_LENGTHS, b.length, (v) => `${ft(v * (b.size || 1))} ft`, (v) => { b.length = v; }));
-  if (b.type === 'arm' || b.type === 'peak') el.appendChild(opt('Slope', ARM_SLOPES.map(([g]) => g), b.slope || '1:10', (v) => ARM_SLOPES.find(([g]) => g === v)[1], (v) => { b.slope = v; }));
+  if (b.type === 'arm' || b.type === 'peak') el.appendChild(opt('Slope', ARM_SLOPES.map(([g]) => g), slopeName(b.slope), (v) => ARM_SLOPES.find(([g]) => g === v)[1], (v) => { b.slope = v; }));
   if (b.type === 'ridge' || b.type === 'channel' || b.type === 'sandbar') {
     el.appendChild(opt('Turn', ROTATIONS, b.rot, (v) => `${v}°`, (v) => { b.rot = v; b.rotSet = true; })); // (yours now: a ridge snapping onto an arm keeps it)
     el.appendChild(opt('Length', b.type === 'ridge' ? [50, 80, 120] : b.type === 'sandbar' ? [100, 160, 240] : [140, 220, 320], b.length, (v) => `${ft(v * (b.size || 1))} ft`, (v) => { b.length = v; }));
