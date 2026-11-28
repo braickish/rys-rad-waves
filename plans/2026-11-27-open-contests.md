@@ -82,7 +82,7 @@ Each step ends live on Pages with its tests passing, and the user plays it befor
    and check with the matching version (or check soon after riding); fit long rides in the compute budget.* `pg_cron` on the project; `private.tick_open_contests()` closes sign-ups and draws round 1, closes
    heats (no-shows last, flagged rides out), builds the next round with its own window (`build_round` with the round's
    length), ends the contest after the final. Tests drive it with a moved clock.
-3. **Surfing an Open heat (rounds, invite by username).** The Compete screen's Open button opens the host form: spot,
+3. **Surfing an Open heat (rounds, invite by username).** *Done 2026-11-27 (lobby.js, boot.js, live-heat.js, main.js; test/open-browser.mjs; 20261127040000 lets the host join their own invite-only contest).* The Compete screen's Open button opens the host form: spot,
    heat length, the length of each round, entry. The contest page: your heat, who's in it and who has surfed, the time
    left in the window, "Surf your heat" (one try, said plainly before you start). The heat runs as a Live heat does
    (`live-heat.js`) without rivals on the board and without the shared clock. Open is unlocked on the Compete screen.

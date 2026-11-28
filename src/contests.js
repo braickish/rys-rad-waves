@@ -40,11 +40,40 @@ export async function ensureSession() {
   return data.user;
 }
 
-export const createContest = ({ name, wave, breakId, length, size = 8, visibility }) => {
+// Open contests (plans/2026-11-27-open-contests.md): mode 'open', a window for each round (hours), invite or open
+// entry, and how long sign-up stays open (hours).
+export const createContest = ({ name, wave, breakId, length, size = 8, visibility, mode = 'live', roundHours, entry, signupHours }) => {
   const [n, unit] = [parseFloat(length), length.slice(-1)];
+  const open = mode === 'open' ? { mode, open_format: 'rounds', round_hours: roundHours, entry, signup_hours: signupHours } : {};
   return rpc('create_contest', { name, wave: wave || null, break_id: breakId || null,
-    end_minutes: unit === 'm' ? n : null, end_waves: unit === 'w' ? n : null, max_entrants: Number(size) || 8, visibility: visibility || 'unlisted' });
+    end_minutes: unit === 'm' ? n : null, end_waves: unit === 'w' ? n : null, max_entrants: Number(size) || 8, visibility: visibility || 'unlisted', ...open });
 };
+// The choices for an Open contest's windows (hours).
+export const ROUND_HOURS = [['6', '6 hours'], ['12', '12 hours'], ['24', '24 hours'], ['48', '2 days'], ['72', '3 days'], ['168', 'A week']];
+export const SIGNUP_HOURS = [['1', '1 hour'], ['6', '6 hours'], ['12', '12 hours'], ['24', '24 hours'], ['48', '2 days'], ['72', '3 days']];
+// How many rounds a contest of up to n has (heats of 2 to 4, the top 2 through: 4 → 1, 8 → 2, 16 → 3, 32 → 4).
+export const roundsFor = (n) => (n <= 4 ? 1 : 1 + roundsFor(Math.ceil(n / 4) * 2));
+// A heat's length in seconds (a waves heat: its time limit, as the database's private.heat_length).
+export const heatSeconds = (c) => (c.end_minutes ? Number(c.end_minutes) * 60 : c.end_waves * 180);
+export const RIDE_GRACE_S = 120; // (private.ride_grace: a wave caught before the horn can still come in this long after)
+// "5h 20m", "12m", "40s"
+export function timeLeft(ms) {
+  const s = Math.max(0, Math.round(ms / 1000)), d = Math.floor(s / 86400), hr = Math.floor((s % 86400) / 3600), m = Math.floor((s % 3600) / 60);
+  return s >= 2 * 86400 ? `${d}d ${hr}h` : s >= 3600 ? `${Math.floor(s / 3600)}h ${m}m` : m ? `${m}m` : `${s}s`; // (hours up to 2 days: "24h 0m", not "1d 0h")
+}
+export const inviteToContest = (id, handle) => rpc('invite_to_contest', { contest_id: id, handle: handle.replace(/^@/, '') });
+export const uninvite = (inviteId) => rpc('uninvite', { invite_id: inviteId });
+// The host's invites (with who), or yours.
+export async function readInvites(id) {
+  const c = await initAccount();
+  const { data, error } = await c.from('invites').select('id, user_id, accepted_at').eq('contest_id', id).order('invited_at');
+  if (error) throw error;
+  const ids = data.map((i) => i.user_id).filter(Boolean);
+  const { data: who } = ids.length ? await c.from('profiles').select('id, handle').in('id', ids) : { data: [] };
+  return data.map((i) => ({ ...i, handle: who?.find((p) => p.id === i.user_id)?.handle || '?' }));
+}
+// Your one try at an Open heat: starts your clock (again: the same start).
+export const startMyHeat = (heatId) => rpc('start_my_heat', { heat_id: heatId });
 export const contestByCode = async (code) => (await rpc('contest_by_code', { code }))?.[0] || null;
 export async function joinContest(code, nickname) {
   await ensureSession();
@@ -64,7 +93,7 @@ export async function readContest(id) {
   const [{ data: contest, error }, { data: entrants }, { data: heats }] = await Promise.all([
     c.from('contests').select('*').eq('id', id).maybeSingle(),
     c.from('entrants').select('id, user_id, name, guest, joined_at, seed_rank').eq('contest_id', id).order('joined_at'),
-    c.from('heats').select('id, round, number, seed, starts_at, ends_at, state, heat_entries(entrant_id, jersey, place, total, advanced)')
+    c.from('heats').select('id, round, number, seed, starts_at, ends_at, window_ends_at, state, heat_entries(entrant_id, jersey, place, total, advanced, started_at, finished_at)')
       .eq('contest_id', id).order('round').order('number'),
   ]);
   if (error) throw error;
@@ -160,6 +189,19 @@ const WORDS = {
   after_horn: 'Caught after the horn: it doesn\'t count.',
   too_late: 'That wave came in too late to count.',
   heat_over: 'The heat is over.',
+  account_needed: 'Open contests need an account: sign up free with your email, then join.',
+  invite_only: 'This contest is invite only. Ask the host to invite your username.',
+  signup_over: 'Sign-up for this contest has closed.',
+  need_two: 'You need at least 2 in to start.',
+  no_such_surfer: 'Nobody has that username.',
+  not_open: 'That only works in an Open contest.',
+  too_many_invites: "That's as many invites as a contest can have.",
+  window_closed: 'The window for this heat has closed.',
+  heat_done: "You've already surfed this heat.",
+  heat_not_started: "This heat hasn't opened yet.",
+  checks_pending: 'Checking the waves: results soon.',
+  bad_round_hours: 'Pick how long each round lasts.',
+  bad_signup_hours: 'Pick how long sign-up stays open.',
 };
 export function describeContestError(e) {
   const code = e?.hint || e?.message;

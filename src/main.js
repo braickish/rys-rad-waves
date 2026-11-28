@@ -431,7 +431,7 @@ $('judge').addEventListener('pointerdown', (e) => { e.preventDefault(); startOrR
 $('start').addEventListener('click', (e) => { e.preventDefault(); startOrRestart(); });
 // The landing: three ways in. Free surf lists every break (and yours, signed in) with DROP IN; Build a break is a link to
 // the builder; Compete offers Solo (a heat against bots: the waves, then Start heat with its length), Live (straight to
-// hosting a contest, task 11) and Open (coming soon, the user 2026-11-27: 24 hours to surf and score), with the code box under
+// hosting a contest, task 11) and Open (plans/2026-11-27-open-contests.md: a window to surf your heat), with the code box under
 // them for joining either kind. A heat is set up as the page loads, so a heat link (?heat=) opens straight on Solo, and Free
 // surf from there reloads without it (?menu=surf opens Free surf). A link that lands on a locked wave, or on a saved
 // break, opens Free surf.
@@ -479,7 +479,7 @@ $('go-code').addEventListener('click', (e) => { e.stopPropagation(); showStep('j
 $('go-surf').addEventListener('click', (e) => { e.stopPropagation(); if (HEAT_END) leaveHeat(); else showStep('surf'); });
 $('go-compete').addEventListener('click', (e) => { e.stopPropagation(); if (!proDoor('go-compete', e)) showStep('compete'); });
 $('go-solo').addEventListener('click', (e) => { e.stopPropagation(); showStep('solo'); });
-$('open-soon').addEventListener('click', (e) => e.stopPropagation()); // (coming soon: a tap does nothing, and doesn't start a ride)
+// (Open: src/lobby.js opens its host form)
 // Start heat (Solo): the length from the dropdown (remembered). A heat is set up as the page loads, so a new length
 // reloads with ?heat=<length>&play; the heat that's already set up just starts.
 const HEAT_LEN_KEY = 'rys-rad-waves-heat-len';
@@ -850,19 +850,25 @@ function showResults() {
   state = 'results';
   sheetTimer = 0;
   const st = standings(H), me = st.find((r) => r.surfer.you), f2 = (x) => x.toFixed(2);
-  const waiting = H.live && !H.final; // (a live heat: until the server closes it, the places aren't final)
-  if (H.live && live) live.finish();
+  const open = !!LIVE?.open; // (an Open heat: just you on the board; the results come out when the round closes)
+  const waiting = H.live && !H.final && !open; // (a live heat: until the server closes it, the places aren't final)
+  if (H.live && live) {
+    const saving = live.finish();
+    if (open && !H.final && !H.saving) { H.saving = true; saving.then(() => { H.final = true; if (state === 'results') showResults(); }); }
+  }
   const place = H.mine?.place || me.place, round = LIVE?.bracket && !LIVE.final; // (a bracket round before the final)
-  $('results-title').textContent = waiting ? 'Waiting…' : round ? (H.mine?.advanced ? "You're through!" : 'Knocked out') : place === 1 ? 'You win!' : `${ordinal(place)} place`;
+  $('results-title').textContent = open ? 'Heat surfed' : waiting ? 'Waiting…' : round ? (H.mine?.advanced ? "You're through!" : 'Knocked out') : place === 1 ? 'You win!' : `${ordinal(place)} place`;
   $('results').classList.toggle('waiting', waiting);
   $('results-go').innerHTML = !H.live ? '<span class="desk">Space for a new heat</span><span class="mob">Tap for a new heat</span>'
+    : open && !H.final ? 'Saving your waves…'
+    : open ? '<span class="desk">Space to go back to the contest</span><span class="mob">Tap to go back to the contest</span>'
     : waiting ? 'Waiting for the others to finish their waves…'
     : LIVE?.final ? '<span class="desk">Space for the results and the recap</span><span class="mob">Tap for the results and the recap</span>' // (the last heat: the lobby offers the recap)
     : '<span class="desk">Space to go back to the contest</span><span class="mob">Tap to go back to the contest</span>';
   const guest = H.live && H.final && currentUser()?.is_anonymous;
   $('results-claim').hidden = !guest;
-  $('results-sub').textContent = `${LIVE?.bracket && LIVE.round > 1 && LIVE.final ? 'Final · ' : LIVE?.bracket && !LIVE.final ? `Round ${LIVE.round} · Heat ${LIVE.heatNo} · ` : ''}${H.end.minutes ? `${H.end.minutes} min heat` : `${H.end.waves} wave heat`} · ${WAVE.name}`;
-  $('results-rows').innerHTML = st.map((r) => `<div class="rr${r.surfer.you ? ' you' : ''}"><span class="pl">${r.place}</span><i style="background:${r.surfer.jersey.color}"></i><span class="nm">${r.surfer.name}</span><span class="bt">${r.top.map(f2).join(' + ') || '-'}</span><b>${f2(r.total)}</b></div>`).join('');
+  $('results-sub').textContent = `${LIVE?.bracket && LIVE.round > 1 && LIVE.final ? 'Final · ' : LIVE?.bracket && !LIVE.final ? `Round ${LIVE.round} · Heat ${LIVE.heatNo} · ` : ''}${H.end.minutes ? `${H.end.minutes} min heat` : `${H.end.waves} wave heat`} · ${WAVE.name}${open ? ' · everyone\'s scores come out when the round closes' : ''}`;
+  $('results-rows').innerHTML = st.map((r) => `<div class="rr${r.surfer.you ? ' you' : ''}"><span class="pl">${open ? '' : r.place}</span><i style="background:${r.surfer.jersey.color}"></i><span class="nm">${r.surfer.name}</span><span class="bt">${r.top.map(f2).join(' + ') || '-'}</span><b>${f2(r.total)}</b></div>`).join('');
   const best = heatYou(H).waves.filter((w) => w.ride).sort((a, b) => b.score - a.score)[0];
   $('results-watch').hidden = !best;
   $('results-note').textContent = '';

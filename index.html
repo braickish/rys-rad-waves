@@ -160,7 +160,8 @@
   /* Compete > Live: join by code; hosting; the lobby (accounts plan task 11) */
   .join-form { display: flex; gap: 8px; justify-content: center; }
   .join-form input { font: 400 18px Bungee, sans-serif; letter-spacing: .12em; text-transform: uppercase; color: var(--ink); background: #fff; border: 3px solid #fff; border-radius: 24px; padding: 8px 14px; width: 150px; text-align: center; }
-  #lobby-nick { text-transform: none; letter-spacing: 0; font: 500 16px Rubik, sans-serif; width: 190px; }
+  #host-open { display: grid; gap: 6px; } #host-open[hidden] { display: none; }
+  #lobby-nick, #lobby-invitee { text-transform: none; letter-spacing: 0; font: 500 16px Rubik, sans-serif; width: 190px; }
   .join-form button { font: 400 16px Bungee, sans-serif; color: var(--ink); background: var(--yellow); border: 3px solid #fff; border-radius: 24px; padding: 8px 18px; cursor: pointer; }
   .cform { display: grid; gap: 6px; max-width: 320px; margin: 0 auto; text-align: left; }
   .cform label { font: 700 13px Rubik, sans-serif; margin-top: 6px; text-shadow: 0 1px 0 rgba(0,0,0,.4); }
@@ -197,8 +198,11 @@
   /* Solo: Start heat, and its length beside it */
   .heat-start { display: flex; flex-direction: column; align-items: center; gap: 6px; }
   .heat-start select { appearance: none; -webkit-appearance: none; font: 700 13px Rubik, sans-serif; color: #fff; background: none; border: 0; padding: 2px 4px; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; text-shadow: 0 1px 0 rgba(0,0,0,.4); text-align: center; text-align-last: center; }
-  .heat-start .soon { font: 700 13px Rubik, sans-serif; text-shadow: 0 1px 0 rgba(0,0,0,.4); opacity: .9; } /* (Open, coming soon: small text under it, like the heat length under Start heat) */
-  .home .start.locked:disabled { cursor: default; }
+  .heat-start .soon { font: 700 13px Rubik, sans-serif; text-shadow: 0 1px 0 rgba(0,0,0,.4); opacity: .9; } /* (Open: small text under it, like the heat length under Start heat) */
+  .cform .rounds { display: grid; grid-template-columns: auto 1fr; gap: 6px 10px; align-items: center; }
+  .cform .rounds span { font-size: 13px; font-weight: 700; }
+  .lobby-list li .lobby-x { font: 700 12px Rubik, sans-serif; color: #fff; background: none; border: 0; text-decoration: underline; cursor: pointer; padding: 0; }
+  .lobby-when { font-weight: 700; font-size: 14px; text-shadow: 0 1px 0 rgba(0,0,0,.4); }
   .heat-start select option { color: var(--ink); background: #fff; }
   .list-head { font: 400 14px Bungee, sans-serif; color: var(--yellow); text-shadow: 2px 2px 0 var(--ink); margin: 4px 0 10px; }
   .waves button.locked { opacity: .7; border-style: dashed; }
@@ -282,7 +286,7 @@
       <div id="compete-menu" class="home" hidden>
         <button id="go-solo" type="button" class="start">Solo</button>
         <button id="go-host" type="button" class="start">Live</button>
-        <div id="open-soon" class="heat-start"><button id="go-open" type="button" class="start locked" disabled>Open</button><span class="soon">Coming soon: 24 hours to surf and score</span></div>
+        <div id="open-soon" class="heat-start"><button id="go-open" type="button" class="start">Open</button><span class="soon">Surf your heat any time in a day</span></div>
         <form id="join-form" class="join-form"><input id="join-code" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="6" placeholder="CODE" aria-label="Contest code"><button type="submit">Join</button></form>
         <div id="compete-msg" class="heat-note" hidden></div>
       </div>
@@ -290,6 +294,11 @@
         <label for="host-spot">Where</label><select id="host-spot"></select>
         <label for="host-len">How long (each heat)</label><select id="host-len"></select>
         <label for="host-size">How many</label><select id="host-size"></select>
+        <div id="host-open" hidden>
+          <label for="host-entry">Who can enter</label><select id="host-entry"><option value="invite">Invite by username</option><option value="open">Anyone with the link</option></select>
+          <label for="host-signup">Sign-up open for</label><select id="host-signup"></select>
+          <label>Each round lasts</label><div id="host-rounds" class="rounds"></div>
+        </div>
         <label for="host-name">Name</label><input id="host-name" maxlength="40" autocomplete="off" required>
         <label class="check"><input id="host-public" type="checkbox"> Public: results show on profiles</label>
         <button id="host-create" type="submit" class="start">Create contest</button>
@@ -301,8 +310,11 @@
         <div class="lobby-code"><small>Code</small><b id="lobby-code"></b><button id="lobby-share" type="button" class="acct-link">Share link</button></div>
         <ol id="lobby-list" class="lobby-list"></ol>
         <div id="bracket" class="bracket" hidden></div>
+        <div id="lobby-when" class="lobby-when" hidden></div>
+        <form id="lobby-invite" class="join-form" hidden><input id="lobby-invitee" maxlength="21" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="@username" aria-label="Username to invite"><button type="submit">Invite</button></form>
         <form id="lobby-join" class="join-form" hidden><input id="lobby-nick" maxlength="20" autocomplete="nickname" placeholder="Your nickname" aria-label="Nickname"><button type="submit">Join</button></form>
         <button id="lobby-start" type="button" class="start" hidden>Start</button>
+        <button id="lobby-surf" type="button" class="start" hidden>Surf your heat</button>
         <div id="lobby-msg" class="heat-note" hidden></div>
         <div id="lobby-recap" class="lobby-recap" hidden><a id="lobby-recap-play" class="start" href="./">▶ Watch the recap</a><div class="lobby-more"><a id="lobby-recap-make" class="acct-link" href="./" hidden>Make the recap video</a><a id="lobby-results" class="acct-link" href="./">All the results</a></div></div>
         <div class="lobby-more"><button id="lobby-leave" type="button" class="acct-link" hidden>Leave</button><button id="lobby-cancel" type="button" class="acct-link" hidden>Cancel contest</button></div>

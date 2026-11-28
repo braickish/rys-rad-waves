@@ -10,6 +10,9 @@
 //                        as everyone's finished, or the grace after the horn); hooks.closed(results) then.
 // Rivals' waves come from the pings and from a read of the heat's rides every 10 s (and on load, so a reload fills the
 // board back in, your own waves too).
+// An Open heat (info.open, plans/2026-11-27-open-contests.md): the clock runs from your own start (info.startsAt), your
+// scores never go on the channel (nobody sees them until the heat closes), and finish() only marks you done: the
+// database's tick closes the heat once everyone's surfed or the window's over.
 import { initAccount, currentUser } from './account.js';
 import { contestChannel } from './contests.js';
 
@@ -50,10 +53,10 @@ export async function connectLive(info, hooks) {
   }
   const live = await contestChannel(info.contestId, {
     score: (p) => { if (p?.heat_id === info.heatId) hooks.wave(p); },
-    finished: () => { if (finished) tryClose(); },
+    finished: () => { if (finished && !info.open) tryClose(); },
   }).catch((e) => { console.warn('live channel', e); return null; });
   refill().catch((e) => console.warn('rides', e));
-  const poll = setInterval(() => { if (!closed) refill().catch(() => {}); if (finished && !closed) tryClose(); }, 10000);
+  const poll = setInterval(() => { if (!closed) refill().catch(() => {}); if (finished && !closed && !info.open) tryClose(); }, 10000);
 
   // Your waves, one at a time and in order.
   let queue = Promise.resolve();
@@ -73,7 +76,7 @@ export async function connectLive(info, hooks) {
         if (['after_horn', 'too_late', 'heat_over', 'no_more_waves', 'wave_out_of_order', 'not_in_heat'].includes(code)) { hooks.note?.(code); return; }
         await sleep(1000 * (tries + 1)); // (the network: try again)
       }
-      live?.send('score', { heat_id: info.heatId, entrant_id: info.entrantId, wave_no: n, score, caught_s: caughtS });
+      if (!info.open) live?.send('score', { heat_id: info.heatId, entrant_id: info.entrantId, wave_no: n, score, caught_s: caughtS });
       // (the server rides it again from its log: a score check, task 15; nothing waits on it)
       if (path) (async () => { // (one ride a call: ask again while this heat has more waiting, a few times at most)
         for (let k = 0; k < 4; k++) {
@@ -91,6 +94,7 @@ export async function connectLive(info, hooks) {
     closing = (async () => {
       await queue; // (your last wave first)
       try { await c.rpc('finish_heat', { heat_id: info.heatId }); } catch (e) { console.warn('finish', e); }
+      if (info.open) { live?.send('changed'); clearInterval(poll); return; } // (lobbies: you've surfed)
       live?.send('finished');
       while (!closed && !(await tryClose())) await sleep(3000);
       clearInterval(poll);

@@ -3,7 +3,7 @@
 -- own horn; rivals' scores stay hidden until the heat closes; the heat closes once everyone's done or missed the
 -- window, no-shows last with 0.
 begin;
-select plan(49);
+select plan(50);
 
 insert into auth.users (id, email, aud, role, is_anonymous) values
   ('c3000000-0000-0000-0000-000000000001', 'ohost@example.com', 'authenticated', 'authenticated', false),
@@ -57,6 +57,9 @@ select is((select count(*)::int from public.invites), 1, '... and your own invit
 reset role;
 
 -- ---- Joining ----
+select pg_temp.as_user(1);
+select lives_ok($$ select public.join_contest((select code from public.contests where id = (select v::uuid from t where k = 'c1'))) $$, 'the host joins their own invite-only contest');
+select public.leave_contest((select v::uuid from t where k = 'c1')); -- (and leaves again: the heat below is olive and oscar)
 select pg_temp.as_user(6);
 select throws_ok($$ select public.join_contest((select code from public.contests where id = (select v::uuid from t where k = 'c1')), 'Guesty') $$, '42501', 'account_needed', 'no guests in Open');
 select pg_temp.as_user(4);

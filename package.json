@@ -24,7 +24,8 @@
     "functions:serve": "supabase functions serve --env-file supabase/functions/.env",
     "test:stripe": "node test/stripe.mjs",
     "test:watch-browser": "node test/watch-browser.mjs",
-    "test:heat-reload-browser": "node test/heat-reload-browser.mjs"
+    "test:heat-reload-browser": "node test/heat-reload-browser.mjs",
+    "test:open-browser": "node test/open-browser.mjs"
   },
   "devDependencies": {
     "supabase": "2.120.0"

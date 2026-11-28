@@ -19,16 +19,28 @@ if (id && !/built=/.test(location.hash)) {
 // contest (its wave or its break's ride, its length, the heat's seed, your jersey, no bots) and drops in, live
 // (window.__contestHeat: the heat, your entry, everyone in it, for src/live-heat.js). A reload in the heat
 // (`?contest=<code>&heat=...`) rejoins it. Not in it, not started, or over: back to the lobby, which says why.
+// An Open heat (plans/2026-11-27-open-contests.md): dropping in is your one try (start_my_heat starts your clock, or
+// gives back the start you already made), the clock runs from your own start, and nobody else is on your board.
 const code = q.get('contest');
 if (code && (q.has('go') || q.has('heat'))) {
   q.delete('go');
   let hash = location.hash, live = false;
   try {
-    const [acct, { contestByCode, readContest, heatParam }, { encodeBuilt }] = await Promise.all([import('./account.js'), import('./contests.js'), import('./waves/built.js')]);
+    const [acct, { contestByCode, readContest, heatParam, startMyHeat, heatSeconds }, { encodeBuilt }] = await Promise.all([import('./account.js'), import('./contests.js'), import('./waves/built.js')]);
     await acct.initAccount();
     const p = await contestByCode(code), r = p && acct.currentUser() ? await readContest(p.id) : null;
     const mine = r?.entrants.find((e) => e.user_id === acct.currentUser().id);
-    if (r?.heat && mine && r.heat.state === 'live') {
+    const open = r?.contest.mode === 'open';
+    let mineStart = null; // (Open: your own start)
+    if (open && r?.heat && mine && r.heat.state === 'live') {
+      const entry = r.heat.heat_entries.find((x) => x.entrant_id === mine.id);
+      const on = (t) => Date.now() < Date.parse(t) + (heatSeconds(r.contest) - 5) * 1000; // (before your horn, with a moment to catch a wave)
+      if (!entry.finished_at && (entry.started_at ? on(entry.started_at) : Date.parse(r.heat.window_ends_at) > Date.now())) {
+        mineStart = (await startMyHeat(r.heat.id).catch((e) => { console.warn('start', e); return null; }))?.started_at || null;
+        if (mineStart && !on(mineStart)) mineStart = null;
+      }
+    }
+    if (r?.heat && mine && r.heat.state === 'live' && (!open || mineStart)) {
       const spot = r.contest.spot, entries = r.heat.heat_entries || [];
       q.set('heat', heatParam(r.contest)); q.set('seed', String(r.heat.seed)); q.set('bots', '0'); q.set('judge', '');
       const jersey = entries.find((x) => x.entrant_id === mine.id)?.jersey;
@@ -38,11 +50,12 @@ if (code && (q.has('go') || q.has('heat'))) {
       q.set('play', '');
       live = true;
       window.__contestHeat = {
-        code, contestId: r.contest.id, heatId: r.heat.id, entrantId: mine.id, name: mine.name, startsAt: r.heat.starts_at, endsAt: r.heat.ends_at,
+        code, contestId: r.contest.id, heatId: r.heat.id, entrantId: mine.id, name: mine.name, open,
+        startsAt: open ? mineStart : r.heat.starts_at, endsAt: open ? new Date(Date.parse(mineStart) + heatSeconds(r.contest) * 1000).toISOString() : r.heat.ends_at,
         bracket: r.contest.format === 'bracket', round: r.heat.round, heatNo: r.heat.number, final: r.final,
-        entrants: entries.map((x) => ({ id: x.entrant_id, jersey: x.jersey, name: r.entrants.find((e) => e.id === x.entrant_id)?.name || '?' })),
+        entrants: entries.filter((x) => !open || x.entrant_id === mine.id).map((x) => ({ id: x.entrant_id, jersey: x.jersey, name: r.entrants.find((e) => e.id === x.entrant_id)?.name || '?' })),
         // your waves already scored in it (a reload mid-heat): you carry on from the next wave of the set, not the first
-        ridden: r.rides.filter((x) => x.heat_id === r.heat.id && x.entrant_id === mine.id).map((x) => ({ n: x.wave_no, score: Number(x.score), at: (Date.parse(x.caught_at) - Date.parse(r.heat.starts_at)) / 1000 })),
+        ridden: r.rides.filter((x) => x.heat_id === r.heat.id && x.entrant_id === mine.id).map((x) => ({ n: x.wave_no, score: Number(x.score), at: (Date.parse(x.caught_at) - Date.parse(open ? mineStart : r.heat.starts_at)) / 1000 })),
       };
     }
   } catch (e) { console.warn('contest', e); }
