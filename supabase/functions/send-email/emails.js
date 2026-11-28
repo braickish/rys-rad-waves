@@ -57,6 +57,38 @@ WORDS.contest_invite = (e) => ({
   expiry: `Sign in with ${e.email} to join. It's free.`,
   ignore: 'Not for you? Ignore this email.',
 });
+// Open contest reminders (step 6, the contest-notices Edge Function): e.contest, e.spot, e.heat ("10 minute"), e.which
+// ("round 1", "the final"), e.closes, e.link (the lobby), e.recap, and for results e.place, e.total, e.surfed,
+// e.advanced, e.winner, e.final, e.next ({ round, closes }).
+const OFF = 'You get these because you entered an Open contest. Turn them off on your account page: rysradwaves.com/account.html';
+WORDS.contest_round_open = (e) => ({
+  subject: `${e.contest}: round 1 is open`,
+  title: 'Your heat is open',
+  lines: [`Round 1 of ${e.contest} at ${e.spot} is open. Surf your ${e.heat} heat any time before ${e.closes}.`,
+    'One try: once you start, your heat runs to the horn. Nobody sees anyone\'s scores until the round closes.'],
+  button: 'Surf your heat', expiry: '', ignore: OFF,
+});
+WORDS.contest_closing_soon = (e) => ({
+  subject: `${e.contest}: your heat closes soon`,
+  title: 'Last call',
+  lines: [`You haven't surfed your heat in ${e.which} of ${e.contest} yet. The window closes ${e.closes}.`,
+    'Miss it and you score nothing for the heat.'],
+  button: 'Surf your heat', expiry: '', ignore: OFF,
+});
+WORDS.contest_results = (e) => {
+  const lead = !e.surfed ? `You didn't surf your heat in ${e.which}, so it counted as 0.`
+    : e.final ? (e.place === '1st' ? `You won ${e.contest}! ${e.total} in the final.` : `You came ${e.place} in the final with ${e.total}.`)
+    : e.advanced ? `You're through! ${e.place} in your heat with ${e.total}.` : `You're out: ${e.place} in your heat with ${e.total}.`;
+  return {
+    subject: e.final ? `${e.contest}: the results are in` : `${e.contest}: ${e.which} results`,
+    title: e.final ? (e.winner ? `${e.winner} wins` : 'The results') : `${e.which[0].toUpperCase()}${e.which.slice(1)} is done`,
+    lines: [lead,
+      'Watch the recap: everyone\'s waves from your heat, side by side, as if you\'d all surfed it together.',
+      ...(e.next ? [`Round ${e.next.round} is open now: surf your heat before ${e.next.closes}.`] : [])],
+    button: 'Watch the recap', link2: e.next ? { text: `Surf round ${e.next.round}`, href: e.link } : null,
+    expiry: '', ignore: OFF,
+  };
+};
 const fallback = () => ({ subject: "Your Ry's Rad Waves link", title: 'Your link', lines: ['Tap the button to carry on in Ry\'s Rad Waves.'], button: 'Open the game' });
 
 // The logo from the title screen, as an image (email apps ignore web fonts and text shadows), served with the game.
@@ -65,12 +97,13 @@ const INK = '#0b2233', DIM = '#4a6a7a';
 
 export function buildEmail(e) {
   const w = (WORDS[e.kind] || fallback)(e);
+  if (e.kind === 'contest_results' && e.recap) e = { ...e, link: e.recap }; // (the results email's button: the recap)
   const ignore = w.ignore || "If you didn't ask for this, you can ignore this email.";
-  const expiry = w.expiry || (w.code ? 'The code works for an hour.' : 'The link works once, and for an hour.');
+  const expiry = w.expiry ?? (w.code ? 'The code works for an hour.' : 'The link works once, and for an hour.');
   const text = [
     w.title, '',
     ...w.lines, '',
-    ...(w.code ? [w.code] : [`${w.button}: ${e.link}`]), '',
+    ...(w.code ? [w.code] : [`${w.button}: ${e.link}`]), ...(w.link2 ? [`${w.link2.text}: ${w.link2.href}`] : []), '',
     expiry, ignore, '',
     "Ry's Rad Waves · rysradwaves.com",
   ].join('\n');
@@ -90,6 +123,7 @@ export function buildEmail(e) {
     <h1 style="margin:0 0 12px;font:700 24px/1.25 Arial,Helvetica,sans-serif;color:${INK}">${esc(w.title)}</h1>
     ${w.lines.map((l) => `<p style="margin:0 0 10px;font:16px/1.5 Arial,Helvetica,sans-serif;color:${INK}">${esc(l)}</p>`).join('\n    ')}
     ${action}
+    ${w.link2 ? `<p style="margin:0 0 20px;font:700 16px Arial,Helvetica,sans-serif"><a href="${esc(w.link2.href)}" style="color:#0b7a80">${esc(w.link2.text)} →</a></p>` : ''}
     <p style="margin:0 0 24px;font:13px/1.5 Arial,Helvetica,sans-serif;color:${DIM}">${esc(expiry)} ${esc(ignore)}</p>
     <p style="margin:0;font:12px Arial,Helvetica,sans-serif;color:${DIM}">Ry's Rad Waves · rysradwaves.com</p>
   </td></tr></table>

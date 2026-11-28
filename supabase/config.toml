@@ -462,3 +462,7 @@ verify_jwt = true
 # Open contests step 4: emails a contest invite, as the host (their sign-in checks it's theirs).
 [functions.contest-invite]
 verify_jwt = true
+
+# Open contests step 6: sends the queued reminder emails (the tick asks; it only sends what the database queued).
+[functions.contest-notices]
+verify_jwt = true

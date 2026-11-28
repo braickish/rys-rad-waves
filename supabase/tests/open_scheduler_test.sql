@@ -28,7 +28,7 @@ begin
   end loop;
   perform public.finish_heat(hid);
 end $$;
-create function pg_temp.tick() returns jsonb language sql as $$ select private.tick_open_contests() $$;
+create function pg_temp.tick() returns jsonb language sql as $$ select private.tick_open_contests() - 'queued' $$; -- (the emails: open_notices_test)
 create function pg_temp.shape(cid uuid) returns text language sql as $$
   select string_agg(r, ' | ' order by round) from (
     select h.round, string_agg((select count(*) from public.heat_entries he where he.heat_id = h.id)::text, ',' order by h.number) as r

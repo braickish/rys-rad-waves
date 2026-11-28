@@ -10,6 +10,7 @@
 //   4. the host's lobby shows who has surfed, never the score; the host can't read the member's wave
 //   5. the host surfs too; the tick closes the round (once the checks are in): the final's places show
 //   6. round recaps: a link on each closed heat, the lobby's button for yours, and the heat's recap on one heat clock
+//   7. reminder emails: the results email to each, with the recap link, sent once
 // npm run db:start and supabase functions serve first, then: npm run test:open-browser [shotPrefix]
 import { execSync } from 'node:child_process';
 import { openBrowser, signInOnTitle, latestLink, sleep, root } from './browser-lib.mjs';
@@ -171,6 +172,17 @@ check(R?.id === heat.id && R.only && R.n === 2, `the heat's recap plays, contest
 check(R && R.at.every((t) => t >= 0 && t < 120), `on one heat clock: each wave's time into its surfer's own heat (${R?.at})`);
 await sleep(3000); await B.shot('6-recap');
 await patch(`contests?id=eq.${c2.id}`, { state: 'done' });
+
+// 7. Reminder emails (step 6): the tick queued the results; contest-notices sends them (locally nothing calls it, so the test does).
+const sentRes = await (await fetch(`${API}/functions/v1/contest-notices`, { method: 'POST', headers: { apikey: PK, authorization: `Bearer ${host.access_token}`, 'content-type': 'application/json' }, body: '{}' })).json();
+check(sentRes.sent >= 2 && !sentRes.failed, `contest-notices sends what's queued (${JSON.stringify(sentRes)})`);
+const MAIL2 = process.env.MAILPIT_URL || 'http://127.0.0.1:55324';
+const mailTo = async (addr) => { const l = await (await fetch(`${MAIL2}/api/v1/search?query=${encodeURIComponent(`to:"${addr}" subject:"results are in"`)}`)).json(); return l.messages?.[0] ? (await fetch(`${MAIL2}/api/v1/message/${l.messages[0].ID}`)).json() : null; };
+const hm = await mailTo(host.user.email), mm = await mailTo(mem.user.email);
+check(!!hm && !!mm, 'the results email reaches both');
+check(hm?.Text.includes(`?recap=${c2.code}&heat=${heat.id}`) && /in the final/.test(hm.Text) && /account\.html/.test(hm.Text), `it has their result, the recap link, and how to turn them off (${hm?.Subject})`);
+const again = await (await fetch(`${API}/functions/v1/contest-notices`, { method: 'POST', headers: { apikey: PK, authorization: `Bearer ${host.access_token}`, 'content-type': 'application/json' }, body: '{}' })).json();
+check(again.sent === 0, 'once each');
 
 await B.close();
 await A.done();

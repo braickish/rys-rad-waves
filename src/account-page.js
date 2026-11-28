@@ -66,6 +66,7 @@ function fill() {
   $('display').value = profile?.display_name || '';
   jersey = profile?.jersey || 'red'; drawJerseys();
   style = cleanStyling(profile?.styling); body = cleanBody(profile?.surfer); stance = cleanStance(profile?.stance); drawStyle(); lockStyle();
+  $('contest-emails').checked = profile?.contest_emails !== false;
   $('city').value = profile?.city || ''; $('country').value = profile?.country || '';
   place = { city: profile?.city || null, lat: profile?.lat ?? null, lng: profile?.lng ?? null }; placeHint();
   $('email-now').textContent = user.email;
@@ -103,6 +104,12 @@ $('profile-form').addEventListener('submit', async (e) => {
   $('save').disabled = false;
 });
 
+// Open contest reminder emails (plans/2026-11-27-open-contests.md step 6): on unless turned off, saved straight away.
+$('contest-emails').addEventListener('change', async () => {
+  const on = $('contest-emails').checked;
+  try { profile = await saveProfile({ contest_emails: on }); hint('notices-msg', on ? 'Saved: contest emails are on.' : 'Saved: no more contest emails.', 'good'); }
+  catch (err) { $('contest-emails').checked = !on; hint('notices-msg', describeProfileError(err), 'bad'); }
+});
 $('email-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const to = $('email-new').value.trim();

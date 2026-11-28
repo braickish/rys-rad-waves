@@ -17,6 +17,8 @@ h2 { font-family: Bungee, sans-serif; font-weight: 400; font-size: 15px; margin:
 .empty { color: var(--dim); margin: 0; }
 label { display: block; font-weight: 700; font-size: 13px; margin: 14px 0 6px; }
 label:first-of-type { margin-top: 0; }
+label.check { display: flex; gap: 8px; align-items: flex-start; font-weight: 500; font-size: 14px; line-height: 1.4; }
+label.check input { margin-top: 3px; flex: none; }
 input[type=text], input[type=email] { font: 500 15px Rubik, sans-serif; color: var(--ink); background: #fff; border: 2px solid #fff; border-radius: 12px; padding: 8px 12px; width: 100%; }
 .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .row input { flex: 1 1 200px; width: auto; }

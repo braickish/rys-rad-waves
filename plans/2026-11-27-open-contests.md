@@ -90,7 +90,7 @@ Each step ends live on Pages with its tests passing, and the user plays it befor
    window and link.
 5. **Round recaps.** *Done 2026-11-27 (recap.js heatId and one heat clock; ?recap=<code>&heat=<id> once that heat closes; lobby button and bracket links; a heat's recap video isn't kept as the contest's).* `recap.js` on the one heat clock; a recap for every closed round; "Watch the recap" before the
    results card.
-6. **Emails.** Your round is open; a few hours left and you haven't surfed; results and the recap are in.
+6. **Emails.** *Done 2026-11-28 (20261128000000: private.notices queued by the tick, the contest-notices Edge Function; round 1 open, closing soon, results with the recap and the next round; off on the account page).* Your round is open; a few hours left and you haven't surfed; results and the recap are in.
 7. **Condensed.** One window, a session for each round back to back (each on its round's seed), played out at the close:
    round 1's heats from round 1 sessions, then round 2's heats drawn from who went through, scored by their round 2
    sessions, and so on. Sessions from rounds you didn't reach don't count and aren't shown. The recap tells the final.
