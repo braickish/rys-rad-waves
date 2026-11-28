@@ -4,7 +4,7 @@
 // onto peaks), the swell, crest lines every 5 s, and the curl from the fast break model (rays.js) coloured by time with
 // ticks every 5 s, marked where it sections, backs off or closes out. Circles mean "you can drag this": only the blocks'
 // handles are circles (the user, 2026-11-22); the curl's time ticks and the break's peak (a diamond) aren't.
-import { buildDepth, makeGrid, defaultCoast, extendCoast, BAY, BAY_DEEP_OFF } from './reef.js';
+import { buildDepth, makeGrid, defaultCoast, extendCoast, fineDepthAt, BAY, BAY_DEEP_OFF } from './reef.js';
 import { traceRays, analyse, tooSlow, isRide } from './rays.js';
 import { runPE } from './pewave.js';
 import { LOOP, curlAt, defaultLoop, clampLoop, loopInfo, snapEnd, bestLoop, wavePayload, takeoffStart, ledgeK } from './loop.js';
@@ -46,6 +46,11 @@ function repick() {
 const keyOf = (w) => (w ? { tier: w.tier, x: w.peak.x, y: w.peak.y } : null); // (loop: a stretch of one side to surf on repeat, loop.js)
 let view = null; // the map's placement on the canvas
 const depthImg = document.createElement('canvas');
+// The map at 1 m (the user, 2026-11-28: the model stays at 4 m, the drawing shows a reef's edges as sharp as they're set):
+// with Sharp edges, once the model has settled, the map's water is painted again a metre a pixel from fineDepthAt, a slice
+// at a time so dragging stays quick; until it's done (and with Soft edges) the 4 m grid is drawn, as before.
+const fineImg = document.createElement('canvas');
+let fineJob = 0, fine = null; // (fine: { grid, O } of the painted fineImg)
 
 // ---- the model ----
 function recompute() {
@@ -103,6 +108,28 @@ function paintDepth() {
     }
   }
   c.putImageData(im, 0, 0);
+  paintFine();
+}
+function paintFine() {
+  const job = ++fineJob, g = state.grid;
+  if (state.edges !== 'sharp' || !g.fine) { fine = null; return; }
+  const O = outer(), w = Math.round(O.y1 - O.y0), h = Math.round(O.x1 - O.x0), at = fineDepthAt(g), im = new ImageData(w, h);
+  let r = 0;
+  const slice = () => {
+    if (job !== fineJob) return; // (the model changed again: a new paint has started)
+    const t = performance.now();
+    for (; r < h && performance.now() - t < 20; r++) {
+      const x = O.x0 + r + 0.5;
+      for (let q = 0; q < w; q++) {
+        const d = at(x, O.y0 + q + 0.5), b = BAND_RGB.find((z) => d >= z[0] && d < z[1]) || BAND_RGB[BAND_RGB.length - 1];
+        const p = (r * w + q) * 4; im.data[p] = b[2]; im.data[p + 1] = b[3]; im.data[p + 2] = b[4]; im.data[p + 3] = 255;
+      }
+    }
+    if (r < h) { setTimeout(slice, 0); return; }
+    fineImg.width = w; fineImg.height = h; fineImg.getContext('2d').putImageData(im, 0, 0);
+    fine = { grid: g, O }; draw();
+  };
+  setTimeout(slice, 150); // (after a drag settles)
 }
 
 // ---- view ----
@@ -167,7 +194,11 @@ function draw() {
   // depth bands (the grid image, cropped to the water you can see: outer)
   const O = outer();
   ctx.imageSmoothingEnabled = true;
-  ctx.drawImage(depthImg, (O.y0 - g.y0) / g.dx * 2, (O.x0 - g.x0) / g.dx * 2, (O.y1 - O.y0) / g.dx * 2, (O.x1 - O.x0) / g.dx * 2,
+  if (fine && fine.grid === g) { // (the 1 m paint: unsmoothed when zoomed in, so a sharp edge stays sharp)
+    ctx.imageSmoothingEnabled = S * view.z < 1;
+    ctx.drawImage(fineImg, px(fine.O.y0), py(fine.O.x0), (fine.O.y1 - fine.O.y0) * S * view.z, (fine.O.x1 - fine.O.x0) * S * view.z);
+    ctx.imageSmoothingEnabled = true;
+  } else ctx.drawImage(depthImg, (O.y0 - g.y0) / g.dx * 2, (O.x0 - g.x0) / g.dx * 2, (O.y1 - O.y0) / g.dx * 2, (O.x1 - O.x0) / g.dx * 2,
     px(O.y0), py(O.x0), (O.y1 - O.y0) * S * view.z, (O.x1 - O.x0) * S * view.z);
   // crest lines every 5 s (only the bit still unbroken)
   ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 1.2;

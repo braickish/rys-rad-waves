@@ -206,9 +206,10 @@ export function buildDepth(components, grid = makeGrid(), coast = null) {
   const baseSlope = offDepth / (shoreX - flatTo);
   const cd = coast && smoothCoastDist(coast.pts, grid), fgrid = coast ? { ...grid, coastFloor: true } : grid;
   const baseAt = coast ? (x, y, n) => Math.min(offDepth, coastDepth(n, coast.face, !!coast.deep)) : (x) => offDepth - baseSlope * Math.max(0, x - flatTo);
-  const baseGrid = new Float32Array(M * N);
+  const baseGrid = new Float32Array(M * N), floorGrid = new Float32Array(M * N);
   let depth = new Float32Array(M * N);
   const shallow = components.filter((c) => c.type !== 'channel'), chans = components.filter((c) => c.type === 'channel');
+  const floors = shallow.filter((c) => c.floor), pieces = shallow.filter((c) => !c.floor);
   for (let j = 0; j < N; j++) {
     const y = y0 + (j + 0.5) * dx;
     for (let i = 0; i < M; i++) {
@@ -219,12 +220,10 @@ export function buildDepth(components, grid = makeGrid(), coast = null) {
       // the default beach is at shoreX, so it's the same there)
       const fx = cd ? shoreX - n : x;
       let d = base;
-      for (const c of shallow) d = Math.min(d, compDepth(c, c.floor ? fx : x, y, base, fgrid));
-      for (const c of chans) { // (channels deepen: along a polyline, `depth_m` across `width_m`, easing out over `fade_m`)
-        const mm = 1 - smooth01((polyDist(c.points, x, y) - c.width_m / 2) / (c.fade_m ?? 20));
-        d = Math.max(d, d + mm * Math.max(0, c.depth_m - d));
-      }
-      depth[j * M + i] = d;
+      for (const c of floors) d = Math.min(d, compDepth(c, fx, y, base, fgrid));
+      floorGrid[j * M + i] = d; // (the smooth part: the coast and the bay floor, for fineDepthAt)
+      for (const c of pieces) d = Math.min(d, compDepth(c, x, y, base, fgrid));
+      depth[j * M + i] = withChannels(chans, x, y, d);
     }
   }
   depth = blur(depth, M, N, grid.blend / dx);
@@ -244,5 +243,35 @@ export function buildDepth(components, grid = makeGrid(), coast = null) {
     }
   }
   grid.depth = depth;
+  grid.fine = { baseGrid, floorGrid, pieces, chans, fgrid }; // (fineDepthAt)
   return grid;
+}
+// (channels deepen: along a polyline, `depth_m` across `width_m`, easing out over `fade_m`)
+function withChannels(chans, x, y, d) {
+  for (const c of chans) {
+    const mm = 1 - smooth01((polyDist(c.points, x, y) - c.width_m / 2) / (c.fade_m ?? 20));
+    d = Math.max(d, d + mm * Math.max(0, c.depth_m - d));
+  }
+  return d;
+}
+
+// The depth at any point, finer than the grid (the user, 2026-11-28: the map drawn at 1 m, the model staying at 4 m): the
+// reef pieces worked out right there, on the coast and bay floor read off the grid (they're smooth, so in between cells
+// is as good). Exact for a grid built without smoothing (blend 0: Sharp edges); in the offshore strip and the side margins
+// (eased afterwards) it reads the grid's own depth.
+export function fineDepthAt(grid) {
+  const { M, N, dx, x0, y0, flatTo, edge, depth } = grid, { baseGrid, floorGrid, pieces, chans, fgrid } = grid.fine;
+  const lerp = (A, x, y) => {
+    const fi = Math.min(M - 1.001, Math.max(0, (x - x0) / dx - 0.5)), fj = Math.min(N - 1.001, Math.max(0, (y - y0) / dx - 0.5));
+    const i = Math.floor(fi), j = Math.floor(fj), ti = fi - i, tj = fj - j, k = j * M + i;
+    return (A[k] * (1 - ti) + A[k + 1] * ti) * (1 - tj) + (A[k + M] * (1 - ti) + A[k + M + 1] * ti) * tj;
+  };
+  const yLo = y0 + edge, yHi = y0 + N * dx - edge;
+  return (x, y) => {
+    if (x < flatTo || y < yLo || y > yHi) return lerp(depth, x, y); // (as buildDepth eases them: x < flatTo, the side margins)
+    const base = lerp(baseGrid, x, y);
+    let d = lerp(floorGrid, x, y);
+    for (const c of pieces) d = Math.min(d, compDepth(c, x, y, base, fgrid));
+    return withChannels(chans, x, y, d);
+  };
 }
