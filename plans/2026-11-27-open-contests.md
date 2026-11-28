@@ -74,7 +74,12 @@ Each step ends live on Pages with its tests passing, and the user plays it befor
    (Pro only, members only). `start_my_heat(heat)` sets your `started_at` once. `submit_ride` checks your own horn.
    `join_contest` refuses guests in Open. Hidden scores: open heats' rides and totals readable only by their own surfer.
    pgTAP tests in `supabase/tests/open_contests_test.sql`.
-2. **The scheduler.** `pg_cron` on the project; `private.tick_open_contests()` closes sign-ups and draws round 1, closes
+2. **The scheduler.** *Done 2026-11-27 (20261127010000, live; pg_cron every 5 min; check-rides asked via pg_net). Two findings:
+   check-rides had never worked on the cloud (service_role had no table grants: fixed, 20261127020000); and the checks
+   aren't trustworthy yet (yesterday's real rides all flag against today's physics, sim_version never bumped; long rides
+   hit the function's compute limit and stay pending, blocking the queue). So flagged waves still count in Open until
+   private.settings drop_flagged = 'on' (20261127030000). Fix before turning it on: bump sim_version with physics changes
+   and check with the matching version (or check soon after riding); fit long rides in the compute budget.* `pg_cron` on the project; `private.tick_open_contests()` closes sign-ups and draws round 1, closes
    heats (no-shows last, flagged rides out), builds the next round with its own window (`build_round` with the round's
    length), ends the contest after the final. Tests drive it with a moved clock.
 3. **Surfing an Open heat (rounds, invite by username).** The Compete screen's Open button opens the host form: spot,

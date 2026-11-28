@@ -70,6 +70,7 @@ select throws_ok($$ select public.close_heat((select id from public.heats where 
 select is((select string_agg(e.name || ' ' || he.place || coalesce(' ' || he.advanced::text, ''), ', ' order by he.place) from public.heat_entries he
            join public.entrants e on e.id = he.entrant_id join public.heats h on h.id = he.heat_id
            where h.contest_id = (select v::uuid from t where k = 'c') and h.number = 2), 'S2 1 true, S3 2 false', 'heat 2: the no-show last, out');
+insert into private.settings values ('drop_flagged', 'on'); -- (off by default: 20261127030000)
 update public.ride_checks set status = 'flagged', reasons = '{score}'
  where ride_id in (select r.id from public.rides r join public.entrants e on e.id = r.entrant_id where e.user_id = pg_temp.uid(1) and r.wave_no = 1);
 update public.ride_checks set status = 'ok'
@@ -86,11 +87,16 @@ select pg_temp.surf(4, (select v::uuid from t where k = 'c'), '{8,8}', true);
 select pg_temp.surf(5, (select v::uuid from t where k = 'c'), '{5,5}');
 select pg_temp.surf(2, (select v::uuid from t where k = 'c'), '{6,6}');
 select is(pg_temp.tick() ->> 'waiting', '1', 'the final waits for its checks');
+-- (drop_flagged off again: a flagged wave counts)
+delete from private.settings where key = 'drop_flagged';
+update public.ride_checks set status = 'flagged', reasons = '{score}'
+ where ride_id in (select r.id from public.rides r join public.heats h on h.id = r.heat_id join public.entrants e on e.id = r.entrant_id
+                   where e.user_id = pg_temp.uid(4) and h.round = 2 and r.wave_no = 1);
 update public.heats set ready_at = now() - interval '61 minutes' where contest_id = (select v::uuid from t where k = 'c') and round = 2;
 select is(pg_temp.tick() ->> 'closed', '1', 'an hour on, it closes anyway');
 select is((select string_agg(e.name || ' ' || he.place, ', ' order by he.place) from public.heat_entries he
            join public.entrants e on e.id = he.entrant_id join public.heats h on h.id = he.heat_id
-           where h.contest_id = (select v::uuid from t where k = 'c') and h.round = 2), 'S4 1, S2 2, S5 3', 'the final''s places (a pending wave counts)');
+           where h.contest_id = (select v::uuid from t where k = 'c') and h.round = 2), 'S4 1, S2 2, S5 3', 'the final''s places (a pending wave counts, and with drop_flagged off a flagged one)');
 select is((select state from public.contests where id = (select v::uuid from t where k = 'c')), 'done', 'the contest is over');
 
 select * from finish();
