@@ -12,11 +12,10 @@
 // Answers {} when sent; {"error": {"http_code", "message"}} otherwise (Auth shows the person a failure).
 import { Webhook } from 'npm:standardwebhooks@1.0.0';
 import { crypto as stdCrypto } from 'jsr:@std/crypto@1.0.5';
-import { buildEmail, FROM } from './emails.js';
+import { buildEmail } from './emails.js';
+import { sendMail } from '../_shared/mail.ts';
 
 const HOOK_SECRET = (Deno.env.get('SEND_EMAIL_HOOK_SECRET') ?? '').replace(/^v1,whsec_/, '');
-const RESEND = Deno.env.get('RESEND_API_KEY') ?? '';
-const MAILPIT = Deno.env.get('MAILPIT_URL') ?? '';
 const PUBLIC_URL = (Deno.env.get('AUTH_PUBLIC_URL') || Deno.env.get('SUPABASE_URL') || '').replace(/\/$/, '');
 
 const answer = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
@@ -56,27 +55,7 @@ async function messages(user: User, d: EmailData) {
   return [{ to: user.email || '', kind: type, link: verifyLink(d.token_hash || '', type, d.redirect_to) }];
 }
 
-async function send(to: string, mail: { subject: string; html: string; text: string }, key: string) {
-  if (RESEND) {
-    const r = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: { authorization: `Bearer ${RESEND}`, 'content-type': 'application/json', 'idempotency-key': key },
-      body: JSON.stringify({ from: `${FROM.name} <${FROM.email}>`, to: [to], subject: mail.subject, html: mail.html, text: mail.text }),
-    });
-    if (!r.ok) throw new Error(`Resend ${r.status}: ${(await r.text()).slice(0, 300)}`);
-    return;
-  }
-  if (MAILPIT) {
-    const r = await fetch(`${MAILPIT.replace(/\/$/, '')}/api/v1/send`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ From: { Email: FROM.email, Name: FROM.name }, To: [{ Email: to }], Subject: mail.subject, HTML: mail.html, Text: mail.text }),
-    });
-    if (!r.ok) throw new Error(`Mailpit ${r.status}: ${(await r.text()).slice(0, 300)}`);
-    return;
-  }
-  throw new Error('no email sender set up (RESEND_API_KEY)');
-}
+const send = sendMail;
 
 Deno.serve(async (req) => {
   if (req.method !== 'POST') return fail(405, 'POST only');

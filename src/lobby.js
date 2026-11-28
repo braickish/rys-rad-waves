@@ -17,7 +17,8 @@ import { JERSEYS } from './heat.js';
 import { myBreaks } from './breaks.js';
 import { WAVE_NAMES, CONTEST_WAVES, watchContest, heatBoard, LENGTHS, SIZES, contestLink, spotName, lengthName, savedNickname, createContest, contestByCode, joinContest,
   leaveContest, startContest, cancelContest, readContest, contestChannel, describeContestError, ROUND_HOURS, SIGNUP_HOURS, roundsFor,
-  heatSeconds, RIDE_GRACE_S, timeLeft, inviteToContest, uninvite, readInvites } from './contests.js';
+  heatSeconds, RIDE_GRACE_S, timeLeft, inviteToContest, uninvite, readInvites, inviteByEmail, looksLikeEmail } from './contests.js';
+import { sendMagicLink } from './account.js';
 
 const $ = (id) => document.getElementById(id);
 const say = (id, text) => { const e = $(id); e.textContent = text || ''; e.hidden = !text; };
@@ -191,7 +192,8 @@ function render() {
       list.append(h('li', { className: here ? '' : 'away' }, h('span', { textContent: e.name + (e.user_id === uid ? ' (you)' : '') }), h('span', { className: 'here', textContent: here ? 'here' : 'away' })));
     }
     for (const i of (me.invites || []).filter((x) => !x.accepted_at)) {
-      const row = h('li', { className: 'away' }, h('span', { textContent: `@${i.handle}${i.user_id === uid ? ' (you)' : ''}` }), h('span', { className: 'here', textContent: 'invited' }));
+      const who = i.handle ? `@${i.handle}` : i.email; // (an invite by email: the host sees the address; the invitee, their own)
+      const row = h('li', { className: 'away' }, h('span', { textContent: `${who}${i.user_id === uid || (i.email && i.email === currentUser()?.email?.toLowerCase()) ? ' (you)' : ''}` }), h('span', { className: 'here', textContent: 'invited' }));
       if (isHost) row.append(h('button', { type: 'button', className: 'lobby-x', textContent: 'Uninvite', onclick: () => act(() => uninvite(i.id)) }));
       list.append(row);
     }
@@ -202,11 +204,15 @@ function render() {
   $('lobby-join').hidden = !lobby || !!mine || (d?.entrants.length ?? p.entrants) >= p.max_entrants;
   if (!$('lobby-join').hidden) {
     const user = currentUser(), member = user && !user.is_anonymous;
+    me.signIn = open && !member; // (no guests in Open: your email, and a sign-in link back here)
+    $('lobby-nick').type = me.signIn ? 'email' : 'text';
+    $('lobby-nick').placeholder = me.signIn ? 'Your email' : 'Your nickname';
+    $('lobby-nick').autocomplete = me.signIn ? 'email' : 'nickname';
     const nick = $('lobby-nick');
     const handle = member && me.handle;
     nick.hidden = !!handle;
-    if (!handle && !nick.value) nick.value = savedNickname();
-    $('lobby-join').querySelector('button').textContent = handle ? `Join as @${handle}` : 'Join';
+    if (!handle && !nick.value && !me.signIn) nick.value = savedNickname();
+    $('lobby-join').querySelector('button').textContent = me.signIn ? 'Email me a link' : handle ? `Join as @${handle}` : 'Join';
     if (member && me.handle === undefined) { me.handle = null; myProfile().then((pr) => { me.handle = pr?.handle || null; render(); }).catch(() => {}); }
   }
   $('lobby-invite').hidden = !(open && lobby && isHost && p.entry === 'invite');
@@ -293,7 +299,7 @@ function renderOpen(me, d, p, mine, isHost, lobby, count) {
     if (me.msgKept) return;
     say('lobby-msg', mine ? (isHost ? (p.entry === 'invite' ? 'Invite people by their username. ' : 'Share the link: anyone can sign up. ') + (count < 2 ? 'You can open round 1 early once someone else is in.' : 'Or open round 1 now.')
       : "You're in. You'll surf your heat any time in round 1's window.")
-      : p.entry === 'invite' && !me.invites?.some((i) => i.user_id === currentUser()?.id) ? 'This contest is invite only.' : 'Join to surf: Open contests need an account (free).');
+      : p.entry === 'invite' && !me.invites?.some((i) => i.user_id === currentUser()?.id || (i.email && i.email === currentUser()?.email?.toLowerCase())) ? 'This contest is invite only.' : 'Join to surf: Open contests need an account (free).');
     return;
   }
   const my = d?.heat, entry = my?.heat_entries.find((x) => x.entrant_id === mine?.id), c = d?.contest || p;
@@ -330,8 +336,18 @@ async function invite() {
   const who = $('lobby-invitee').value.trim();
   if (!who) return;
   me.msgKept = true;
-  try { await inviteToContest(me.id, who); $('lobby-invitee').value = ''; say('lobby-msg', `Invited @${who.replace(/^@/, '').toLowerCase()}. Send them the link.`); me.live?.changed(); await refresh(); }
-  catch (e) { say('lobby-msg', describeContestError(e)); }
+  const btn = $('lobby-invite').querySelector('button'); btn.disabled = true;
+  try {
+    if (looksLikeEmail(who)) {
+      const r = await inviteByEmail(me.id, who);
+      say('lobby-msg', r.already ? `${who.toLowerCase()} is invited (emailed in the last day already).` : `Invited ${who.toLowerCase()}: we've emailed them the link.`);
+    } else {
+      await inviteToContest(me.id, who);
+      say('lobby-msg', `Invited @${who.replace(/^@/, '').toLowerCase()}. Send them the link.`);
+    }
+    $('lobby-invitee').value = ''; me.live?.changed(); await refresh();
+  } catch (e) { say('lobby-msg', describeContestError(e)); }
+  btn.disabled = false;
 }
 
 // Everyone in it drops in together at the heat's start.
@@ -351,7 +367,14 @@ async function join() {
   const btn = $('lobby-join').querySelector('button');
   btn.disabled = true; me.msgKept = false;
   if (me.preview?.mode === 'open' && (!currentUser() || currentUser().is_anonymous)) { // (no guests in Open: an account, free)
-    me.msgKept = true; say('lobby-msg', describeContestError({ hint: 'account_needed' })); btn.disabled = false; return;
+    me.msgKept = true;
+    const email = $('lobby-nick').value.trim();
+    if (!looksLikeEmail(email)) say('lobby-msg', 'Open contests need an account: put in your email for a sign-in link (free).');
+    else {
+      try { await sendMagicLink(email); say('lobby-msg', `Check ${email}: the link signs you in and brings you back here to join.`); }
+      catch (e) { say('lobby-msg', describeContestError(e)); }
+    }
+    btn.disabled = false; return;
   }
   try {
     const nick = $('lobby-nick').hidden ? null : $('lobby-nick').value.trim();

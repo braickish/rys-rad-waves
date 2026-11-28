@@ -45,6 +45,18 @@ const WORDS = {
     code: e.code,
   }),
 };
+// An Open contest invite (plans/2026-11-27-open-contests.md step 4): e.host, e.contest, e.spot, e.heat ("10 minute"),
+// e.rounds ("a day"), e.closes ("Sun 29 Nov"), e.email, e.link.
+WORDS.contest_invite = (e) => ({
+  subject: `${e.host ? `@${e.host}` : 'Someone'} invited you to surf ${e.contest}`,
+  title: "You're invited to a contest",
+  lines: [`${e.host ? `@${e.host}` : 'A surfer'} invited you to ${e.contest}, an Open contest at ${e.spot} in Ry's Rad Waves.`,
+    `Surf your ${e.heat} heat whenever you like while each round is open (${e.rounds}): nobody has to be online at the same time.`,
+    ...(e.closes ? [`Sign-up closes ${e.closes}.`] : [])],
+  button: 'Join the contest',
+  expiry: `Sign in with ${e.email} to join. It's free.`,
+  ignore: 'Not for you? Ignore this email.',
+});
 const fallback = () => ({ subject: "Your Ry's Rad Waves link", title: 'Your link', lines: ['Tap the button to carry on in Ry\'s Rad Waves.'], button: 'Open the game' });
 
 // The logo from the title screen, as an image (email apps ignore web fonts and text shadows), served with the game.
@@ -54,7 +66,7 @@ const INK = '#0b2233', DIM = '#4a6a7a';
 export function buildEmail(e) {
   const w = (WORDS[e.kind] || fallback)(e);
   const ignore = w.ignore || "If you didn't ask for this, you can ignore this email.";
-  const expiry = w.code ? 'The code works for an hour.' : 'The link works once, and for an hour.';
+  const expiry = w.expiry || (w.code ? 'The code works for an hour.' : 'The link works once, and for an hour.');
   const text = [
     w.title, '',
     ...w.lines, '',

@@ -86,7 +86,7 @@ Each step ends live on Pages with its tests passing, and the user plays it befor
    heat length, the length of each round, entry. The contest page: your heat, who's in it and who has surfed, the time
    left in the window, "Surf your heat" (one try, said plainly before you start). The heat runs as a Live heat does
    (`live-heat.js`) without rivals on the board and without the shared clock. Open is unlocked on the Compete screen.
-4. **Entry.** Email invites (the `invites` table, `send-email`), sign up from an invite, and open entry with its sign-up
+4. **Entry.** *Email invites done 2026-11-27 (20261127050000, contest-invite Edge Function, the lobby's sign-in link for signed-out visitors; open entry came with step 3).* Email invites (the `invites` table, `send-email`), sign up from an invite, and open entry with its sign-up
    window and link.
 5. **Round recaps.** `recap.js` on the one heat clock; a recap for every closed round; "Watch the recap" before the
    results card.

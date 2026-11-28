@@ -62,15 +62,28 @@ export function timeLeft(ms) {
   return s >= 2 * 86400 ? `${d}d ${hr}h` : s >= 3600 ? `${Math.floor(s / 3600)}h ${m}m` : m ? `${m}m` : `${s}s`; // (hours up to 2 days: "24h 0m", not "1d 0h")
 }
 export const inviteToContest = (id, handle) => rpc('invite_to_contest', { contest_id: id, handle: handle.replace(/^@/, '') });
+export const looksLikeEmail = (s) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(s.trim());
+// An invite by email: the invite, then the email (the contest-invite Edge Function, as you). Says whether it went.
+export async function inviteByEmail(id, email) {
+  const inv = await rpc('invite_by_email', { contest_id: id, email: email.trim() });
+  const c = await initAccount();
+  const { data, error } = await c.functions.invoke('contest-invite', { body: { invite_id: inv.id } });
+  if (error) {
+    let code = null; try { code = (await error.context?.json?.())?.error; } catch {}
+    if (code === 'emailed_already') return { invite: inv, sent: false, already: true };
+    throw Object.assign(new Error(code || 'send_failed'), { hint: code || 'send_failed' });
+  }
+  return { invite: inv, sent: !!data?.sent };
+}
 export const uninvite = (inviteId) => rpc('uninvite', { invite_id: inviteId });
 // The host's invites (with who), or yours.
 export async function readInvites(id) {
   const c = await initAccount();
-  const { data, error } = await c.from('invites').select('id, user_id, accepted_at').eq('contest_id', id).order('invited_at');
+  const { data, error } = await c.from('invites').select('id, user_id, email, accepted_at, emailed_at').eq('contest_id', id).order('invited_at');
   if (error) throw error;
   const ids = data.map((i) => i.user_id).filter(Boolean);
   const { data: who } = ids.length ? await c.from('profiles').select('id, handle').in('id', ids) : { data: [] };
-  return data.map((i) => ({ ...i, handle: who?.find((p) => p.id === i.user_id)?.handle || '?' }));
+  return data.map((i) => ({ ...i, handle: i.user_id ? who?.find((p) => p.id === i.user_id)?.handle || '?' : null }));
 }
 // Your one try at an Open heat: starts your clock (again: the same start).
 export const startMyHeat = (heatId) => rpc('start_my_heat', { heat_id: heatId });
@@ -202,6 +215,10 @@ const WORDS = {
   checks_pending: 'Checking the waves: results soon.',
   bad_round_hours: 'Pick how long each round lasts.',
   bad_signup_hours: 'Pick how long sign-up stays open.',
+  bad_email: "That doesn't look like an email address.",
+  emailed_already: 'They were emailed in the last day already.',
+  too_many_emails: "That's enough invite emails for today. Try again tomorrow.",
+  send_failed: "Couldn't send the email. Try again in a minute.",
 };
 export function describeContestError(e) {
   const code = e?.hint || e?.message;

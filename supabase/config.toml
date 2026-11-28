@@ -458,3 +458,7 @@ verify_jwt = false
 # Accounts plan task 15: re-rides submitted waves from their logs (anyone signed in may ask; it checks only what's waiting).
 [functions.check-rides]
 verify_jwt = true
+
+# Open contests step 4: emails a contest invite, as the host (their sign-in checks it's theirs).
+[functions.contest-invite]
+verify_jwt = true

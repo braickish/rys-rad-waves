@@ -3,13 +3,15 @@
 //   1. a Pro host opens Compete > Open: the form has who can enter, sign-up, and a window for each round (as many as
 //      the size makes); creating it lands in its lobby, invite only
 //   2. the host invites a member by username in the lobby; the member opens the link, sees the invite, joins
+//   2b. the host invites an email address: the email goes out with the contest's link; signed out, the lobby offers a
+//      sign-in link instead of guest entry; signed in with that address, they see their invite and join
 //   3. a 1-wave Open contest: the host opens round 1 early; the member taps Surf your heat (one try, said first) and
 //      rides alone on their board, on their own clock; the card says the scores come out when the round closes
 //   4. the host's lobby shows who has surfed, never the score; the host can't read the member's wave
 //   5. the host surfs too; the tick closes the round (once the checks are in): the final's places show
 // npm run db:start and supabase functions serve first, then: npm run test:open-browser [shotPrefix]
 import { execSync } from 'node:child_process';
-import { openBrowser, signInOnTitle, sleep, root } from './browser-lib.mjs';
+import { openBrowser, signInOnTitle, latestLink, sleep, root } from './browser-lib.mjs';
 
 const API = process.env.SB_URL || 'http://127.0.0.1:55321';
 const PK = 'sb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH';
@@ -72,6 +74,37 @@ check(!!(await B.waitFor(`${shown('lobby-join')} && /invited/.test(${txt('lobby-
 await B.evaluate(`document.getElementById('lobby-join').requestSubmit()`);
 check(!!(await B.waitFor(`/\\(you\\)/.test(${txt('lobby-list')}) && !/invited/.test(${txt('lobby-list')})`, 20000)), '... joins');
 await B.shot('2-joined');
+
+// 2b. An invite by email, to someone signed out.
+const friend = `ofriend-${Date.now()}@example.com`;
+await A.evaluate(`document.getElementById('lobby-invitee').value = '${friend}'; document.getElementById('lobby-invite').requestSubmit()`);
+check(!!(await A.waitFor(`/emailed them the link/.test(${txt('lobby-msg')}) && /${friend.replace(/[.]/g, '\\.')}/.test(${txt('lobby-list')})`, 20000)), `invited by email: emailed, and on the host's list (${await A.evaluate(txt('lobby-msg'))})`);
+const MAIL = process.env.MAILPIT_URL || 'http://127.0.0.1:55324';
+let inviteMail = null;
+for (let i = 0; i < 30 && !inviteMail; i++) {
+  const l = await (await fetch(`${MAIL}/api/v1/search?query=${encodeURIComponent(`to:"${friend}"`)}`)).json();
+  if (l.messages?.length) inviteMail = await (await fetch(`${MAIL}/api/v1/message/${l.messages[0].ID}`)).json();
+  else await sleep(300);
+}
+check(/invited you to surf/.test(inviteMail?.Subject || '') && inviteMail?.Text.includes(`?contest=${code1}`) && inviteMail?.Text.includes(`Sign in with ${friend}`), `the email: who, the contest's link, sign in with this address (${inviteMail?.Subject})`);
+const C = await openBrowser({ shots: shots && `${shots}-friend` });
+await C.go(`${C.base}index.html?contest=${code1}`);
+await C.waitFor(shown('lobby-join'), 20000);
+check((await C.evaluate(`document.querySelector('#lobby-join button').textContent`)) === 'Email me a link' && (await C.evaluate(`document.getElementById('lobby-nick').type`)) === 'email', 'signed out: the lobby asks for an email, no guest entry');
+await C.evaluate(`document.getElementById('lobby-nick').value = '${friend}'; document.getElementById('lobby-join').requestSubmit()`);
+check(!!(await C.waitFor(`/brings you back here/.test(${txt('lobby-msg')})`, 15000)), '... and sends a sign-in link');
+const back = await latestLink(friend, 15000, Date.now() - 20000);
+check(!!back, 'the sign-in link arrives');
+await C.go(back);
+await C.waitFor(`localStorage.getItem('rys-rad-waves-auth') && ${shown('lobby')}`, 30000);
+const fa = await auth(C);
+await post('profiles', { id: fa.user.id, handle: `ofr${Date.now() % 1e7}` });
+await C.go(`${C.base}index.html?contest=${code1}`);
+check(!!(await C.waitFor(`${shown('lobby-join')} && ${txt('lobby-list')}.includes('(you)') && ${txt('lobby-list')}.includes('invited') && document.querySelector('#lobby-join button').textContent.startsWith('Join as @')`, 20000)), 'signed in with that address: their invite, Join as their handle');
+await C.evaluate(`document.getElementById('lobby-join').requestSubmit()`);
+check(!!(await C.waitFor(`${txt('lobby-list')}.includes('(you)') && !${txt('lobby-list')}.includes('invited')`, 20000)), '... in');
+await C.shot('1-joined');
+await C.close();
 
 // 3. A 1-wave Open contest, round 1 opened early.
 const c2 = await rpcAs(host.access_token, 'create_contest', { name: 'Open Test', wave: 'point', end_waves: 1, mode: 'open' });
