@@ -68,7 +68,7 @@ Each step ends live on Pages with its tests passing, and the user plays it befor
 
 ## Steps
 
-1. **The data, no UI.** Migration: `contests.mode` (`live` | `open`), `contests.open_format` (`rounds` | `condensed`),
+1. **The data, no UI.** *Done 2026-11-27 (20261127000000_open_contests.sql, live; also invites by username).* Migration: `contests.mode` (`live` | `open`), `contests.open_format` (`rounds` | `condensed`),
    `contests.round_hours` (an array, one per round, 24 by default; condensed: one window), `contests.entry` (`invite` |
    `open`), `contests.signup_ends_at`; `heat_entries.started_at`; `heats.window_ends_at`. `create_contest` takes them
    (Pro only, members only). `start_my_heat(heat)` sets your `started_at` once. `submit_ride` checks your own horn.
