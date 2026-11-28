@@ -12,7 +12,7 @@ import { encodeBuilt, BUILT_KEY, outfitFor } from '../waves/built.js';
 import { funPayload } from './fun.js';
 import { startMyBreaks } from './my-breaks.js';
 let breaks = null;
-import { BLOCKS, SNAP, ARM_ANGLES, ARM_LENGTHS, ARM_SLOPES, BAR_CRESTS, DEPTHS, DEPTH_RANGE, TOP_DEPTH, depthMin, depthForSize, SIZES, BACKS, FRONTS, slopeName, blockLength, ROTATIONS, reefComponents, newBlock, dynamicPreset, beachPreset, stackedPreset, pipelinePreset, PIPELINE, armRot, nearestArm } from './blocks.js';
+import { BLOCKS, SNAP, ARM_LENGTHS, ARM_SLOPES, BAR_CRESTS, DEPTHS, DEPTH_RANGE, TOP_DEPTH, depthMin, depthForSize, SIZES, BACKS, FRONTS, slopeName, blockLength, reefComponents, newBlock, dynamicPreset, beachPreset, stackedPreset, pipelinePreset, PIPELINE, armRot, nearestArm } from './blocks.js';
 
 const canvas = document.getElementById('map'), ctx = canvas.getContext('2d');
 // Heights and lengths are shown in feet (the user, 2026-11-22); the model works in metres underneath.
@@ -545,6 +545,19 @@ function opt(label, values, cur, fmt, set) {
   }
   return wrap;
 }
+// A slider for a block's setting, live while you drag it (the wave recomputing as for a block you move); `set` also gets
+// the block's own extras done (a ridge's Turn: yours now). The user, 2026-11-28: Angle and Turn as sliders, to fine-tune.
+function slider(label, title, min, max, step, value, fmt, set) {
+  const wrap = document.createElement('label'); wrap.className = 'sl'; wrap.title = title;
+  const out = document.createElement('b'), r = document.createElement('input');
+  Object.assign(r, { type: 'range', min, max, step, value, autocomplete: 'off' });
+  const show = () => { out.textContent = fmt(+r.value); };
+  r.oninput = () => { set(+r.value); show(); state.dirty = true; schedule(); };
+  r.onchange = () => { showSel(); save(); }; // (the panel's title and the map's label catch up when you let go)
+  wrap.append(label, r, out); show();
+  return wrap;
+}
+const ANGLE_RANGE = [20, 75]; // (an arm's or a ledge's angle: under ~25 deg it closes out, over ~70 it backs off)
 // Depth: a slider for the water over the block's top (a channel: how deep it cuts), in feet; it changes the block's depth factor
 // (b.depth), live while you drag it, the wave recomputing as for a block you move.
 function depthSlider(b) {
@@ -553,7 +566,7 @@ function depthSlider(b) {
   const show = () => { out.textContent = `${ft((b.depth || 1) * base)} ft`; };
   wrap.title = b.type === 'channel' ? 'How deep the channel cuts' : 'Water over the top of the reef';
   wrap.append('Depth');
-  const r = document.createElement('input'); r.type = 'range'; r.min = depthMin(b.type, b.size || 1); r.max = DEPTH_RANGE[1]; r.step = 0.01; r.value = b.depth || 1; // (down to 2 ft over the top) r.autocomplete = 'off';
+  const r = document.createElement('input'); r.type = 'range'; r.min = depthMin(b.type, b.size || 1); r.max = DEPTH_RANGE[1]; r.step = 0.01; r.value = b.depth || 1; r.autocomplete = 'off'; // (down to 2 ft over the top)
   r.oninput = () => {
     b.depth = +r.value; show();
     // (a peak takes its arms and ledges with it, as Size and Behind do: a point is deepened as a whole)
@@ -571,12 +584,13 @@ function showSel() {
   const p = document.createElement('div'); p.className = 'blurb'; p.textContent = BLOCKS[b.type].blurb; el.appendChild(p);
   if (b.type === 'arm' || b.type === 'ledge') {
     el.appendChild(opt('Side', [-1, 1], b.side, (v) => (v < 0 ? 'Right' : 'Left'), (v) => { b.side = v; }));
-    el.appendChild(opt('Angle', ARM_ANGLES, b.angle, (v) => `${v}°`, (v) => { b.angle = v; }));
+    el.appendChild(slider('Angle', 'Between the reef line and the swell: narrower peels faster (under ~25° closes out), wider is mellower (over ~70° backs off)',
+      ANGLE_RANGE[0], ANGLE_RANGE[1], 1, b.angle, (v) => `${v}°`, (v) => { b.angle = v; })); // (was 30 / 45 / 60)
   }
   if (b.type === 'arm') el.appendChild(opt('Length', ARM_LENGTHS, b.length, (v) => `${ft(v * (b.size || 1))} ft`, (v) => { b.length = v; }));
   if (b.type === 'arm' || b.type === 'peak') el.appendChild(opt('Slope', ARM_SLOPES.map(([g]) => g), slopeName(b.slope), (v) => ARM_SLOPES.find(([g]) => g === v)[1], (v) => { b.slope = v; }));
   if (b.type === 'ridge' || b.type === 'channel' || b.type === 'sandbar') {
-    el.appendChild(opt('Turn', ROTATIONS, b.rot, (v) => `${v}°`, (v) => { b.rot = v; b.rotSet = true; })); // (yours now: a ridge snapping onto an arm keeps it)
+    el.appendChild(slider('Turn', 'Its direction: 0° points straight out to sea', 0, 180, 5, b.rot, (v) => `${v}°`, (v) => { b.rot = v; b.rotSet = true; })); // (yours now: a ridge snapping onto an arm keeps it; was 8 steps)
     el.appendChild(opt('Length', b.type === 'ridge' ? [50, 80, 120] : b.type === 'sandbar' ? [100, 160, 240] : [140, 220, 320], b.length, (v) => `${ft(v * (b.size || 1))} ft`, (v) => { b.length = v; }));
   }
   el.appendChild(opt('Size', SIZES.map(([z]) => z), b.size || 1, (v) => SIZES.find(([z]) => z === v)[1], (v) => { b.depth = depthForSize(b, v); b.size = v; if (b.type === 'peak') for (const q of state.blocks) if ((q.type === 'arm' || q.type === 'ledge') && q.x === b.x && q.y === b.y) { q.depth = depthForSize(q, v); q.size = v; } })); // (a peak's size goes to its arms too; the depths stay put)
