@@ -15,14 +15,18 @@ import { drawOverlay } from './recap-overlay.js';
 const TITLE = 3.2, AFTER = 2.4, END = 6; // seconds: the title card, the score after a ride, the result
 
 // Everything a recap needs: the contest, its story, and the shown waves' ride logs (signed links to Storage).
-export async function loadRecap(code) {
+// heatId: that heat's recap, once it's closed (an Open contest's round: the contest can still be on).
+export async function loadRecap(code, heatId = null) {
   const c = await initAccount();
   const p = await contestByCode(code);
   if (!p) throw new Error('No contest has that code.');
   const d = await contestFor(p); // (anyone with the code: the people in it, or watching)
   if (!d) throw new Error("Couldn't load that contest.");
-  if (d.contest.state !== 'done') throw new Error("This contest isn't over yet.");
-  const recap = buildRecap({ contest: d.contest, entrants: d.entrants, heats: d.heats, rides: d.rides });
+  const ht = heatId && d.heats.find((x) => x.id === heatId);
+  if (heatId && !ht) throw new Error('No such heat in this contest.');
+  if (ht ? ht.state !== 'done' : d.contest.state !== 'done') throw new Error(ht ? "This heat isn't over yet." : "This contest isn't over yet.");
+  const recap = buildRecap({ contest: d.contest, entrants: d.entrants, heats: d.heats, rides: d.rides, heatId });
+  recap.heatOnly = !!heatId;
   if (!recap?.shown.length) throw new Error('This contest has no ride logs to show.');
   recap.contest.place = d.contest.spot?.name || WAVE_NAMES[d.contest.spot?.wave] || '';
   recap.contest.id = d.contest.id; recap.contest.host = d.contest.host; // (the host keeps the recap's video with the contest)

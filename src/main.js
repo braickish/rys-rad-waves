@@ -652,14 +652,16 @@ const videoPanel = (title, { bar = 0, note = '', ready = false, cancel = '✕ Ca
 };
 // A contest's recap (accounts plan task 17; src/recap-player.js): index.html?recap=<code> rides the final's best waves
 // again with broadcast graphics, and makes it a video. The game's own panels and HUD step aside (body.recap).
+// &heat=<id>: that heat's recap, once it's closed (an Open contest's round, plans/2026-11-27-open-contests.md step 5).
 let recap = null, recapData = null, recapJersey = null;
 const RECAP_AFTER = 2.4, RECAP_END = 6;
 async function startRecap(code) {
   document.body.classList.add('recap');
   for (const id of ['title', 'over', 'judge', 'results']) $(id).hidden = true;
   $('recap-bar').hidden = false; $('recap-name').textContent = 'Loading the recap…';
-  recapData = await loadRecap(code.toUpperCase());
-  $('recap-name').textContent = `${recapData.contest.name} · ${recapData.heat.final && recapData.heat.rounds > 1 ? 'the final' : 'the heat'}`;
+  recapData = await loadRecap(code.toUpperCase(), params.get('heat') || null);
+  const hd = recapData.heat;
+  $('recap-name').textContent = `${recapData.contest.name} · ${hd.final && hd.rounds > 1 ? 'the final' : hd.final ? 'the heat' : `round ${hd.round}, heat ${hd.number}`}`;
   $('recap-exit').href = `contest.html?c=${encodeURIComponent(recapData.contest.code)}`;
   recap = createRecapPlayer(recapData, {
     startReplay: (rec) => startReplay(rec),
@@ -738,7 +740,7 @@ async function finishVideo(v) {
   window.__video = { size: blob.size, frames: v.enc.frames, w: v.enc.w, h: v.enc.h, seconds: v.enc.seconds, blob }; // (test/video.mjs)
   $('video').dataset.back = v.back;
   videoPanel('Your video is ready', { ready: true, note: `${v.enc.seconds.toFixed(1)} s · ${(blob.size / 1e6).toFixed(1)} MB`, cancel: '✕ Close' });
-  if (v.recap && recapData.contest.host && currentUser()?.id === recapData.contest.host) keepRecap(blob, v.enc.seconds); // (the host's: kept with the contest)
+  if (v.recap && !recapData.heatOnly && recapData.contest.host && currentUser()?.id === recapData.contest.host) keepRecap(blob, v.enc.seconds); // (the host's: kept with the contest; a round's recap (&heat=) isn't the contest's)
 }
 function videoFailed(v, err) {
   if (vid !== v) return;

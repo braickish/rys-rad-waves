@@ -224,7 +224,7 @@ function render() {
   $('lobby-cancel').hidden = !(isHost && (lobby || state === 'running'));
   $('lobby-recap').hidden = state !== 'done';
   clearInterval(me.count); me.count = null;
-  $('lobby-surf').hidden = true; say('lobby-when', '');
+  $('lobby-surf').hidden = true; say('lobby-when', ''); $('lobby-heat-recap').hidden = true;
   // once it's started: the heats (a bracket: every round), instead of the list of who's in
   const heats = d?.heats || [];
   list.hidden = heats.length > 0;
@@ -265,7 +265,10 @@ function drawBracket(d, mine, open = false) {
         .sort((a, b) => (a.place ?? 99) - (b.place ?? 99) || a.jersey.localeCompare(b.jersey));
       const when = ht.state === 'done' ? 'done' : hidden ? (ht.window_ends_at && Date.parse(ht.window_ends_at) > Date.now() ? `closes in ${timeLeft(Date.parse(ht.window_ends_at) - Date.now())}` : 'closing')
         : Date.parse(ht.starts_at) > Date.now() ? 'starting soon' : 'on now';
-      const card = h('div', { className: `heat${rows.some((x) => x.entrant_id === mine?.id) ? ' yours' : ''}` }, h('small', { textContent: final ? when : `Heat ${ht.number} · ${when}` }));
+      const label = h('small', { textContent: final ? when : `Heat ${ht.number} · ${when}` });
+      if (open && ht.state === 'done' && (!d.watching || d.contest?.state === 'done') && d.rides.some((r) => r.heat_id === ht.id && r.replay_path)) // (an Open round's heat: its recap, step 5)
+        label.append(h('a', { href: `index.html?recap=${encodeURIComponent(d.contest?.code || L.code)}&heat=${ht.id}`, textContent: '▶ recap' }));
+      const card = h('div', { className: `heat${rows.some((x) => x.entrant_id === mine?.id) ? ' yours' : ''}` }, label);
       for (const x of rows) {
         const color = JERSEYS.find((j) => j.id === x.jersey)?.color || '#888';
         card.append(h('div', { className: `row${x.advanced === false ? ' out' : ''}${x.entrant_id === mine?.id ? ' me' : ''}` },
@@ -303,6 +306,13 @@ function renderOpen(me, d, p, mine, isHost, lobby, count) {
     return;
   }
   const my = d?.heat, entry = my?.heat_entries.find((x) => x.entrant_id === mine?.id), c = d?.contest || p;
+  // your latest closed heat: its recap is where you first see how the others surfed it (step 5)
+  const closed = mine && [...(d?.heats || [])].reverse().find((x) => x.state === 'done' && x.heat_entries.some((e) => e.entrant_id === mine.id));
+  if (closed && d.rides.some((r) => r.heat_id === closed.id && r.replay_path)) {
+    $('lobby-heat-recap').href = `index.html?recap=${encodeURIComponent(L.code)}&heat=${closed.id}`;
+    $('lobby-heat-recap').textContent = `▶ Watch the recap of your ${closed.round > 1 || d.heats.some((x) => x.round > 1) ? `round ${closed.round} ` : ''}heat`;
+    $('lobby-heat-recap').hidden = false;
+  }
   const where = my ? (d.final ? (d.rounds > 1 ? 'The final' : 'Your heat') : `Round ${my.round}, heat ${my.number}`) : '';
   const left = my?.window_ends_at ? timeLeft(Date.parse(my.window_ends_at) - Date.now()) : '';
   if (me.msgKept) return;

@@ -40,5 +40,21 @@ const r2 = buildRecap({ contest: { name: 'X', code: 'X' }, entrants, heats, ride
 check(r2.shown.length <= MAX_SHOWN && r2.shown.every((s, i, a) => !i || a[i - 1].ride.caught_at <= s.ride.caught_at), `at most ${MAX_SHOWN} shown, still in order (${r2.shown.length})`);
 check(!buildRecap({ contest: {}, entrants, heats: [], rides: [] }), 'no heats: no recap');
 
+// An Open heat (plans/2026-11-27-open-contests.md step 5): two surfers hours apart, told on one heat clock.
+{
+  const oh = [{ id: 'o1', round: 1, number: 1, starts_at: at(0), heat_entries: [
+    { entrant_id: 'a', jersey: 'red', started_at: at(3600) }, { entrant_id: 'b', jersey: 'blue', started_at: at(36000) }] },
+    { id: 'o2', round: 1, number: 2, starts_at: at(0), heat_entries: [] }];
+  const orides = [
+    { heat_id: 'o1', entrant_id: 'a', wave_no: 1, score: '5', caught_at: at(3600 + 100), replay_path: 'a/1' },
+    { heat_id: 'o1', entrant_id: 'a', wave_no: 2, score: '7', caught_at: at(3600 + 400), replay_path: 'a/2' },
+    { heat_id: 'o1', entrant_id: 'b', wave_no: 1, score: '6', caught_at: at(36000 + 50), replay_path: 'b/1' },
+    { heat_id: 'o1', entrant_id: 'b', wave_no: 2, score: '8', caught_at: at(36000 + 300), replay_path: 'b/2' }];
+  const o = buildRecap({ contest: { name: 'Open', code: 'OPENOK', spot: { wave: 'point' } }, entrants, heats: oh, rides: orides, heatId: 'o1' });
+  check(o.heat.id === 'o1' && !o.heat.final, 'heatId: that heat is told (round 1, not the final)');
+  check(o.story.map((x) => `${x.name}${x.score}`).join(',') === 'Mara6,Kai5,Mara8,Kai7', `one heat clock: by time into each surfer's own heat (${o.story.map((x) => `${x.name}${x.score}`).join(',')})`);
+  check(o.story.filter((x) => x.tookLead).map((x) => x.name).join(',') === 'Mara', 'lead changes on that clock: Mara leads throughout');
+}
 console.log(fails ? `\n${fails} failed` : '\nrecap ok');
+
 process.exit(fails ? 1 : 0);

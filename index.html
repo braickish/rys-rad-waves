@@ -202,6 +202,8 @@
   .cform .rounds { display: grid; grid-template-columns: auto 1fr; gap: 6px 10px; align-items: center; }
   .cform .rounds span { font-size: 13px; font-weight: 700; }
   .lobby-list li .lobby-x { font: 700 12px Rubik, sans-serif; color: #fff; background: none; border: 0; text-decoration: underline; cursor: pointer; padding: 0; }
+  .lobby-heat-recap { text-decoration: none; font-size: 18px; }
+  .bracket .heat small a { color: #fff; margin-left: 6px; }
   .lobby-when { font-weight: 700; font-size: 14px; text-shadow: 0 1px 0 rgba(0,0,0,.4); }
   .heat-start select option { color: var(--ink); background: #fff; }
   .list-head { font: 400 14px Bungee, sans-serif; color: var(--yellow); text-shadow: 2px 2px 0 var(--ink); margin: 4px 0 10px; }
@@ -315,6 +317,7 @@
         <form id="lobby-join" class="join-form" hidden><input id="lobby-nick" maxlength="20" autocomplete="nickname" placeholder="Your nickname" aria-label="Nickname"><button type="submit">Join</button></form>
         <button id="lobby-start" type="button" class="start" hidden>Start</button>
         <button id="lobby-surf" type="button" class="start" hidden>Surf your heat</button>
+        <a id="lobby-heat-recap" class="start lobby-heat-recap" href="./" hidden>▶ Watch your heat's recap</a>
         <div id="lobby-msg" class="heat-note" hidden></div>
         <div id="lobby-recap" class="lobby-recap" hidden><a id="lobby-recap-play" class="start" href="./">▶ Watch the recap</a><div class="lobby-more"><a id="lobby-recap-make" class="acct-link" href="./" hidden>Make the recap video</a><a id="lobby-results" class="acct-link" href="./">All the results</a></div></div>
         <div class="lobby-more"><button id="lobby-leave" type="button" class="acct-link" hidden>Leave</button><button id="lobby-cancel" type="button" class="acct-link" hidden>Cancel contest</button></div>

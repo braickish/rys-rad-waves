@@ -88,7 +88,7 @@ Each step ends live on Pages with its tests passing, and the user plays it befor
    (`live-heat.js`) without rivals on the board and without the shared clock. Open is unlocked on the Compete screen.
 4. **Entry.** *Email invites done 2026-11-27 (20261127050000, contest-invite Edge Function, the lobby's sign-in link for signed-out visitors; open entry came with step 3).* Email invites (the `invites` table, `send-email`), sign up from an invite, and open entry with its sign-up
    window and link.
-5. **Round recaps.** `recap.js` on the one heat clock; a recap for every closed round; "Watch the recap" before the
+5. **Round recaps.** *Done 2026-11-27 (recap.js heatId and one heat clock; ?recap=<code>&heat=<id> once that heat closes; lobby button and bracket links; a heat's recap video isn't kept as the contest's).* `recap.js` on the one heat clock; a recap for every closed round; "Watch the recap" before the
    results card.
 6. **Emails.** Your round is open; a few hours left and you haven't surfed; results and the recap are in.
 7. **Condensed.** One window, a session for each round back to back (each on its round's seed), played out at the close:

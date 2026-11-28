@@ -4,6 +4,11 @@
 // story: every wave in the order it was caught, the standings after each (best two, the WSL tie-breaks), when the lead
 // changed hands, and the waves worth showing (each surfer's best, every wave that took the lead, and the winner's
 // last), at most MAX_SHOWN, in order. Each shown wave is a segment the recap player rides again from its log.
+// heatId tells that heat instead (an Open contest's recap of each round, plans/2026-11-27-open-contests.md step 5).
+//
+// One heat clock: a wave's time is how far into its surfer's own heat it was caught (from their started_at, an Open
+// heat, where everyone surfs at their own time), else from the heat's start (Live: everyone at once). So an Open heat's
+// sessions are told side by side, as if surfed together.
 import { standings } from './heat.js';
 
 export const MAX_SHOWN = 6;
@@ -16,14 +21,15 @@ export function recapHeat(heats) {
   return inLast.length === 1 ? inLast[0] : inLast[inLast.length - 1];
 }
 
-export function buildRecap({ contest, entrants, heats, rides }) {
-  const heat = recapHeat(heats);
+export function buildRecap({ contest, entrants, heats, rides, heatId = null }) {
+  const heat = heatId ? heats?.find((h) => h.id === heatId) : recapHeat(heats);
   if (!heat) return null;
   const name = (id) => entrants.find((e) => e.id === id)?.name || '?';
   const jerseyOf = (id) => heat.heat_entries.find((x) => x.entrant_id === id)?.jersey || 'red';
   const final = heats.filter((h) => h.round === heat.round).length === 1, rounds = Math.max(...heats.map((h) => h.round));
+  const t0 = (id) => Date.parse(heat.heat_entries.find((x) => x.entrant_id === id)?.started_at || heat.starts_at || 0);
   const waves = rides.filter((r) => r.heat_id === heat.id)
-    .map((r) => ({ ...r, score: Number(r.score), at: Date.parse(r.caught_at) }))
+    .map((r) => ({ ...r, score: Number(r.score), at: Date.parse(r.caught_at) - t0(r.entrant_id) }))
     .sort((a, b) => a.at - b.at || a.wave_no - b.wave_no);
   // the standings after each wave, as the heat engine scores them
   const h = { advance: 0, surfers: heat.heat_entries.map((x) => ({ id: x.entrant_id, name: name(x.entrant_id), jersey: x.jersey, waves: [] })) };

@@ -9,6 +9,7 @@
 //      rides alone on their board, on their own clock; the card says the scores come out when the round closes
 //   4. the host's lobby shows who has surfed, never the score; the host can't read the member's wave
 //   5. the host surfs too; the tick closes the round (once the checks are in): the final's places show
+//   6. round recaps: a link on each closed heat, the lobby's button for yours, and the heat's recap on one heat clock
 // npm run db:start and supabase functions serve first, then: npm run test:open-browser [shotPrefix]
 import { execSync } from 'node:child_process';
 import { openBrowser, signInOnTitle, latestLink, sleep, root } from './browser-lib.mjs';
@@ -155,6 +156,21 @@ check((await readAs(host.access_token, `rides?heat_id=eq.${heat.id}&select=score
 await A.go(`${A.base}index.html?contest=${c2.code}`);
 check(!!(await A.waitFor(`/Won by/.test(${txt('lobby-msg')}) && /\\d\\.\\d\\d/.test(document.getElementById('bracket').innerText)`, 20000)), 'the lobby: the winner and the scores');
 await A.shot('6-done');
+
+// 6. Round recaps (step 5): the heat's recap, its sessions told on one heat clock.
+const link = await A.evaluate(`document.querySelector('#bracket .heat small a')?.getAttribute('href')`);
+check(link === `index.html?recap=${c2.code}&heat=${heat.id}`, `each closed heat: a recap link (${link})`);
+await patch(`contests?id=eq.${c2.id}`, { state: 'running' }); // (as if a later round were still on)
+await B.go(`${B.base}index.html?contest=${c2.code}`);
+check(!!(await B.waitFor(`${shown('lobby-heat-recap')} && document.getElementById('lobby-heat-recap').getAttribute('href') === 'index.html?recap=${c2.code}&heat=${heat.id}'`, 20000)), 'mid-contest: "Watch the recap of your heat" in the lobby');
+await B.shot('5-recap-button');
+await B.go(`${B.base}index.html?recap=${c2.code}&heat=${heat.id}`);
+const rc = await B.waitFor(`window.__recap && JSON.stringify({ id: window.__recap.heat.id, only: window.__recap.heatOnly, n: window.__recap.story.length, at: window.__recap.story.map((s) => s.ride.at) })`, 40000);
+const R = rc && JSON.parse(rc);
+check(R?.id === heat.id && R.only && R.n === 2, `the heat's recap plays, contest still on (${rc})`);
+check(R && R.at.every((t) => t >= 0 && t < 120), `on one heat clock: each wave's time into its surfer's own heat (${R?.at})`);
+await sleep(3000); await B.shot('6-recap');
+await patch(`contests?id=eq.${c2.id}`, { state: 'done' });
 
 await B.close();
 await A.done();
