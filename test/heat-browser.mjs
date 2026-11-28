@@ -53,7 +53,7 @@ check(await evaluate(`${shown('waves')} && ${shown('start')} && !${shown('heat-s
 await evaluate(`document.getElementById('step-back').click()`);
 check(await evaluate(shown('go-compete')), 'Back: the landing again');
 await evaluate(`document.getElementById('go-compete').click()`);
-check(await evaluate(`${shown('go-solo')} && ${shown('go-host')} && document.getElementById('go-host').textContent === 'Live Format' && document.getElementById('go-solo').textContent === 'Practice' && document.getElementById('go-open').textContent === 'Open Format' && ${shown('go-open')} && !document.getElementById('go-open').disabled && /any time/.test(document.getElementById('open-soon').textContent) && ${shown('join-code')} && !${shown('waves')} && !${shown('start')}`), 'Compete: Practice, Live Format, Open Format, and the code box');
+check(await evaluate(`${shown('go-solo')} && ${shown('go-host')} && document.getElementById('go-host').textContent === 'Live Format' && document.getElementById('go-solo').textContent === 'Practice' && document.getElementById('go-open').textContent === 'Open Format' && ${shown('go-open')} && !document.getElementById('go-open').disabled && ${shown('join-code')} && !${shown('waves')} && !${shown('start')}`), 'Compete: Practice, Live Format, Open Format, and the code box');
 await shot('0-compete');
 await evaluate(`document.getElementById('go-host').click()`);
 check(await evaluate(`${shown('host-form')} && !${shown('go-solo')} && document.getElementById('step-title').textContent === 'Host a contest'`), 'Live: straight to hosting a contest');

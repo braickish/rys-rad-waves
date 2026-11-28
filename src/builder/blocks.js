@@ -34,10 +34,19 @@ export const FLOOR_DEEP = [{ type: 'ramp', floor: true, start_depth_m: 24, end_d
 export const DEPTHS = [[0.7, 'Shallow'], [1, 'Medium'], [1.8, 'Deep']];
 export const DEPTH_RANGE = [0.5, 5];
 export const TOP_DEPTH = { peak: 3.0, arm: 1.0, ridge: 2.6, pinnacle: 2.2, ledge: 1.6, channel: 9 }; // (m at 1x: blockComponents)
+// The shallowest a block's top can go (the user, 2026-11-28: every reef piece down to 2 ft over its top; an arm already went
+// to 1.6 ft, and still does; a channel is a cut, not a top, so it keeps its range): its smallest Depth factor at a size.
+export const SHALLOWEST_M = 0.61; // (2 ft)
+export const depthMin = (type, size = 1) => (type === 'channel' ? DEPTH_RANGE[0]
+  : Math.min(DEPTH_RANGE[0], SHALLOWEST_M / ((TOP_DEPTH[type] || 3) * size)));
+// A new Size keeps the block's depths where they are (the user, same day: Size changed the depth too; now it scales the
+// lengths alone): the Depth factor that gives the same depths at the new size, within the slider's range.
+export const depthForSize = (b, size) => Math.min(DEPTH_RANGE[1], Math.max(depthMin(b.type, size), (b.depth || 1) * (b.size || 1) / size));
 
 // A block's Size (the user, 2026-11-22: reefs for big swells): every length and depth x 1 / 1.5 / 2.5 about its anchor, slopes
 // unchanged. Waves scale the same way (Froude: a wave and a reef both 2.5x bigger break alike), so a reef that breaks a 5 ft
-// swell well breaks a ~13 ft swell the same way at 2.5x. (Depth still scales the depths alone.)
+// swell well breaks a ~13 ft swell the same way at 2.5x. (Depth still scales the depths alone.) (2026-11-28, the user: Size
+// no longer changes the depths: the builder sets the Depth factor to keep them, depthForSize, so it scales the lengths.)
 export const SIZES = [[1, '1x'], [1.5, '1.5x'], [2.5, '2.5x']];
 // What's behind a Peak or an Arm (plan step 8, stacked reefs; the user, 2026-11-22): a reef flat (as always: the reef top runs
 // on ~150 m behind its edge and broken waves die across it) or a lagoon (the reef is a narrow ridge falling back into the

@@ -28,6 +28,7 @@
   .panel { background: var(--panel); border-radius: 16px; padding: 16px; display: flex; flex-direction: column; gap: 16px; align-self: start; }
   h2 { font-family: Bungee, sans-serif; font-weight: 400; font-size: 15px; margin: 0 0 8px; letter-spacing: .02em; }
   .row { display: flex; flex-wrap: wrap; gap: 6px; }
+  .row + .row, .row + label.sl, label.sl + .row { margin-top: 8px; } /* (rows of buttons never touch, the user, 2026-11-28: they stacked on phones) */
   button { font-family: Rubik, sans-serif; font-weight: 700; font-size: 13px; color: var(--text); background: rgba(255,255,255,.07);
     border: 2px solid var(--line); border-radius: 18px; padding: 6px 12px; cursor: pointer; }
   button:hover { border-color: rgba(255,255,255,.4); }

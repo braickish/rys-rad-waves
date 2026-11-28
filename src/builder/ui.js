@@ -12,7 +12,7 @@ import { encodeBuilt, BUILT_KEY, outfitFor } from '../waves/built.js';
 import { funPayload } from './fun.js';
 import { startMyBreaks } from './my-breaks.js';
 let breaks = null;
-import { BLOCKS, SNAP, ARM_ANGLES, ARM_LENGTHS, ARM_SLOPES, BAR_CRESTS, DEPTHS, DEPTH_RANGE, TOP_DEPTH, SIZES, BACKS, blockLength, ROTATIONS, reefComponents, newBlock, dynamicPreset, beachPreset, stackedPreset, pipelinePreset, PIPELINE, armRot, nearestArm } from './blocks.js';
+import { BLOCKS, SNAP, ARM_ANGLES, ARM_LENGTHS, ARM_SLOPES, BAR_CRESTS, DEPTHS, DEPTH_RANGE, TOP_DEPTH, depthMin, depthForSize, SIZES, BACKS, blockLength, ROTATIONS, reefComponents, newBlock, dynamicPreset, beachPreset, stackedPreset, pipelinePreset, PIPELINE, armRot, nearestArm } from './blocks.js';
 
 const canvas = document.getElementById('map'), ctx = canvas.getContext('2d');
 // Heights and lengths are shown in feet (the user, 2026-11-22); the model works in metres underneath.
@@ -521,11 +521,11 @@ function depthSlider(b) {
   const show = () => { out.textContent = `${ft((b.depth || 1) * base)} ft`; };
   wrap.title = b.type === 'channel' ? 'How deep the channel cuts' : 'Water over the top of the reef';
   wrap.append('Depth');
-  const r = document.createElement('input'); r.type = 'range'; r.min = DEPTH_RANGE[0]; r.max = DEPTH_RANGE[1]; r.step = 0.05; r.value = b.depth || 1; r.autocomplete = 'off';
+  const r = document.createElement('input'); r.type = 'range'; r.min = depthMin(b.type, b.size || 1); r.max = DEPTH_RANGE[1]; r.step = 0.01; r.value = b.depth || 1; // (down to 2 ft over the top) r.autocomplete = 'off';
   r.oninput = () => {
     b.depth = +r.value; show();
     // (a peak takes its arms and ledges with it, as Size and Behind do: a point is deepened as a whole)
-    if (b.type === 'peak') for (const q of state.blocks) if ((q.type === 'arm' || q.type === 'ledge') && q.x === b.x && q.y === b.y) q.depth = b.depth;
+    if (b.type === 'peak') for (const q of state.blocks) if ((q.type === 'arm' || q.type === 'ledge') && q.x === b.x && q.y === b.y) q.depth = Math.max(b.depth, depthMin(q.type, q.size || 1)); // (its arms no shallower than theirs)
     state.dirty = true; schedule();
   };
   r.onchange = () => save();
@@ -547,7 +547,7 @@ function showSel() {
     el.appendChild(opt('Turn', ROTATIONS, b.rot, (v) => `${v}°`, (v) => { b.rot = v; b.rotSet = true; })); // (yours now: a ridge snapping onto an arm keeps it)
     el.appendChild(opt('Length', b.type === 'ridge' ? [50, 80, 120] : b.type === 'sandbar' ? [100, 160, 240] : [140, 220, 320], b.length, (v) => `${ft(v * (b.size || 1))} ft`, (v) => { b.length = v; }));
   }
-  el.appendChild(opt('Size', SIZES.map(([z]) => z), b.size || 1, (v) => SIZES.find(([z]) => z === v)[1], (v) => { b.size = v; if (b.type === 'peak') for (const q of state.blocks) if ((q.type === 'arm' || q.type === 'ledge') && q.x === b.x && q.y === b.y) q.size = v; })); // (a peak's size goes to its arms too)
+  el.appendChild(opt('Size', SIZES.map(([z]) => z), b.size || 1, (v) => SIZES.find(([z]) => z === v)[1], (v) => { b.depth = depthForSize(b, v); b.size = v; if (b.type === 'peak') for (const q of state.blocks) if ((q.type === 'arm' || q.type === 'ledge') && q.x === b.x && q.y === b.y) { q.depth = depthForSize(q, v); q.size = v; } })); // (a peak's size goes to its arms too; the depths stay put)
   if (b.type === 'peak' || b.type === 'arm') el.appendChild(opt('Behind', BACKS.map(([k]) => k), b.back || 'flat', (v) => BACKS.find(([k]) => k === v)[1], (v) => { b.back = v; if (b.type === 'peak') for (const q of state.blocks) if (q.type === 'arm' && q.x === b.x && q.y === b.y) q.back = v; })); // (a lagoon behind: broken waves reform and break again inside; a peak's goes to its arms)
   if (b.type !== 'sandbar') el.appendChild(depthSlider(b)); // (deeper reefs for big swells)
   if (b.type === 'sandbar') el.appendChild(opt('Crest', BAR_CRESTS.map(([d]) => d), b.crest, (v) => BAR_CRESTS.find(([d]) => d === v)[1], (v) => { b.crest = v; }));
@@ -686,7 +686,7 @@ window.addEventListener('pageshow', () => { resync(); draw(); });
 window.addEventListener('load', resync);
 // The coast panel: the beach face's slope (the Skeleton Bay research: it sets the hollowness, not the peel). (Reset coast,
 // which straightens it, sits by Clear the reef: the user, 2026-11-25.)
-const BEACH = [[12, 'Steep 1:12'], [20, 'Medium 1:20'], [35, 'Gentle 1:35'], [66.7, 'Flat 1:67']];
+const BEACH = [[6, 'Very steep 1:6'], [12, 'Steep 1:12'], [20, 'Medium 1:20'], [35, 'Gentle 1:35'], [66.7, 'Flat 1:67']];
 function showCoast() {
   const el = $('coast'); el.innerHTML = '';
   const row = document.createElement('div'); row.className = 'row';
