@@ -27,8 +27,8 @@ grant all on t to authenticated, anon;
 select pg_temp.as_user(2);
 select throws_ok($$ select public.create_contest('Nope', wave => 'point', end_minutes => 10, mode => 'open') $$, '42501', 'pro_needed', 'Pro only to host');
 select pg_temp.as_user(1);
-select throws_ok($$ select public.create_contest('C', wave => 'point', end_minutes => 10, mode => 'open', open_format => 'condensed') $$,
-  '22023', 'condensed_later', 'condensed comes later');
+select throws_ok($$ select public.create_contest('C', wave => 'point', end_minutes => 10, mode => 'open', open_format => 'condensed', round_hours => '{24,24}') $$,
+  '22023', 'bad_round_hours', 'condensed: one window (condensed_test)');
 select throws_ok($$ select public.create_contest('C', wave => 'point', end_minutes => 10, mode => 'open', round_hours => '{0}') $$,
   '22023', 'bad_round_hours', 'a round is at least an hour');
 select throws_ok($$ select public.create_contest('C', wave => 'point', end_minutes => 10, mode => 'open', round_hours => '{24,24,24,24,24,24}') $$,

@@ -11,6 +11,8 @@
 // (invite by username, or anyone with the link), how long sign-up stays open, and each round's window. The lobby then
 // has the host's invites, when sign-up closes, and once it's running "Surf your heat" (one try: boot.js starts your
 // clock), who has surfed (never their scores, until the heat closes), and when the round closes.
+// Condensed (step 7): one window for every round. The lobby lists your rounds (round 1's heat, then a session for each
+// round after), "Surf round N" for the next, and the bracket is played out from them when the window closes.
 import { initAccount, onAccount, currentUser, myProfile, SALES_OPEN } from './account.js';
 import { openPaywall } from './paywall.js';
 import { JERSEYS } from './heat.js';
@@ -35,6 +37,7 @@ export function initLobby(showStep, { inHeat: heat = false, joinStep: js } = {})
   $('go-host').addEventListener('click', (e) => { e.stopPropagation(); openHost(null, 'live'); });
   $('go-open').addEventListener('click', (e) => { e.stopPropagation(); openHost(null, 'open'); });
   $('host-size').addEventListener('change', drawRounds);
+  $('host-format').addEventListener('change', drawRounds);
   $('lobby-invite').addEventListener('submit', (e) => { e.preventDefault(); invite(); });
   $('lobby-surf').addEventListener('click', surf);
   $('join-form').addEventListener('submit', (e) => {
@@ -102,9 +105,18 @@ async function openHost(breakId, mode = 'live') {
 
 // A window for each round the contest could have (from its size), 24 hours by default; the last one is the final.
 function drawRounds() {
-  const box = $('host-rounds'), n = roundsFor(Number($('host-size').value) || 8);
+  const condensed = $('host-format').value === 'condensed'; // (Condensed: one window for them all)
+  const box = $('host-rounds'), n = condensed ? 1 : roundsFor(Number($('host-size').value) || 8);
   const kept = [...box.querySelectorAll('select')].map((x) => x.value);
   box.innerHTML = '';
+  $('host-rounds-label').textContent = condensed ? 'Every round surfed within' : 'Each round lasts';
+  if (condensed) {
+    const sel = h('select', { ariaLabel: 'The window' });
+    for (const [v, label] of ROUND_HOURS) sel.add(new Option(label, v));
+    sel.value = kept[0] || '24';
+    box.append(h('span', { textContent: 'The window' }), sel);
+    return;
+  }
   for (let r = 1; r <= n; r++) {
     const sel = h('select', { ariaLabel: `Round ${r}` });
     for (const [v, label] of ROUND_HOURS) sel.add(new Option(label, v));
@@ -119,7 +131,7 @@ async function create() {
   try {
     const c = await createContest({ name: $('host-name').value.trim(), wave: kind === 'wave' ? id : null, breakId: kind === 'break' ? id : null,
       length: $('host-len').value, size: $('host-size').value, visibility: $('host-public').checked ? 'public' : 'unlisted',
-      ...(hostMode === 'open' ? { mode: 'open', entry: $('host-entry').value, signupHours: Number($('host-signup').value),
+      ...(hostMode === 'open' ? { mode: 'open', format: $('host-format').value, entry: $('host-entry').value, signupHours: Number($('host-signup').value),
         roundHours: [...$('host-rounds').querySelectorAll('select')].map((x) => Number(x.value)) } : {}) });
     const p = await myProfile().catch(() => null);
     await joinContest(c.code, p ? null : savedNickname() || 'Host'); // (the host surfs too, as their handle; Leave to just run it)
@@ -183,7 +195,7 @@ function render() {
   const mine = uid ? d?.entrants.find((e) => e.user_id === uid) : undefined; // (a watcher's view has no user ids)
   $('lobby-name').textContent = p.name;
   const open = p.mode === 'open';
-  $('lobby-what').textContent = `${open ? 'Open · ' : ''}${spotName(p)} · ${open ? `${p.end_minutes ? `${Number(p.end_minutes)} min` : `${p.end_waves} wave`} heats · ${roundsText(p.round_hours)}` : lengthName(p)}${p.host_handle ? ` · hosted by @${p.host_handle}` : ''}`;
+  $('lobby-what').textContent = `${open ? 'Open · ' : ''}${spotName(p)} · ${open ? `${p.end_minutes ? `${Number(p.end_minutes)} min` : `${p.end_waves} wave`} heats · ${p.open_format === 'condensed' ? `every round in ${roundsText(p.round_hours).replace(' a round', '')}` : roundsText(p.round_hours)}` : lengthName(p)}${p.host_handle ? ` · hosted by @${p.host_handle}` : ''}`;
   // who's in
   const list = $('lobby-list'); list.innerHTML = '';
   if (d) {
@@ -316,7 +328,8 @@ function renderOpen(me, d, p, mine, isHost, lobby, count) {
   const where = my ? (d.final ? (d.rounds > 1 ? 'The final' : 'Your heat') : `Round ${my.round}, heat ${my.number}`) : '';
   const left = my?.window_ends_at ? timeLeft(Date.parse(my.window_ends_at) - Date.now()) : '';
   if (me.msgKept) return;
-  if (!mine) { say('lobby-msg', 'This contest has started. Each round\'s scores show here when it closes.'); return; }
+  if (!mine) { say('lobby-msg', d?.condensed || c.open_format === 'condensed' ? 'This contest has started. The bracket is played out when its window closes.' : 'This contest has started. Each round\'s scores show here when it closes.'); return; }
+  if (d.condensed) { renderCondensed(me, d, mine, c, left); return; }
   if (my?.state === 'done') {
     say('lobby-msg', entry?.advanced ? "You're through! The next round opens as soon as every heat of this one has closed." : "You're out. Follow the rest of the bracket here.");
     return;
@@ -333,10 +346,29 @@ function renderOpen(me, d, p, mine, isHost, lobby, count) {
   else say('lobby-msg', 'You missed the window for this heat.');
 }
 
+// Condensed: your rounds, in order, and the next to surf. The bracket waits for the window (or for everyone's last round).
+function renderCondensed(me, d, mine, c, left) {
+  const roundName = (r) => (r === d.rounds && d.rounds > 1 ? 'the final' : d.rounds > 1 ? `round ${r}` : 'your heat');
+  const cap = (s) => s[0].toUpperCase() + s.slice(1);
+  const short = (r) => (r === d.rounds && d.rounds > 1 ? 'Final' : `Round ${r}`);
+  const marks = d.path.map((x) => `${short(x.round)}${myOpenHeat(x, x.heat_entries.find((e) => e.entrant_id === mine.id), c) === 'done' ? ' ✓' : ''}`);
+  const my = d.heat, st = myOpenHeat(my, my?.heat_entries.find((x) => x.entrant_id === mine.id), c);
+  say('lobby-when', `${marks.join(' · ')} · closes in ${left}`);
+  me.fresh = st === 'ready';
+  if (st === 'ready') {
+    $('lobby-surf').textContent = `Surf ${roundName(my.round)}`; $('lobby-surf').hidden = false;
+    say('lobby-msg', `One try for each round, in order: ${d.rounds} in this window, ${lengthName(c)} each. When it closes the bracket is played out from them, so a round you don't get through to doesn't count. Nobody sees scores until then.`);
+  } else if (st === 'on') {
+    $('lobby-surf').textContent = `Back to ${roundName(my.round)}`; $('lobby-surf').hidden = false;
+    say('lobby-msg', `${cap(roundName(my.round))} is on: ${timeLeft(Date.parse(my.heat_entries.find((x) => x.entrant_id === mine.id).started_at) + heatSeconds(c) * 1000 - Date.now())} to the horn.`);
+  } else if (st === 'done') say('lobby-msg', `You've surfed every round. The bracket is played out when the window closes (in ${left} at the latest), or once everyone has surfed theirs.`);
+  else say('lobby-msg', 'The window has closed: the bracket is being played out.');
+}
+
 function surf() {
   const me = L; if (!me) return;
   const c = me.data?.contest || me.preview;
-  if ($('lobby-surf').textContent === 'Surf your heat'
+  if (($('lobby-surf').textContent === 'Surf your heat' || (me.data?.condensed && me.fresh))
       && !confirm(`One try: once you start, your ${lengthName(c)} heat runs even if you leave or reload. Ready?`)) return;
   location.href = `${contestLink(me.code)}&go${new URLSearchParams(location.search).has('auto') ? '&auto' : ''}`;
 }

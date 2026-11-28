@@ -53,6 +53,7 @@ if (code && (q.has('go') || q.has('heat'))) {
         code, contestId: r.contest.id, heatId: r.heat.id, entrantId: mine.id, name: mine.name, open,
         startsAt: open ? mineStart : r.heat.starts_at, endsAt: open ? new Date(Date.parse(mineStart) + heatSeconds(r.contest) * 1000).toISOString() : r.heat.ends_at,
         bracket: r.contest.format === 'bracket', round: r.heat.round, heatNo: r.heat.number, final: r.final,
+        condensed: r.condensed, rounds: r.rounds, // (Condensed: this round's session, step 7)
         entrants: entries.filter((x) => !open || x.entrant_id === mine.id).map((x) => ({ id: x.entrant_id, jersey: x.jersey, name: r.entrants.find((e) => e.id === x.entrant_id)?.name || '?' })),
         // your waves already scored in it (a reload mid-heat): you carry on from the next wave of the set, not the first
         ridden: r.rides.filter((x) => x.heat_id === r.heat.id && x.entrant_id === mine.id).map((x) => ({ n: x.wave_no, score: Number(x.score), at: (Date.parse(x.caught_at) - Date.parse(open ? mineStart : r.heat.starts_at)) / 1000 })),

@@ -859,7 +859,7 @@ function showResults() {
     if (open && !H.final && !H.saving) { H.saving = true; saving.then(() => { H.final = true; if (state === 'results') showResults(); }); }
   }
   const place = H.mine?.place || me.place, round = LIVE?.bracket && !LIVE.final; // (a bracket round before the final)
-  $('results-title').textContent = open ? 'Heat surfed' : waiting ? 'Waiting…' : round ? (H.mine?.advanced ? "You're through!" : 'Knocked out') : place === 1 ? 'You win!' : `${ordinal(place)} place`;
+  $('results-title').textContent = open ? (LIVE.condensed ? `${LIVE.final ? (LIVE.rounds > 1 ? 'Final' : 'Heat') : `Round ${LIVE.round}`} surfed` : 'Heat surfed') : waiting ? 'Waiting…' : round ? (H.mine?.advanced ? "You're through!" : 'Knocked out') : place === 1 ? 'You win!' : `${ordinal(place)} place`;
   $('results').classList.toggle('waiting', waiting);
   $('results-go').innerHTML = !H.live ? '<span class="desk">Space for a new heat</span><span class="mob">Tap for a new heat</span>'
     : open && !H.final ? 'Saving your waves…'
@@ -869,7 +869,8 @@ function showResults() {
     : '<span class="desk">Space to go back to the contest</span><span class="mob">Tap to go back to the contest</span>';
   const guest = H.live && H.final && currentUser()?.is_anonymous;
   $('results-claim').hidden = !guest;
-  $('results-sub').textContent = `${LIVE?.bracket && LIVE.round > 1 && LIVE.final ? 'Final · ' : LIVE?.bracket && !LIVE.final ? `Round ${LIVE.round} · Heat ${LIVE.heatNo} · ` : ''}${H.end.minutes ? `${H.end.minutes} min heat` : `${H.end.waves} wave heat`} · ${WAVE.name}${open ? ' · everyone\'s scores come out when the round closes' : ''}`;
+  $('results-sub').textContent = `${LIVE?.condensed ? (LIVE.final ? (LIVE.rounds > 1 ? 'Final · ' : '') : `Round ${LIVE.round} of ${LIVE.rounds} · `) // (Condensed: a session, no heat number yet)
+    : LIVE?.bracket && LIVE.round > 1 && LIVE.final ? 'Final · ' : LIVE?.bracket && !LIVE.final ? `Round ${LIVE.round} · Heat ${LIVE.heatNo} · ` : ''}${H.end.minutes ? `${H.end.minutes} min heat` : `${H.end.waves} wave heat`} · ${WAVE.name}${open ? (LIVE.condensed ? ' · the bracket is played out when the window closes' : ' · everyone\'s scores come out when the round closes') : ''}`;
   $('results-rows').innerHTML = st.map((r) => `<div class="rr${r.surfer.you ? ' you' : ''}"><span class="pl">${open ? '' : r.place}</span><i style="background:${r.surfer.jersey.color}"></i><span class="nm">${r.surfer.name}</span><span class="bt">${r.top.map(f2).join(' + ') || '-'}</span><b>${f2(r.total)}</b></div>`).join('');
   const best = heatYou(H).waves.filter((w) => w.ride).sort((a, b) => b.score - a.score)[0];
   $('results-watch').hidden = !best;

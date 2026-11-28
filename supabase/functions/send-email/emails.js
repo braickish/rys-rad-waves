@@ -61,7 +61,13 @@ WORDS.contest_invite = (e) => ({
 // ("round 1", "the final"), e.closes, e.link (the lobby), e.recap, and for results e.place, e.total, e.surfed,
 // e.advanced, e.winner, e.final, e.next ({ round, closes }).
 const OFF = 'You get these because you entered an Open contest. Turn them off on your account page: rysradwaves.com/account.html';
-WORDS.contest_round_open = (e) => ({
+WORDS.contest_round_open = (e) => (e.condensed ? {
+  subject: `${e.contest} is open`,
+  title: 'Your rounds are open',
+  lines: [`${e.contest} at ${e.spot} is open. Surf a ${e.heat} session for each of its ${e.rounds} rounds, in order, any time before ${e.closes}.`,
+    'One try each. When the window closes the bracket is played out from your sessions: a round you don\'t get through to doesn\'t count.'],
+  button: 'Surf round 1', expiry: '', ignore: OFF,
+} : {
   subject: `${e.contest}: round 1 is open`,
   title: 'Your heat is open',
   lines: [`Round 1 of ${e.contest} at ${e.spot} is open. Surf your ${e.heat} heat any time before ${e.closes}.`,
@@ -71,17 +77,19 @@ WORDS.contest_round_open = (e) => ({
 WORDS.contest_closing_soon = (e) => ({
   subject: `${e.contest}: your heat closes soon`,
   title: 'Last call',
-  lines: [`You haven't surfed your heat in ${e.which} of ${e.contest} yet. The window closes ${e.closes}.`,
-    'Miss it and you score nothing for the heat.'],
-  button: 'Surf your heat', expiry: '', ignore: OFF,
+  lines: [e.condensed ? `You haven't surfed all your rounds of ${e.contest} yet: ${e.which} is next. The window closes ${e.closes}.`
+    : `You haven't surfed your heat in ${e.which} of ${e.contest} yet. The window closes ${e.closes}.`,
+    e.condensed ? 'A round you miss scores nothing, if you get through to it.' : 'Miss it and you score nothing for the heat.'],
+  button: e.condensed ? `Surf ${e.which}` : 'Surf your heat', expiry: '', ignore: OFF,
 });
 WORDS.contest_results = (e) => {
-  const lead = !e.surfed ? `You didn't surf your heat in ${e.which}, so it counted as 0.`
+  const lead = e.condensed && !e.final ? (e.surfed ? `The bracket is played out: you went out in ${e.which}, ${e.place} in your heat with ${e.total}.` : `The bracket is played out: you went out in ${e.which}, which you didn't surf.`)
+    : !e.surfed ? `You didn't surf your heat in ${e.which}, so it counted as 0.`
     : e.final ? (e.place === '1st' ? `You won ${e.contest}! ${e.total} in the final.` : `You came ${e.place} in the final with ${e.total}.`)
     : e.advanced ? `You're through! ${e.place} in your heat with ${e.total}.` : `You're out: ${e.place} in your heat with ${e.total}.`;
   return {
-    subject: e.final ? `${e.contest}: the results are in` : `${e.contest}: ${e.which} results`,
-    title: e.final ? (e.winner ? `${e.winner} wins` : 'The results') : `${e.which[0].toUpperCase()}${e.which.slice(1)} is done`,
+    subject: e.final || e.condensed ? `${e.contest}: the results are in` : `${e.contest}: ${e.which} results`,
+    title: e.final ? (e.winner ? `${e.winner} wins` : 'The results') : e.condensed ? 'The bracket is played out' : `${e.which[0].toUpperCase()}${e.which.slice(1)} is done`,
     lines: [lead,
       'Watch the recap: everyone\'s waves from your heat, side by side, as if you\'d all surfed it together.',
       ...(e.next ? [`Round ${e.next.round} is open now: surf your heat before ${e.next.closes}.`] : [])],

@@ -42,9 +42,10 @@ export async function ensureSession() {
 
 // Open contests (plans/2026-11-27-open-contests.md): mode 'open', a window for each round (hours), invite or open
 // entry, and how long sign-up stays open (hours).
-export const createContest = ({ name, wave, breakId, length, size = 8, visibility, mode = 'live', roundHours, entry, signupHours }) => {
+// Condensed (step 7): format 'condensed', one window (roundHours: [hours]) for every round.
+export const createContest = ({ name, wave, breakId, length, size = 8, visibility, mode = 'live', format = 'rounds', roundHours, entry, signupHours }) => {
   const [n, unit] = [parseFloat(length), length.slice(-1)];
-  const open = mode === 'open' ? { mode, open_format: 'rounds', round_hours: roundHours, entry, signup_hours: signupHours } : {};
+  const open = mode === 'open' ? { mode, open_format: format, round_hours: roundHours, entry, signup_hours: signupHours } : {};
   return rpc('create_contest', { name, wave: wave || null, break_id: breakId || null,
     end_minutes: unit === 'm' ? n : null, end_waves: unit === 'w' ? n : null, max_entrants: Number(size) || 8, visibility: visibility || 'unlisted', ...open });
 };
@@ -101,24 +102,36 @@ export const cancelContest = (id) => rpc('cancel_contest', { contest_id: id });
 // The contest as an entrant or host reads it: the row, its entrants (in joining order), every heat (by round and number,
 // with who's in each, their jerseys and results), and yours: the latest heat you're in. null when you can't read it
 // (not in it, and it isn't public).
+// Condensed (step 7): `heats` is the bracket; `path` is yours while it runs: your round 1 heat, then your session for each
+// round after (heats.session_of: you), and `heat` the one to surf next (or the last).
 export async function readContest(id) {
   const c = await initAccount();
   const [{ data: contest, error }, { data: entrants }, { data: heats }] = await Promise.all([
     c.from('contests').select('*').eq('id', id).maybeSingle(),
     c.from('entrants').select('id, user_id, name, guest, joined_at, seed_rank').eq('contest_id', id).order('joined_at'),
-    c.from('heats').select('id, round, number, seed, starts_at, ends_at, window_ends_at, state, heat_entries(entrant_id, jersey, place, total, advanced, started_at, finished_at)')
+    c.from('heats').select('id, round, number, seed, starts_at, ends_at, window_ends_at, state, session_of, heat_entries(entrant_id, jersey, place, total, advanced, started_at, finished_at)')
       .eq('contest_id', id).order('round').order('number'),
   ]);
   if (error) throw error;
   if (!contest) return null;
-  const all = heats || [];
+  const all = (heats || []).filter((h) => !h.session_of), sessions = (heats || []).filter((h) => h.session_of);
   const me = (entrants || []).find((e) => e.user_id === currentUser()?.id);
   const mine = me ? all.filter((h) => h.heat_entries.some((x) => x.entrant_id === me.id)) : [];
-  const heat = mine[mine.length - 1] || null;
+  let heat = mine[mine.length - 1] || null;
   const inRound = (r) => all.filter((h) => h.round === r).length;
+  const condensed = contest.mode === 'open' && contest.open_format === 'condensed';
+  const rounds = Math.max(0, ...(heats || []).map((h) => h.round));
+  const path = condensed && me && contest.state === 'running'
+    ? [...mine.filter((h) => h.round === 1), ...sessions.filter((h) => h.session_of === me.id)].sort((a, b) => a.round - b.round) : [];
+  if (path.length) {
+    const yet = (h) => { const x = h.heat_entries.find((e) => e.entrant_id === me.id); return h.state === 'live' && !x?.finished_at && (!x?.started_at || Date.now() < Date.parse(x.started_at) + heatSeconds(contest) * 1000); };
+    heat = path.find(yet) || path[path.length - 1];
+  }
   // the scored waves, so a live heat's totals show before it closes (heat_entries.total is written at the close)
-  const { data: rides } = all.length ? await c.from('rides').select('heat_id, entrant_id, wave_no, score, caught_at, replay_path').in('heat_id', all.map((h) => h.id)) : { data: [] };
-  return { contest, entrants: entrants || [], heats: all, rides: rides || [], heat, final: !!heat && inRound(heat.round) === 1, rounds: Math.max(0, ...all.map((h) => h.round)) };
+  const ids = [...all, ...sessions.filter((h) => h.session_of === me?.id)].map((h) => h.id);
+  const { data: rides } = ids.length ? await c.from('rides').select('heat_id, entrant_id, wave_no, score, caught_at, replay_path').in('heat_id', ids) : { data: [] };
+  return { contest, entrants: entrants || [], heats: all, rides: rides || [], heat, condensed, path,
+    final: !!heat && (path.length ? heat.round === rounds : inRound(heat.round) === 1), rounds };
 }
 
 // Watching a contest you're not in (the lobby, once it's started): anyone with the code, signed in or not, read-only.
@@ -212,6 +225,7 @@ const WORDS = {
   window_closed: 'The window for this heat has closed.',
   heat_done: "You've already surfed this heat.",
   heat_not_started: "This heat hasn't opened yet.",
+  surf_in_order: 'Surf your rounds in order: finish the one before first.',
   checks_pending: 'Checking the waves: results soon.',
   bad_round_hours: 'Pick how long each round lasts.',
   bad_signup_hours: 'Pick how long sign-up stays open.',

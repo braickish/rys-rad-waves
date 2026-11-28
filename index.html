@@ -297,9 +297,10 @@
         <label for="host-len">How long (each heat)</label><select id="host-len"></select>
         <label for="host-size">How many</label><select id="host-size"></select>
         <div id="host-open" hidden>
+          <label for="host-format">Format</label><select id="host-format"><option value="rounds">A window for each round</option><option value="condensed">Condensed: every round in one window</option></select>
           <label for="host-entry">Who can enter</label><select id="host-entry"><option value="invite">Invite by username</option><option value="open">Anyone with the link</option></select>
           <label for="host-signup">Sign-up open for</label><select id="host-signup"></select>
-          <label>Each round lasts</label><div id="host-rounds" class="rounds"></div>
+          <label id="host-rounds-label">Each round lasts</label><div id="host-rounds" class="rounds"></div>
         </div>
         <label for="host-name">Name</label><input id="host-name" maxlength="40" autocomplete="off" required>
         <label class="check"><input id="host-public" type="checkbox"> Public: results show on profiles</label>

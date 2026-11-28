@@ -19,7 +19,7 @@ const ordinal = (n: number) => n + (n % 10 === 1 && n % 100 !== 11 ? 'st' : n % 
 
 type Notice = {
   id: string; kind: string; email: string; handle: string | null;
-  contest: { code: string; name: string; state: string; spot: string; end_minutes: number | null; end_waves: number | null };
+  contest: { code: string; name: string; state: string; condensed?: boolean; rounds?: number; spot: string; end_minutes: number | null; end_waves: number | null };
   heat: { id: string; round: number; number: number; window_ends_at: string; final: boolean };
   me: { place: number | null; total: number | null; advanced: boolean | null; surfed: boolean } | null;
   winner: string | null; next: { round: number; window_ends_at: string } | null;
@@ -30,7 +30,7 @@ export function noticeEmail(n: Notice) {
   const heat = c.end_minutes ? `${Number(c.end_minutes)} minute` : `${c.end_waves} wave`;
   const which = n.heat.final ? 'the final' : `round ${n.heat.round}`;
   return buildEmail({
-    kind: `contest_${n.kind}`, email: n.email, contest: c.name, spot: SPOTS[c.spot] || c.spot, heat, which, link,
+    kind: `contest_${n.kind}`, email: n.email, contest: c.name, spot: SPOTS[c.spot] || c.spot, heat, which, link, condensed: !!c.condensed, rounds: c.rounds || 1,
     closes: when(n.heat.window_ends_at), recap: `${GAME}index.html?recap=${encodeURIComponent(c.code)}&heat=${n.heat.id}`,
     place: n.me?.place ? ordinal(n.me.place) : null, total: n.me?.total != null ? Number(n.me.total).toFixed(2) : null,
     surfed: !!n.me?.surfed, advanced: n.me?.advanced ?? null, winner: n.winner, final: n.heat.final,

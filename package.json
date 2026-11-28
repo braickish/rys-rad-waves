@@ -25,7 +25,8 @@
     "test:stripe": "node test/stripe.mjs",
     "test:watch-browser": "node test/watch-browser.mjs",
     "test:heat-reload-browser": "node test/heat-reload-browser.mjs",
-    "test:open-browser": "node test/open-browser.mjs"
+    "test:open-browser": "node test/open-browser.mjs",
+    "test:condensed-browser": "node test/condensed-browser.mjs"
   },
   "devDependencies": {
     "supabase": "2.120.0"
