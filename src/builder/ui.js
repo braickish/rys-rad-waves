@@ -510,6 +510,7 @@ function refine() {
   if (!state.rays || (state.wave && state.wave.right && state.wave.right.refined)) return;
   const t0 = performance.now();
   const pe = runPE(state.grid, state.swell);
+  state.rays = traceRays(state.grid, state.swell, { pe }); // (the rays again, breaking only where the height model does: rays.js)
   state.wave = analyse(state.rays, state.grid, { pe, sharp: state.edges === 'sharp' }); repick();
   state.peMs = performance.now() - t0;
   fitLoop(); showResults(); draw();

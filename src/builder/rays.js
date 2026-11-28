@@ -48,7 +48,19 @@ function kOf(h, T) {
 }
 
 // Trace one crest across the grid. swell: { H, T, dir } (dir: degrees off straight in, + from up-coast).
-export function traceRays(grid, swell) {
+// With `pe` (the height model, pewave.js runPE on the same grid): a ray only breaks the first time where the height model
+// has the waves breaking on its line too, at or offshore of that spot (a cell or two of slack: PE_SLACK). The rays
+// over-read focusing: on Ehukai (the user, 2026-11-28) four rays reached 0.80 h over an outer peak 10 m down, where the
+// height model's waves stay under 0.4 h; broken there, they lost their height, counted as the wave, and hid the inside
+// peak everything really breaks on. Gated, a ray focusing over a deep reef carries on unbroken, its energy kept.
+export const PE_SLACK = 8; // (m)
+export function peBreakLine(grid, pe) { // (per grid row: where the height model's set waves first break, Hs / h >= 0.47)
+  const { Hs, M } = pe, d = grid.depth, xs = new Float64Array(grid.N).fill(Infinity);
+  for (let j = 0; j < grid.N; j++) for (let i = 0; i < M; i++) { const h = d[j * M + i]; if (h > 0.3 && Hs[j * M + i] / h >= 0.47) { xs[j] = grid.x0 + (i + 0.5) * grid.dx; break; } }
+  return (y) => xs[Math.min(grid.N - 1, Math.max(0, Math.round((y - grid.y0) / grid.dx - 0.5)))];
+}
+export function traceRays(grid, swell, { pe = null } = {}) {
+  const peX = pe ? peBreakLine(grid, pe) : null;
   const { M, N, dx, x0: gx0, y0: gy0 } = grid;
   const hs = blur(grid.depth.map((d) => Math.max(d, 0.05)), M, N, 3 / dx); // (a little smoothing: rays hate grid noise)
   const T = swell.T, w = 2 * Math.PI / T;
@@ -118,7 +130,7 @@ export function traceRays(grid, swell) {
       const Kr = Math.sqrt(Math.min(6.25, Math.max(0, b0 / Math.max(b, 1e-3))));
       const h = samp(hs, x[r], y[r]);
       H[r] = swell.H * Math.sqrt(cg0 / look(cgT, h)) * Kr;
-      if (H[r] >= RAYS.gamma * h || h < 0.3) { tb[r] = t; xb[r] = x[r]; yb[r] = y[r]; hb[r] = h; Hb[r] = H[r]; cb[r] = samp(C, x[r], y[r]);
+      if ((H[r] >= RAYS.gamma * h && !(peX && x[r] < peX(y[r]) - PE_SLACK)) || h < 0.3) { tb[r] = t; xb[r] = x[r]; yb[r] = y[r]; hb[r] = h; Hb[r] = H[r]; cb[r] = samp(C, x[r], y[r]);
         sb[r] = -(samp(Hx, x[r], y[r]) * Math.cos(th[r]) + samp(Hy, x[r], y[r]) * Math.sin(th[r])); thb[r] = th[r]; // (the bottom rising in the wave's direction)
         alive[r] = 0; nAlive--;
         ev.push({ r, k: 0, t, x: x[r], y: y[r], h, H: H[r], c: cb[r], s: sb[r], th: th[r], from: NaN });
@@ -160,7 +172,7 @@ export function traceRays(grid, swell) {
   // (in the direction the wave is travelling there: `th`, the ray's own at its break, else the swell's mean direction)
   const slopeAt = (x, y, th = th0) => -(samp(Hx, x, y) * Math.cos(th) + samp(Hy, x, y) * Math.sin(th));
   const depthAt = (x, y) => samp(h4, x, y); // (the smoothed depth, for the step up a wave breaks on: analyse `step`)
-  return { tb, xb, yb, hb, Hb, cb, sb, thb, ev, crests, n, H0: swell.H, L0, slopeAt, depthAt };
+  return { tb, xb, yb, hb, Hb, cb, sb, thb, ev, crests, n, H0: swell.H, L0, slopeAt, depthAt, swell, gated: !!pe };
 }
 
 // When each 4 m strip along the reef first breaks (5-strip running median), then from the earliest spot (the peak) both
@@ -183,6 +195,7 @@ export function traceRays(grid, swell) {
 // { name (A, B, ..), tier ('outside' | 'inside'), peak, right, left }.
 export function analyse(R, grid, opts = {}) {
   const { binM = 4, sharp = false } = opts;
+  if (opts.pe && !R.gated && R.swell) R = traceRays(grid, R.swell, { pe: opts.pe }); // (refined: the rays again, gated by the height model)
   // (sharp reef edges, the user, 2026-11-24: the readings follow the reef more closely, so its sudden changes show: a running
   // median over 3 strips (12 m) instead of 5 (20 m); downstream (loop.js) the curl's speed over 20 m instead of 40 and how it
   // breaks over +-10 m instead of +-20, read off `sharp` on each side)
