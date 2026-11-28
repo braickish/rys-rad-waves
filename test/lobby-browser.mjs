@@ -26,9 +26,9 @@ const msg = (id) => `document.getElementById('${id}').textContent`;
 
 // 1. A guest can't host; a wrong code.
 await B.go(`${B.base}?wave=point`); await ready(B);
-await B.evaluate(`document.getElementById('go-compete').click(); document.getElementById('go-live').click(); document.getElementById('go-host').click()`);
+await B.evaluate(`document.getElementById('go-compete').click(); document.getElementById('go-host').click()`);
 check(/Log in or sign up below/.test(await B.waitFor(`/Log in/.test(${msg('host-msg')}) && ${msg('host-msg')}`, 15000) || ''), 'signed out: hosting asks you to sign in');
-await B.evaluate(`document.getElementById('step-back').click(); document.getElementById('step-back').click(); document.getElementById('join-code').value = 'ZZZZZZ'; document.getElementById('join-form').requestSubmit()`);
+await B.evaluate(`document.getElementById('step-back').click(); document.getElementById('join-code').value = 'ZZZZZZ'; document.getElementById('join-form').requestSubmit()`);
 check(/No contest has that code/.test(await B.waitFor(`!document.getElementById('compete-msg').hidden && ${msg('compete-msg')}`, 15000) || ''), 'a wrong code says so');
 
 // 2. The host: a Pro member with a handle.
@@ -42,7 +42,7 @@ await post('profiles', { id: uid, handle });
 await post('entitlements', { user_id: uid, kind: 'pro', source: 'grant', expires_at: new Date(Date.now() + 30 * 864e5).toISOString(), note: 'test' });
 const brk = await post('breaks', { owner: uid, name: 'Test Bombie', design: {}, ride: { peaks: [1] }, visibility: 'private' });
 await A.go(`${A.base}?wave=point`); await ready(A);
-await A.evaluate(`document.getElementById('go-compete').click(); document.getElementById('go-live').click(); document.getElementById('go-host').click()`);
+await A.evaluate(`document.getElementById('go-compete').click(); document.getElementById('go-host').click()`);
 check(!!(await A.waitFor(`${shown('host-form')} && document.getElementById('host-name').value === '${handle}\\'s contest' && document.querySelectorAll('#host-spot option').length === 4`, 15000)),
   'Host a contest: the form, named for you, the three waves and your break');
 await A.evaluate(`document.getElementById('host-spot').value = 'wave:reef'; document.getElementById('host-len').value = '5w'; document.getElementById('host-form').requestSubmit()`);

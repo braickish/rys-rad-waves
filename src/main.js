@@ -430,23 +430,21 @@ $('over').addEventListener('pointerdown', (e) => { e.preventDefault(); startOrRe
 $('judge').addEventListener('pointerdown', (e) => { e.preventDefault(); startOrRestart(); });
 $('start').addEventListener('click', (e) => { e.preventDefault(); startOrRestart(); });
 // The landing: three ways in. Free surf lists every break (and yours, signed in) with DROP IN; Build a break is a link to
-// the builder; Compete offers Solo (a heat against bots: the waves, then Start heat with its length), Live (host a contest
-// a contest, task 11) and Open (coming soon, the user 2026-11-27: 24 hours to surf and score), with the code box under
+// the builder; Compete offers Solo (a heat against bots: the waves, then Start heat with its length), Live (straight to
+// hosting a contest, task 11) and Open (coming soon, the user 2026-11-27: 24 hours to surf and score), with the code box under
 // them for joining either kind. A heat is set up as the page loads, so a heat link (?heat=) opens straight on Solo, and Free
 // surf from there reloads without it (?menu=surf opens Free surf). A link that lands on a locked wave, or on a saved
 // break, opens Free surf.
 let step = null;
-const STEPS = { surf: 'Free surf', compete: 'Compete', live: 'Live', solo: 'Solo heat', host: 'Host a contest', lobby: 'Contest', join: 'Join a contest' };
+const STEPS = { surf: 'Free surf', compete: 'Compete', solo: 'Solo heat', host: 'Host a contest', lobby: 'Contest', join: 'Join a contest' };
 function showStep(which) {
   if (step === 'lobby' && which !== 'lobby') leaveLobby();
   step = which;
   $('home').hidden = !!which; $('step').hidden = !which;
   if (!which) return;
   $('step-title').textContent = STEPS[which];
-  $('compete-menu').hidden = !['compete', 'live', 'join'].includes(which);
-  $('go-solo').hidden = $('go-live').hidden = $('open-soon').hidden = which !== 'compete'; // (Compete: Solo, Live, Open)
-  $('go-host').hidden = which !== 'live'; // (Live: Host a contest)
-  $('join-form').hidden = which === 'live'; // (the code box: on Compete, for live and open contests; Join: just it, for anyone)
+  $('compete-menu').hidden = which !== 'compete' && which !== 'join';
+  $('go-solo').hidden = $('go-host').hidden = $('open-soon').hidden = which === 'join'; // (Compete: Solo, Live (go-host: straight to hosting), Open, and the code box for live and open contests; Join: just the code box, for anyone)
   $('host-form').hidden = which !== 'host';
   $('lobby').hidden = which !== 'lobby';
   $('waves').hidden = which !== 'surf' && which !== 'solo';
@@ -481,7 +479,6 @@ $('go-code').addEventListener('click', (e) => { e.stopPropagation(); showStep('j
 $('go-surf').addEventListener('click', (e) => { e.stopPropagation(); if (HEAT_END) leaveHeat(); else showStep('surf'); });
 $('go-compete').addEventListener('click', (e) => { e.stopPropagation(); if (!proDoor('go-compete', e)) showStep('compete'); });
 $('go-solo').addEventListener('click', (e) => { e.stopPropagation(); showStep('solo'); });
-$('go-live').addEventListener('click', (e) => { e.stopPropagation(); showStep('live'); });
 $('open-soon').addEventListener('click', (e) => e.stopPropagation()); // (coming soon: a tap does nothing, and doesn't start a ride)
 // Start heat (Solo): the length from the dropdown (remembered). A heat is set up as the page loads, so a new length
 // reloads with ?heat=<length>&play; the heat that's already set up just starts.
@@ -503,7 +500,7 @@ const HEAT_LEN_KEY = 'rys-rad-waves-heat-len';
     location.href = u.href.replace(/play=(&|$)/, 'play$1');
   });
 }
-$('step-back').addEventListener('click', (e) => { e.stopPropagation(); showStep(['solo', 'live'].includes(step) || (step === 'lobby' && !doorsLocked) ? 'compete' : step === 'host' ? 'live' : null); });
+$('step-back').addEventListener('click', (e) => { e.stopPropagation(); showStep(['solo', 'host'].includes(step) || (step === 'lobby' && !doorsLocked) ? 'compete' : null); });
 for (const id of ['home', 'step']) $(id).addEventListener('pointerdown', (e) => e.stopPropagation());
 showStep(HEAT_END ? 'solo' : params.get('menu') === 'surf' || params.has('break') ? 'surf' : null); // (set up as the page starts, so the buttons work before the game has loaded)
 initLobby(showStep, { inHeat: !!HEAT_END, joinStep: () => (doorsLocked ? 'join' : 'compete') }); // (Compete > Live's Host and Join, and the lobby: src/lobby.js; ?contest= and ?host= open them)
