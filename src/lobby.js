@@ -1,4 +1,4 @@
-// Hosting and joining contests on the title screen (accounts plan task 11), under Compete live:
+// Hosting and joining contests on the title screen (accounts plan task 11), under Compete > Live:
 //   Host a contest  Pro: where (one of the game's waves or a saved break), how long, a name, public or not. The host is
 //                   entered too (they can leave and just run it). From the builder, ?host=<break id> opens this with
 //                   that break picked.
@@ -23,7 +23,7 @@ let show = () => {};
 let inHeat = false;
 let L = null; // the open lobby: { code, id, preview, data, live, present, timers }
 
-let joinStep = () => 'compete'; // (where the code box is: Compete live, or for players without Pro the Join step)
+let joinStep = () => 'compete'; // (where the code box is: Compete, or for players without Pro the Join step)
 export function initLobby(showStep, { inHeat: heat = false, joinStep: js } = {}) {
   show = showStep; inHeat = heat; if (js) joinStep = js;
   for (const id of ['host-form', 'lobby', 'join-form']) for (const ev of ['pointerdown', 'click', 'keydown']) $(id).addEventListener(ev, (e) => e.stopPropagation());

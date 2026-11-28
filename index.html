@@ -157,7 +157,7 @@
   .step-head { display: flex; align-items: center; justify-content: center; gap: 10px; margin: -8px 0 12px; }
   .step-head b { font-family: Bungee, sans-serif; font-weight: 400; font-size: 18px; color: var(--yellow); text-shadow: 2px 2px 0 var(--ink); }
   /* Free surf: every break, then yours (the same pills) */
-  /* Compete live: join by code; hosting; the lobby (accounts plan task 11) */
+  /* Compete > Live: join by code; hosting; the lobby (accounts plan task 11) */
   .join-form { display: flex; gap: 8px; justify-content: center; }
   .join-form input { font: 400 18px Bungee, sans-serif; letter-spacing: .12em; text-transform: uppercase; color: var(--ink); background: #fff; border: 3px solid #fff; border-radius: 24px; padding: 8px 14px; width: 150px; text-align: center; }
   #lobby-nick { text-transform: none; letter-spacing: 0; font: 500 16px Rubik, sans-serif; width: 190px; }
@@ -197,6 +197,8 @@
   /* Solo: Start heat, and its length beside it */
   .heat-start { display: flex; flex-direction: column; align-items: center; gap: 6px; }
   .heat-start select { appearance: none; -webkit-appearance: none; font: 700 13px Rubik, sans-serif; color: #fff; background: none; border: 0; padding: 2px 4px; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; text-shadow: 0 1px 0 rgba(0,0,0,.4); text-align: center; text-align-last: center; }
+  .heat-start .soon { font: 700 13px Rubik, sans-serif; text-shadow: 0 1px 0 rgba(0,0,0,.4); opacity: .9; } /* (Open, coming soon: small text under it, like the heat length under Start heat) */
+  .home .start.locked:disabled { cursor: default; }
   .heat-start select option { color: var(--ink); background: #fff; }
   .list-head { font: 400 14px Bungee, sans-serif; color: var(--yellow); text-shadow: 2px 2px 0 var(--ink); margin: 4px 0 10px; }
   .waves button.locked { opacity: .7; border-style: dashed; }
@@ -272,13 +274,15 @@
     <div id="home" class="home">
       <button id="go-surf" type="button" class="start">Free surf</button>
       <a id="go-build" href="builder.html" class="start">Build a break</a>
-      <button id="go-compete" type="button" class="start">Compete live</button>
+      <button id="go-compete" type="button" class="start">Compete</button>
       <button id="go-code" type="button" class="acct-link" hidden>Have a contest code?</button>
     </div>
     <div id="step" hidden>
       <div id="step-head" class="step-head"><button id="step-back" type="button" class="acct-link">← Back</button><b id="step-title"></b></div>
       <div id="compete-menu" class="home" hidden>
         <button id="go-solo" type="button" class="start">Solo</button>
+        <button id="go-live" type="button" class="start">Live</button>
+        <div id="open-soon" class="heat-start"><button id="go-open" type="button" class="start locked" disabled>Open</button><span class="soon">Coming soon: 24 hours to surf and score</span></div>
         <button id="go-host" type="button" class="start">Host a contest</button>
         <form id="join-form" class="join-form"><input id="join-code" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="6" placeholder="CODE" aria-label="Contest code"><button type="submit">Join</button></form>
         <div id="compete-msg" class="heat-note" hidden></div>
