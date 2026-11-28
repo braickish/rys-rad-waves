@@ -55,14 +55,18 @@ export const SIZES = [[1, '1x'], [1.5, '1.5x'], [2.5, '2.5x']];
 // on ~150 m behind its edge and broken waves die across it) or a lagoon (the reef is a narrow ridge falling back into the
 // bay's floor behind its crest, so the broken waves can reform over the deep water and break again on a reef or a bar inside).
 export const BACKS = [['flat', 'Reef flat'], ['lagoon', 'Lagoon']];
+// What's in front of a Peak or an Arm (the user, 2026-11-28): the floor, as always, or deep water down to a depth (m): its
+// face carries on down to it, so a ledge keeps its height wherever it is and a big swell's sets reach the wall (reef.js
+// frontAt). Shown in feet.
+export const FRONTS = [[0, 'Floor'], [6, '20 ft'], [10, '33 ft'], [15, '50 ft']];
 export const blockLength = (b) => (b.length ?? (b.type === 'ledge' ? 100 : 0)) * (b.size || 1); // (an arm's / ledge's / ridge's ... length on the reef)
 export function blockComponents(b) {
   const rad = (d) => d * Math.PI / 180, z = b.size || 1, f = (b.depth || 1) * z; // (z: size, every length and depth; f: depths)
   switch (b.type) {
     // (Slope: the hollowness dial, as the arms'. A lagoon behind: the reef's top runs 20 m behind its edge (an arm's: the width
     // of its slope up to the top, plus 10 m), then falls to the floor over its 40 m fade)
-    case 'peak': return [{ type: 'focus', apex: [b.x, b.y], width_m: 220 * z, tip_radius_m: 20 * z, fade_m: 40 * z, convexity: 0.667, depth_m: 3.0 * f, gradient: slopeName(b.slope), ...(b.back === 'lagoon' ? { back_m: 20 * z } : {}) }];
-    case 'arm': return [{ type: 'wedge', start: [b.x, b.y], side: b.side, length_m: b.length * z, width_m: 200 * z, back_m: b.back === 'lagoon' ? 2 * f / slopeOf(slopeName(b.slope)) + 10 * z : 150 * z, fade_m: 40 * z, gradient: slopeName(b.slope), angle_to_swell_deg: b.angle, depth_m: 3.0 * f, top_depth_m: 1.0 * f }];
+    case 'peak': return [{ type: 'focus', apex: [b.x, b.y], width_m: 220 * z, tip_radius_m: 20 * z, fade_m: 40 * z, convexity: 0.667, depth_m: 3.0 * f, gradient: slopeName(b.slope), ...(b.back === 'lagoon' ? { back_m: 20 * z } : {}), ...(b.front > 0 ? { front_m: b.front } : {}) }];
+    case 'arm': return [{ type: 'wedge', start: [b.x, b.y], side: b.side, length_m: b.length * z, width_m: 200 * z, back_m: b.back === 'lagoon' ? 2 * f / slopeOf(slopeName(b.slope)) + 10 * z : 150 * z, fade_m: 40 * z, gradient: slopeName(b.slope), angle_to_swell_deg: b.angle, depth_m: 3.0 * f, top_depth_m: 1.0 * f, ...(b.front > 0 ? { front_m: b.front } : {}) }];
     case 'ridge': {
       const ux = Math.cos(rad(b.rot)), uy = Math.sin(rad(b.rot)), h = b.length * z / 2;
       return [{ type: 'ridge', points: [[b.x - ux * h, b.y - uy * h], [b.x + ux * h, b.y + uy * h]], depth_m: 2.6 * f, width_m: 35 * z }]; // (2.6 m crest, a little shallower than the arm's 3 m toe: a section the curl still makes; 1.8 m closed out)

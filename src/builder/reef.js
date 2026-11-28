@@ -97,6 +97,34 @@ function compDepth(c, x, y, base, bay) {
   d = Math.min(d, base);
   return base + m * (d - base);
 }
+// Deep water in front (the user, 2026-11-28: a ledge near the beach rose from a shallow floor, so a big swell's sets broke
+// on the floor before reaching it): a peak's or an arm's face carries on down to `front_m` instead of stopping at the
+// floor, then deep water runs `front_w` m out from its foot, easing back to the floor over `front_fade` m. It deepens the
+// floor before the reef pieces go on it (so it never cuts into a reef), and eases out near the shore (where the floor is
+// under ~2-5 m: the beach stays). Returns { t: the depth there, w: how much it applies } or null.
+function frontAt(c, x, y) {
+  const D = c.front_m, gr = slopeOf(c.gradient ?? '1:10');
+  let off, d0, wa;
+  if (c.type === 'focus') {
+    const u = x - c.apex[0], v = y - c.apex[1], k = c.convexity ?? 0.5, r0 = c.tip_radius_m ?? 20;
+    off = -u + 1.5 * k * (Math.sqrt(v * v + r0 * r0) - r0); d0 = c.depth_m; wa = band(v, -c.width_m / 2, c.width_m / 2, c.fade_m ?? 40);
+  } else if (c.type === 'wedge') {
+    const a = c.angle_to_swell_deg * Math.PI / 180, sd = c.side, dX = x - c.start[0], dY = y - c.start[1];
+    const sAlong = dX * Math.sin(a) + dY * sd * Math.cos(a);
+    off = -dX * Math.cos(a) + dY * sd * Math.sin(a);
+    d0 = c.depth_m + ((c.end_depth_m ?? c.depth_m) - c.depth_m) * Math.min(1, Math.max(0, sAlong / c.length_m));
+    wa = band(sAlong, 0, c.length_m, c.fade_m ?? 40) * smooth01(sd * dY / 20 + 1);
+  } else return null;
+  if (off <= 0 || wa <= 0) return null;
+  const run = Math.max(0, (D - d0) / gr), wo = 1 - smooth01((off - run - (c.front_w ?? 40)) / (c.front_fade ?? 30));
+  return wo > 0 ? { t: Math.min(D, d0 + gr * off), w: wa * wo } : null;
+}
+function withFronts(fronts, x, y, d, base) {
+  const shore = smooth01((base - 2) / 3);
+  if (shore <= 0) return d;
+  for (const c of fronts) { const f = frontAt(c, x, y); if (f && f.t > d) d += shore * f.w * (f.t - d); }
+  return d;
+}
 function polyDist(P, x, y) {
   let best = Infinity;
   for (let k = 0; k + 1 < P.length; k++) {
@@ -209,7 +237,7 @@ export function buildDepth(components, grid = makeGrid(), coast = null) {
   const baseGrid = new Float32Array(M * N), floorGrid = new Float32Array(M * N);
   let depth = new Float32Array(M * N);
   const shallow = components.filter((c) => c.type !== 'channel'), chans = components.filter((c) => c.type === 'channel');
-  const floors = shallow.filter((c) => c.floor), pieces = shallow.filter((c) => !c.floor);
+  const floors = shallow.filter((c) => c.floor), pieces = shallow.filter((c) => !c.floor), fronts = shallow.filter((c) => c.front_m > 0);
   for (let j = 0; j < N; j++) {
     const y = y0 + (j + 0.5) * dx;
     for (let i = 0; i < M; i++) {
@@ -222,7 +250,9 @@ export function buildDepth(components, grid = makeGrid(), coast = null) {
       let d = base;
       for (const c of floors) d = Math.min(d, compDepth(c, fx, y, base, fgrid));
       floorGrid[j * M + i] = d; // (the smooth part: the coast and the bay floor, for fineDepthAt)
-      for (const c of pieces) d = Math.min(d, compDepth(c, x, y, base, fgrid));
+      const df = fronts.length ? withFronts(fronts, x, y, d, base) : d, pb = df > d ? Math.max(base, df) : base; // (deep water in front: the floor deepened first)
+      d = df;
+      for (const c of pieces) d = Math.min(d, compDepth(c, x, y, pb, fgrid));
       depth[j * M + i] = withChannels(chans, x, y, d);
     }
   }
@@ -243,7 +273,7 @@ export function buildDepth(components, grid = makeGrid(), coast = null) {
     }
   }
   grid.depth = depth;
-  grid.fine = { baseGrid, floorGrid, pieces, chans, fgrid }; // (fineDepthAt)
+  grid.fine = { baseGrid, floorGrid, pieces, fronts, chans, fgrid }; // (fineDepthAt)
   return grid;
 }
 // (channels deepen: along a polyline, `depth_m` across `width_m`, easing out over `fade_m`)
@@ -260,7 +290,7 @@ function withChannels(chans, x, y, d) {
 // is as good). Exact for a grid built without smoothing (blend 0: Sharp edges); in the offshore strip and the side margins
 // (eased afterwards) it reads the grid's own depth.
 export function fineDepthAt(grid) {
-  const { M, N, dx, x0, y0, flatTo, edge, depth } = grid, { baseGrid, floorGrid, pieces, chans, fgrid } = grid.fine;
+  const { M, N, dx, x0, y0, flatTo, edge, depth } = grid, { baseGrid, floorGrid, pieces, fronts = [], chans, fgrid } = grid.fine;
   const lerp = (A, x, y) => {
     const fi = Math.min(M - 1.001, Math.max(0, (x - x0) / dx - 0.5)), fj = Math.min(N - 1.001, Math.max(0, (y - y0) / dx - 0.5));
     const i = Math.floor(fi), j = Math.floor(fj), ti = fi - i, tj = fj - j, k = j * M + i;
@@ -269,9 +299,10 @@ export function fineDepthAt(grid) {
   const yLo = y0 + edge, yHi = y0 + N * dx - edge;
   return (x, y) => {
     if (x < flatTo || y < yLo || y > yHi) return lerp(depth, x, y); // (as buildDepth eases them: x < flatTo, the side margins)
-    const base = lerp(baseGrid, x, y);
-    let d = lerp(floorGrid, x, y);
-    for (const c of pieces) d = Math.min(d, compDepth(c, x, y, base, fgrid));
+    const base = lerp(baseGrid, x, y), d0 = lerp(floorGrid, x, y);
+    let d = fronts.length ? withFronts(fronts, x, y, d0, base) : d0;
+    const pb = d > d0 ? Math.max(base, d) : base;
+    for (const c of pieces) d = Math.min(d, compDepth(c, x, y, pb, fgrid));
     return withChannels(chans, x, y, d);
   };
 }

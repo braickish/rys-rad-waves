@@ -12,7 +12,7 @@ import { encodeBuilt, BUILT_KEY, outfitFor } from '../waves/built.js';
 import { funPayload } from './fun.js';
 import { startMyBreaks } from './my-breaks.js';
 let breaks = null;
-import { BLOCKS, SNAP, ARM_ANGLES, ARM_LENGTHS, ARM_SLOPES, BAR_CRESTS, DEPTHS, DEPTH_RANGE, TOP_DEPTH, depthMin, depthForSize, SIZES, BACKS, slopeName, blockLength, ROTATIONS, reefComponents, newBlock, dynamicPreset, beachPreset, stackedPreset, pipelinePreset, PIPELINE, armRot, nearestArm } from './blocks.js';
+import { BLOCKS, SNAP, ARM_ANGLES, ARM_LENGTHS, ARM_SLOPES, BAR_CRESTS, DEPTHS, DEPTH_RANGE, TOP_DEPTH, depthMin, depthForSize, SIZES, BACKS, FRONTS, slopeName, blockLength, ROTATIONS, reefComponents, newBlock, dynamicPreset, beachPreset, stackedPreset, pipelinePreset, PIPELINE, armRot, nearestArm } from './blocks.js';
 
 const canvas = document.getElementById('map'), ctx = canvas.getContext('2d');
 // Heights and lengths are shown in feet (the user, 2026-11-22); the model works in metres underneath.
@@ -581,6 +581,7 @@ function showSel() {
   }
   el.appendChild(opt('Size', SIZES.map(([z]) => z), b.size || 1, (v) => SIZES.find(([z]) => z === v)[1], (v) => { b.depth = depthForSize(b, v); b.size = v; if (b.type === 'peak') for (const q of state.blocks) if ((q.type === 'arm' || q.type === 'ledge') && q.x === b.x && q.y === b.y) { q.depth = depthForSize(q, v); q.size = v; } })); // (a peak's size goes to its arms too; the depths stay put)
   if (b.type === 'peak' || b.type === 'arm') el.appendChild(opt('Behind', BACKS.map(([k]) => k), b.back || 'flat', (v) => BACKS.find(([k]) => k === v)[1], (v) => { b.back = v; if (b.type === 'peak') for (const q of state.blocks) if (q.type === 'arm' && q.x === b.x && q.y === b.y) q.back = v; })); // (a lagoon behind: broken waves reform and break again inside; a peak's goes to its arms)
+  if (b.type === 'peak' || b.type === 'arm') el.appendChild(opt('In front', FRONTS.map(([d]) => d), b.front || 0, (v) => FRONTS.find(([d]) => d === v)[1], (v) => { b.front = v; if (b.type === 'peak') for (const q of state.blocks) if (q.type === 'arm' && q.x === b.x && q.y === b.y) q.front = v; })); // (deep water in front: the face keeps its height; a peak's goes to its arms)
   if (b.type !== 'sandbar') el.appendChild(depthSlider(b)); // (deeper reefs for big swells)
   if (b.type === 'sandbar') el.appendChild(opt('Crest', BAR_CRESTS.map(([d]) => d), b.crest, (v) => BAR_CRESTS.find(([d]) => d === v)[1], (v) => { b.crest = v; }));
   const del = document.createElement('button'); del.className = 'danger'; del.textContent = 'Remove'; del.style.marginTop = '8px';
