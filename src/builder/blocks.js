@@ -98,9 +98,18 @@ export function nearestArm(blocks, x, y, near = 35) {
 // starts suddenly and the wave changes suddenly there. The builder defaults to sharp (ui.js); called without it (the tests, the
 // survey, Dynamic's checks against FUNWAVE) it's soft, as before.
 export const EDGE_FADE = { soft: { piece: 1, channel: 1 }, sharp: { piece: 0.25, channel: 0.4 } };
+// Sharp is sharp at any Size (the user, 2026-11-28: a 2.5x peak still came out rounded and soft on Sharp): its edge fade
+// isn't scaled up with the block (a 2.5x block's was 25 m, not 10), and a peak's tip is a point (5 m), not a 20 m round
+// that Size made 50.
+export const SHARP_TIP_M = 5;
 export const reefComponents = (blocks, deep = false, edges = 'soft') => {
-  const k = EDGE_FADE[edges] || EDGE_FADE.soft, comps = blocks.flatMap(blockComponents);
-  if (k !== EDGE_FADE.soft) for (const c of comps) c.fade_m = c.type === 'channel' ? (c.fade_m ?? 20) * k.channel : (c.fade_m ?? 40) * k.piece;
+  const k = EDGE_FADE[edges] || EDGE_FADE.soft;
+  const comps = blocks.flatMap((b) => blockComponents(b).map((c) => (k === EDGE_FADE.soft ? c : { ...c, z: b.size || 1 })));
+  if (k !== EDGE_FADE.soft) for (const c of comps) {
+    c.fade_m = c.type === 'channel' ? (c.fade_m ?? 20) / c.z * k.channel : (c.fade_m ?? 40) / c.z * k.piece;
+    if (c.type === 'focus') c.tip_radius_m = SHARP_TIP_M;
+    delete c.z;
+  }
   return [...(deep ? FLOOR_DEEP : FLOOR), ...comps];
 };
 
